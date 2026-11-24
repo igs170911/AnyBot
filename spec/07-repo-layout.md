@@ -119,6 +119,7 @@ anybot/
 | `apps/server` | `runner`、`models`、`tools`、`computers`、`mcp`、`external-agents`（伺服器 API 不跑腦，A1） |
 | `apps/runner-service`、`apps/agent` | `server`、`store-server`（它們是 API 的客戶端，不直接碰伺服器資料庫） |
 | `apps/cli` | `server`、`store-server` |
+| `apps/desktop`（Tauri 殼） | `server`、`store-server`、`runner`、`models`、`tools`、`computers`、`mcp`、`external-agents`（視窗只是畫面，做事的是背景程式 `apps/agent`，`06` §2.4） |
 
 ## 4. repo 本身
 
