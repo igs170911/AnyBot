@@ -15,7 +15,7 @@
 
 ## 二、寫程式的四條鐵律（使用者定的，`spec/05` §2a、`spec/09` K75–K78）
 
-1. **檢查擋下來的不能關掉，要修到過。** 程式碼裡不准出現 `#[allow`、`#[expect`、`biome-ignore`、`@ts-ignore`、`@ts-expect-error`。改程式讓它通過，不是改檢查讓它閉嘴。`spec/07` §3 規定的套件豁免，寫在那個套件自己的 `clippy.toml`。例外清單只准一條：RUSTSEC-2024-0370。
+1. **檢查擋下來的不能關掉，要修到過。** 程式碼裡不准出現 `#[allow`、`#[expect`、`biome-ignore`、`@ts-ignore`、`@ts-expect-error`。改程式讓它通過，不是改檢查讓它閉嘴。`spec/07` §3 規定的套件豁免，寫在那個套件自己的 `clippy.toml`。例外只准兩條（`spec/09` K76、K82）：RUSTSEC-2024-0370；桌面殼產生 Tauri context 的小套件不套 `exit` 規則。其他每個套件都完整繼承 workspace 的 lint。
 2. **檔案要小。** 每個原始碼檔案最多 300 行、每個函式最多 60 行。快超過就拆，不要寫成一個大檔。
 3. **不寫註解，程式即註解。** 用好的名字、小的函式、清楚的型別表達意思。產生出來的檔案除外。
 4. **測試用名稱標出它驗的規格編號**：Rust 測試函式叫 `t_chat_steer_1`（`spec/10-behavior/` 的 `T-chat-steer-1`，`-` 換成 `_`）；TypeScript 測試標題開頭寫 `T-chat-steer-1`。
@@ -40,6 +40,8 @@ Rust stable、edition 2024；tokio、axum、sqlx、utoipa、reqwest（rustls）�
 照 `docs/plan.md` 開頭的「每個功能里程碑的完成條件」：規格測試、三層測試（單元、整合、端對端）、API 文件、四條鐵律加上 `make check`、回報。缺一項就不算完成。
 
 ## 六、回報格式（每個里程碑結束都要寫）
+
+**回報必須跟實際的檔案一致。** 寫了「做了什麼」，檔案裡就要真的是那樣；審查的人會逐項對照。
 
 用繁體中文：
 1. 做了什麼（照任務的項目逐條）。
