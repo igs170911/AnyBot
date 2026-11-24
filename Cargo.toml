@@ -2,7 +2,12 @@
 resolver = "2"
 members = [
     "crates/*",
-    "apps/*",
+    # apps/* 的 glob 會掃到 apps/desktop（前端目錄，沒有 Cargo.toml），所以執行檔逐個列出來。
+    "apps/server",
+    "apps/runner-service",
+    "apps/agent",
+    "apps/cli",
+    "apps/desktop/src-tauri",
     "tools/*",
 ]
 

@@ -1,0 +1,20 @@
+{
+  "name": "@anybot/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "由 api/openapi.yaml 產生的 API 客戶端（M2 只有骨架）。見 spec/06 §2.4。",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}

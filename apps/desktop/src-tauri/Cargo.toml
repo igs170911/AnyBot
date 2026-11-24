@@ -1,0 +1,19 @@
+[package]
+name = "anybot-app-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot 桌面殼（Tauri 2）：視窗只是畫面，做事的是 apps/agent（spec/06 §2.4、spec/07 §3）"
+
+[[bin]]
+name = "anybot-desktop"
+path = "src/main.rs"
+
+[dependencies]
+tauri = { version = "2", default-features = false, features = ["wry", "tray-icon"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[lints]
+workspace = true

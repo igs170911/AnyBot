@@ -1,0 +1,19 @@
+{
+  "name": "anybot-next",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AnyBot 新版：pnpm 工作區（畫面與 API 客戶端）。規格見 spec/07 §2。",
+  "packageManager": "pnpm@12.23.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.9"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --no-bail typecheck",
+    "test": "pnpm -r --no-bail test",
+    "build": "pnpm -r --no-bail build",
+    "format": "biome format --write ."
+  }
+}

@@ -2,5 +2,7 @@ target/
 node_modules/
 .DS_Store
 dist/
-pnpm-lock.yaml
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+coverage/
 *.log

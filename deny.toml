@@ -26,6 +26,11 @@ license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 [advisories]
 version = 2
+# Tauri 2（apps/desktop，Linux 側）經 glib-macros 拉到 proc-macro-error：
+# 那顆套件「維護者失蹤」的 advisory 沒有可用的升級（tauri 那一側還沒換掉），
+# 它是唯讀的 proc-macro 輔助、不碰網路和金鑰，先記錄原因後放過。
+# （M2：桌面殼是 Tauri 2，`spec/06` §2.4）
+ignore = ["RUSTSEC-2024-0370"]
 
 [bans]
 multiple-versions = "warn"

@@ -108,6 +108,17 @@ pub fn disallowed_app_deps(app: &str) -> Vec<&'static str> {
         ],
         // 執行服務也是 API 的客戶端：不直接碰伺服器資料庫。
         "runner-service" | "agent" | "cli" => vec!["server", "store-server"],
+        // 桌面殼只是畫面（spec/07 §3 2026-11-24 補）：做事的是背景程式 apps/agent。
+        "desktop" => vec![
+            "server",
+            "store-server",
+            "runner",
+            "models",
+            "tools",
+            "computers",
+            "mcp",
+            "external-agents",
+        ],
         _ => vec![],
     }
 }
@@ -450,6 +461,31 @@ mod tests {
             !v.iter()
                 .any(|s| s.contains("anybot-app-server 依賴 anybot-server"))
         );
+    }
+
+    #[test]
+    fn test_depcheck_desktop_shell_only_a_window() {
+        // 桌面殼只是畫面（spec/07 §3）：不准依賴 server、store-server、runner、models、
+        // tools、computers、mcp、external-agents；只准加真的用到的。
+        let meta = Metadata {
+            packages: vec![pkg(
+                "anybot-app-desktop",
+                &[
+                    "anybot-server",
+                    "anybot-store-server",
+                    "anybot-runner",
+                    "anybot-models",
+                    "anybot-tools",
+                    "anybot-computers",
+                    "anybot-mcp",
+                    "anybot-external-agents",
+                    "anybot-foundation",
+                ],
+            )],
+        };
+        let v = check_metadata_value(&meta);
+        assert_eq!(v.len(), 8);
+        assert!(v.iter().all(|s| s.contains("anybot-app-desktop")));
     }
 
     #[test]

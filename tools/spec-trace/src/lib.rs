@@ -1,8 +1,14 @@
 //! spec-trace · 讀 `spec/10-behavior/[1-6]-*.md` 的測試編號表，掃**產品程式碼**
 //! （`crates/`、`apps/`、`tests/`、`web/`、`adapters/`）的 `spec: T-…` 標記
-//! （只認註解，字串裡的不算；`tools/` 的工程工具不掃，測試不標編號、也不算覆蓋）。
+//! （只認註解，字串裡的不算；Rust 的 `//`/`///`、TypeScript 的 `//`/`/* … */`；
+//! `tools/` 的工程工具不掃，測試不標編號、也不算覆蓋）。
 //! 用 `tools/spec-trace/baseline.txt` 記「還沒有測試的編號」；缺失時關卡直接失敗，
 //! 產生基準檔是明確指令 `make spec-baseline`。規則見 `docs/tasks/M1` 第 3 項、`spec/05` §2。
+//!
+//! `--against <git ref>`（M2 第 5 項）：基準檔**只能變短**。跟那個 ref 的基準檔比，
+//! 多出來的編號只准是規格在這段變更裡新增的；其他多出來的一律擋
+//! （例如「刪掉一個測試、把編號塞回基準檔」會被擋）。`make check` 本機跟 `HEAD` 比，
+//! CI 跟主分支的分岔點比。
 //!
 //! 這是開發工具，不是產品程式碼：讀 repo 的檔是它的本職，clippy 禁用清單在這裡打開。
 
@@ -61,6 +67,41 @@ pub fn write_baseline(ids: &BTreeSet<String>) -> String {
 pub fn generate_baseline(spec_ids: &BTreeSet<String>, code_ids: &BTreeSet<String>) -> String {
     let fresh: BTreeSet<String> = spec_ids.difference(code_ids).cloned().collect();
     write_baseline(&fresh)
+}
+
+/// 程式碼標記（TypeScript）：`// spec: T-…`，或整行是 `/* spec: T-… */`。
+/// 字串裡出現的不算（照 Rust 那一側同樣的规矩）。
+///
+/// # Errors
+///
+/// 樣式編譯失敗時回傳說明字串。
+pub fn code_ids_from_ts_source(content: &str) -> Result<BTreeSet<String>, String> {
+    use regex::Regex;
+    let re = Regex::new(r"(?m)^[ \t]*(?://|/\*)[ \t]*spec:[ \t]*(T-[A-Za-z0-9_-]+)")
+        .map_err(|e| format!("TypeScript 標記樣式解析失敗：{e}"))?;
+    Ok(re.captures_iter(content).map(|c| c[1].to_owned()).collect())
+}
+
+/// 基準檔「只能變短」：跟某個 git ref 的基準檔比。
+/// `new_spec_ids` = 規格在這段變更裡**新增**的編號（ref 沒有、現在有）。
+/// 多進基準檔的編號只准是那些新增的；其他多出來的一律擋
+/// （刪掉一個測試、把編號塞回基準檔，就在這裡被擋）。
+/// 變短（ref 有、現在沒有）一律准許。
+#[must_use]
+pub fn check_baseline_against_ref(
+    current: &BTreeSet<String>,
+    ref_baseline: &BTreeSet<String>,
+    new_spec_ids: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut violations = Vec::new();
+    for id in current.difference(ref_baseline) {
+        if !new_spec_ids.contains(id) {
+            violations.push(format!(
+                "{id} 是基準檔新塞進來的（ref 的基準檔沒有它），但它不是這段變更裡規格新增的編號：基準檔只能變短，刪掉的測試不能把編號塞回來（M2 第 5 項）"
+            ));
+        }
+    }
+    violations
 }
 
 /// 一次檢查的回報。
@@ -228,5 +269,44 @@ mod tests {
         );
         assert!(g.contains("T-chat-steer-2"));
         assert!(!g.contains("T-chat-steer-1"));
+    }
+
+    #[test]
+    fn test_spec_trace_ts_markers_in_comments_only() {
+        // TypeScript：`//` 和 `/* … */` 的標記算；字串裡出現的不算。
+        let ts = "// spec: T-chat-steer-1\n\
+                  /* spec: T-chat-steer-2 */\n\
+                  const demo = \"// spec: T-chat-steer-3 在字串裡\";\n";
+        let ids = code_ids_from_ts_source(ts).unwrap();
+        assert!(ids.contains("T-chat-steer-1"));
+        assert!(ids.contains("T-chat-steer-2"));
+        assert!(!ids.contains("T-chat-steer-3"));
+    }
+
+    #[test]
+    fn test_spec_trace_against_ref_allows_shrink_and_new_spec_ids() {
+        // 變短准許；規格這段變更新增的編號准許塞進基準檔。
+        let v = check_baseline_against_ref(
+            &set(&["T-chat-steer-2"]),
+            &set(&["T-chat-steer-1", "T-chat-steer-2", "T-chat-steer-3"]),
+            &set(&["T-chat-steer-4"]),
+        );
+        assert_eq!(v, Vec::<String>::new());
+        let v2 = check_baseline_against_ref(
+            &set(&["T-chat-steer-1", "T-chat-steer-4"]),
+            &set(&["T-chat-steer-1"]),
+            &set(&["T-chat-steer-4"]),
+        );
+        assert_eq!(v2, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_spec_trace_against_ref_blocks_stuffed_back_id() {
+        // 刪掉一個測試、把編號塞回基準檔：ref 的基準檔沒有它（因為ref 時它有測試），
+        // 它也不是這段變更新增的規格編號 → 擋。
+        let v = check_baseline_against_ref(&set(&["T-chat-steer-1"]), &set(&[]), &set(&[]));
+        assert_eq!(v.len(), 1);
+        assert!(v[0].contains("T-chat-steer-1"));
+        assert!(v[0].contains("只能變短"));
     }
 }

@@ -8,7 +8,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 基準比對要算分岔點，所以要把歷史抓完整。
+          fetch-depth: 0
       # 工具鏈版本由 rust-toolchain.toml 鎖住；這裡只補關卡要用的元件和工具。
       - run: rustup component add rustfmt clippy
       - run: cargo install --locked cargo-deny cargo-machete cargo-nextest
+      # TypeScript 關卡（M2 第 3 項）：pnpm 工作區。
+      - run: npm install -g pnpm
+      # Tauri 2 的 Rust 部分（apps/desktop/src-tauri）在 Linux 上要 WebKitGTK 等系統套件
+      # （spec/06 §2.4：Linux 的 WebKitGTK 要多測）。
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            librsvg2-dev \
+            build-essential \
+            curl wget file \
+            libssl-dev
+      # spec-trace 的基準檔「只能變短」比對：CI 跟主分支的分岔點比
+      # （本機 make check 跟 HEAD 比，見 Makefile 的 SPEC_TRACE_REF）。
+      - run: |
+          git fetch origin main
+          BASE=$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD)
+          echo "SPEC_TRACE_REF=$BASE" >> "$GITHUB_ENV"
       - run: make check
