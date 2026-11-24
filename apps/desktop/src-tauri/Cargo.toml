@@ -11,6 +11,7 @@ name = "anybot-desktop"
 path = "src/main.rs"
 
 [dependencies]
+anybot-app-desktop-context = { path = "../context", version = "0.1.0" }
 tauri = { version = "2", default-features = false, features = ["wry", "tray-icon"] }
 
 [build-dependencies]
@@ -19,5 +20,5 @@ tauri-build = { version = "2", features = [] }
 
 
 
-[lints.clippy]
-exit = "allow"
+[lints]
+workspace = true

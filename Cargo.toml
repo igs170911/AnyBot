@@ -8,6 +8,7 @@ members = [
     "apps/agent",
     "apps/cli",
     "apps/desktop/src-tauri",
+    "apps/desktop/context",
     "tools/*",
 ]
 

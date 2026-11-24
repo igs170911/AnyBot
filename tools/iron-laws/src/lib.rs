@@ -5,6 +5,7 @@ pub mod collect;
 pub mod comments;
 pub mod deny_limits;
 pub mod lines;
+pub mod lints;
 pub mod suppressions;
 pub mod table;
 
@@ -24,6 +25,7 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
         &clippy_tomls::root_config(repo),
         &collect::clippy_toml_files(repo),
     ));
+    out.extend(lints::violations(repo));
     out.sort();
     out
 }

@@ -89,7 +89,7 @@ pub fn disallowed_app_deps(app: &str) -> Vec<&'static str> {
             "external-agents",
         ],
         "runner-service" | "agent" | "cli" => vec!["server", "store-server"],
-        "desktop" => vec![
+        "desktop" | "desktop-context" => vec![
             "server",
             "store-server",
             "runner",

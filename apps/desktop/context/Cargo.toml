@@ -1,0 +1,53 @@
+[package]
+publish = false
+name = "anybot-app-desktop-context"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "產生 Tauri context 的小套件：只有它不套 exit 規則（spec/09 K82）"
+
+[dependencies]
+tauri = { version = "2", default-features = false, features = ["wry", "tray-icon"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_crate_dependencies = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+let_underscore_drop = "warn"
+[lints.clippy]
+all = { level = "warn", priority = -2 }
+pedantic = { level = "warn", priority = -2 }
+missing_errors_doc = { level = "allow", priority = -1 }
+missing_panics_doc = { level = "allow", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+arithmetic_side_effects = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+mem_forget = "deny"
+indexing_slicing = "deny"
+string_slice = "deny"
+get_unwrap = "deny"
+unwrap_in_result = "deny"
+wildcard_enum_match_arm = "deny"
+let_underscore_untyped = "deny"
+let_underscore_must_use = "deny"
+clone_on_ref_ptr = "deny"
+rc_buffer = "deny"
+float_cmp_const = "deny"
+lossy_float_literal = "deny"
+cognitive_complexity = "deny"
+too_many_lines = "deny"

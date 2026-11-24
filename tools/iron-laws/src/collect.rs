@@ -23,7 +23,8 @@ pub fn read_file_lossy(path: &Path) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&buf).into_owned())
 }
 
-fn dir_name(path: &Path) -> Option<String> {
+#[must_use]
+pub fn dir_name(path: &Path) -> Option<String> {
     Some(path.file_name()?.to_str()?.to_owned())
 }
 
@@ -65,7 +66,8 @@ pub fn source_files(repo: &Path) -> Vec<(String, String)> {
     out
 }
 
-fn path_to_rel(path: &Path, repo: &Path) -> Option<String> {
+#[must_use]
+pub fn path_to_rel(path: &Path, repo: &Path) -> Option<String> {
     Some(
         path.to_str()?
             .strip_prefix(&format!("{}/", repo.to_str()?))?
