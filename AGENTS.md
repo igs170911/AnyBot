@@ -9,26 +9,33 @@
 2. **規格沒寫的行為，不要猜。** 不要憑印象補「舊版大概怎麼做」。寫進回報的「要問的問題」。
 3. **`spec/09-decisions.md` 是最終決定。** 跟其他文件不一致時，以它為準。
 4. **不 push、不建遠端 repo。** 只在本地 commit；每個里程碑做完、`make check` 全綠後 commit 一次，訊息用繁體中文寫做了什麼。
-5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`。要裝別的先停下來回報。
+5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`；`brew install gitleaks`。要裝別的先停下來回報。
 6. **不放任何金鑰、帳號、個人資料進 repo。** 新版也不讀環境變數做設定（`spec/02` A10）。
 7. **暫存檔、紀錄檔一律放在 repo 的 `target/` 裡**（已經在 `.gitignore`），不要寫到 `/tmp` 或其他地方。
 
-## 二、開發原則（`spec/05` 摘要）
+## 二、寫程式的四條鐵律（使用者定的，`spec/05` §2a、`spec/09` K75–K78）
+
+1. **檢查擋下來的不能關掉，要修到過。** 程式碼裡不准出現 `#[allow`、`#[expect`、`biome-ignore`、`@ts-ignore`、`@ts-expect-error`。改程式讓它通過，不是改檢查讓它閉嘴。`spec/07` §3 規定的套件豁免，寫在那個套件自己的 `clippy.toml`。例外清單只准一條：RUSTSEC-2024-0370。
+2. **檔案要小。** 每個原始碼檔案最多 300 行、每個函式最多 60 行。快超過就拆，不要寫成一個大檔。
+3. **不寫註解，程式即註解。** 用好的名字、小的函式、清楚的型別表達意思。產生出來的檔案除外。
+4. **測試用名稱標出它驗的規格編號**：Rust 測試函式叫 `t_chat_steer_1`（`spec/10-behavior/` 的 `T-chat-steer-1`，`-` 換成 `_`）；TypeScript 測試標題開頭寫 `T-chat-steer-1`。
+
+## 三、開發原則（`spec/05` 摘要）
 
 - **能用工具擋的就用工具擋，不靠感覺。**
 - **「完成」＝`make check` 全綠，而且這次相關的規格測試都通過。** 沒到這個狀態，不要回報「完成」。
 - **邊寫邊跑 `make check-fast`**（有了之後）：每改完一批就跑，錯了當場修，不要累積到最後。
 - **依賴方向**照 `spec/07` §3，由 `tools/` 裡的檢查工具擋。
 - **禁用的寫法**照 `spec/07` §3，由 clippy 的禁用清單擋：讀環境變數、執行外部程式、發 HTTP、讀寫任意檔案，只准在指定的套件。
-- 正式程式碼裡不准 `unwrap`、`expect`、`panic!`；測試裡可以。
-- **測試要標出它驗的是哪個規格測試**，例如在測試上一行寫 `// spec: T-chat-steer-1`。追蹤表檢查會比對 `spec/10-behavior/` 裡的編號。
+- 正式程式碼裡不准 `unwrap`、`expect`、`panic!`；測試裡可以（靠 `clippy.toml` 的測試設定，不是在程式碼裡關掉）。
 - 金鑰一律用專用型別：不能印、不能直接序列化。
+- **`spec/` 是唯讀的**：任何人、任何工具都不准改 `spec/` 底下的檔案（包括格式化工具）。
 
-## 三、技術選型（`spec/06`）
+## 四、技術選型（`spec/06`）
 
 Rust stable、edition 2024；tokio、axum、sqlx、utoipa、reqwest（rustls）、thiserror／anyhow、tracing。TypeScript strict、React＋Vite、Biome、Vitest、Playwright；pnpm workspace；桌面 Tauri 2。伺服器資料庫 PostgreSQL，客戶端 SQLite。
 
-## 四、回報格式（每個里程碑結束都要寫）
+## 五、回報格式（每個里程碑結束都要寫）
 
 用繁體中文：
 1. 做了什麼（照任務的項目逐條）。
