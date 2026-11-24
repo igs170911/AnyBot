@@ -10,7 +10,6 @@ name = "anybot-runner-service"
 path = "src/main.rs"
 
 [dependencies]
-anybot-protocol = { workspace = true }
 clap = { workspace = true }
 [lints]
 workspace = true

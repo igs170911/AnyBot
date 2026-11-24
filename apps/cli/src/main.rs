@@ -4,7 +4,6 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
-use anybot_foundation::now_epoch_seconds;
 use clap::Command;
 
 fn main() {
@@ -14,7 +13,6 @@ fn main() {
         .version(env!("CARGO_PKG_VERSION"))
         .about("AnyBot 命令列：安裝、遷移、診斷（骨架）")
         .get_matches();
-    // M1 骨架：用到 foundation 證明依賴方向接好。
-    let _ = (name, matches, now_epoch_seconds());
+    let _ = (name, matches);
     println!("{bin} {} (M1 骨架，沒有功能)", env!("CARGO_PKG_VERSION"));
 }

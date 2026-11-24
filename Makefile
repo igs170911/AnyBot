@@ -4,7 +4,7 @@
 CARGO ?= cargo
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 
-.PHONY: check fmt clippy test deny machete depcheck spec-trace
+.PHONY: check fmt clippy test deny machete depcheck spec-trace spec-baseline
 
 check: fmt clippy test deny machete depcheck spec-trace
 
@@ -32,3 +32,7 @@ depcheck:
 
 spec-trace:
 	$(CARGO) run --locked -p spec-trace
+
+# 明確指令：重新產生 spec-trace 基準檔（CI 不跑；只有人要重新產生時跑）。
+spec-baseline:
+	$(CARGO) run --locked -p spec-trace -- --write-baseline

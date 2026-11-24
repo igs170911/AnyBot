@@ -10,7 +10,6 @@ name = "anybot"
 path = "src/main.rs"
 
 [dependencies]
-anybot-foundation = { workspace = true }
 clap = { workspace = true }
 [lints]
 workspace = true

@@ -21,6 +21,6 @@ pub struct ServerRecord {
 
 /// 骨架階段沒有連線函式；設定缺少的錯誤沿用 foundation 的型別。
 #[must_use]
-pub fn placeholder_missing_database_url() -> FoundationError {
-    FoundationError::ConfigMissing("ANYBOT_DATABASE_URL")
+pub fn placeholder_missing_bootstrap() -> FoundationError {
+    FoundationError::ConfigMissing("--bootstrap")
 }

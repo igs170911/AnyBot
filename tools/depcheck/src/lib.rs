@@ -1,7 +1,16 @@
-//! depcheck · 讀 `cargo metadata`，照 `spec/07` §3 的表檢查依賴方向。
+//! depcheck · 讀 `cargo metadata` 檢查依賴方向（`spec/07` §3 的准許表），
+//! 還有 domain 的外部依賴禁止（網路、檔案、資料庫、非同步）、
+//! `apps/` 執行檔的「不准依賴」表（2026-11-24 補）。
 //!
-//! 這是開發工具，不是產品程式碼：跑 cargo、讀 repo 的檔是它的本職，
-//! 所以 clippy.toml 的禁用清單在這裡打開（depcheck 自己的規則只管 crates/ 和 apps/）。
+//! 也掃 source 檔：
+//! * clippy.toml 的禁用（執行外部程式、發 HTTP、讀寫任意檔案）只准在指定套件，
+//!   `allow(clippy::disallowed_methods|types)` 出现在准許以外的套件就擋。
+//! * 讀環境變數在任何地方都不准（`spec/07` §3 2026-11-24 修正）：
+//!   `crates/`、`apps/` 出現 `env::var`、`env::vars`、`env::var_os`、`env::vars_os`
+//!   的文字就擋（套件層級的 allow 分不出類別，用文字檢查補）。
+//!   `tools/` 的工程工具不受這條管；命令列參數可以讀。
+//!
+//! 這是開發工具，不在產品依賴圖裡：跑 cargo、讀 repo 是它的本職。
 
 #![forbid(unsafe_code)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
@@ -9,7 +18,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-/// 內部套件准許依賴的內部套件（`spec/07` §3 的表；鍵用 Cargo 的 package 名）。
+/// 准許的內部依賴表（`spec/07` §3）。key = package 名，value = 准許的內部 package 名。
+/// `models`、`tools`、`computers`、`mcp`「彼此不互相依賴」由准許清單（不含彼此）達成。
 #[must_use]
 pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
     let mut m = BTreeMap::new();
@@ -76,18 +86,34 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
         "migrate-old",
         &["foundation", "protocol", "domain", "store-client"],
     );
-    // 執行檔：main 極簡，只接對應的函式庫套件（`spec/07` §2、§3 的「執行服務也是 API 的客戶端」）。
-    add("app-server", &["server"]);
-    add("app-runner-service", &["protocol"]);
-    add("app-agent", &["sync"]);
-    add("app-cli", &["foundation"]);
     // 檢查工具：不依賴任何產品套件。
     m.insert("depcheck".to_owned(), BTreeSet::new());
     m.insert("spec-trace".to_owned(), BTreeSet::new());
     m
 }
 
+/// 執行檔（`apps/`）的「不准依賴」表（`spec/07` §3 2026-11-24 補）。
+/// key = apps/ 底下的目錄名。
+#[must_use]
+pub fn disallowed_app_deps(app: &str) -> Vec<&'static str> {
+    match app {
+        // 伺服器 API 不跑腦（A1）。
+        "server" => vec![
+            "runner",
+            "models",
+            "tools",
+            "computers",
+            "mcp",
+            "external-agents",
+        ],
+        // 執行服務也是 API 的客戶端：不直接碰伺服器資料庫。
+        "runner-service" | "agent" | "cli" => vec!["server", "store-server"],
+        _ => vec![],
+    }
+}
+
 /// domain 不准依賴的外部套件名：碰網路、檔案、資料庫、非同步執行環境的（`spec/07` §3）。
+#[must_use]
 pub fn forbidden_external_for_domain() -> BTreeSet<String> {
     [
         "tokio",
@@ -107,10 +133,15 @@ pub fn forbidden_external_for_domain() -> BTreeSet<String> {
     .collect()
 }
 
-/// `allow(clippy::disallowed_methods)` / `disallowed_types` 准許出現的 package（`spec/07` §3 的四列＋開發工具本身）。
+/// 准許打開 `allow(clippy::disallowed_methods|types)` 的 package。
+/// 照 `spec/07` §3：執行外部程式→computers、發 HTTP→models/mcp/sync/channels/computers、
+/// 讀寫任意檔案→computers/blob/store-client，加上 foundation 只准讀 `--bootstrap`
+/// 啟動檔這一處（讀環境變數由上面的文字檢查另外擋，不靠 allow 分類別）。
+/// `tools/` 是開發工具，不在產品依賴圖裡，也允許。
+#[must_use]
 pub fn packages_allowed_exemptions() -> BTreeSet<String> {
     [
-        "anybot-foundation",   // 讀環境變數（准許的套件，而且只一處）
+        "anybot-foundation",   // 讀 --bootstrap 啟動檔（只這一處）
         "anybot-computers",    // 執行外部程式、發 HTTP、讀寫任意檔案
         "anybot-models",       // 發 HTTP
         "anybot-mcp",          // 發 HTTP
@@ -162,6 +193,30 @@ pub fn check_metadata_value(meta: &Metadata) -> Vec<String> {
         if pkg.source.is_some() {
             continue;
         }
+        let deps: BTreeSet<String> = pkg
+            .dependencies
+            .iter()
+            .filter(|d| d.kind.as_deref().unwrap_or("normal") == "normal")
+            .map(|d| d.name.clone())
+            .collect();
+        if let Some(app_dir) = pkg.name.strip_prefix("anybot-app-") {
+            // 執行檔：只加真的用到的；不准依賴表（spec/07 §3）。
+            for dep in &deps {
+                if dep == &pkg.name {
+                    violations.push(format!("{} 依賴自己（循環）", pkg.name));
+                    continue;
+                }
+                for dis in disallowed_app_deps(app_dir) {
+                    if *dep == format!("anybot-{dis}") {
+                        violations.push(format!(
+                            "{} 依賴 {dep}：執行檔不准依賴（spec/07 §3）",
+                            pkg.name
+                        ));
+                    }
+                }
+            }
+            continue;
+        }
         let Some(allow_set) = allowed.get(&pkg.name) else {
             violations.push(format!(
                 "{}：depcheck 沒有這條依賴規則，請照 spec/07 §3 補進 allowed_internal_deps",
@@ -169,20 +224,44 @@ pub fn check_metadata_value(meta: &Metadata) -> Vec<String> {
             ));
             continue;
         };
-        for dep in &pkg.dependencies {
-            if dep.kind.as_deref().unwrap_or("normal") != "normal" {
+        for dep in &deps {
+            if dep == &pkg.name {
+                violations.push(format!("{} 依賴自己（循環）", pkg.name));
                 continue;
             }
-            if internal.contains(&dep.name) && !allow_set.contains(&dep.name) {
+            if internal.contains(dep) && !allow_set.contains(dep) {
                 violations.push(format!(
-                    "{} 依賴 {}：准許清單裡沒有（spec/07 §3）",
-                    pkg.name, dep.name
+                    "{} 依賴 {dep}：准許清單裡沒有（spec/07 §3）",
+                    pkg.name
                 ));
             }
-            if pkg.name == "anybot-domain" && forbidden_external_for_domain().contains(&dep.name) {
+            if pkg.name == "anybot-domain" && forbidden_external_for_domain().contains(dep) {
                 violations.push(format!(
-                    "anybot-domain 依賴 {}：domain 不准碰網路、檔案、資料庫、非同步（spec/07 §3）",
-                    dep.name
+                    "anybot-domain 依賴 {dep}：domain 不准碰網路、檔案、資料庫、非同步（spec/07 §3）",
+                ));
+            }
+        }
+    }
+    violations
+}
+
+/// 讀環境變數在任何地方都不准（`spec/07` §3 2026-11-24 修正）。
+/// 套件層級的 `allow` 分不出是哪一類禁用，所以做文字檢查：
+/// `crates/`、`apps/` 的原始檔只要出現這四個寫法就一律擋
+/// （`tools/` 的工程工具不受這條管；命令列參數 `env::args` 可以讀）。
+#[must_use]
+pub fn env_usage_violations(files: &[(String, String)]) -> Vec<String> {
+    const PATS: [&str; 4] = ["env::var", "env::var_os", "env::vars", "env::vars_os"];
+    let mut violations = Vec::new();
+    for (path, content) in files {
+        if !(path.starts_with("crates/") || path.starts_with("apps/")) {
+            continue;
+        }
+        for (i, line) in content.lines().enumerate() {
+            if PATS.iter().any(|pat| line.contains(pat)) {
+                violations.push(format!(
+                    "{path}:{}：讀環境變數任何地方都不准（spec/07 §3）",
+                    i.saturating_add(1)
                 ));
             }
         }
@@ -204,7 +283,7 @@ pub fn package_of_path(path: &str) -> Option<String> {
     }
 }
 
-/// 扫檔案內容，找 `allow(clippy::disallowed_methods)`／`allow(clippy::disallowed_types)`
+/// 掃檔案內容，找 `allow(clippy::disallowed_methods)`／`allow(clippy::disallowed_types)`
 /// 出現在不准的套件 → 違規。
 #[must_use]
 pub fn scan_exemption_attrs(files: &[(String, String)]) -> Vec<String> {
@@ -329,6 +408,77 @@ mod tests {
         let v = scan_exemption_attrs(&files);
         assert_eq!(v.len(), 2);
         assert!(v.iter().any(|s| s.contains("crates/domain/src/lib.rs:1")));
+        assert!(v.iter().any(|s| s.contains("apps/cli/src/main.rs:1")));
+    }
+
+    #[test]
+    fn test_depcheck_app_dependency_table() {
+        // 執行檔不准依賴表（spec/07 §3）：apps/server 依賴 runner → 擋；
+        // apps/runner-service 依賴 server、store-server → 擋；正常的依賴不擋。
+        let meta = Metadata {
+            packages: vec![
+                pkg("anybot-app-server", &["anybot-runner", "anybot-server"]),
+                pkg(
+                    "anybot-app-runner-service",
+                    &["anybot-server", "anybot-store-server", "anybot-protocol"],
+                ),
+                pkg("anybot-app-agent", &["anybot-sync"]),
+                pkg("anybot-app-cli", &["anybot-store-server"]),
+            ],
+        };
+        let v = check_metadata_value(&meta);
+        assert!(
+            v.iter()
+                .any(|s| s.contains("anybot-app-server 依賴 anybot-runner"))
+        );
+        assert!(
+            v.iter()
+                .any(|s| s.contains("anybot-app-runner-service 依賴 anybot-server"))
+        );
+        assert!(
+            v.iter()
+                .any(|s| s.contains("anybot-app-runner-service 依賴 anybot-store-server"))
+        );
+        assert!(
+            v.iter()
+                .any(|s| s.contains("anybot-app-cli 依賴 anybot-store-server"))
+        );
+        // 正常依賴不擋：runner-service→protocol、agent→sync、apps/server→server 本身。
+        assert!(!v.iter().any(|s| s.contains("anybot-protocol")));
+        assert!(!v.iter().any(|s| s.contains("anybot-sync")));
+        assert!(
+            !v.iter()
+                .any(|s| s.contains("anybot-app-server 依賴 anybot-server"))
+        );
+    }
+
+    #[test]
+    fn test_depcheck_env_usage_text_check() {
+        // 讀環境變數任何地方都不准：crates/、apps/ 出現文字就擋；tools/ 不掃。
+        let files = vec![
+            (
+                "crates/foundation/src/lib.rs".to_owned(),
+                "let x = std::env::var(\"A\");\n".to_owned(),
+            ),
+            (
+                "apps/cli/src/main.rs".to_owned(),
+                "std::env::vars_os();\n".to_owned(),
+            ),
+            (
+                "tools/spec-trace/src/main.rs".to_owned(),
+                "std::env::args();\n".to_owned(),
+            ),
+            (
+                "crates/bus/src/lib.rs".to_owned(),
+                "// 命令列參數可以讀；這裡沒有禁用。\n".to_owned(),
+            ),
+        ];
+        let v = env_usage_violations(&files);
+        assert_eq!(v.len(), 2);
+        assert!(
+            v.iter()
+                .any(|s| s.contains("crates/foundation/src/lib.rs:1"))
+        );
         assert!(v.iter().any(|s| s.contains("apps/cli/src/main.rs:1")));
     }
 }

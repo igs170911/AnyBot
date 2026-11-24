@@ -3,9 +3,11 @@
 msrv = "1.98"
 
 disallowed-methods = [
-    # 讀環境變數：只准 foundation，而且只有一處（資料庫在哪）
-    { path = "std::env::var", reason = "新版不讀環境變數做設定（spec/02 A10）；只准 foundation 讀「資料庫在哪」那一處" },
-    { path = "std::env::var_os", reason = "同上（spec/02 A10）" },
+    # 讀環境變數：任何地方都不准（spec/07 §3 2026-11-24 修正；命令列參數可以讀）
+    { path = "std::env::var", reason = "讀環境變數任何地方都不准（spec/07 §3）；設定用命令列 --data-dir、--bootstrap" },
+    { path = "std::env::var_os", reason = "同上（spec/07 §3）" },
+    { path = "std::env::vars", reason = "同上（spec/07 §3）" },
+    { path = "std::env::vars_os", reason = "同上（spec/07 §3）" },
     # 執行外部程式：只准 computers，而且要經過 trust 給的通行證
     { path = "std::process::Command::new", reason = "執行外部程式只准 computers，而且要經過 trust 給的通行證（spec/05 §2）" },
     { path = "std::process::Command::output", reason = "同上" },
@@ -21,7 +23,7 @@ disallowed-methods = [
     { path = "reqwest::Client::request", reason = "同上" },
     { path = "reqwest::RequestBuilder::send", reason = "同上" },
     # 讀寫任意檔案：只准 computers、blob、store-client
-    { path = "std::fs::read", reason = "讀寫任意檔案只准 computers、blob、store-client（spec/07 §3）" },
+    { path = "std::fs::read", reason = "讀寫任意檔案只准 computers、blob、store-client；foundation 只准讀 --bootstrap 指定的那個啟動檔（spec/07 §3）" },
     { path = "std::fs::read_to_string", reason = "同上" },
     { path = "std::fs::write", reason = "同上" },
     { path = "std::fs::remove_file", reason = "同上" },

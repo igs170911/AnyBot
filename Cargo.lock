@@ -71,7 +71,6 @@ dependencies = [
 name = "anybot-app-agent"
 version = "0.1.0"
 dependencies = [
- "anybot-sync",
  "clap",
 ]
 
@@ -79,7 +78,6 @@ dependencies = [
 name = "anybot-app-cli"
 version = "0.1.0"
 dependencies = [
- "anybot-foundation",
  "clap",
 ]
 
@@ -87,7 +85,6 @@ dependencies = [
 name = "anybot-app-runner-service"
 version = "0.1.0"
 dependencies = [
- "anybot-protocol",
  "clap",
 ]
 
@@ -95,7 +92,6 @@ dependencies = [
 name = "anybot-app-server"
 version = "0.1.0"
 dependencies = [
- "anybot-server",
  "clap",
 ]
 

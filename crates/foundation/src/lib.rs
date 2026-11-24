@@ -1,13 +1,14 @@
 //! foundation · 最底層：ID、時間、錯誤、Secret 型別、啟動設定。
 //!
-//! 照 `spec/07` §2：這是唯一可以讀「資料庫在哪」環境變數的地方，而且只有一處
-//! （`spec/02` A10：新版不讀環境變數做設定）。
+//! 照 `spec/07` §3（2026-11-24 修正）：讀環境變數任何地方都不准；
+//! foundation 的檔案豁免只准讀 `--bootstrap` 指定的那個啟動檔。
 //!
 //! M1 骨架：只定套件邊界，沒有功能邏輯。
 
 #![forbid(unsafe_code)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
-// 打開 clippy.toml 的「讀環境變數」禁用：只准用在底下 database_url_from_env 這一處。
+// 打開 clippy.toml 的禁用：只准用在底下 read_bootstrap_file 讀啟動檔這一處
+// （「讀環境變數」即使在 allow 裡出現文字，depcheck 也會擋）。
 #![allow(clippy::disallowed_methods)]
 
 use thiserror::Error;
@@ -48,14 +49,13 @@ pub fn now_epoch_seconds() -> i64 {
     time::OffsetDateTime::now_utc().unix_timestamp()
 }
 
-/// 唯一准許讀環境變數的一處：資料庫在哪（`spec/02` A10 的例外）。
+/// foundation 唯一的檔案豁免：讀 `--bootstrap` 指定的啟動檔（`spec/07` §3）。
 ///
 /// # Errors
 ///
-/// 環境變數 `ANYBOT_DATABASE_URL` 沒有設定時，回 `ConfigMissing`。
-pub fn database_url_from_env() -> Result<String, FoundationError> {
-    std::env::var("ANYBOT_DATABASE_URL")
-        .map_err(|_| FoundationError::ConfigMissing("ANYBOT_DATABASE_URL"))
+/// 啟動檔讀不到時回傳 `io::Error`。
+pub fn read_bootstrap_file(path: &str) -> Result<String, std::io::Error> {
+    std::fs::read_to_string(path)
 }
 
 #[cfg(test)]

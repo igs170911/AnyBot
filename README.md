@@ -16,7 +16,7 @@ make check
 4. `cargo deny check`（授權、漏洞、禁用套件；`deny.toml`）
 5. `cargo machete`（沒在用的依賴）
 6. depcheck（`cargo run -p depcheck`）：依賴方向照 `spec/07` §3
-7. spec-trace（`cargo run -p spec-trace`）：規格功能追蹤表（`spec/10-behavior/`＋`tools/spec-trace/baseline.txt`）
+7. spec-trace（`cargo run -p spec-trace`）：規格功能追蹤表（`spec/10-behavior/`＋`tools/spec-trace/baseline.txt`）。只掃產品程式碼（crates/apps/tests/web/adapters，不掃 tools/）、標記只認註解；基準檔缺失＝關卡失敗，重新產生是明確指令 `make spec-baseline`
 
 需要的工具：rustup（版本由 `rust-toolchain.toml` 鎖住）、`cargo-deny`、`cargo-machete`、`cargo-nextest`（自選，可退回 `cargo test`）。
 

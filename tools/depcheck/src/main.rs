@@ -71,6 +71,7 @@ fn main() {
         collect_source_files(std::path::Path::new(dir), "", &mut files);
     }
     violations.extend(depcheck::scan_exemption_attrs(&files));
+    violations.extend(depcheck::env_usage_violations(&files));
 
     if violations.is_empty() {
         println!("depcheck：依賴方向全綠（{} 個原始檔掃過）", files.len());

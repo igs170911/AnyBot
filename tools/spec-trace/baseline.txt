@@ -743,6 +743,7 @@ T-chat-stall-2
 T-chat-stall-3
 T-chat-stall-4
 T-chat-stall-5
+T-chat-steer-1
 T-chat-steer-2
 T-chat-steer-3
 T-chat-steer-4

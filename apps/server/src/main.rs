@@ -4,7 +4,6 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
-use anybot_server::AppStateRef;
 use clap::Command;
 
 fn main() {
@@ -14,7 +13,6 @@ fn main() {
         .version(env!("CARGO_PKG_VERSION"))
         .about("AnyBot 伺服器 API（骨架）")
         .get_matches();
-    // M1 骨架：用到 server  lib 證明依賴方向接好。
-    let _ = (name, matches, AppStateRef::example());
+    let _ = (name, matches);
     println!("{bin} {} (M1 骨架，沒有功能)", env!("CARGO_PKG_VERSION"));
 }

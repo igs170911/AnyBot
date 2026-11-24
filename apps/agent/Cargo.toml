@@ -10,7 +10,6 @@ name = "anybot-agent"
 path = "src/main.rs"
 
 [dependencies]
-anybot-sync = { workspace = true }
 clap = { workspace = true }
 [lints]
 workspace = true
