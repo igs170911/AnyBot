@@ -1,0 +1,56 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/*",
+    "apps/*",
+    "tools/*",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# 內部套件（crates/）
+anybot-foundation = { path = "crates/foundation" }
+anybot-protocol = { path = "crates/protocol" }
+anybot-domain = { path = "crates/domain" }
+anybot-trust = { path = "crates/trust" }
+anybot-models = { path = "crates/models" }
+anybot-tools = { path = "crates/tools" }
+anybot-mcp = { path = "crates/mcp" }
+anybot-computers = { path = "crates/computers" }
+anybot-runner = { path = "crates/runner" }
+anybot-external-agents = { path = "crates/external-agents" }
+anybot-store-server = { path = "crates/store-server" }
+anybot-store-client = { path = "crates/store-client" }
+anybot-sync = { path = "crates/sync" }
+anybot-bus = { path = "crates/bus" }
+anybot-blob = { path = "crates/blob" }
+anybot-channels = { path = "crates/channels" }
+anybot-server = { path = "crates/server" }
+anybot-migrate-old = { path = "crates/migrate-old" }
+# 外部套件（照 spec/06）
+anyhow = "1"
+time = "0.3"
+clap = { version = "4", features = ["derive"] }
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.9", features = ["runtime-tokio"] }
+thiserror = "2"
+tracing = "0.1"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_crate_dependencies = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+arithmetic_side_effects = "deny"

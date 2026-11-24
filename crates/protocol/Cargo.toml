@@ -1,0 +1,11 @@
+[package]
+name = "anybot-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot protocol 套件骨架（spec/07 §2）"
+[dependencies]
+anybot-foundation = { workspace = true }
+serde = { workspace = true }
+[lints]
+workspace = true

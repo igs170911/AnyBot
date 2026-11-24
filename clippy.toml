@@ -1,0 +1,36 @@
+# clippy 禁用清單（spec/07 §3「用 lint 禁用的寫法」）
+# 准許的套件在自己的 lib.rs 用套件層級 allow 打開（由 tools/depcheck 檢查出處）。
+msrv = "1.98"
+
+disallowed-methods = [
+    # 讀環境變數：只准 foundation，而且只有一處（資料庫在哪）
+    { path = "std::env::var", reason = "新版不讀環境變數做設定（spec/02 A10）；只准 foundation 讀「資料庫在哪」那一處" },
+    { path = "std::env::var_os", reason = "同上（spec/02 A10）" },
+    # 執行外部程式：只准 computers，而且要經過 trust 給的通行證
+    { path = "std::process::Command::new", reason = "執行外部程式只准 computers，而且要經過 trust 給的通行證（spec/05 §2）" },
+    { path = "std::process::Command::output", reason = "同上" },
+    { path = "std::process::Command::spawn", reason = "同上" },
+    { path = "std::process::Command::status", reason = "同上" },
+    # 發 HTTP 請求：只准 models、mcp、sync、channels、computers
+    { path = "reqwest::Client::new", reason = "發 HTTP 請求只准 models、mcp、sync、channels、computers（spec/07 §3）" },
+    { path = "reqwest::Client::get", reason = "同上" },
+    { path = "reqwest::Client::post", reason = "同上" },
+    { path = "reqwest::Client::put", reason = "同上" },
+    { path = "reqwest::Client::delete", reason = "同上" },
+    { path = "reqwest::Client::head", reason = "同上" },
+    { path = "reqwest::Client::request", reason = "同上" },
+    { path = "reqwest::RequestBuilder::send", reason = "同上" },
+    # 讀寫任意檔案：只准 computers、blob、store-client
+    { path = "std::fs::read", reason = "讀寫任意檔案只准 computers、blob、store-client（spec/07 §3）" },
+    { path = "std::fs::read_to_string", reason = "同上" },
+    { path = "std::fs::write", reason = "同上" },
+    { path = "std::fs::remove_file", reason = "同上" },
+    { path = "std::fs::rename", reason = "同上" },
+    { path = "std::fs::create_dir_all", reason = "同上" },
+]
+
+disallowed-types = [
+    { path = "std::process::Command", reason = "執行外部程式只准 computers（spec/07 §3）" },
+    { path = "std::fs::File", reason = "讀寫任意檔案只准 computers、blob、store-client（spec/07 §3）" },
+    { path = "std::fs::OpenOptions", reason = "同上" },
+]

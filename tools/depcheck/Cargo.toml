@@ -1,0 +1,12 @@
+[package]
+name = "depcheck"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "檢查套件依賴方向（spec/07 §3）"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+[lints]
+workspace = true

@@ -1,0 +1,16 @@
+[package]
+name = "anybot-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot server 套件骨架（spec/07 §2）"
+[dependencies]
+anybot-foundation = { workspace = true }
+anybot-protocol = { workspace = true }
+anybot-domain = { workspace = true }
+anybot-store-server = { workspace = true }
+anybot-blob = { workspace = true }
+anybot-bus = { workspace = true }
+anybot-channels = { workspace = true }
+[lints]
+workspace = true

@@ -1,0 +1,16 @@
+[package]
+name = "anybot-app-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot 命令列：安裝、遷移、診斷（骨架）"
+
+[[bin]]
+name = "anybot"
+path = "src/main.rs"
+
+[dependencies]
+anybot-foundation = { workspace = true }
+clap = { workspace = true }
+[lints]
+workspace = true

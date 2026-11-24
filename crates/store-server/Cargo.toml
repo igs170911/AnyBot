@@ -1,0 +1,13 @@
+[package]
+name = "anybot-store-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot store-server 套件骨架（spec/07 §2）"
+[dependencies]
+anybot-foundation = { workspace = true }
+anybot-protocol = { workspace = true }
+anybot-domain = { workspace = true }
+sqlx = { workspace = true, features = ["postgres"] }
+[lints]
+workspace = true

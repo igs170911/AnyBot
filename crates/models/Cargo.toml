@@ -1,0 +1,13 @@
+[package]
+name = "anybot-models"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot models 套件骨架（spec/07 §2）"
+[dependencies]
+anybot-foundation = { workspace = true }
+anybot-protocol = { workspace = true }
+anybot-domain = { workspace = true }
+reqwest = { workspace = true }
+[lints]
+workspace = true

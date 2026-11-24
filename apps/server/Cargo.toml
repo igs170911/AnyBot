@@ -1,0 +1,16 @@
+[package]
+name = "anybot-app-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot 伺服器 API（骨架）"
+
+[[bin]]
+name = "anybot-server"
+path = "src/main.rs"
+
+[dependencies]
+anybot-server = { workspace = true }
+clap = { workspace = true }
+[lints]
+workspace = true

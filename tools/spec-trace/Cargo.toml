@@ -1,0 +1,11 @@
+[package]
+name = "spec-trace"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "規格功能追蹤表檢查（spec/05 §2）"
+
+[dependencies]
+regex = { workspace = true }
+[lints]
+workspace = true

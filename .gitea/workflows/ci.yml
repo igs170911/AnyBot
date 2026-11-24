@@ -1,0 +1,14 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # 工具鏈版本由 rust-toolchain.toml 鎖住；這裡只補關卡要用的元件和工具。
+      - run: rustup component add rustfmt clippy
+      - run: cargo install --locked cargo-deny cargo-machete cargo-nextest
+      - run: make check

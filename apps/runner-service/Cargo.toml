@@ -1,0 +1,16 @@
+[package]
+name = "anybot-app-runner-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot 伺服器上的執行服務（骨架）"
+
+[[bin]]
+name = "anybot-runner-service"
+path = "src/main.rs"
+
+[dependencies]
+anybot-protocol = { workspace = true }
+clap = { workspace = true }
+[lints]
+workspace = true
