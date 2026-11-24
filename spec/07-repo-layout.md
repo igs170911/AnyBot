@@ -107,10 +107,18 @@ anybot/
 
 | 寫法 | 只准在 |
 |---|---|
-| 讀環境變數 | `foundation`（而且只有一處） |
+| 讀環境變數 | **任何地方都不准**（2026-11-24 修正：`02` A10 和 §6 已定「資料庫在哪」用命令列 `--data-dir`、`--bootstrap`，不讀環境變數）。命令列參數可以讀 |
 | 執行外部程式 | `computers`（而且要經過 `trust` 給的通行證） |
 | 發 HTTP 請求 | `models`、`mcp`、`sync`、`channels`、`computers` |
-| 讀寫任意檔案 | `computers`、`blob`、`store-client` |
+| 讀寫任意檔案 | `computers`、`blob`、`store-client`；`foundation` 只准讀 `--bootstrap` 指定的那個啟動檔 |
+
+**執行檔（`apps/`）的依賴**（2026-11-24 補）：只加真的用到的；而且：
+
+| 執行檔 | 不准依賴 |
+|---|---|
+| `apps/server` | `runner`、`models`、`tools`、`computers`、`mcp`、`external-agents`（伺服器 API 不跑腦，A1） |
+| `apps/runner-service`、`apps/agent` | `server`、`store-server`（它們是 API 的客戶端，不直接碰伺服器資料庫） |
+| `apps/cli` | `server`、`store-server` |
 
 ## 4. repo 本身
 
