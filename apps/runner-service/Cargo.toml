@@ -1,4 +1,5 @@
 [package]
+publish = false
 name = "anybot-app-runner-service"
 version.workspace = true
 edition.workspace = true

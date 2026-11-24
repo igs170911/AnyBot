@@ -1,6 +1,12 @@
 # clippy 禁用清單（spec/07 §3「用 lint 禁用的寫法」）
-# 准許的套件在自己的 lib.rs 用套件層級 allow 打開（由 tools/depcheck 檢查出處）。
+# 准許的套件在自己的資料夾放一份一模一樣的 clippy.toml，只少它被准許的禁用項目
+# （spec/09 K75；由 tools/iron-laws 核對，不寫在程式碼裡）。
 msrv = "1.98"
+too-many-lines-threshold = 60
+cognitive-complexity-threshold = 15
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
 
 disallowed-methods = [
     # 讀環境變數：任何地方都不准（spec/07 §3 2026-11-24 修正；命令列參數可以讀）

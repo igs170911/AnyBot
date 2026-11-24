@@ -1,22 +1,17 @@
-//! spec-trace 執行檔：跑一次檢查，印覆蓋數字；有違規就非零 exit。
-//! 基準檔缺失＝關卡失敗（不自動產生）。產生基準檔：`make spec-baseline`
-//! （=`cargo run -p spec-trace -- --write-baseline`）。
-//! `--against <git ref>`：基準檔只能變短（跟那個 ref 比，見 `docs/tasks/M2` 第 5 項）。
-
 #![forbid(unsafe_code)]
-// regex 是 lib 相依，bin 本身用不到。
-#![allow(unused_crate_dependencies)]
-// 開發工具：讀 repo 的檔、跑 git 是本職（clippy.toml 的檔案禁用在這打開）。
-#![allow(clippy::disallowed_methods, clippy::disallowed_types)]
+
+extern crate regex as _;
 
 use std::collections::BTreeSet;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
-use spec_trace::{code_ids_from_source, code_ids_from_ts_source, spec_ids_from_md};
+use spec_trace::{
+    code_ids_from_source, code_ids_from_ts_source, generate_baseline, read_baseline,
+    spec_ids_from_md,
+};
 
-/// 掃產品程式碼時跳過的目錄（建置產物、 dependency 目錄）。
-const SKIP_DIRS: &[&str] = &[
+const SKIP_DIRS: [&str; 7] = [
     "node_modules",
     "dist",
     "target",
@@ -26,6 +21,13 @@ const SKIP_DIRS: &[&str] = &[
     "build",
 ];
 
+fn is_behavior_file(name: &str) -> bool {
+    name.len() >= 5
+        && matches!(name.as_bytes().first(), Some(b'1'..=b'6'))
+        && matches!(name.as_bytes().get(1), Some(b'-'))
+        && name.to_ascii_lowercase().ends_with(".md")
+}
+
 fn product_code_files(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -33,14 +35,14 @@ fn product_code_files(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if SKIP_DIRS.contains(&name) {
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
                 continue;
+            };
+            if !SKIP_DIRS.contains(&name) {
+                product_code_files(&path, out);
             }
-            product_code_files(&path, out);
             continue;
         }
-        // Rust 和 TypeScript 都算（M2 第 4 項：.ts、.tsx 裡註解的 spec: T-… 也算）。
         if path
             .extension()
             .is_some_and(|e| e == "rs" || e == "ts" || e == "tsx")
@@ -57,12 +59,10 @@ fn spec_file_names(dir: &Path) -> Vec<PathBuf> {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if name.len() >= 5
-            && matches!(name.as_bytes()[0], b'1'..=b'6')
-            && name[1..].starts_with('-')
-            && name.to_ascii_lowercase().ends_with(".md")
-        {
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if is_behavior_file(name) {
             out.push(path);
         }
     }
@@ -71,7 +71,7 @@ fn spec_file_names(dir: &Path) -> Vec<PathBuf> {
 }
 
 fn run_git(repo: &Path, args: &[&str]) -> Result<(bool, String), String> {
-    let out = Command::new("git")
+    let out = std::process::Command::new("git")
         .arg("-C")
         .arg(repo)
         .args(args)
@@ -83,13 +83,11 @@ fn run_git(repo: &Path, args: &[&str]) -> Result<(bool, String), String> {
     ))
 }
 
-/// `git show <ref>:<path>`；path 在那個 ref 不存在時回 None。
 fn git_show(repo: &Path, git_ref: &str, path: &str) -> Result<Option<String>, String> {
     let (ok, stdout) = run_git(repo, &["show", &format!("{git_ref}:{path}")])?;
     if ok { Ok(Some(stdout)) } else { Ok(None) }
 }
 
-/// 那個 ref 上的 spec/10-behavior 編號表（路徑用 ref 上的，不在 repo 裡）。
 fn ref_spec_ids(repo: &Path, git_ref: &str) -> Result<BTreeSet<String>, String> {
     let (ok, stdout) = run_git(
         repo,
@@ -109,19 +107,15 @@ fn ref_spec_ids(repo: &Path, git_ref: &str) -> Result<BTreeSet<String>, String> 
     }
     let mut ids = BTreeSet::new();
     for line in stdout.lines() {
-        let name = Path::new(line)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
-        if name.len() >= 5
-            && matches!(name.as_bytes()[0], b'1'..=b'6')
-            && name[1..].starts_with('-')
-            && name.to_ascii_lowercase().ends_with(".md")
-        {
-            let content = git_show(repo, git_ref, line)?
-                .ok_or_else(|| format!("讀 {git_ref}:{line} 失敗"))?;
-            ids.extend(spec_ids_from_md(&content)?);
+        let Some(name) = Path::new(line).file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !is_behavior_file(name) {
+            continue;
         }
+        let content =
+            git_show(repo, git_ref, line)?.ok_or_else(|| format!("讀 {git_ref}:{line} 失敗"))?;
+        ids.extend(spec_ids_from_md(&content)?);
     }
     Ok(ids)
 }
@@ -131,24 +125,7 @@ fn arg_value(args: &[String], flag: &str) -> Option<String> {
     args.get(idx.saturating_add(1)).cloned()
 }
 
-fn main() -> Result<(), String> {
-    let args: Vec<String> = std::env::args().collect();
-    let write_baseline = args.iter().any(|a| a == "--write-baseline");
-    let against = arg_value(&args, "--against");
-    let repo = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .map_err(|e| format!("找不到 repo 根目錄：{e}"))?;
-
-    // 1) 規格測試編號：spec/10-behavior/[1-6]-*.md。
-    let mut spec_ids: BTreeSet<String> = BTreeSet::new();
-    for path in spec_file_names(&repo.join("spec/10-behavior")) {
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| format!("讀 {} 失敗：{e}", path.display()))?;
-        spec_ids.extend(spec_ids_from_md(&content)?);
-    }
-
-    // 2) 產品程式碼的標記：crates/、apps/、tests/、web/、adapters/（不掃 tools/）。
+fn read_code_ids(repo: &Path) -> Result<BTreeSet<String>, String> {
     let mut files: Vec<PathBuf> = Vec::new();
     for dir in ["crates", "apps", "tests", "web", "adapters"] {
         product_code_files(&repo.join(dir), &mut files);
@@ -161,65 +138,115 @@ fn main() -> Result<(), String> {
         code_ids.extend(code_ids_from_source(&content)?);
         code_ids.extend(code_ids_from_ts_source(&content)?);
     }
+    Ok(code_ids)
+}
 
-    // 3) 基準檔。
+fn read_spec_ids(repo: &Path) -> Result<BTreeSet<String>, String> {
+    let mut spec_ids: BTreeSet<String> = BTreeSet::new();
+    for path in spec_file_names(&repo.join("spec/10-behavior")) {
+        let content = std::fs::read_to_string(&path)
+            .map_err(|e| format!("讀 {} 失敗：{e}", path.display()))?;
+        spec_ids.extend(spec_ids_from_md(&content)?);
+    }
+    Ok(spec_ids)
+}
+
+fn say(lines: &[String]) -> Result<(), std::io::Error> {
+    let mut text = String::new();
+    for l in lines {
+        text.push_str(l);
+        text.push('\n');
+    }
+    let mut stdout = std::io::stdout();
+    writeln!(stdout, "{text}")
+}
+
+fn against_report(
+    repo: &Path,
+    git_ref: &str,
+    current: &BTreeSet<String>,
+    spec_ids: &BTreeSet<String>,
+    report: &mut spec_trace::Report,
+) -> Result<(), String> {
+    let ref_baseline = git_show(repo, git_ref, "tools/spec-trace/baseline.txt")?;
+    match ref_baseline {
+        None => report.violations.push(format!(
+            "--against {git_ref}：那個 ref 裡沒有 tools/spec-trace/baseline.txt"
+        )),
+        Some(c) => {
+            let ref_set = read_baseline(&c);
+            let ref_ids = ref_spec_ids(repo, git_ref)?;
+            let new_spec: BTreeSet<String> = spec_ids.difference(&ref_ids).cloned().collect();
+            report
+                .violations
+                .extend(spec_trace::check_baseline_against_ref(
+                    current, &ref_set, &new_spec,
+                ));
+            say(&[format!(
+                "spec-trace 基準比對：ref {git_ref} 的基準檔 {} 個、現在 {} 個、這段變更新增的規格編號 {} 個",
+                ref_set.len(),
+                current.len(),
+                new_spec.len()
+            )
+])
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn main() -> Result<(), String> {
+    let args: Vec<String> = std::env::args().collect();
+    let write_baseline = args.iter().any(|a| a == "--write-baseline");
+    let against = arg_value(&args, "--against");
+    let repo = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .map_err(|e| format!("找不到 repo 根目錄：{e}"))?;
+    let spec_ids = read_spec_ids(&repo)?;
+    let code_ids = read_code_ids(&repo)?;
     let baseline_path = repo.join("tools/spec-trace/baseline.txt");
     if write_baseline {
-        let content = spec_trace::generate_baseline(&spec_ids, &code_ids);
+        let content = generate_baseline(&spec_ids, &code_ids);
         std::fs::write(&baseline_path, content).map_err(|e| format!("寫基準檔失敗：{e}"))?;
-        println!("spec-trace：已重新產生 {}", baseline_path.display());
+        say(&[format!(
+            "spec-trace：已重新產生 {}",
+            baseline_path.display()
+        )])
+        .map_err(|e| e.to_string())?;
         return Ok(());
     }
     let baseline = std::fs::read_to_string(&baseline_path).ok();
-    let baseline_set = baseline.as_ref().map(|c| spec_trace::read_baseline(c));
-
+    let baseline_set = baseline.as_ref().map(|c| read_baseline(c));
     let mut report = spec_trace::check(&spec_ids, &code_ids, baseline_set.as_ref());
 
-    // 4) 基準檔只能變短（M2 第 5 項）：跟指定的 git ref 比。
     if let Some(git_ref) = against {
         match baseline_set {
             None => report.violations.push(
                 "基準檔 tools/spec-trace/baseline.txt 不存在：--against 比對需要本機基準檔"
                     .to_owned(),
             ),
-            Some(current) => {
-                let ref_baseline = git_show(&repo, &git_ref, "tools/spec-trace/baseline.txt")?;
-                match ref_baseline {
-                    None => report.violations.push(format!(
-                        "--against {git_ref}：那個 ref 裡沒有 tools/spec-trace/baseline.txt"
-                    )),
-                    Some(c) => {
-                        let ref_set = spec_trace::read_baseline(&c);
-                        let ref_ids = ref_spec_ids(&repo, &git_ref)?;
-                        let new_spec: BTreeSet<String> =
-                            spec_ids.difference(&ref_ids).cloned().collect();
-                        report
-                            .violations
-                            .extend(spec_trace::check_baseline_against_ref(
-                                &current, &ref_set, &new_spec,
-                            ));
-                        println!(
-                            "spec-trace 基準比對：ref {git_ref} 的基準檔 {} 個、現在 {} 個、這段變更新增的規格編號 {} 個",
-                            ref_set.len(),
-                            current.len(),
-                            new_spec.len()
-                        );
-                    }
-                }
-            }
+            Some(current) => against_report(&repo, &git_ref, &current, &spec_ids, &mut report)?,
         }
     }
 
-    println!(
+    say(&[format!(
         "spec-trace 覆蓋：總數 {}、有測試 {}、還沒有 {}",
-        report.total, report.tested, report.missing
-    );
+        report.total,
+        report.tested(),
+        report.missing()
+    )])
+    .map_err(|e| e.to_string())?;
+    let mut lines: Vec<String> = Vec::new();
     for v in &report.violations {
-        println!("spec-trace 違規：{v}");
+        lines.push(format!("spec-trace 違規：{v}"));
     }
+    if lines.is_empty() {
+        lines.push("spec-trace：全綠".to_owned());
+    }
+    say(&lines).map_err(|e| e.to_string())?;
     if !report.violations.is_empty() {
         return Err(format!("spec-trace：{} 個違規", report.violations.len()));
     }
-    println!("spec-trace：全綠");
     Ok(())
 }

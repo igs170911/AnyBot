@@ -1,4 +1,5 @@
 [package]
+publish = false
 name = "anybot-channels"
 version.workspace = true
 edition.workspace = true

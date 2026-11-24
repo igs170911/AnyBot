@@ -1,0 +1,10 @@
+[package]
+publish = false
+name = "iron-laws"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "四條鐵律檢查（spec/09 K75–K78）"
+
+[lints]
+workspace = true

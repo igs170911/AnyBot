@@ -1,0 +1,5 @@
+title = "AnyBotNext gitleaks 放行清單"
+
+[allowlist]
+description = "spec/ 是需求文件（唯讀），裡面的測試範例用假金鑰字串，不是真金鑰"
+paths = ['''^spec/.*''']

@@ -18,24 +18,24 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 # 內部套件（crates/）
-anybot-foundation = { path = "crates/foundation" }
-anybot-protocol = { path = "crates/protocol" }
-anybot-domain = { path = "crates/domain" }
-anybot-trust = { path = "crates/trust" }
-anybot-models = { path = "crates/models" }
-anybot-tools = { path = "crates/tools" }
-anybot-mcp = { path = "crates/mcp" }
-anybot-computers = { path = "crates/computers" }
-anybot-runner = { path = "crates/runner" }
-anybot-external-agents = { path = "crates/external-agents" }
-anybot-store-server = { path = "crates/store-server" }
-anybot-store-client = { path = "crates/store-client" }
-anybot-sync = { path = "crates/sync" }
-anybot-bus = { path = "crates/bus" }
-anybot-blob = { path = "crates/blob" }
-anybot-channels = { path = "crates/channels" }
-anybot-server = { path = "crates/server" }
-anybot-migrate-old = { path = "crates/migrate-old" }
+anybot-foundation = { path = "crates/foundation", version = "0.1.0" }
+anybot-protocol = { path = "crates/protocol", version = "0.1.0" }
+anybot-domain = { path = "crates/domain", version = "0.1.0" }
+anybot-trust = { path = "crates/trust", version = "0.1.0" }
+anybot-models = { path = "crates/models", version = "0.1.0" }
+anybot-tools = { path = "crates/tools", version = "0.1.0" }
+anybot-mcp = { path = "crates/mcp", version = "0.1.0" }
+anybot-computers = { path = "crates/computers", version = "0.1.0" }
+anybot-runner = { path = "crates/runner", version = "0.1.0" }
+anybot-external-agents = { path = "crates/external-agents", version = "0.1.0" }
+anybot-store-server = { path = "crates/store-server", version = "0.1.0" }
+anybot-store-client = { path = "crates/store-client", version = "0.1.0" }
+anybot-sync = { path = "crates/sync", version = "0.1.0" }
+anybot-bus = { path = "crates/bus", version = "0.1.0" }
+anybot-blob = { path = "crates/blob", version = "0.1.0" }
+anybot-channels = { path = "crates/channels", version = "0.1.0" }
+anybot-server = { path = "crates/server", version = "0.1.0" }
+anybot-migrate-old = { path = "crates/migrate-old", version = "0.1.0" }
 # 外部套件（照 spec/06）
 anyhow = "1"
 time = "0.3"
@@ -51,11 +51,39 @@ tracing = "0.1"
 [workspace.lints.rust]
 unsafe_code = "forbid"
 unused_crate_dependencies = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+let_underscore_drop = "warn"
 
 [workspace.lints.clippy]
-all = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
+all = { level = "warn", priority = -2 }
+pedantic = { level = "warn", priority = -2 }
+missing_errors_doc = { level = "allow", priority = -1 }
+missing_panics_doc = { level = "allow", priority = -1 }
 unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
 arithmetic_side_effects = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+exit = "deny"
+mem_forget = "deny"
+indexing_slicing = "deny"
+string_slice = "deny"
+get_unwrap = "deny"
+unwrap_in_result = "deny"
+wildcard_enum_match_arm = "deny"
+let_underscore_untyped = "deny"
+let_underscore_must_use = "deny"
+clone_on_ref_ptr = "deny"
+rc_buffer = "deny"
+float_cmp_const = "deny"
+lossy_float_literal = "deny"
+cognitive_complexity = "deny"
+too_many_lines = "deny"

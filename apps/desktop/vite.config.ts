@@ -1,8 +1,6 @@
-/// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
-// Tauri 用的設定：固定 port、相對於 dist 的路徑（spec/06 §2.4 桌面殼）。
 export default defineConfig({
   plugins: [react()],
   base: "./",
