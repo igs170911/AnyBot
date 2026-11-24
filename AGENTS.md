@@ -12,6 +12,7 @@
 5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`；`brew install gitleaks`。要裝別的先停下來回報。
 6. **不放任何金鑰、帳號、個人資料進 repo。** 新版也不讀環境變數做設定（`spec/02` A10）。
 7. **暫存檔、紀錄檔一律放在 repo 的 `target/` 裡**（已經在 `.gitignore`），不要寫到 `/tmp` 或其他地方。
+8. **不准改寫 git 歷史**：不准用 `filter-branch`、`rebase`、`reset --hard`、`commit --amend` 改已經存在的 commit，也不准把好幾個 commit 壓成一個。遇到「要改歷史才能過」的情況，停下來回報。
 
 ## 二、寫程式的四條鐵律（使用者定的，`spec/05` §2a、`spec/09` K75–K78）
 

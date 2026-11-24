@@ -162,7 +162,7 @@
 | 編號 | 種類 | 前提 | 步驟 | 預期 |
 |---|---|---|---|---|
 | T-box-machine-1 | 整合 | 新使用者，從沒用過 Bot 的電腦 | 在手機送「看一下系統」；假模型：呼叫工具 shell(command="pwd; uname -s; locale; cat /etc/timezone; xrandr") | 電腦供應者記下開機（第一次建立）；模型收到的結果包含「/home/bot/bot-1」「Linux」「zh_TW」「Asia/Taipei」「1280x800」 |
-| T-box-machine-2 | 整合 | 使用者的模型金鑰是「sk-test-123」、帳號已登入 | 假模型：呼叫工具 shell(command="env; cat /proc/1/environ; grep -rl sk-test-123 / 2>/dev/null") | 模型收到的結果不包含「sk-test-123」、帳號權杖、伺服器位址設定 |
+| T-box-machine-2 | 整合 | 使用者的模型金鑰是「〔假金鑰〕」、帳號已登入 | 假模型：呼叫工具 shell(command="env; cat /proc/1/environ; grep -rl 〔假金鑰〕 / 2>/dev/null") | 模型收到的結果不包含「〔假金鑰〕」、帳號權杖、伺服器位址設定 |
 | T-box-machine-3 | 整合 | 使用者 A、B 各有 Bot 的電腦 | A 的 Bot：shell(command="echo A > secret.txt")；B 的 Bot：shell(command="find / -name secret.txt 2>/dev/null; curl -m 3 http://<A 的 Bot 電腦位址>/") | B 收到的結果沒有 secret.txt；連線失敗 |
 | T-box-machine-4 | 整合 | Bot 的電腦 | 假模型：呼叫工具 shell(command="curl -m 3 http://<伺服器資料庫位址>/; curl -m 3 http://<伺服器 API 的內部位址>/") | 兩個都連線失敗 |
 | T-box-machine-5 | 整合 | 這台模擬裝不起 Docker | 在桌面送「hi」；假模型：回「hi」 | 回覆正常；畫面出現「手機和例行任務要等伺服器裝好才有」 |
@@ -274,7 +274,7 @@
 | T-box-n4-6 | 整合 | 同 1 | shell(command="bash", interactive=true)；write_terminal(id=1, text="echo $CRM_TOKEN\n") | 模型收到的終端機畫面有「〔密鑰 CRM_TOKEN〕」，沒有值 |
 | T-box-n4-7 | 性質 | 隨機產生 1–20 個密鑰（長度 4–32,768）和隨機輸出（值放在開頭、中間、結尾、跨行、重複多次） | 經過遮罩 | 輸出裡永遠找不到任何一個值 |
 | T-box-n4-8 | 整合 | 舊版資料夾的 `box/secrets.json` 有兩個密鑰 | 遷移；打開密鑰清單 | 列出那兩個名稱；舊檔案內容沒變 |
-| T-box-n4-9 | 整合 | 使用者的模型金鑰是「sk-test-123」；密鑰清單有 CRM_TOKEN | 假模型：呼叫工具 shell(command="env") | 結果有「CRM_TOKEN=〔密鑰 CRM_TOKEN〕」；沒有「sk-test-123」 |
+| T-box-n4-9 | 整合 | 使用者的模型金鑰是「〔假金鑰〕」；密鑰清單有 CRM_TOKEN | 假模型：呼叫工具 shell(command="env") | 結果有「CRM_TOKEN=〔密鑰 CRM_TOKEN〕」；沒有「〔假金鑰〕」 |
 
 ### box-manage 使用者看得到的 Bot 電腦
 
