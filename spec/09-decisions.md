@@ -191,4 +191,6 @@
 | K77 | 檔案和函式多大 | **每個原始碼檔案最多 300 行、每個函式最多 60 行**（Rust、TypeScript 都是），由工具擋 | `05` §4 |
 | K78 | 註解 | **不寫註解，程式即註解**；由工具擋（產生出來的檔案除外）。規格追蹤改用測試名稱：Rust 的測試函式叫 `t_chat_steer_1`、TypeScript 的測試標題開頭寫 `T-chat-steer-1`（規格編號的 `-` 換成 `_`，2,538 個編號換完沒有重複） | `05` §4 |
 | K79 | lint 的強度 | 照 2026-11-25 對照網路上的做法補齊：再挑一組 Clippy restriction 規則、Rust 編譯器規則、cargo-deny 的來源限制、掃金鑰工具、Biome 型別感知規則、`tsconfig` 補到 strictest（細節見 AnyBotNext 的 M2.5 任務） | `05` §4 |
+| K80 | 開發怎麼進行（2026-11-25，使用者的 /goal） | **所有程式和測試都由 pi-bolt 寫；Claude 負責規劃、監督、排除障礙。** 每個功能都要有 API 文件，以及單元、整合、端對端三層測試。路線和完成條件在 AnyBotNext 的 `docs/plan.md` | AnyBotNext `docs/plan.md` |
+| K81 | 要不要裝 mobile-agent-testers | **先不裝**：它只測原生 App（iOS 模擬器、Android 模擬器），我們的手機版是網頁（PWA），它對網頁的支援還只是「歡迎幫忙」的想法；而且它跑在 GitHub Actions、用 Claude Code agent，我們是 Gitea 和 pi-bolt；它是探索型找 bug，不能當必過的關卡。**借它的想法**：端對端測試的手機情境（小螢幕加最大字級、不同語言、從右到左、深色）用 Playwright 跑 | AnyBotNext `docs/plan.md` |
 | K68 | 幾個小決定 | 「看圖」工具跟著看圖小幫手延後；記憶的語意搜尋只留開／關，舊版選 Ollama 的遷移成「開」；使用者自己的 hooks 第一版不在 Bot 的電腦上跑（Bot 設定和 /doctor 說清楚）；發佈版本先不支援 armv7、riscv64、musl；拿掉舊版「15 秒沒回應就算失敗」的規則 | — |

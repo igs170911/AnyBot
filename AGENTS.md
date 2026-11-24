@@ -35,7 +35,11 @@
 
 Rust stable、edition 2024；tokio、axum、sqlx、utoipa、reqwest（rustls）、thiserror／anyhow、tracing。TypeScript strict、React＋Vite、Biome、Vitest、Playwright；pnpm workspace；桌面 Tauri 2。伺服器資料庫 PostgreSQL，客戶端 SQLite。
 
-## 五、回報格式（每個里程碑結束都要寫）
+## 五、功能里程碑的完成條件
+
+照 `docs/plan.md` 開頭的「每個功能里程碑的完成條件」：規格測試、三層測試（單元、整合、端對端）、API 文件、四條鐵律加上 `make check`、回報。缺一項就不算完成。
+
+## 六、回報格式（每個里程碑結束都要寫）
 
 用繁體中文：
 1. 做了什麼（照任務的項目逐條）。
