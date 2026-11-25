@@ -2218,6 +2218,9 @@ T-settings-n9-1
 T-settings-n9-2
 T-settings-n9-3
 T-settings-n9-4
+T-settings-n9-5
+T-settings-n9-6
+T-settings-n9-7
 T-settings-perms-1
 T-settings-updates-1
 T-settings-vault-1
