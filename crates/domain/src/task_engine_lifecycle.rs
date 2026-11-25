@@ -112,7 +112,7 @@ pub(crate) fn advance_lifecycle(view: &mut TaskView, event: &KnownTaskEventKind)
             true
         }
         KnownTaskEventKind::ModelUnreachable => {
-            view.status = TaskStatus::Failed;
+            view.status = TaskStatus::Stuck;
             view.detail = Some(TaskDetail::ModelUnreachable);
             true
         }

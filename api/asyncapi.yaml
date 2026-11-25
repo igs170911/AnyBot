@@ -833,6 +833,13 @@ components:
         type: object
       - properties:
           detail:
+            const: context_budget_insufficient
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
             const: sent_target
             type: string
           params:

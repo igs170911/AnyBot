@@ -774,10 +774,6 @@ T-chat-window-4
 T-chat-window-5
 T-chat-window-6
 T-chat-window-7
-T-claim-levels-2
-T-claim-levels-3
-T-claim-levels-4
-T-claim-levels-5
 T-claims-check-1
 T-claims-check-2
 T-claims-check-3

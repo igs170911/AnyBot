@@ -79,6 +79,7 @@ pub enum TaskDetail {
     },
     GoalImpossible,
     ModelUnreachable,
+    ContextBudgetInsufficient,
     SentTarget {
         sent: u32,
         total: u32,
@@ -112,7 +113,9 @@ impl TaskDetail {
             TaskDetail::NoActivity { .. }
             | TaskDetail::OverBudget { .. }
             | TaskDetail::GoalStuck { .. }
-            | TaskDetail::PlanStale => TaskStatus::Stuck,
+            | TaskDetail::PlanStale
+            | TaskDetail::ModelUnreachable
+            | TaskDetail::ContextBudgetInsufficient => TaskStatus::Stuck,
             TaskDetail::Replied
             | TaskDetail::Accepted
             | TaskDetail::Delivered
@@ -123,7 +126,6 @@ impl TaskDetail {
             | TaskDetail::NoVisibleResult => TaskStatus::Unaccepted,
             TaskDetail::Error { .. }
             | TaskDetail::GoalImpossible
-            | TaskDetail::ModelUnreachable
             | TaskDetail::SentTarget { .. } => TaskStatus::Failed,
             TaskDetail::CancelledReason { .. } => TaskStatus::Cancelled,
             TaskDetail::YouStopped => TaskStatus::Stopped,

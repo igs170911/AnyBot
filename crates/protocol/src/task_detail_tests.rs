@@ -7,7 +7,13 @@ fn test_task_detail_owner_status_covers_every_variant() {
     }
 }
 
-fn all_details() -> [TaskDetail; 34] {
+fn all_details() -> Vec<TaskDetail> {
+    let mut details = lifecycle_details();
+    details.extend(outcome_details());
+    details
+}
+
+fn lifecycle_details() -> Vec<TaskDetail> {
     [
         TaskDetail::CurrentStep {
             step: "s".to_owned(),
@@ -48,6 +54,12 @@ fn all_details() -> [TaskDetail; 34] {
             reason: "r".to_owned(),
         },
         TaskDetail::PlanStale,
+    ]
+    .to_vec()
+}
+
+fn outcome_details() -> Vec<TaskDetail> {
+    [
         TaskDetail::Replied,
         TaskDetail::Accepted,
         TaskDetail::Delivered,
@@ -61,12 +73,14 @@ fn all_details() -> [TaskDetail; 34] {
         },
         TaskDetail::GoalImpossible,
         TaskDetail::ModelUnreachable,
+        TaskDetail::ContextBudgetInsufficient,
         TaskDetail::SentTarget { sent: 1, total: 2 },
         TaskDetail::CancelledReason {
             reason: "r".to_owned(),
         },
         TaskDetail::YouStopped,
     ]
+    .to_vec()
 }
 
 #[test]

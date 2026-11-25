@@ -52,6 +52,9 @@ proptest! {
             if claim.verification.is_none() {
                 prop_assert!(level < ClaimLevel::Verified);
             }
+            if claim.links.iter().any(|l| !l.gate_checked) {
+                prop_assert!(level < ClaimLevel::Verified);
+            }
             if claim.links.is_empty() {
                 prop_assert_eq!(level, ClaimLevel::Unknown);
             }
@@ -62,6 +65,68 @@ proptest! {
             prop_assert_eq!(claim_level(&repeated), level);
         }
     }
+}
+
+#[test]
+fn t_claim_levels_2() {
+    let claim = Claim {
+        text: "the file was written".to_owned(),
+        links: vec![Link {
+            kind: EvidenceKind::ToolReturn,
+            gate_checked: false,
+        }],
+        verification: None,
+        claim_scope: None,
+    };
+    assert_eq!(claim_level(&claim), ClaimLevel::SourceBacked);
+}
+
+#[test]
+fn t_claim_levels_3() {
+    let replies: Vec<Claim> = (0..3)
+        .map(|_| Claim {
+            text: "i have sent it".to_owned(),
+            links: vec![],
+            verification: None,
+            claim_scope: None,
+        })
+        .collect();
+    let levels: Vec<ClaimLevel> = replies.iter().map(claim_level).collect();
+    assert_eq!(levels, vec![ClaimLevel::Unknown; 3]);
+}
+
+#[test]
+fn t_claim_levels_4() {
+    let claim = Claim {
+        text: "the deploy succeeded".to_owned(),
+        links: vec![Link {
+            kind: EvidenceKind::BotHearsay,
+            gate_checked: true,
+        }],
+        verification: None,
+        claim_scope: None,
+    };
+    assert_eq!(claim_level(&claim), ClaimLevel::Inferred);
+}
+
+#[test]
+fn t_claim_levels_5() {
+    let claim = Claim {
+        text: "the file hash matches".to_owned(),
+        links: vec![Link {
+            kind: EvidenceKind::ToolReturn,
+            gate_checked: true,
+        }],
+        verification: Some(Verification {
+            scope: Scope::BotComputer,
+        }),
+        claim_scope: Some(Scope::BotComputer),
+    };
+    assert_eq!(claim_level(&claim), ClaimLevel::Verified);
+    assert_eq!(
+        unverified_scopes(&claim),
+        vec![Scope::UserComputer, Scope::Phone]
+    );
 }
 
 #[test]

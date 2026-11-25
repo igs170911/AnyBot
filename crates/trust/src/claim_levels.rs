@@ -63,7 +63,8 @@ pub fn claim_level(claim: &Claim) -> ClaimLevel {
         .verification
         .as_ref()
         .is_some_and(|v| claim.claim_scope.is_some_and(|s| v.scope == s));
-    if covers {
+    let all_gated = claim.links.iter().all(|l| l.gate_checked);
+    if covers && all_gated {
         return ClaimLevel::Verified;
     }
     let has_source = claim
