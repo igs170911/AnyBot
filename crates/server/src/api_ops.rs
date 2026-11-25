@@ -10,11 +10,11 @@ use anybot_store_server::{accounts, sessions};
 
 use crate::app::AppState;
 use crate::caller::{Caller, CallerDenied};
-use crate::idem::{body_digest, find_recorded, record_result};
+use crate::idem::find_recorded;
 use crate::limits::{KIND_PASSWORD_CHANGE, Limiter};
 use crate::req_write::{
-    denied, idempotency_key, internal_sqlx, internal_text, json_response, pool_of, read_json,
-    value_of,
+    caller_scope, denied, idempotency_key, internal_sqlx, internal_text, json_response, pool_of,
+    read_json, record_outcome, value_of,
 };
 
 #[utoipa::path(
@@ -58,16 +58,17 @@ pub async fn logout(
     request: axum::extract::Request,
 ) -> Result<Response, CallerDenied> {
     let key = idempotency_key(&request)?;
+    let scope = caller_scope(&request, &caller.account);
     let (body, raw) = read_json::<ActionAck>(request).await?;
     let pool = pool_of(&state)?;
-    if let Some(replay) = guard_replay(pool, &key, &raw).await? {
+    if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
     sessions::delete_sessions(pool, &[&caller.session_id])
         .await
         .map_err(internal_sqlx)?;
     let value = ack_value(&body)?;
-    record(pool, &state, &key, &raw, StatusCode::OK, &value).await
+    record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }
 
 #[utoipa::path(
@@ -111,16 +112,17 @@ pub async fn logout_all(
     request: axum::extract::Request,
 ) -> Result<Response, CallerDenied> {
     let key = idempotency_key(&request)?;
+    let scope = caller_scope(&request, &caller.account);
     let (body, raw) = read_json::<ActionAck>(request).await?;
     let pool = pool_of(&state)?;
-    if let Some(replay) = guard_replay(pool, &key, &raw).await? {
+    if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
     sessions::delete_sessions_for_account(pool, &caller.account, None)
         .await
         .map_err(internal_sqlx)?;
     let value = ack_value(&body)?;
-    record(pool, &state, &key, &raw, StatusCode::OK, &value).await
+    record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }
 
 #[utoipa::path(
@@ -176,10 +178,11 @@ pub async fn change_password(
     request: axum::extract::Request,
 ) -> Result<Response, CallerDenied> {
     let key = idempotency_key(&request)?;
+    let scope = caller_scope(&request, &caller.account);
     let (body, raw) = read_json::<PasswordChangeRequest>(request).await?;
     let pool = pool_of(&state)?;
     let limiter = Limiter::new(pool, std::sync::Arc::clone(&state.clock));
-    if let Some(replay) = guard_replay(pool, &key, &raw).await? {
+    if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
     let blocked = limiter
@@ -258,11 +261,12 @@ pub async fn guard_replay(
     pool: &anybot_store_server::Pool,
     key: &str,
     raw: &[u8],
+    scope: &str,
 ) -> Result<Option<Response>, CallerDenied> {
-    let stored = find_recorded(pool, key).await.map_err(internal_sqlx)?;
+    let stored = find_recorded(pool, key, scope).await.map_err(internal_sqlx)?;
     match stored {
         None => Ok(None),
-        Some(record) if record.request_hash == body_digest(raw) => {
+        Some(record) if record.request_hash == crate::idem::safe_digest(raw) => {
             let raw = u16::try_from(record.status_code).map_err(internal_text)?;
             let status = StatusCode::from_u16(raw).map_err(internal_text)?;
             let value = serde_json::from_str(&record.body).map_err(internal_text)?;
@@ -280,20 +284,9 @@ pub async fn record(
     state: &AppState,
     key: &str,
     raw: &[u8],
+    scope: &str,
     status: StatusCode,
     value: &serde_json::Value,
 ) -> Result<Response, CallerDenied> {
-    let body_text = serde_json::to_string(value).map_err(internal_text)?;
-    let at_ms = i64::try_from(state.clock.now_ms().millis()).map_err(internal_text)?;
-    record_result(
-        pool,
-        key,
-        &body_digest(raw),
-        status.as_u16(),
-        &body_text,
-        at_ms,
-    )
-    .await
-    .map_err(internal_sqlx)?;
-    Ok(json_response(status, value.clone()))
+    record_outcome(pool, state, key, raw, scope, status, value, false).await
 }

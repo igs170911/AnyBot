@@ -10,13 +10,15 @@ use anybot_store_server::accounts;
 
 use crate::app::AppState;
 use crate::caller::CallerDenied;
-use crate::limits::{KIND_REGISTER, Limiter};
-use crate::req_write::{
-    denied, idempotency_key, internal_sqlx, internal_text, json_response, pool_of, read_json,
-    request_address,
-};
+use crate::limits::Limiter;
 
-use crate::api_account::{Guard, guard_idem, record_and_return};
+use crate::api_account::{Guard, guard_idem};
+use crate::idem::request_scope;
+use crate::req_write::{
+    denied, idempotency_key, internal_sqlx, internal_text, json_response, path_of, pool_of,
+    read_json, record_outcome, request_address,
+};
+use axum::http::Method;
 
 pub(crate) fn status_from_i32(code: i32) -> Result<StatusCode, CallerDenied> {
     let raw = u16::try_from(code).map_err(internal_text)?;
@@ -81,26 +83,27 @@ pub async fn register(
 ) -> Result<Response, CallerDenied> {
     let key = idempotency_key(&request)?;
     let address = request_address(&request, &state)?;
+    let path = path_of(&request);
     let (body, raw) = read_json::<RegisterRequest>(request).await?;
     let pool = pool_of(&state)?;
-    let guard = guard_idem(pool, &key, &raw).await?;
+    let scope = request_scope(&Method::POST, &path, &address);
+    let guard = guard_idem(pool, &key, &raw, &scope).await?;
     let limiter = Limiter::new(pool, std::sync::Arc::clone(&state.clock));
-    if limiter
-        .register_blocked(&address)
+    let started = limiter
+        .begin_register(&address)
         .await
-        .map_err(internal_sqlx)?
-    {
+        .map_err(internal_sqlx)?;
+    let Some(_id) = started else {
         return Err(denied(
             StatusCode::TOO_MANY_REQUESTS,
             MessageCode::AccountRegisterRate,
         ));
-    }
-    let (status, value) = run_register(&state, &body).await?;
-    record_register(&limiter, &address).await?;
-    if let Guard::Replay(replay_status, replay_value) = guard {
+    };
+    if let Guard::Replay(replay_status, replay_value, _did_only) = guard {
         return Ok(json_response(replay_status, replay_value));
     }
-    record_and_return(pool, &state, &key, &raw, status, &value).await
+    let (status, value) = run_register(&state, &body).await?;
+    record_outcome(pool, &state, &key, &raw, &scope, status, &value, false).await
 }
 
 pub async fn run_register(
@@ -117,7 +120,13 @@ pub async fn run_register(
         ));
     }
     let expected = crate::api_admin::read_invite(pool).await?;
-    if expected.is_some_and(|stored| stored != body.invite) {
+    let Some(expected) = expected else {
+        return Err(denied(
+            StatusCode::FORBIDDEN,
+            MessageCode::AccountInviteInvalid,
+        ));
+    };
+    if expected != body.invite {
         return Err(denied(
             StatusCode::FORBIDDEN,
             MessageCode::AccountInviteInvalid,
@@ -130,7 +139,6 @@ pub async fn run_register(
     {
         return Err(denied(StatusCode::CONFLICT, MessageCode::AccountExists));
     }
-    let first = accounts::account_count(pool).await.map_err(internal_sqlx)? == 0;
     let hash = state
         .pass_hasher()
         .await
@@ -139,20 +147,15 @@ pub async fn run_register(
         .await
         .map_err(internal_text)?;
     let now_ms = i64::try_from(state.clock.now_ms().millis()).map_err(internal_text)?;
-    accounts::insert_account(pool, &account, &hash, first, now_ms)
+    let mut tx = pool.begin().await.map_err(internal_sqlx)?;
+    let admin = accounts::insert_account(&mut *tx, &account, &hash, now_ms)
         .await
         .map_err(internal_sqlx)?;
+    tx.commit().await.map_err(internal_sqlx)?;
     let value = serde_json::to_value(RegisterAck {
         created: true,
-        admin: first,
+        admin,
     })
     .map_err(internal_text)?;
     Ok((StatusCode::CREATED, value))
-}
-
-pub async fn record_register(limiter: &Limiter, address: &str) -> Result<(), CallerDenied> {
-    limiter
-        .record(KIND_REGISTER, address, "")
-        .await
-        .map_err(internal_sqlx)
 }

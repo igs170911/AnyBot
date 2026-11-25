@@ -1,6 +1,5 @@
 use axum::Json;
 use axum::extract::State;
-use axum::http::StatusCode;
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -58,41 +57,4 @@ pub async fn status(State(state): State<AppState>) -> Json<StatusResponse> {
         listen_port: state.config.listen_port,
         public_url: state.config.public_url.clone(),
     })
-}
-
-#[utoipa::path(
-    post,
-    path = "/v1/server/stop",
-    operation_id = "post_server_stop",
-    summary = "Ask the server to stop",
-    description = "Requests a graceful stop of the running server. The Idempotency-Key header is required for this write.",
-    tag = "system",
-    security(()),
-    params(
-        ("Idempotency-Key" = String, Header, description = "Unique key for this write request"),
-    ),
-    responses(
-        (status = 202, description = "Stop requested",
-            content_type = "application/json",
-            body = StopAck,
-            example = json!({"stopping": true})),
-        (status = 400, description = "The request was malformed",
-            content_type = "application/problem+json",
-            body = ProblemJson,
-            example = json!({"type": "https://anybot.test/problems/bad-request", "title": "The request was malformed.", "status": 400, "code": "problem-bad-request", "params": {}})),
-        (status = 500, description = "The server hit an internal error",
-            content_type = "application/problem+json",
-            body = ProblemJson,
-            example = json!({"type": "https://anybot.test/problems/internal", "title": "The server hit an internal error.", "status": 500, "code": "problem-internal", "params": {}})),
-    )
-)]
-pub async fn stop(State(state): State<AppState>) -> (StatusCode, Json<StopAck>) {
-    state.shutdown.notify_waiters();
-    (StatusCode::ACCEPTED, Json(StopAck { stopping: true }))
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct StopAck {
-    #[schema(example = true)]
-    pub stopping: bool,
 }

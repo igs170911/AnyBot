@@ -160,7 +160,7 @@ async fn config_defaults_and_public_url_round_trip_through_the_database() -> Res
     let db = db_start("config_rows").await?;
     let pool = open_pool(&db).await?;
     let rows = read_config_rows(&pool).await.map_err(|e| e.to_string())?;
-    let config = ServerConfig::from_rows(rows.clone());
+    let config = ServerConfig::from_rows(rows.clone()).map_err(|e| e.to_string())?;
     let _written = write_config_row(&pool, "public_url", "https://round.example/")
         .await
         .map_err(|e| e.to_string());

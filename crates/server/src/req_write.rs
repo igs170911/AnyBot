@@ -12,6 +12,7 @@ use crate::app::AppState;
 pub use crate::caller::CallerDenied;
 use crate::idem::IDEMPOTENCY_HEADER;
 use crate::problems::{auth_problem, status_of};
+use anybot_store_server::Pool;
 use crate::req_source::{FORWARDED_HEADER, request_source_address};
 
 #[must_use]
@@ -37,7 +38,7 @@ pub fn internal_detail(detail: &str) -> CallerDenied {
     crate::caller::internal_detail(detail)
 }
 
-pub fn pool_of(state: &AppState) -> Result<&anybot_store_server::Pool, CallerDenied> {
+pub fn pool_of(state: &AppState) -> Result<&Pool, CallerDenied> {
     state
         .pool
         .as_ref()
@@ -143,4 +144,47 @@ pub fn json_response(status: StatusCode, value: serde_json::Value) -> Response {
 
 pub fn value_of<T: serde::Serialize>(item: &T) -> Result<serde_json::Value, CallerDenied> {
     serde_json::to_value(item).map_err(|e| internal_detail(&e.to_string()))
+}
+
+pub async fn record_outcome(
+    pool: &Pool,
+    state: &AppState,
+    key: &str,
+    raw: &[u8],
+    scope: &str,
+    status: StatusCode,
+    value: &serde_json::Value,
+    marker: bool,
+) -> Result<Response, CallerDenied> {
+    let body_text = if marker {
+        crate::idem::DID_IT_BODY.to_owned()
+    } else {
+        serde_json::to_string(value).map_err(internal_text)?
+    };
+    let at_ms = i64::try_from(state.clock.now_ms().millis()).map_err(internal_text)?;
+    crate::idem::record_result(
+        pool,
+        key,
+        scope,
+        &crate::idem::safe_digest(raw),
+        status.as_u16(),
+        &body_text,
+        at_ms,
+    )
+    .await
+    .map_err(internal_sqlx)?;
+    eprintln!("RECORDED {key}");
+    Ok(json_response(status, value.clone()))
+}
+
+pub fn caller_scope(request: &Request, identity: &str) -> String {
+    crate::idem::request_scope(
+        request.method(),
+        &path_of(request),
+        identity,
+    )
+}
+
+pub fn path_of(request: &Request) -> String {
+    request.uri().path().to_owned()
 }

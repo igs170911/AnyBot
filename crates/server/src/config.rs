@@ -37,13 +37,12 @@ impl Default for ServerConfig {
 }
 
 impl ServerConfig {
-    #[must_use]
-    pub fn from_rows(rows: Vec<(String, String)>) -> Self {
+    pub fn from_rows(rows: Vec<(String, String)>) -> Result<Self, String> {
         let mut config = ServerConfig::default();
         for (key, value) in rows {
-            config.apply(&key, &value);
+            config.apply(&key, &value)?;
         }
-        config
+        Ok(config)
     }
 
     #[must_use]
@@ -67,21 +66,28 @@ impl ServerConfig {
         rows
     }
 
-    fn apply(&mut self, key: &str, value: &str) {
+    fn apply(&mut self, key: &str, value: &str) -> Result<(), String> {
         match key {
             KEY_LISTEN_ADDRESSES => self.listen_addresses = split_list(value),
             KEY_LISTEN_PORT => {
-                if let Ok(port) = value.parse::<u16>() {
-                    self.listen_port = port;
-                }
+                let port = value
+                    .parse::<u16>()
+                    .map_err(|e| format!("listen_port: {e}"))?;
+                self.listen_port = port;
             }
             KEY_PUBLIC_URL => self.public_url = non_empty(value),
             KEY_INVITE_CODE => self.invite_code = non_empty(value).map(Secret::from_untrusted),
-            KEY_TRUST_PROXY => self.trust_proxy = value.parse().ok(),
+            KEY_TRUST_PROXY => {
+                let proxy = value
+                    .parse::<std::net::IpAddr>()
+                    .map_err(|e| format!("trust_proxy: {e}"))?;
+                self.trust_proxy = Some(proxy);
+            }
             KEY_PROXY_SECRET => self.proxy_secret = non_empty(value).map(Secret::from_untrusted),
             KEY_LANGUAGE => self.language = value.to_string(),
             _ => {}
         }
+        Ok(())
     }
 }
 

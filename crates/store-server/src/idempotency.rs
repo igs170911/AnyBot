@@ -2,6 +2,7 @@ use crate::Pool;
 
 #[derive(Debug)]
 pub struct IdempotencyRow {
+    pub scope: String,
     pub request_hash: String,
     pub status_code: i32,
     pub body: String,
@@ -11,10 +12,13 @@ pub struct IdempotencyRow {
 pub async fn find_idempotency(
     pool: &Pool,
     key: &str,
+    scope: &str,
 ) -> Result<Option<IdempotencyRow>, sqlx::Error> {
     let row = sqlx::query!(
-        "SELECT request_hash, status_code, body, at_ms FROM idempotency WHERE key = $1",
+        "SELECT scope, request_hash, status_code, body, at_ms FROM idempotency \
+         WHERE key = $1 AND scope = $2",
         key,
+        scope,
     )
     .fetch_optional(pool)
     .await?;
@@ -22,6 +26,7 @@ pub async fn find_idempotency(
         return Ok(None);
     };
     Ok(Some(IdempotencyRow {
+        scope: row.scope,
         request_hash: row.request_hash,
         status_code: row.status_code,
         body: row.body,
@@ -32,16 +37,18 @@ pub async fn find_idempotency(
 pub async fn insert_idempotency(
     pool: &Pool,
     key: &str,
+    scope: &str,
     request_hash: &str,
     status_code: i32,
     body: &str,
     at_ms: i64,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        "INSERT INTO idempotency (key, request_hash, status_code, body, at_ms) \
-         VALUES ($1, $2, $3, $4, $5) \
-         ON CONFLICT (key) DO NOTHING",
+        "INSERT INTO idempotency (key, scope, request_hash, status_code, body, at_ms) \
+         VALUES ($1, $2, $3, $4, $5, $6) \
+         ON CONFLICT (key, scope) DO NOTHING",
         key,
+        scope,
         request_hash,
         status_code,
         body,

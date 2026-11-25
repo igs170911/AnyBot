@@ -89,7 +89,8 @@ export type MessageCode =
   "server-cli-password-mismatch" |
   "server-cli-password-prompt" |
   "server-cli-password-confirm-prompt" |
-  "server-cli-reset-password-done";
+  "server-cli-reset-password-done" |
+  "server-config-invalid";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -181,4 +182,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-cli-password-prompt",
   "server-cli-password-confirm-prompt",
   "server-cli-reset-password-done",
+  "server-config-invalid",
 ];

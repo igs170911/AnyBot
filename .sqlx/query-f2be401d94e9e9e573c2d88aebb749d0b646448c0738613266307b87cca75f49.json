@@ -1,10 +1,21 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT request_hash, status_code, body, at_ms FROM idempotency WHERE key = $1",
+  "query": "SELECT scope, request_hash, status_code, body, at_ms FROM idempotency WHERE key = $1 AND scope = $2",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
+        "name": "scope",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "idempotency",
+            "name": "scope"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
         "name": "request_hash",
         "type_info": "Text",
         "origin": {
@@ -15,7 +26,7 @@
         }
       },
       {
-        "ordinal": 1,
+        "ordinal": 2,
         "name": "status_code",
         "type_info": "Int4",
         "origin": {
@@ -26,7 +37,7 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 3,
         "name": "body",
         "type_info": "Text",
         "origin": {
@@ -37,7 +48,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "at_ms",
         "type_info": "Int8",
         "origin": {
@@ -49,9 +60,9 @@
       }
     ],
     "parameters": {
-      "Left": ["Text"]
+      "Left": ["Text", "Text"]
     },
-    "nullable": [false, false, false, false]
+    "nullable": [false, false, false, false, false]
   },
-  "hash": "4cc091ef54dd53169ebc0a39636aca051495ad844dda35a37a2fbfb306bcdfe5"
+  "hash": "f2be401d94e9e9e573c2d88aebb749d0b646448c0738613266307b87cca75f49"
 }

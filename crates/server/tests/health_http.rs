@@ -8,7 +8,6 @@ use anybot_protocol as _;
 use anybot_store_server as _;
 use argon2 as _;
 use getrandom as _;
-use rand_core as _;
 use serde as _;
 use sha2 as _;
 use socket2 as _;

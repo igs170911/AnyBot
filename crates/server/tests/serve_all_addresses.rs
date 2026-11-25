@@ -9,7 +9,6 @@ use anybot_store_server as _;
 use argon2 as _;
 use axum as _;
 use getrandom as _;
-use rand_core as _;
 use serde as _;
 use serde_json as _;
 use sha2 as _;

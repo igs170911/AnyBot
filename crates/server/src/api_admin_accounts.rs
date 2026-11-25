@@ -71,10 +71,11 @@ pub async fn disable_account(
 ) -> Result<Response, CallerDenied> {
     admin_only(&caller)?;
     let key = idempotency_key(&request)?;
+    let scope = crate::req_write::caller_scope(&request, &caller.account);
     let target = crate::req_write::path_account(&request);
     let (body, raw) = read_json::<ActionAck>(request).await?;
     let pool = pool_of(&state)?;
-    if let Some(replay) = guard_replay(pool, &key, &raw).await? {
+    if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
     if target == caller.account {
@@ -97,7 +98,7 @@ pub async fn disable_account(
         .await
         .map_err(internal_sqlx)?;
     let value = value_of(&body)?;
-    record(pool, &state, &key, &raw, StatusCode::OK, &value).await
+    record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }
 
 #[utoipa::path(
@@ -151,10 +152,11 @@ pub async fn enable_account(
 ) -> Result<Response, CallerDenied> {
     admin_only(&caller)?;
     let key = idempotency_key(&request)?;
+    let scope = crate::req_write::caller_scope(&request, &caller.account);
     let target = crate::req_write::path_account(&request);
     let (body, raw) = read_json::<ActionAck>(request).await?;
     let pool = pool_of(&state)?;
-    if let Some(replay) = guard_replay(pool, &key, &raw).await? {
+    if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
     let found = accounts::find_account(pool, &target)
@@ -168,7 +170,7 @@ pub async fn enable_account(
         .await
         .map_err(internal_sqlx)?;
     let value = value_of(&body)?;
-    record(pool, &state, &key, &raw, StatusCode::OK, &value).await
+    record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }
 
 #[utoipa::path(
@@ -226,14 +228,15 @@ pub async fn reset_password(
 ) -> Result<Response, CallerDenied> {
     admin_only(&caller)?;
     let key = idempotency_key(&request)?;
+    let scope = crate::req_write::caller_scope(&request, &caller.account);
     let target = crate::req_write::path_account(&request);
     let (body, raw) = read_json::<ResetPasswordRequest>(request).await?;
     let pool = pool_of(&state)?;
-    if let Some(replay) = guard_replay(pool, &key, &raw).await? {
+    if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
     let value = apply_reset(&state, pool, &target, &body).await?;
-    record(pool, &state, &key, &raw, StatusCode::OK, &value).await
+    record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }
 
 async fn apply_reset(

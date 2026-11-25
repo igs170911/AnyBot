@@ -33,7 +33,7 @@ impl Modify for BearerAuth {
     paths(
         crate::health::health,
         crate::status::status,
-        crate::status::stop,
+        
         crate::api_register::register,
         crate::api_account::login,
         crate::api_ops::logout,
@@ -49,7 +49,7 @@ impl Modify for BearerAuth {
     components(schemas(
         crate::health::HealthResponse,
         crate::status::StatusResponse,
-        crate::status::StopAck,
+        
         anybot_protocol::ActionAck,
         anybot_protocol::InviteResponse,
         anybot_protocol::LoginRequest,

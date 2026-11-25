@@ -15,7 +15,7 @@ use crate::api_register::register;
 use crate::config::ServerConfig;
 use crate::health::health;
 use crate::pass_hash::PassHash;
-use crate::status::{status, stop};
+use crate::status::{status};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -93,7 +93,6 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/v1/health", get(health))
         .route("/v1/server/status", get(status))
-        .route("/v1/server/stop", post(stop))
         .route("/v1/account/register", post(register))
         .route("/v1/account/login", post(login))
         .route("/v1/account/logout", post(logout))

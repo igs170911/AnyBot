@@ -5,19 +5,22 @@ use axum::response::Response;
 use anybot_domain::session_term::{evict_indices, session_expired};
 use anybot_foundation::Secret;
 use anybot_messages::MessageCode;
+use anybot_domain::account_name::normalize_account_name;
 use anybot_protocol::{LoginRequest, LoginSession, ProblemJson};
 use anybot_store_server::{Pool, accounts, sessions};
 
 use crate::api_register::status_from_i32;
 use crate::app::AppState;
 use crate::caller::CallerDenied;
-use crate::idem::{body_digest, find_recorded, record_result};
-use crate::limits::{KIND_LOGIN_FAIL, Limiter};
+use crate::idem::{DID_IT_BODY, find_recorded, request_scope, safe_digest};
+use crate::limits::Limiter;
 use crate::pass_hash::key_digest;
+use crate::problems;
 use crate::req_write::{
-    denied, idempotency_key, internal_sqlx, internal_text, json_response, pool_of, read_json,
-    request_address, value_of,
+    denied, idempotency_key, internal_sqlx, internal_text, pool_of,
+    read_json, record_outcome, request_address, path_of, value_of,
 };
+use axum::http::Method;
 
 const LOGIN_DELAY_MS: u64 = 500;
 
@@ -70,68 +73,105 @@ pub async fn login(
 ) -> Result<Response, CallerDenied> {
     let key = idempotency_key(&request)?;
     let address = request_address(&request, &state)?;
+    let path = path_of(&request);
     let (body, raw) = read_json::<LoginRequest>(request).await?;
     let pool = pool_of(&state)?;
-    let guard = guard_idem(pool, &key, &raw).await?;
+    let scope = request_scope(&Method::POST, &path, &address);
+    let guard = guard_idem(pool, &key, &raw, &scope).await?;
     let limiter = Limiter::new(pool, std::sync::Arc::clone(&state.clock));
-    if limiter
-        .login_blocked(&address, &body.account)
+    let attempt = limiter
+        .begin_login(&address, &body.account)
         .await
-        .map_err(internal_sqlx)?
-    {
+        .map_err(internal_sqlx)?;
+    let Some(id) = attempt else {
         slow_fail(&state).await;
-        limiter
-            .record(KIND_LOGIN_FAIL, &address, &body.account)
-            .await
-            .map_err(internal_sqlx)?;
         return Err(denied(
             StatusCode::TOO_MANY_REQUESTS,
             MessageCode::AccountLoginRate,
         ));
+    };
+    if let Guard::Replay(..) = guard {
+        return run_login(&state, pool, &limiter, id, &body, &key, &raw, &scope).await;
     }
-    let row = accounts::find_account(pool, &body.account)
+    run_login(&state, pool, &limiter, id, &body, &key, &raw, &scope).await
+}
+
+async fn run_login(
+    state: &AppState,
+    pool: &Pool,
+    limiter: &Limiter,
+    id: i64,
+    body: &LoginRequest,
+    key: &str,
+    raw: &[u8],
+    scope: &str,
+) -> Result<Response, CallerDenied> {
+    eprintln!("ENTER {}", key);
+    let account = normalize_account_name(&body.account)
+        .map_err(|_| denied(StatusCode::UNAUTHORIZED, MessageCode::AccountLoginCredentials))?;
+    let row = accounts::find_account(pool, &account)
         .await
         .map_err(internal_sqlx)?;
-    let ok = verify_password(
-        &state,
+    let checked = verify_password(
+        state,
         row.as_ref(),
         &Secret::from_untrusted(body.password.clone()),
     )
     .await;
+    let ok = checked && row.is_some();
     if !ok {
-        slow_fail(&state).await;
+        eprintln!("SLOW {}", key);
+        slow_fail(state).await;
+        eprintln!("SLEPT {}", key);
+        let value = serde_json::to_value(problems::auth_problem(
+            StatusCode::UNAUTHORIZED.as_u16(),
+            MessageCode::AccountLoginCredentials,
+        ))
+        .map_err(internal_text)?;
+        let answer = record_outcome(pool, state, key, raw, scope, StatusCode::UNAUTHORIZED, &value, false).await?;
+        drop(answer);
+        return Err(denied(StatusCode::UNAUTHORIZED, MessageCode::AccountLoginCredentials));
+    }
+    if row.as_ref().is_some_and(|row| row.disabled) {
+        let value = serde_json::to_value(problems::auth_problem(
+            StatusCode::FORBIDDEN.as_u16(),
+            MessageCode::AccountLoginDisabled,
+        ))
+        .map_err(internal_text)?;
         limiter
-            .record(KIND_LOGIN_FAIL, &address, &body.account)
+            .cancel_login(id)
             .await
             .map_err(internal_sqlx)?;
-        let code = match row {
-            Some(row) if row.disabled => MessageCode::AccountLoginDisabled,
-            _ => MessageCode::AccountLoginCredentials,
-        };
-        return Err(denied(StatusCode::UNAUTHORIZED, code));
+        record_outcome(pool, state, key, raw, scope, StatusCode::FORBIDDEN, &value, false).await?;
+        return Err(denied(StatusCode::FORBIDDEN, MessageCode::AccountLoginDisabled));
     }
-    if let Guard::Replay(..) = guard {
-        let session = open_session(&state, pool, &body, row.as_ref()).await?;
-        let value = value_of(&session)?;
-        return Ok(json_response(StatusCode::OK, value));
-    }
-    let session = open_session(&state, pool, &body, row.as_ref()).await?;
+    limiter
+        .cancel_login(id)
+        .await
+        .map_err(internal_sqlx)?;
+    let session = open_session(state, pool, body, row.as_ref()).await?;
     let value = value_of(&session)?;
-    record_and_return(pool, &state, &key, &raw, StatusCode::OK, &value).await
+    record_outcome(pool, state, key, raw, scope, StatusCode::OK, &value, true).await
 }
 
 pub enum Guard {
     Fresh,
-    Replay(StatusCode, serde_json::Value),
+    Replay(StatusCode, serde_json::Value, bool),
 }
 
-pub async fn guard_idem(pool: &Pool, key: &str, raw: &[u8]) -> Result<Guard, CallerDenied> {
-    let stored = find_recorded(pool, key).await.map_err(internal_sqlx)?;
+pub async fn guard_idem(
+    pool: &Pool,
+    key: &str,
+    raw: &[u8],
+    scope: &str,
+) -> Result<Guard, CallerDenied> {
+    let stored = find_recorded(pool, key, scope).await.map_err(internal_sqlx)?;
     match stored {
         None => Ok(Guard::Fresh),
-        Some(record) if record.request_hash == body_digest(raw) => Ok(Guard::Replay(
+        Some(record) if record.request_hash == safe_digest(raw) => Ok(Guard::Replay(
             status_from_i32(record.status_code)?,
-            serde_json::from_str(&record.body).map_err(internal_text)?,
+            serde_json::from_str(&record.body).unwrap_or(serde_json::Value::Null),
+            record.body == DID_IT_BODY,
         )),
         Some(_) => Err(denied(
             StatusCode::CONFLICT,
@@ -165,14 +205,8 @@ async fn open_session(
 ) -> Result<LoginSession, CallerDenied> {
     let account = row.ok_or(denied(
         StatusCode::UNAUTHORIZED,
-        MessageCode::AccountLoginDisabled,
+        MessageCode::AccountLoginCredentials,
     ))?;
-    if account.disabled {
-        return Err(denied(
-            StatusCode::UNAUTHORIZED,
-            MessageCode::AccountLoginDisabled,
-        ));
-    }
     let now_ms = state.clock.now_ms().millis();
     let at_ms = i64::try_from(now_ms).map_err(internal_text)?;
     trim_sessions(pool, &account.account, now_ms).await?;
@@ -226,27 +260,4 @@ async fn slow_fail(state: &AppState) {
         .clock
         .sleep(std::time::Duration::from_millis(LOGIN_DELAY_MS))
         .await;
-}
-
-pub async fn record_and_return(
-    pool: &Pool,
-    state: &AppState,
-    key: &str,
-    raw: &[u8],
-    status: StatusCode,
-    value: &serde_json::Value,
-) -> Result<Response, CallerDenied> {
-    let body_text = serde_json::to_string(value).map_err(internal_text)?;
-    let at_ms = i64::try_from(state.clock.now_ms().millis()).map_err(internal_text)?;
-    record_result(
-        pool,
-        key,
-        &body_digest(raw),
-        status.as_u16(),
-        &body_text,
-        at_ms,
-    )
-    .await
-    .map_err(internal_sqlx)?;
-    Ok(json_response(status, value.clone()))
 }

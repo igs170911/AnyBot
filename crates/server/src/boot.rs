@@ -35,6 +35,7 @@ impl Started {
 pub enum BootError {
     Schema(SchemaError),
     ConfigRead(String),
+    ConfigInvalid(String),
     VersionWrite(String),
 }
 
@@ -51,7 +52,7 @@ pub async fn boot(
     let rows = read_config_rows(pool)
         .await
         .map_err(|e| BootError::ConfigRead(e.to_string()))?;
-    let mut config = ServerConfig::from_rows(rows);
+    let mut config = ServerConfig::from_rows(rows).map_err(BootError::ConfigInvalid)?;
     let account_count = account_count(pool)
         .await
         .map_err(|e| BootError::ConfigRead(e.to_string()))?;

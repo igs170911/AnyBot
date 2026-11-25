@@ -108,3 +108,14 @@ pub(crate) fn kill_child(child: &mut std::process::Child, pid: u32, label: &str)
     }
     let _result = child.wait();
 }
+
+pub(crate) fn terminate_child(pid: u32, label: &str) -> Result<(), String> {
+    let pid_text = pid.to_string();
+    std::process::Command::new("/bin/kill")
+        .args(["-TERM", pid_text.as_str()])
+        .spawn()
+        .map_err(|e| format!("harness: TERM {label} PID {pid}: {e}"))?
+        .wait()
+        .map(|_status| ())
+        .map_err(|e| format!("harness: kill waiter {label} PID {pid}: {e}"))
+}

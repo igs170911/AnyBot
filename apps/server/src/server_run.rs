@@ -153,47 +153,103 @@ pub fn startup_reference(
 }
 
 pub fn note_startup_logs(ctx: &mut Ctx, started: &Started) {
-    if started.account_count == 0 {
+    note_startup_counts(ctx, started.account_count, &started.new_invite);
+}
+
+pub fn note_startup_counts(ctx: &mut Ctx, account_count: i64, new_invite: &Option<String>) {
+    if account_count == 0 {
         let reference = MessageRef::new(crate::CODE_SERVER_STARTUP_NO_ACCOUNTS);
         let _printed = ctx.print_ref(&reference);
     }
-    if let Some(code) = &started.new_invite {
+    if let Some(code) = new_invite {
         let reference =
             MessageRef::new(crate::CODE_SERVER_STARTUP_INVITE_GENERATED).with_text("code", code);
         let _printed = ctx.print_ref(&reference);
     }
 }
 
-pub async fn serve_main(args: &ServerLaunchArgs, version: &str, ctx: &mut Ctx) -> ExitCode {
+pub struct StagedServing {
+    pub listeners: Vec<TcpListener>,
+    pub app: axum::Router,
+    pub shutdown: Arc<tokio::sync::Notify>,
+    pub reference: MessageRef,
+    pub account_count: i64,
+    pub new_invite: Option<String>,
+}
+
+pub async fn stage_serve(
+    args: &ServerLaunchArgs,
+    version: &str,
+    ctx: &mut Ctx,
+) -> Result<StagedServing, ExitCode> {
     let startup = match crate::startup_plan(args, version) {
         Ok(Ok(startup)) => startup,
-        Ok(Err(failure)) => return ctx.report(&failure),
-        Err(err) => return messages_exit(ctx, &err.to_string()),
+        Ok(Err(failure)) => return Err(ctx.report(&failure)),
+        Err(err) => return Err(messages_exit(ctx, &err.to_string())),
     };
     let clock = Arc::new(SystemClock);
     let pool = match connect_plan(&startup.bootstrap, ctx, clock.as_ref()).await {
         Ok(pool) => pool,
-        Err(err) => return messages_exit(ctx, &err),
+        Err(err) => return Err(messages_exit(ctx, &err)),
     };
     let started = match boot_plan(&pool, version, &startup.bootstrap, ctx).await {
         Ok(started) => started,
-        Err(code) => return code,
+        Err(code) => return Err(code),
     };
     ctx.set_lang(&started.config.language);
     let reference = startup_reference(&startup, &started.config, version);
     let listeners = match bind_from_config(&started.config, ctx).await {
         Ok(listeners) => listeners,
-        Err(code) => return code,
+        Err(code) => return Err(code),
     };
-    if ctx.startup_line(&reference).is_err() {
-        return ExitCode::from(3);
-    }
-    note_startup_logs(ctx, &started);
+    let account_count = started.account_count;
+    let new_invite = started.new_invite.clone();
     let clock = Arc::new(SystemClock);
     let state = AppState::with_pool(version, clock, pool, started.config);
     let shutdown = Arc::clone(&state.shutdown);
     let app = build_router(state);
-    serve_exit_stoppable(&mut ctx.catalog, listeners, app, shutdown).await
+    Ok(StagedServing {
+        listeners,
+        app,
+        shutdown,
+        reference,
+        account_count,
+        new_invite,
+    })
+}
+
+pub async fn finish_serve(staged: StagedServing, ctx: &mut Ctx) -> ExitCode {
+    if ctx.startup_line(&staged.reference).is_err() {
+        return ExitCode::from(3);
+    }
+    note_startup_counts(ctx, staged.account_count, &staged.new_invite);
+    watch_stop_signals(&staged.shutdown);
+    serve_exit_stoppable(&mut ctx.catalog, staged.listeners, staged.app, staged.shutdown).await
+}
+
+fn watch_stop_signals(shutdown: &Arc<tokio::sync::Notify>) {
+    let stop = Arc::clone(shutdown);
+    let _task = tokio::spawn(async move {
+        if listen_for_stop().await.is_ok() {
+            stop.notify_waiters();
+        }
+    });
+}
+
+async fn listen_for_stop() -> Result<(), std::io::Error> {
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    tokio::select! {
+        (_ctrl) = tokio::signal::ctrl_c() => Ok(()),
+        Some(_sig) = terminate.recv() => Ok(()),
+    }
+}
+
+pub async fn serve_main(args: &ServerLaunchArgs, version: &str, ctx: &mut Ctx) -> ExitCode {
+    let staged = match stage_serve(args, version, ctx).await {
+        Ok(staged) => staged,
+        Err(code) => return code,
+    };
+    finish_serve(staged, ctx).await
 }
 
 pub fn messages_exit(ctx: &mut Ctx, err: &str) -> ExitCode {

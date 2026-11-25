@@ -93,6 +93,7 @@ pub enum MessageCode {
     ServerCliPasswordPrompt,
     ServerCliPasswordConfirmPrompt,
     ServerCliResetPasswordDone,
+    ServerConfigInvalid,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -289,6 +290,7 @@ const TABLE: &[(MessageCode, &str)] = &[
         MessageCode::ServerCliResetPasswordDone,
         "server-cli-reset-password-done",
     ),
+    (MessageCode::ServerConfigInvalid, "server-config-invalid"),
 ];
 
 impl MessageCode {

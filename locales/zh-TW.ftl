@@ -89,3 +89,4 @@ server-cli-password-mismatch = 兩次輸入的新密碼不一樣
 server-cli-password-prompt = 新密碼（輸入兩次；至少 8 個字）：
 server-cli-password-confirm-prompt = 再輸入一次新密碼：
 server-cli-reset-password-done = 帳號 { $account } 已設定新密碼；它的所有登入都已登出
+server-config-invalid = 伺服器啟動失敗，因為儲存的設定值 {$reason} 不合法。

@@ -88,3 +88,4 @@ server-cli-password-mismatch = The two passwords do not match
 server-cli-password-prompt = New password (type it twice; at least 8 characters):
 server-cli-password-confirm-prompt = Repeat the new password:
 server-cli-reset-password-done = Account { $account } now has a new password; all its sessions were logged out
+server-config-invalid = Server failed to start because the stored configuration value {$reason} is invalid.

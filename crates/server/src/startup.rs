@@ -9,6 +9,8 @@ use anybot_foundation::{
 pub const DEFAULT_PORT: u16 = 8787;
 pub use anybot_foundation::CODE_SERVER_STARTUP_LISTENING;
 
+pub const CODE_SERVER_CONFIG_INVALID: &str = "server-config-invalid";
+
 #[derive(Debug)]
 pub struct ServerStartup {
     pub startup: MessageRef,

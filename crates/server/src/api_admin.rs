@@ -109,17 +109,26 @@ pub async fn rotate_invite(
 ) -> Result<Response, CallerDenied> {
     admin_only(&caller)?;
     let key = idempotency_key(&request)?;
+    let scope = crate::req_write::caller_scope(&request, &caller.account);
     let (_body, raw) = read_json::<ActionAck>(request).await?;
     let pool = pool_of(&state)?;
-    if let Some(replay) = guard_replay(pool, &key, &raw).await? {
-        return Ok(replay);
-    }
+    let _guard = crate::api_account::guard_idem(pool, &key, &raw, &scope).await?;
     let fresh = draw_invite().map_err(internal_text)?;
     config::write_config_value(pool, crate::config::KEY_INVITE_CODE, &fresh)
         .await
         .map_err(internal_sqlx)?;
     let value = value_of(&InviteResponse { invite: fresh })?;
-    record(pool, &state, &key, &raw, StatusCode::OK, &value).await
+    crate::req_write::record_outcome(
+        pool,
+        &state,
+        &key,
+        &raw,
+        &scope,
+        StatusCode::OK,
+        &value,
+        true,
+    )
+    .await
 }
 
 #[utoipa::path(
@@ -172,9 +181,10 @@ pub async fn set_public_url(
 ) -> Result<Response, CallerDenied> {
     admin_only(&caller)?;
     let key = idempotency_key(&request)?;
+    let scope = crate::req_write::caller_scope(&request, &caller.account);
     let (body, raw) = read_json::<PublicUrlRequest>(request).await?;
     let pool = pool_of(&state)?;
-    if let Some(replay) = guard_replay(pool, &key, &raw).await? {
+    if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
     let parsed = url::Url::parse(&body.public_url)
@@ -189,7 +199,7 @@ pub async fn set_public_url(
         .await
         .map_err(internal_sqlx)?;
     let value = value_of(&ActionAck { ok: true })?;
-    record(pool, &state, &key, &raw, StatusCode::OK, &value).await
+    record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }
 
 pub async fn read_invite(pool: &anybot_store_server::Pool) -> Result<Option<String>, CallerDenied> {

@@ -16,7 +16,7 @@ use sqlx as _;
 use test_harness as _;
 use tracing as _;
 
-use test_harness::{ArcWriter, Capture, FakeClock, run_program, test_dir, test_post};
+use test_harness::{ArcWriter, Capture, FakeClock, run_program, test_dir};
 
 fn server_bin() -> ServerProgram {
     ServerProgram::new(env!("CARGO_BIN_EXE_anybot-server"))
@@ -206,22 +206,29 @@ async fn serve_online(db: &ServerDb, capture: &Arc<Capture>) -> Result<(), Strin
     let _closed = pool.close().await;
     let want = startup_want(db)?;
     let mut ctx = ctx_with_capture(capture);
-    let mut serve = Box::pin(anybot_app_server::server_run::serve_main(
+    let staged = anybot_app_server::server_run::stage_serve(
         &launched,
         env!("CARGO_PKG_VERSION"),
         &mut ctx,
+    )
+    .await;
+    let staged = match staged {
+        Ok(staged) => staged,
+        Err(code) => return Err(format!("stage failed {code:?}")),
+    };
+    let stop_handle = std::sync::Arc::clone(&staged.shutdown);
+    let mut serve = Box::pin(anybot_app_server::server_run::finish_serve(
+        staged,
+        &mut ctx,
     ));
     let watched = watch_startup_line(serve.as_mut(), capture, &want).await;
-    let stopped_http = test_post(db.listen_port, "/v1/server/stop", "{}").await;
+    let _notified = stop_handle.notified();
+    stop_handle.notify_waiters();
     let joined = test_harness::timeout_real(serve, std::time::Duration::from_secs(20)).await;
     match watched {
-        Ok(()) => match stopped_http {
-            Ok((202, _body)) => match joined {
-                Ok(_code) => Ok(()),
-                Err(_slow) => Err("serve_main did not finish".to_owned()),
-            },
-            Ok((code, _body)) => Err(format!("stop answered {code}")),
-            Err(msg) => Err(msg),
+        Ok(()) => match joined {
+            Ok(_code) => Ok(()),
+            Err(_slow) => Err("serve_main did not finish".to_owned()),
         },
         Err(msg) => Err(msg),
     }

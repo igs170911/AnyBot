@@ -187,16 +187,9 @@ async fn start_live(db: &ServerDb) -> Result<Running, String> {
     }
 }
 
-async fn stop_live(mut running: Running, port: u16) -> Result<(), String> {
-    let posted = test_harness::test_post(port, "/v1/server/stop", "{}").await;
-    let result = finish_running(&mut running).await;
-    match posted {
-        Ok((_code, _body)) => match result {
-            Ok(_outcome) => Ok(()),
-            Err(msg) => Err(msg),
-        },
-        Err(msg) => Err(msg),
-    }
+async fn stop_live(mut running: Running, _port: u16) -> Result<(), String> {
+    running.terminate()?;
+    finish_running(&mut running).await.map(|_outcome| ())
 }
 
 async fn finish_running(running: &mut Running) -> Result<Outcome, String> {

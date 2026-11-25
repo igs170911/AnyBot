@@ -15,6 +15,7 @@ pub enum RunError {
     ForeignData,
     MigrationFailed(String),
     ConfigRead(String),
+    ConfigInvalid(String),
 }
 
 impl RunError {
@@ -26,6 +27,9 @@ impl RunError {
                 .with_text("db_name", &bootstrap.database),
             RunError::MigrationFailed(reason) | RunError::ConfigRead(reason) => {
                 MessageRef::new(CODE_SERVER_MIGRATION_FAILED).with_text("reason", reason)
+            }
+            RunError::ConfigInvalid(reason) => {
+                MessageRef::new(crate::startup::CODE_SERVER_CONFIG_INVALID).with_text("reason", reason)
             }
         }
     }
@@ -54,5 +58,6 @@ pub async fn boot_database(
         Err(BootError::ConfigRead(reason) | BootError::VersionWrite(reason)) => {
             Err(RunError::ConfigRead(reason))
         }
+        Err(BootError::ConfigInvalid(reason)) => Err(RunError::ConfigInvalid(reason))
     }
 }

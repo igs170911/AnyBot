@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
-use argon2::{Argon2, Version};
-use rand_core::OsRng;
+use argon2::password_hash::phc::{PasswordHash, SaltString};
+use argon2::password_hash::{PasswordHasher, PasswordVerifier};
+use argon2::{Algorithm, Argon2, ParamsBuilder, Version};
 use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
@@ -22,8 +22,7 @@ pub struct PassHash {
 
 impl PassHash {
     pub fn new() -> Result<Self, String> {
-        let argon2 = Argon2::new(None, ARGON2_T, ARGON2_M, ARGON2_PARALLEL, Version::V0x13)
-            .map_err(|e| e.to_string())?;
+        let argon2 = Self::build()?;
         let dummy_hash = Self::hash_with(&argon2, DUMMY_PASSWORD)?;
         Ok(PassHash {
             argon2,
@@ -32,25 +31,48 @@ impl PassHash {
         })
     }
 
+    fn build() -> Result<Argon2<'static>, String> {
+        let mut builder = ParamsBuilder::new();
+        builder.m_cost(ARGON2_M);
+        builder.t_cost(ARGON2_T);
+        builder.p_cost(ARGON2_PARALLEL);
+        let params = builder.build().map_err(|e| e.to_string())?;
+        Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
+    }
+
     pub async fn hash(&self, password: &Secret) -> Result<String, String> {
         let _permit = self.permits.acquire().await.map_err(|e| e.to_string())?;
-        Self::hash_with(&self.argon2, password.expose())
+        let argon2 = self.argon2.clone();
+        let text = password.expose().to_owned();
+        tokio::task::spawn_blocking(move || Self::hash_with(&argon2, &text))
+            .await
+            .map_err(|e| e.to_string())?
     }
 
     pub async fn verify(&self, password: &Secret, stored: &str) -> Result<bool, String> {
         let _permit = self.permits.acquire().await.map_err(|e| e.to_string())?;
-        Self::verify_with(&self.argon2, password.expose(), stored)
+        let argon2 = self.argon2.clone();
+        let text = password.expose().to_owned();
+        let stored = stored.to_owned();
+        tokio::task::spawn_blocking(move || Self::verify_with(&argon2, &text, &stored))
+            .await
+            .map_err(|e| e.to_string())?
     }
 
     pub async fn verify_dummy(&self, password: &Secret) -> Result<bool, String> {
         let _permit = self.permits.acquire().await.map_err(|e| e.to_string())?;
-        Self::verify_with(&self.argon2, password.expose(), &self.dummy_hash)
+        let argon2 = self.argon2.clone();
+        let text = password.expose().to_owned();
+        let stored = self.dummy_hash.clone();
+        tokio::task::spawn_blocking(move || Self::verify_with(&argon2, &text, &stored))
+            .await
+            .map_err(|e| e.to_string())?
     }
 
     fn hash_with(argon2: &Argon2<'_>, password: &str) -> Result<String, String> {
-        let salt = SaltString::generate(&mut OsRng);
+        let salt = SaltString::generate();
         argon2
-            .hash_password_simple(password.as_bytes(), salt.as_str())
+            .hash_password_with_salt(password.as_bytes(), salt.as_bytes())
             .map(|hash| hash.to_string())
             .map_err(|e| e.to_string())
     }
@@ -85,6 +107,7 @@ mod tests {
         let hasher = PassHash::new().unwrap();
         let stored = hasher.hash(&secret("hunter22")).await.unwrap();
         assert!(stored.starts_with("$argon2id$"), "algorithm leak");
+        assert!(stored.contains("m=19456,t=2,p=1"), "spec parameters pinned");
         assert!(hasher.verify(&secret("hunter22"), &stored).await.unwrap());
         assert!(!hasher.verify(&secret("hunter23"), &stored).await.unwrap());
     }

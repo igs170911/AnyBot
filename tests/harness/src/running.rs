@@ -6,7 +6,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::launch::{Outcome, Program};
-use crate::process::{
+use crate::process::{terminate_child,
     PollState, collect_stream, exit_status_code, finish_poll, kill_child, poll_exit, spawn_bytes,
 };
 
@@ -68,6 +68,12 @@ impl Running {
                 ))
             }
         }
+    }
+
+    pub fn terminate(&mut self) -> Result<(), String> {
+        let pid = self.pid();
+        let label = self.label.clone();
+        terminate_child(pid, &label)
     }
 
     pub fn kill(&mut self) -> Result<Outcome, String> {

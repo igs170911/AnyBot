@@ -11,23 +11,27 @@ pub struct AccountRow {
 }
 
 pub async fn insert_account(
-    pool: &Pool,
+    conn: &mut sqlx::PgConnection,
     account: &str,
     password_hash: &str,
-    admin: bool,
     now_ms: i64,
-) -> Result<(), sqlx::Error> {
+) -> Result<bool, sqlx::Error> {
     sqlx::query!(
+        "SELECT pg_advisory_xact_lock(5050505)",
+    )
+    .execute(&mut *conn)
+    .await?;
+    let row = sqlx::query!(
         "INSERT INTO accounts (account, password_hash, admin, created_at_ms, last_password_at_ms) \
-         VALUES ($1, $2, $3, $4, $4)",
+         SELECT $1, $2, NOT EXISTS (SELECT 1 FROM accounts), $3, $3 \
+         ON CONFLICT (account) DO NOTHING RETURNING admin",
         account,
         password_hash,
-        admin,
         now_ms,
     )
-    .execute(pool)
+    .fetch_optional(&mut *conn)
     .await?;
-    Ok(())
+    Ok(row.is_some_and(|row| row.admin))
 }
 
 pub async fn find_account(pool: &Pool, account: &str) -> Result<Option<AccountRow>, sqlx::Error> {
