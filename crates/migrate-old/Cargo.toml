@@ -10,5 +10,6 @@ anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-domain = { workspace = true }
 anybot-store-client = { workspace = true }
+serde = { workspace = true }
 [lints]
 workspace = true

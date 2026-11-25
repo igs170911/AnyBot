@@ -1,3 +1,6 @@
+max-struct-bools = 5
+max-fn-params-bools = 5
+
 # clippy disallowed list (spec/07 §3 "banned spellings")
 # A permitted package keeps an identical copy in its own folder, missing only
 # the entries it is permitted to exempt (spec/09 K75; verified by tools/iron-laws).

@@ -62,7 +62,7 @@ fn test_events_task_status_changed_carries_task_id() {
     let kind = EventKind::Known(KnownEventKind::TaskStatusChanged {
         task_id: TaskId::parse(TASK).unwrap(),
         status: TaskStatus::Completed,
-        detail: Some(CompletedDetail::Delivered),
+        detail: Some(TaskDetail::Delivered),
     });
     let e = sample_event(kind);
     let value: serde_json::Value = serde_json::to_value(&e).unwrap();
@@ -82,6 +82,8 @@ fn test_events_task_status_changed_carries_task_id() {
             .get("kind")
             .unwrap()
             .get("data")
+            .unwrap()
+            .get("detail")
             .unwrap()
             .get("detail")
             .unwrap()

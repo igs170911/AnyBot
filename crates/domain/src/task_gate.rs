@@ -1,0 +1,66 @@
+use anybot_protocol::{TaskDetail, TaskStatus};
+
+use crate::task_view::TaskView;
+
+pub fn finish_turn(view: &mut TaskView) {
+    if is_terminal(view.status) {
+        return;
+    }
+    if view.over_budget() {
+        view.set_over_budget_detail();
+        return;
+    }
+    if !view.unresolved_unknowns.is_empty() {
+        view.status = TaskStatus::AwaitingUser;
+        view.detail = Some(TaskDetail::ResumePending);
+        return;
+    }
+    if view.gate.acceptance_unavailable {
+        view.status = TaskStatus::Unaccepted;
+        view.detail = Some(TaskDetail::NoVisibleResult);
+        return;
+    }
+    if view.gate.step_rejected {
+        view.status = TaskStatus::Unaccepted;
+        view.detail = Some(TaskDetail::StepRejected);
+        return;
+    }
+    if view.unverified_actions() {
+        view.status = TaskStatus::Unaccepted;
+        view.detail = Some(TaskDetail::UnverifiedActions);
+        return;
+    }
+    if view.completion_ready() {
+        view.complete();
+        return;
+    }
+    view.set_running(TaskDetail::CurrentStep {
+        step: view.goal.clone(),
+    });
+}
+
+fn is_terminal(status: TaskStatus) -> bool {
+    matches!(status, TaskStatus::Cancelled | TaskStatus::Stopped)
+}
+
+impl TaskView {
+    #[must_use]
+    pub fn over_budget(&self) -> bool {
+        self.budget.first_over().is_some()
+    }
+
+    pub fn set_over_budget_detail(&mut self) {
+        if let Some((item, used, limit)) = self.budget.first_over() {
+            self.status = TaskStatus::Stuck;
+            self.detail = Some(TaskDetail::OverBudget { item, used, limit });
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "task_gate_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "task_state_prop_tests.rs"]
+mod state_props;

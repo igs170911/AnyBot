@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 9611ae0d0f8361a816b85e2969faa9efebfdc1d3292f6c8f6d0a682773b4cff6 # shrinks to (kinds, split) = ([TaskCreated { goal: "a" }, TurnStarted, AcceptanceUnavailable], 1)

@@ -21,6 +21,9 @@ impl MigrationReport {
     }
 }
 
+pub mod old_status;
+
+pub use old_status::{LegacyContext, LegacyTaskStatus, migrate_all, migrate_status};
 pub type TargetPool = Pool;
 
 #[must_use]

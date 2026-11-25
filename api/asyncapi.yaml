@@ -123,7 +123,7 @@ components:
             properties:
               detail:
                 anyOf:
-                - $ref: '#/components/schemas/CompletedDetail'
+                - $ref: '#/components/schemas/TaskDetail'
                 - type: 'null'
               status:
                 $ref: '#/components/schemas/TaskStatus'
@@ -288,20 +288,20 @@ components:
     BlobId:
       format: uuid
       type: string
+    BudgetItem:
+      enum:
+      - tool_calls
+      - turns
+      - elapsed
+      - tokens
+      - cost
+      - retries
+      type: string
     CallId:
       format: uuid
       type: string
     CardId:
       format: uuid
-      type: string
-    CompletedDetail:
-      enum:
-      - delivered
-      - user_confirmed
-      - accepted
-      - unverified
-      - stopped
-      - cancelled
       type: string
     EventId:
       format: uuid
@@ -454,7 +454,7 @@ components:
             properties:
               detail:
                 anyOf:
-                - $ref: '#/components/schemas/CompletedDetail'
+                - $ref: '#/components/schemas/TaskDetail'
                 - type: 'null'
               status:
                 $ref: '#/components/schemas/TaskStatus'
@@ -498,6 +498,383 @@ components:
       - kind
       - data
       type: object
+    TaskDetail:
+      oneOf:
+      - properties:
+          detail:
+            const: current_step
+            type: string
+          params:
+            properties:
+              step:
+                type: string
+            required:
+            - step
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: queued
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: follow_up
+            type: string
+          params:
+            properties:
+              next_at:
+                format: uint64
+                minimum: 0
+                type: integer
+              number:
+                format: uint32
+                minimum: 0
+                type: integer
+            required:
+            - number
+            - next_at
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: verifying
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: planning
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: plan_progress
+            type: string
+          params:
+            properties:
+              step:
+                format: uint32
+                minimum: 0
+                type: integer
+              total:
+                format: uint32
+                minimum: 0
+                type: integer
+            required:
+            - step
+            - total
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: auto_resuming
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: approval_pending
+            type: string
+          params:
+            properties:
+              action:
+                type: string
+            required:
+            - action
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: question_pending
+            type: string
+          params:
+            properties:
+              question:
+                type: string
+            required:
+            - question
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: plan_approval_pending
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: confirmation_pending
+            type: string
+          params:
+            properties:
+              step:
+                type: string
+            required:
+            - step
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: timed_out
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: resume_pending
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: computer_offline
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: goal_paused
+            type: string
+          params:
+            properties:
+              reason:
+                type: string
+            required:
+            - reason
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: acceptance_decision_pending
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: no_activity
+            type: string
+          params:
+            properties:
+              minutes:
+                format: uint32
+                minimum: 0
+                type: integer
+            required:
+            - minutes
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: over_budget
+            type: string
+          params:
+            properties:
+              item:
+                $ref: '#/components/schemas/BudgetItem'
+              limit:
+                format: uint64
+                minimum: 0
+                type: integer
+              used:
+                format: uint64
+                minimum: 0
+                type: integer
+            required:
+            - item
+            - used
+            - limit
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: goal_stuck
+            type: string
+          params:
+            properties:
+              reason:
+                type: string
+            required:
+            - reason
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: plan_stale
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: replied
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: accepted
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: delivered
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: user_confirmed
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: acceptance_failed
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: unverified_actions
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: step_rejected
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: no_visible_result
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: error
+            type: string
+          params:
+            properties:
+              reason:
+                type: string
+            required:
+            - reason
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: goal_impossible
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: model_unreachable
+            type: string
+        required:
+        - detail
+        type: object
+      - properties:
+          detail:
+            const: sent_target
+            type: string
+          params:
+            properties:
+              sent:
+                format: uint32
+                minimum: 0
+                type: integer
+              total:
+                format: uint32
+                minimum: 0
+                type: integer
+            required:
+            - sent
+            - total
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: cancelled_reason
+            type: string
+          params:
+            properties:
+              reason:
+                type: string
+            required:
+            - reason
+            type: object
+        required:
+        - detail
+        - params
+        type: object
+      - properties:
+          detail:
+            const: you_stopped
+            type: string
+        required:
+        - detail
+        type: object
     TaskId:
       format: uuid
       type: string
@@ -507,7 +884,10 @@ components:
       - awaiting_user
       - stuck
       - completed
+      - unaccepted
       - failed
+      - cancelled
+      - stopped
       type: string
     TurnId:
       format: uuid

@@ -212,7 +212,12 @@ dependencies = [
 name = "anybot-domain"
 version = "0.1.0"
 dependencies = [
+ "anybot-foundation",
  "anybot-protocol",
+ "proptest",
+ "regex",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -274,6 +279,7 @@ dependencies = [
  "anybot-foundation",
  "anybot-protocol",
  "anybot-store-client",
+ "serde",
 ]
 
 [[package]]

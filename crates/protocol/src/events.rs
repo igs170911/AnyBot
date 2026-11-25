@@ -1,4 +1,5 @@
 use crate::api::MessageParams;
+use crate::task_detail::{TaskDetail, TaskStatus};
 use crate::versions::accepts_protocol_version;
 use serde::{Deserialize, Serialize};
 
@@ -9,29 +10,6 @@ use anybot_foundation::{
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const RUN_ERROR_CODE_PROTOCOL_VERSION: &str = "run-error-protocol-version";
 pub const RUN_ERROR_CODE_UNSUPPORTED_EVENT: &str = "run-error-unsupported-event";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum TaskStatus {
-    Running,
-    AwaitingUser,
-    Stuck,
-    Completed,
-    Failed,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum CompletedDetail {
-    Delivered,
-    UserConfirmed,
-    Accepted,
-    Unverified,
-    Stopped,
-    Cancelled,
-}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
@@ -75,7 +53,7 @@ pub enum KnownEventKind {
         task_id: TaskId,
         status: TaskStatus,
         #[serde(skip_serializing_if = "Option::is_none")]
-        detail: Option<CompletedDetail>,
+        detail: Option<TaskDetail>,
     },
     RunError {
         #[cfg_attr(feature = "schema", schema(example = "run-error-protocol-version"))]
