@@ -16,7 +16,7 @@ use yaml_serde as _;
 #[command(
     name = "api-docs",
     version,
-    about = "產生 api/ 底下的文件（spec/02 §8）"
+    about = "generate the documents under api/ (spec/02 section 8)"
 )]
 struct Args {
     #[command(subcommand)]
@@ -48,14 +48,14 @@ fn main() -> ExitCode {
     };
     let content = match generated {
         Ok(content) => content,
-        Err(err) => return report(&format!("產生失敗：{err}")),
+        Err(err) => return report(&format!("generation failed: {err}")),
     };
     let path = match args.command {
         Command::Openapi { path } | Command::Asyncapi { path } => path,
     };
     match write_file(&path, &content) {
         Ok(()) => ExitCode::SUCCESS,
-        Err(err) => report(&format!("寫檔失敗：{err}")),
+        Err(err) => report(&format!("file write failed: {err}")),
     }
 }
 

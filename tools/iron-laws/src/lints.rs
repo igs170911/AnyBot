@@ -97,7 +97,7 @@ fn lint_diff(
     for e in pkg {
         if !expected.contains(e) {
             out.push(format!(
-                "{rel}：lint 跟 workspace 不一致，多了 {}.{} = {}",
+                "{rel}: lint differs from the workspace, extra {}.{} = {}",
                 e.0, e.1, e.2
             ));
         }
@@ -105,7 +105,7 @@ fn lint_diff(
     for e in expected {
         if !pkg.contains(e) {
             out.push(format!(
-                "{rel}：lint 跟 workspace 不一致，少了 {}.{} = {}",
+                "{rel}: lint differs from the workspace, missing {}.{} = {}",
                 e.0, e.1, e.2
             ));
         }
@@ -140,14 +140,14 @@ fn check_context(
     let mut out = Vec::new();
     if inherits_workspace(text) {
         out.push(format!(
-            "{rel}：小套件不准用 [lints] workspace = true（Cargo 不支援覆蓋，要完整列出來）"
+            "{rel}: small crates must not use [lints] workspace = true (Cargo cannot overlay it; list everything)"
         ));
     }
     out.extend(lint_diff(rel, &package_lints(text), &minus_exit(ws)));
     let n = ctx_function_count(files);
     if n != 1 {
         out.push(format!(
-            "{CONTEXT_PKG} 的程式只准有那一個函式，現在有 {n} 個（spec/09 K82）"
+            "{CONTEXT_PKG} code may have exactly one function, found {n} (spec/09 K82)"
         ));
     }
     out
@@ -166,7 +166,7 @@ pub fn check_member(
         return Vec::new();
     }
     vec![format!(
-        "{rel}：沒有 [lints] workspace = true，必須完整繼承 workspace 的 lint（spec/09 K82）"
+        "{rel}: missing [lints] workspace = true; the workspace lint must be inherited in full (spec/09 K82)"
     )]
 }
 #[must_use]
@@ -259,18 +259,18 @@ pub fn gitleaks_violations(repo: &Path) -> Vec<String> {
     find_allowlists(repo, repo, &mut rels);
     rels.sort();
     rels.iter()
-        .map(|r| format!("{r}：掃金鑰工具不准有任何放行清單（spec/09 K83）"))
+        .map(|r| format!("{r}: the key-scan tool must have no exemption lists (spec/09 K83)"))
         .collect()
 }
 #[must_use]
 pub fn violations(repo: &Path) -> Vec<String> {
     let mut out = Vec::new();
     let Ok(root) = read_file_lossy(&repo.join("Cargo.toml")) else {
-        return vec!["讀根目錄 Cargo.toml 失敗".to_owned()];
+        return vec!["failed to read the root Cargo.toml".to_owned()];
     };
     let ws = workspace_lints(&root);
     if ws.is_empty() {
-        out.push("根目錄 Cargo.toml 沒有 workspace lints".to_owned());
+        out.push("root Cargo.toml has no workspace lints".to_owned());
     }
     let manifests = expand_globs(&member_globs(&root), repo);
     let mut manifest_texts = Vec::new();

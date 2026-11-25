@@ -11,7 +11,7 @@ fn event_kind_variants() -> Result<Vec<Value>, String> {
     let one_of = schema
         .get("oneOf")
         .and_then(|v| v.as_array())
-        .ok_or("EventKind 的 schema 沒有 oneOf".to_owned())?;
+        .ok_or("EventKind schema has no oneOf".to_owned())?;
     Ok(one_of.clone())
 }
 
@@ -19,7 +19,7 @@ fn variant_name(variant: &Value) -> Result<String, String> {
     let kind = variant
         .get("properties")
         .and_then(|p| p.get("kind"))
-        .ok_or("事件變體缺少 kind".to_owned())?;
+        .ok_or("event variant lacks kind".to_owned())?;
     if let Some(name) = kind.get("const").and_then(|v| v.as_str()) {
         return Ok(name.to_owned());
     }
@@ -28,7 +28,7 @@ fn variant_name(variant: &Value) -> Result<String, String> {
         .and_then(|a| a.first())
         .and_then(|v| v.as_str())
         .map(ToOwned::to_owned)
-        .ok_or("事件變體缺少 kind 名稱".to_owned())
+        .ok_or("event variant lacks a kind name".to_owned())
 }
 
 fn move_defs(node: &mut Value, defs: &mut serde_json::Map<String, Value>) {
@@ -148,7 +148,7 @@ fn component_messages(defs: &mut serde_json::Map<String, Value>) -> Result<Value
             serde_json::json!({
                 "name": name,
                 "title": name,
-                "summary": "執行事件協定的事件種類",
+                "summary": "event kinds of the run event protocol",
                 "payload": payload,
             }),
         );
@@ -158,10 +158,10 @@ fn component_messages(defs: &mut serde_json::Map<String, Value>) -> Result<Value
 
 fn base_info() -> Value {
     serde_json::json!({
-        "title": "AnyBot 執行事件協定",
+        "title": "AnyBot Run Event Protocol",
         "version": PROTOCOL_VERSION.to_string(),
-        "description": "伺服器推給執行端與畫面的執行事件，走 SSE；內容 schema 由 Rust 型別產生。",
-        "contact": { "name": "AnyBot 開發團隊" },
+        "description": "Server-pushed run events for runners and the UI, over SSE; the content schema is generated from Rust types.",
+        "contact": { "name": "AnyBot dev team" },
         "license": {
             "name": "MIT OR Apache-2.0",
             "url": "https://opensource.org/license/mit/",
@@ -177,7 +177,7 @@ pub fn document() -> Result<String, String> {
     let component_messages = component_messages(&mut defs)?;
     let message_entries: serde_json::Map<String, Value> = match component_messages.as_object() {
         Some(map) => map.keys().map(|k| (k.clone(), ref_entry(k))).collect(),
-        None => return Err("component messages 不是物件結構".to_owned()),
+        None => return Err("component messages is not an object schema".to_owned()),
     };
     let message_refs: Vec<Value> = message_entries.values().cloned().collect();
     let mut schemas = serde_json::Map::new();
@@ -202,23 +202,23 @@ pub fn document() -> Result<String, String> {
         "channels": {
             "runEvents": {
                 "address": CHANNEL_ADDRESS,
-                "description": "依任務推送事件；每則有遞增編號。",
+                "description": "events pushed per task; each carries an increasing sequence number",
                 "messages": Value::Object(message_entries.clone()),
             }
         },
         "operations": {
             "streamRunEvents": {
                 "action": "receive",
-                "title": "接收事件串流",
-                "description": "客戶端從伺服器接收事件串流",
+                "title": "receive the event stream",
+                "description": "the client receives the event stream from the server",
                 "operationId": "stream_run_events",
-                "tags": [{ "name": "events", "description": "執行事件協定的事件種類" }],
+                "tags": [{ "name": "events", "description": "event kinds of the run event protocol" }],
                 "channel": { "$ref": "#/channels/runEvents" },
                 "security": [{
                     "type": "httpApiKey",
                     "name": "Authorization",
                     "in": "header",
-                    "description": "M3 佔位；Bearer 金鑰。",
+                    "description": "M3 placeholder; bearer key.",
                 }],
                 "messages": message_refs,
             }

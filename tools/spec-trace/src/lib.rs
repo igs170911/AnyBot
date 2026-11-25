@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 pub fn spec_ids_from_md(content: &str) -> Result<BTreeSet<String>, String> {
     use regex::Regex;
     let re = Regex::new(r"(?m)^\|\s*(T-[A-Za-z0-9_-]+)\s*\|")
-        .map_err(|e| format!("規格編號樣式解析失敗：{e}"))?;
+        .map_err(|e| format!("spec id pattern parse failed: {e}"))?;
     Ok(re
         .captures_iter(content)
         .filter_map(|c| c.get(1))
@@ -16,7 +16,7 @@ pub fn code_ids_from_source(content: &str) -> Result<BTreeSet<String>, String> {
     let re = Regex::new(
         r"(?m)^\s*#\[[^\]]*\btest\b[^\]]*\]\s*\n(?:\s*(?://[^\n]*|#[^\n]*)\n)*\s*(?:pub(?:\(crate\))?\s+)?(?:async\s+)?fn\s+t_([A-Za-z0-9_]+)\b",
     )
-    .map_err(|e| format!("Rust 測試名稱樣式解析失敗：{e}"))?;
+    .map_err(|e| format!("rust test name pattern parse failed: {e}"))?;
     Ok(re
         .captures_iter(content)
         .filter_map(|c| c.get(1))
@@ -27,7 +27,7 @@ pub fn code_ids_from_source(content: &str) -> Result<BTreeSet<String>, String> {
 pub fn code_ids_from_ts_source(content: &str) -> Result<BTreeSet<String>, String> {
     use regex::Regex;
     let re = Regex::new(r#"(?m)\b(?:test|it)\(\s*["'`](T-[A-Za-z0-9_-]+)["'`]"#)
-        .map_err(|e| format!("TypeScript 測試標題樣式解析失敗：{e}"))?;
+        .map_err(|e| format!("typescript test title pattern parse failed: {e}"))?;
     Ok(re
         .captures_iter(content)
         .filter_map(|c| c.get(1))
@@ -47,7 +47,9 @@ pub fn read_baseline(content: &str) -> BTreeSet<String> {
 
 #[must_use]
 pub fn write_baseline(ids: &BTreeSet<String>) -> String {
-    let mut out = String::from("# spec-trace 基準檔：還沒有測試的規格編號（只能變短，不能變長）\n");
+    let mut out = String::from(
+        "# spec-trace baseline: spec ids without a test yet (may only shrink, never grow)\n",
+    );
     for id in ids {
         out.push_str(id);
         out.push('\n');
@@ -71,7 +73,7 @@ pub fn check_baseline_against_ref(
     for id in current.difference(ref_baseline) {
         if !new_spec_ids.contains(id) {
             violations.push(format!(
-                "{id} 是基準檔新塞進來的（ref 的基準檔沒有它），但它不是這段變更裡規格新增的編號：基準檔只能變短，刪掉的測試不能把編號塞回來（M2 第 5 項）"
+                "{id} was re-added to the baseline (the ref baseline lacks it) but it is not a spec id added by this change: the baseline may only shrink; deleted tests must not push ids back (M2 item 5)"
             ));
         }
     }
@@ -107,12 +109,14 @@ pub fn check(
     let tested = spec_ids.intersection(code_ids).count();
 
     for id in code_ids.difference(spec_ids) {
-        violations.push(format!("測試名稱標了規格沒有的編號：{id}"));
+        violations.push(format!(
+            "test name carries an id absent from the spec: {id}"
+        ));
     }
 
     let Some(baseline_set) = baseline else {
         violations.push(
-            "基準檔 tools/spec-trace/baseline.txt 不存在：要重新產生請跑 make spec-baseline"
+            "baseline tools/spec-trace/baseline.txt is missing: rerun make spec-baseline to regenerate it"
                 .to_owned(),
         );
         return Report {
@@ -125,13 +129,15 @@ pub fn check(
 
     for id in baseline_set.intersection(code_ids) {
         violations.push(format!(
-            "{id} 已有測試，還留在基準檔：把它移除（基準檔只能變短）"
+            "{id} already has a test and is still in the baseline: remove it (the baseline may only shrink)"
         ));
     }
 
     let not_in_baseline: BTreeSet<String> = spec_ids.difference(baseline_set).cloned().collect();
     for id in not_in_baseline.difference(code_ids) {
-        violations.push(format!("規格新增編號 {id}：既不在基準檔、也沒有測試"));
+        violations.push(format!(
+            "spec added id {id}: neither in the baseline nor covered by a test"
+        ));
     }
 
     Report {

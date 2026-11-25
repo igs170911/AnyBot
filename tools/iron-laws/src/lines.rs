@@ -5,7 +5,7 @@ pub fn file_line_violation(path: &str, content: &str) -> Option<String> {
     let n = content.lines().count();
     if n > MAX_SOURCE_LINES {
         return Some(format!(
-            "{path}：檔案 {n} 行，超過上限 {MAX_SOURCE_LINES} 行（K76）"
+            "{path}: file has {n} lines, above the limit of {MAX_SOURCE_LINES} lines (K76)"
         ));
     }
     None
@@ -112,14 +112,14 @@ pub fn violations(files: &[(String, String)]) -> Vec<String> {
         if crate::table::has_extension(path, "rs") {
             for line_no in functions_over_limit_rust(content, MAX_FUNCTION_LINES) {
                 out.push(format!(
-                    "{path}:{line_no} fn 長度超過上限 {MAX_FUNCTION_LINES} 行（K76）"
+                    "{path}:{line_no} fn length is above the limit of {MAX_FUNCTION_LINES} lines (K76)"
                 ));
             }
         }
         if crate::table::has_extension(path, "ts") || crate::table::has_extension(path, "tsx") {
             for line_no in functions_over_limit_ts(content, MAX_FUNCTION_LINES) {
                 out.push(format!(
-                    "{path}:{line_no} 函式長度超過上限 {MAX_FUNCTION_LINES} 行（K76）"
+                    "{path}:{line_no} function length is above the limit of {MAX_FUNCTION_LINES} lines (K76)"
                 ));
             }
         }
@@ -138,7 +138,7 @@ mod tests {
         let big = "fn a() {}\n".repeat(MAX_SOURCE_LINES + 1);
         let v = violations(&[("crates/x/src/big.rs".to_owned(), big)]);
         assert_eq!(v.len(), 1);
-        assert!(v.first().is_some_and(|x| x.contains("超過上限")));
+        assert!(v.first().is_some_and(|x| x.contains("above the limit")));
     }
 
     #[test]
@@ -147,7 +147,10 @@ mod tests {
         let content = format!("fn long_fn() {{\n{body}}}\n");
         let v = violations(&[("crates/x/src/long.rs".to_owned(), content)]);
         assert_eq!(v.len(), 1);
-        assert!(v.first().is_some_and(|x| x.contains("fn 長度超過上限")));
+        assert!(
+            v.first()
+                .is_some_and(|x| x.contains("fn length is above the limit"))
+        );
     }
 
     #[test]
@@ -156,7 +159,10 @@ mod tests {
         let content = format!("export function longFn(a: string) {{\n{body}}}\n");
         let v = violations(&[("web/ui/src/long.ts".to_owned(), content)]);
         assert_eq!(v.len(), 1);
-        assert!(v.first().is_some_and(|x| x.contains("函式長度超過上限")));
+        assert!(
+            v.first()
+                .is_some_and(|x| x.contains("function length is above the limit"))
+        );
     }
 
     #[test]

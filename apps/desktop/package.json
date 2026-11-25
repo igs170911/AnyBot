@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
   "private": true,
-  "description": "桌面殼（Tauri 2）的前端：載入 web/ui 的外殼。視窗只是畫面，做事的是 apps/agent（spec/06 §2.4、spec/07 §3）。",
+  "description": "frontend of the desktop shell (Tauri 2): loads the web/ui shell. The window is only a view; apps/agent does the work (spec/06 section 2.4, spec/07 section 3).",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",

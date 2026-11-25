@@ -76,7 +76,7 @@ fn run_git(repo: &Path, args: &[&str]) -> Result<(bool, String), String> {
         .arg(repo)
         .args(args)
         .output()
-        .map_err(|e| format!("跑 git 失敗：{e}"))?;
+        .map_err(|e| format!("git run failed: {e}"))?;
     Ok((
         out.status.success(),
         String::from_utf8_lossy(&out.stdout).into_owned(),
@@ -102,7 +102,7 @@ fn ref_spec_ids(repo: &Path, git_ref: &str) -> Result<BTreeSet<String>, String> 
     )?;
     if !ok {
         return Err(format!(
-            "讀 {git_ref} 的 spec/10-behavior 失敗（ref 存在嗎？）"
+            "failed to read spec/10-behavior from {git_ref} (does the ref exist?)"
         ));
     }
     let mut ids = BTreeSet::new();
@@ -113,8 +113,8 @@ fn ref_spec_ids(repo: &Path, git_ref: &str) -> Result<BTreeSet<String>, String> 
         if !is_behavior_file(name) {
             continue;
         }
-        let content =
-            git_show(repo, git_ref, line)?.ok_or_else(|| format!("讀 {git_ref}:{line} 失敗"))?;
+        let content = git_show(repo, git_ref, line)?
+            .ok_or_else(|| format!("failed to read {git_ref}:{line}"))?;
         ids.extend(spec_ids_from_md(&content)?);
     }
     Ok(ids)
@@ -134,7 +134,7 @@ fn read_code_ids(repo: &Path) -> Result<BTreeSet<String>, String> {
     let mut code_ids: BTreeSet<String> = BTreeSet::new();
     for path in files {
         let content = std::fs::read_to_string(&path)
-            .map_err(|e| format!("讀 {} 失敗：{e}", path.display()))?;
+            .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
         code_ids.extend(code_ids_from_source(&content)?);
         code_ids.extend(code_ids_from_ts_source(&content)?);
     }
@@ -145,7 +145,7 @@ fn read_spec_ids(repo: &Path) -> Result<BTreeSet<String>, String> {
     let mut spec_ids: BTreeSet<String> = BTreeSet::new();
     for path in spec_file_names(&repo.join("spec/10-behavior")) {
         let content = std::fs::read_to_string(&path)
-            .map_err(|e| format!("讀 {} 失敗：{e}", path.display()))?;
+            .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
         spec_ids.extend(spec_ids_from_md(&content)?);
     }
     Ok(spec_ids)
@@ -171,7 +171,7 @@ fn against_report(
     let ref_baseline = git_show(repo, git_ref, "tools/spec-trace/baseline.txt")?;
     match ref_baseline {
         None => report.violations.push(format!(
-            "--against {git_ref}：那個 ref 裡沒有 tools/spec-trace/baseline.txt"
+            "--against {git_ref}: that ref has no tools/spec-trace/baseline.txt"
         )),
         Some(c) => {
             let ref_set = read_baseline(&c);
@@ -183,7 +183,7 @@ fn against_report(
                     current, &ref_set, &new_spec,
                 ));
             say(&[format!(
-                "spec-trace 基準比對：ref {git_ref} 的基準檔 {} 個、現在 {} 個、這段變更新增的規格編號 {} 個",
+                "spec-trace baseline compare: ref {git_ref} baseline has {} ids, now {} ids, this change adds {} spec ids",
                 ref_set.len(),
                 current.len(),
                 new_spec.len()
@@ -202,15 +202,16 @@ fn main() -> Result<(), String> {
     let repo = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()
-        .map_err(|e| format!("找不到 repo 根目錄：{e}"))?;
+        .map_err(|e| format!("cannot find the repo root: {e}"))?;
     let spec_ids = read_spec_ids(&repo)?;
     let code_ids = read_code_ids(&repo)?;
     let baseline_path = repo.join("tools/spec-trace/baseline.txt");
     if write_baseline {
         let content = generate_baseline(&spec_ids, &code_ids);
-        std::fs::write(&baseline_path, content).map_err(|e| format!("寫基準檔失敗：{e}"))?;
+        std::fs::write(&baseline_path, content)
+            .map_err(|e| format!("baseline write failed: {e}"))?;
         say(&[format!(
-            "spec-trace：已重新產生 {}",
+            "spec-trace: regenerated {}",
             baseline_path.display()
         )])
         .map_err(|e| e.to_string())?;
@@ -223,7 +224,7 @@ fn main() -> Result<(), String> {
     if let Some(git_ref) = against {
         match baseline_set {
             None => report.violations.push(
-                "基準檔 tools/spec-trace/baseline.txt 不存在：--against 比對需要本機基準檔"
+                "baseline tools/spec-trace/baseline.txt is missing: --against needs a local baseline"
                     .to_owned(),
             ),
             Some(current) => against_report(&repo, &git_ref, &current, &spec_ids, &mut report)?,
@@ -231,7 +232,7 @@ fn main() -> Result<(), String> {
     }
 
     say(&[format!(
-        "spec-trace 覆蓋：總數 {}、有測試 {}、還沒有 {}",
+        "spec-trace coverage: total {}, tested {}, untested {}",
         report.total,
         report.tested(),
         report.missing()
@@ -239,14 +240,17 @@ fn main() -> Result<(), String> {
     .map_err(|e| e.to_string())?;
     let mut lines: Vec<String> = Vec::new();
     for v in &report.violations {
-        lines.push(format!("spec-trace 違規：{v}"));
+        lines.push(format!("spec-trace violation: {v}"));
     }
     if lines.is_empty() {
-        lines.push("spec-trace：全綠".to_owned());
+        lines.push("spec-trace: all green".to_owned());
     }
     say(&lines).map_err(|e| e.to_string())?;
     if !report.violations.is_empty() {
-        return Err(format!("spec-trace：{} 個違規", report.violations.len()));
+        return Err(format!(
+            "spec-trace: {} violations",
+            report.violations.len()
+        ));
     }
     Ok(())
 }

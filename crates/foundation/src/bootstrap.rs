@@ -3,7 +3,12 @@ use std::path::Path;
 
 use url::Url;
 
-use crate::error::FoundationError;
+use crate::error::{
+    CODE_BOOTSTRAP_CREDENTIALS_MISSING, CODE_BOOTSTRAP_DATABASE_MISSING,
+    CODE_BOOTSTRAP_HOST_MISSING, CODE_BOOTSTRAP_NOT_FOUND, CODE_BOOTSTRAP_PERMISSIONS_READ_FAILED,
+    CODE_BOOTSTRAP_PERMISSIONS_TOO_OPEN, CODE_BOOTSTRAP_READ_FAILED, CODE_BOOTSTRAP_URL_MALFORMED,
+    CODE_BOOTSTRAP_URL_SCHEME, FoundationError, MessageRef,
+};
 use crate::secret::Secret;
 
 pub const DEFAULT_POSTGRES_PORT: u16 = 5432;
@@ -25,22 +30,29 @@ impl ServerBootstrap {
     }
 
     pub fn read(path: &Path) -> Result<Self, FoundationError> {
+        let shown = path.display().to_string();
         let mut file = std::fs::File::open(path).map_err(|e| {
-            FoundationError::BootstrapNotFound(format!(
-                "找不到啟動檔 {}（用 --bootstrap 指定）：{e}",
-                path.display()
-            ))
+            FoundationError::BootstrapNotFound(
+                MessageRef::new(CODE_BOOTSTRAP_NOT_FOUND)
+                    .with_text("path", &shown)
+                    .with_text("reason", &e.to_string()),
+            )
         })?;
         let meta = file.metadata().map_err(|e| {
-            FoundationError::BootstrapNotFound(format!(
-                "讀啟動檔 {} 的權限失敗：{e}",
-                path.display()
-            ))
+            FoundationError::BootstrapPermissions(
+                MessageRef::new(CODE_BOOTSTRAP_PERMISSIONS_READ_FAILED)
+                    .with_text("path", &shown)
+                    .with_text("reason", &e.to_string()),
+            )
         })?;
         check_permissions(path, &meta)?;
         let mut text = String::new();
         file.read_to_string(&mut text).map_err(|e| {
-            FoundationError::BootstrapNotFound(format!("讀啟動檔 {} 失敗：{e}", path.display()))
+            FoundationError::BootstrapNotFound(
+                MessageRef::new(CODE_BOOTSTRAP_READ_FAILED)
+                    .with_text("path", &shown)
+                    .with_text("reason", &e.to_string()),
+            )
         })?;
         parse_connection(text.trim())
     }
@@ -52,47 +64,49 @@ fn check_permissions(path: &Path, meta: &std::fs::Metadata) -> Result<(), Founda
         use std::os::unix::fs::MetadataExt;
         let mode = meta.mode() & 0o777;
         if mode & 0o077 != 0 {
-            return Err(FoundationError::BootstrapPermissions(format!(
-                "啟動檔的權限太開放（{mode:o}）：改成只有擁有者能讀（{}）",
-                path.display()
-            )));
+            return Err(FoundationError::BootstrapPermissions(
+                MessageRef::new(CODE_BOOTSTRAP_PERMISSIONS_TOO_OPEN)
+                    .with_text("path", &path.display().to_string())
+                    .with_text("mode", &format!("{mode:o}")),
+            ));
         }
     }
     Ok(())
 }
 
 pub fn parse_connection(text: &str) -> Result<ServerBootstrap, FoundationError> {
-    let url = Url::parse(text)
-        .map_err(|_| FoundationError::BootstrapMalformed("啟動檔的連線位址格式不對".to_owned()))?;
+    let url = Url::parse(text).map_err(|_| {
+        FoundationError::BootstrapMalformed(MessageRef::new(CODE_BOOTSTRAP_URL_MALFORMED))
+    })?;
     if url.scheme() != "postgres" && url.scheme() != "postgresql" {
-        return Err(FoundationError::BootstrapMalformed(
-            "啟動檔的連線位址不是 postgresql:// 或 postgres://".to_owned(),
-        ));
+        return Err(FoundationError::BootstrapMalformed(MessageRef::new(
+            CODE_BOOTSTRAP_URL_SCHEME,
+        )));
     }
     if url.username().is_empty() && url.password().is_none() {
-        return Err(FoundationError::BootstrapMalformed(
-            "啟動檔缺少使用者與密碼".to_owned(),
-        ));
+        return Err(FoundationError::BootstrapMalformed(MessageRef::new(
+            CODE_BOOTSTRAP_CREDENTIALS_MISSING,
+        )));
     }
     let user = percent_decode(url.username());
     let password = url.password().map(percent_decode).unwrap_or_default();
     if user.is_empty() || password.is_empty() {
-        return Err(FoundationError::BootstrapMalformed(
-            "啟動檔缺少使用者與密碼".to_owned(),
-        ));
+        return Err(FoundationError::BootstrapMalformed(MessageRef::new(
+            CODE_BOOTSTRAP_CREDENTIALS_MISSING,
+        )));
     }
     let host = url
         .host_str()
-        .ok_or(FoundationError::BootstrapMalformed(
-            "啟動檔缺少主機位址".to_owned(),
-        ))?
+        .ok_or(FoundationError::BootstrapMalformed(MessageRef::new(
+            CODE_BOOTSTRAP_HOST_MISSING,
+        )))?
         .to_owned();
     let port = url.port().unwrap_or(DEFAULT_POSTGRES_PORT);
     let database = percent_decode(url.path().trim_start_matches('/'));
     if database.is_empty() {
-        return Err(FoundationError::BootstrapMalformed(
-            "啟動檔缺少資料庫名稱".to_owned(),
-        ));
+        return Err(FoundationError::BootstrapMalformed(MessageRef::new(
+            CODE_BOOTSTRAP_DATABASE_MISSING,
+        )));
     }
     Ok(ServerBootstrap {
         user,

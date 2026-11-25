@@ -113,12 +113,12 @@ pub fn violations(content: &str) -> Vec<String> {
                 let allowed = [ALLOWED_DENY_IGNORE.to_owned()];
                 if items != allowed {
                     out.push(format!(
-                        "deny.toml advisories.ignore 必須恰好是 {ALLOWED_DENY_IGNORE} 這一條，實際是 {items:?}（K75）"
+                        "deny.toml advisories.ignore must be exactly {ALLOWED_DENY_IGNORE}, got {items:?} (K75)"
                     ));
                 }
             } else if !items.is_empty() {
                 out.push(format!(
-                    "deny.toml [{}] 的「{key}」不准有例外，實際有 {items:?}（K75）",
+                    "deny.toml [{key} in {}] must have no exemptions; got {items:?} (K75)",
                     section.name
                 ));
             }

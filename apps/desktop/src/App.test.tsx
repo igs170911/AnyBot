@@ -1,11 +1,12 @@
+import { UI_SHELL_SKELETON } from "@anybot/ui";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { App } from "./App.tsx";
 
-describe("apps/desktop 前端骨架", () => {
-  it("視窗只是畫面：只顯示 web/ui 的外殼，沒有頁面和路由", () => {
+describe("apps/desktop frontend skeleton", () => {
+  it("window is only a view: renders the web/ui shell, no pages and no routing", () => {
     const html = renderToString(<App />);
-    expect(html).toContain("anybot-shell");
+    expect(html).toContain(`data-message-code="${UI_SHELL_SKELETON}"`);
     expect(html).not.toContain("<nav");
     expect(html).not.toContain("<a href");
   });

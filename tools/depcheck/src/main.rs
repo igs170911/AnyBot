@@ -46,12 +46,12 @@ fn cargo_metadata_json() -> Result<String, String> {
     let out = std::process::Command::new("cargo")
         .args(["metadata", "--format-version", "1"])
         .output()
-        .map_err(|e| format!("depcheck：跑不了 cargo：{e}（請在 repo 根跑）"))?;
+        .map_err(|e| format!("depcheck: cannot run cargo: {e} (run it from the repo root)"))?;
     if out.status.success() {
         return Ok(String::from_utf8_lossy(&out.stdout).into_owned());
     }
     Err(format!(
-        "depcheck：cargo metadata 失敗：{}",
+        "depcheck: cargo metadata failed: {}",
         String::from_utf8_lossy(&out.stderr)
     ))
 }
@@ -60,13 +60,13 @@ fn report(violations: &[String], files_len: usize) -> ExitCode {
     let mut lines = Vec::new();
     if violations.is_empty() {
         lines.push(format!(
-            "depcheck：依賴方向全綠（{files_len} 個原始檔掃過）"
+            "depcheck: dependency direction all green ({files_len} source files scanned)"
         ));
     } else {
         for v in violations {
-            lines.push(format!("depcheck 違規：{v}"));
+            lines.push(format!("depcheck violation: {v}"));
         }
-        lines.push(format!("depcheck：{} 個違規", violations.len()));
+        lines.push(format!("depcheck: {} violations", violations.len()));
     }
     let mut stdout = std::io::stdout();
     for line in &lines {
@@ -97,7 +97,7 @@ fn main() -> ExitCode {
     let mut violations = match depcheck::check_metadata(&json) {
         Ok(v) => v,
         Err(e) => {
-            warn_stderr(&format!("depcheck：{e}"));
+            warn_stderr(&format!("depcheck: {e}"));
             return ExitCode::from(2);
         }
     };

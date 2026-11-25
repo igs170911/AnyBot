@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
-  "description": "AnyBot 新版：pnpm 工作區（畫面與 API 客戶端）。規格見 spec/07 §2。",
+  "description": "AnyBot next: pnpm workspace (UI and API client). See spec/07 section 2.",
   "packageManager": "pnpm@12.23.0",
   "engines": {
     "node": ">=22"

@@ -4,7 +4,7 @@ name = "anybot-app-desktop-context"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "產生 Tauri context 的小套件：只有它不套 exit 規則（spec/09 K82）"
+description = "small crate that generates the Tauri context: only it skips the exit rule (spec/09 K82)"
 
 [dependencies]
 tauri = { version = "2", default-features = false, features = ["wry", "tray-icon"] }

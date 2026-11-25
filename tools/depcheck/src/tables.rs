@@ -48,6 +48,7 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
         "migrate-old",
         &["foundation", "protocol", "domain", "store-client"],
     );
+    add("messages", &["foundation"]);
     add_tools(&mut m);
     m
 }
@@ -82,6 +83,7 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
             .into_iter()
             .collect(),
     );
+    m.insert("locale-gen".to_owned(), BTreeSet::new());
 }
 
 #[must_use]
@@ -145,6 +147,7 @@ pub fn packages_allowed_exemptions() -> BTreeSet<String> {
         "spec-trace",
         "iron-laws",
         "api-docs",
+        "locale-gen",
     ]
     .into_iter()
     .map(String::from)

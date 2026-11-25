@@ -4,18 +4,18 @@ pub async fn http_get_addr(addr: &str, path: &str) -> Result<(u16, String), Stri
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
-        .map_err(|e| format!("建 HTTP 客戶端失敗：{e}"))?;
+        .map_err(|e| format!("build HTTP client failed: {e}"))?;
     let url = format!("http://{addr}{path}");
     let response = client
         .get(url.clone())
         .send()
         .await
-        .map_err(|e| format!("連 {url} 失敗：{e}"))?;
+        .map_err(|e| format!("connect to {url} failed: {e}"))?;
     let code = response.status().as_u16();
     let body = response
         .text()
         .await
-        .map_err(|e| format!("讀 {url} 回應失敗：{e}"))?;
+        .map_err(|e| format!("read response from {url} failed: {e}"))?;
     Ok((code, body))
 }
 

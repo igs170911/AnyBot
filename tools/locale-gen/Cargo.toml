@@ -1,0 +1,13 @@
+[package]
+publish = false
+name = "locale-gen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Gate tool: generate message code types from locales and check locale consistency (spec/09 K91)"
+
+[dependencies]
+clap = { workspace = true }
+
+[lints]
+workspace = true

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
   "private": true,
-  "description": "由 api/openapi.yaml 產生的 API 客戶端（M2 只有骨架）。見 spec/06 §2.4。",
+  "description": "API client generated from api/openapi.yaml (M2 skeleton only). See spec/06 section 2.4.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

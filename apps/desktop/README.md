@@ -1,28 +1,34 @@
-# `apps/desktop` · 桌面殼（Tauri 2，骨架）
+# `apps/desktop` · desktop shell (Tauri 2, skeleton)
 
-照 `spec/06` §2.4 和 `spec/07` §2、§3：
+Per `spec/06` section 2.4 and `spec/07` sections 2, 3:
 
-- **視窗只是畫面。** 做事的是背景程式 `apps/agent`；桌面殼不准依賴
-  `server`、`store-server`、`runner`、`models`、`tools`、`computers`、`mcp`、
-  `external-agents`（由 `tools/depcheck` 擋）。
-- 畫面和手機共用同一套：前端只載入 `web/ui` 的外殼（M2 骨架，沒有頁面、路由、功能）。
-- `src-tauri/` 是 Rust 套件，加進 Cargo workspace（`anybot-app-desktop`）。
+- **The window is only a view.** The background program `apps/agent` does the
+  work; the desktop shell must not depend on `server`, `store-server`,
+  `runner`, `models`, `tools`, `computers`, `mcp`, `external-agents`
+  (enforced by `tools/depcheck`).
+- The UI is the same set shared with mobile: the frontend only loads the
+  `web/ui` shell (M2 skeleton, no pages, routing, or features).
+- `src-tauri/` is a Rust crate added to the Cargo workspace (`anybot-app-desktop`).
 
-## 跑起來（M2 骨架沒有功能，只開一個視窗）
+## Running it (the M2 skeleton has no features; it opens one window)
 
 ```sh
 pnpm install
-cargo install --locked tauri-cli   # AGENTS.md 准許的開發工具
-cargo tauri dev                    # 前端 vite（port 1420）＋ Tauri 視窗
-cargo tauri build                  # 打包（目前 tauri.conf.json 的 bundle.active=false）
+cargo install --locked tauri-cli   # development tool allowed by AGENTS.md
+cargo tauri dev                    # frontend vite (port 1420) + the Tauri window
+cargo tauri build                  # packaging (bundle.active=false in tauri.conf.json for now)
 ```
 
-`make check` 不含 Tauri 的打包：桌面殼的 Rust 部分走 M1 原本的關卡
-（fmt、clippy、nextest、deny、machete、depcheck），前端走 TypeScript 的關卡
-（biome、tsc、vitest、vite build）。
+`make check` does not include Tauri packaging: the Rust part of the desktop
+shell goes through the original M1 gates (fmt, clippy, nextest, deny, machete,
+depcheck), the frontend goes through the TypeScript gates (biome, tsc, vitest,
+vite build).
 
-## 要注意（`spec/06` §2.4）
+## Things to watch (`spec/06` section 2.4)
 
-- Linux 的 WebKitGTK 比較吃資源、顯示比較不一致，要多測（CI 裝系統套件）。
-- 長聊天只畫看得到的訊息、不放常駐動畫：這些是之後寫畫面時的規則。
-- 資源上限的關卡（視窗閒置 CPU 接近 0、記憶體 200 MB 以內）等桌面真的有東西再做。
+- WebKitGTK on Linux is heavier on resources and renders less consistently; it
+  needs extra testing (CI installs the system packages).
+- Long chats render only the visible messages and keep no resident animations:
+  these are rules for when the UI is written later.
+- Resource-limit gates (idle window CPU near 0, memory within 200 MB) come when
+  the desktop has real content.

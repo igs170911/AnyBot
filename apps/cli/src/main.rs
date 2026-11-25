@@ -1,15 +1,23 @@
 use std::io::Write;
+use std::process::ExitCode;
 
 use clap::Command;
 
-fn main() -> Result<(), std::io::Error> {
+use anybot_messages as _;
+use anybot_messages::{Catalog, MessageCode, ParamValue, Params};
+
+fn main() -> ExitCode {
+    let mut catalog = Catalog::new();
     Command::new("anybot")
         .version(env!("CARGO_PKG_VERSION"))
-        .about("AnyBot 命令列：安裝、遷移、診斷（骨架）")
+        .about("command line: install, migrate, diagnose (skeleton)")
         .get_matches();
-    writeln!(
-        std::io::stdout(),
-        "anybot {} (M1 骨架，沒有功能)",
-        env!("CARGO_PKG_VERSION")
-    )
+    let params = Params::single("version", ParamValue::text(env!("CARGO_PKG_VERSION")));
+    match catalog.format_default(&MessageCode::CliSkeletonBanner, &params) {
+        Ok(text) => match writeln!(std::io::stdout(), "{text}") {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(_) => ExitCode::FAILURE,
+        },
+        Err(_) => ExitCode::FAILURE,
+    }
 }

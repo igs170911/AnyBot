@@ -134,7 +134,7 @@ pub fn rust_violations(files: &[(String, String)]) -> Vec<String> {
         }
         for line in comment_lines(&strip_rust_strings(content)) {
             out.push(format!(
-                "{path}:{line} 有註解（K78：程式即註解，不准寫註解）"
+                "{path}:{line} has a comment (K78: code is the documentation, comments are banned)"
             ));
         }
     }
@@ -157,7 +157,7 @@ pub fn ts_violations(files: &[(String, String)]) -> Vec<String> {
         }
         for line in comment_lines(&strip_ts_strings(content)) {
             out.push(format!(
-                "{path}:{line} 有註解（K78：程式即註解，不准寫註解）"
+                "{path}:{line} has a comment (K78: code is the documentation, comments are banned)"
             ));
         }
     }
@@ -172,7 +172,7 @@ mod tests {
     fn test_iron_laws_plain_line_comment_is_blocked() {
         let v = rust_violations(&[(
             "crates/x/src/lib.rs".to_owned(),
-            "fn main() {}\n// 這是一行註解\n".to_owned(),
+            "fn main() {}\n// this is a line comment\n".to_owned(),
         )]);
         assert_eq!(v.len(), 1);
         assert!(v.first().is_some_and(|x| x.contains(":2")));
@@ -182,12 +182,12 @@ mod tests {
     fn test_iron_laws_doc_comments_are_blocked() {
         let v = rust_violations(&[(
             "crates/x/src/lib.rs".to_owned(),
-            "//! 套件層註解\n/// 項目層註解\nfn main() {}\n".to_owned(),
+            "//! crate level doc\n/// item level doc\nfn main() {}\n".to_owned(),
         )]);
         assert_eq!(v.len(), 2);
         let t = ts_violations(&[(
             "web/x/src/a.tsx".to_owned(),
-            "/** 檔首區塊 */\nexport const x = 1; // 行尾註解\n".to_owned(),
+            "/** file header block */\nexport const x = 1; // trailing comment\n".to_owned(),
         )]);
         assert_eq!(t.len(), 2);
     }
@@ -196,7 +196,8 @@ mod tests {
     fn test_iron_laws_text_inside_strings_is_not_a_comment() {
         let v = rust_violations(&[(
             "crates/x/src/lib.rs".to_owned(),
-            "const s = \"// 不是註解 // 斜線\";\nconst r = r\"/* 不是區塊 */\";\n".to_owned(),
+            "const s = \"// not a comment // slashes\";\nconst r = r\"/* not a block */\";\n"
+                .to_owned(),
         )]);
         assert!(v.is_empty());
         let t = ts_violations(&[(

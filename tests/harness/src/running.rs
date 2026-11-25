@@ -1,40 +1,45 @@
 use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Read;
-use std::path::Path;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::io::Write as _;
+use std::sync::mpsc;
 use std::thread;
+use std::time::Duration;
+use std::time::Instant;
 
-use crate::launch::{Outcome, Program, start_child};
+use crate::launch::{Outcome, Program};
+use crate::process::{
+    PollState, collect_stream, exit_status_code, finish_poll, kill_child, poll_exit, spawn_bytes,
+};
 
 pub struct Running {
     child: std::process::Child,
-    stdout: BufReader<std::process::ChildStdout>,
-    stderr: Arc<Mutex<Vec<u8>>>,
-    stderr_thread: Option<thread::JoinHandle<()>>,
+    label: String,
+    timeout: Duration,
+    lines: mpsc::Receiver<String>,
+    lines_thread: Option<thread::JoinHandle<()>>,
+    stderr: mpsc::Receiver<Vec<u8>>,
 }
 
 impl Running {
-    pub fn start(program: &Program, dir: &Path) -> Result<Self, String> {
-        let mut child = start_child(program, dir)?;
-        let stdout = BufReader::new(child.stdout.take().ok_or("stdout 沒有接出來")?);
-        let mut stderr_stream = child.stderr.take().ok_or("stderr 沒有接出來")?;
-        let stderr = Arc::new(Mutex::new(Vec::new()));
-        let sink = Arc::clone(&stderr);
-        let stderr_thread = thread::spawn(move || {
-            let mut buf = Vec::new();
-            let _result = stderr_stream.read_to_end(&mut buf);
-            if let Ok(mut guard) = sink.lock() {
-                *guard = buf;
-            }
-        });
+    pub fn start(program: &Program, dir: &std::path::Path) -> Result<Self, String> {
+        let mut child = crate::launch::start_child(program, dir)?;
+        let (lines, lines_thread) = spawn_line_reader(child.stdout.take(), program.label());
+        let stderr = spawn_bytes(
+            child.stderr.take().map(boxed_read),
+            "stderr",
+            program.label(),
+        );
         Ok(Running {
             child,
-            stdout,
+            label: program.label(),
+            timeout: program.timeout,
+            lines,
+            lines_thread: Some(lines_thread),
             stderr,
-            stderr_thread: Some(stderr_thread),
         })
+    }
+
+    pub fn child(&mut self) -> &mut std::process::Child {
+        &mut self.child
     }
 
     #[must_use]
@@ -43,44 +48,103 @@ impl Running {
     }
 
     pub fn next_stdout_line(&mut self) -> Result<String, String> {
-        let mut line = String::new();
-        self.stdout
-            .read_line(&mut line)
-            .map_err(|e| format!("讀 stdout 失敗：{e}"))?;
-        Ok(line)
+        match self.lines.recv_timeout(self.timeout) {
+            Ok(line) => Ok(line),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                let pid = self.pid();
+                let label = self.label.clone();
+                let note = self.stderr_note();
+                kill_child(&mut self.child, pid, &label);
+                Err(format!(
+                    "timed out after {:?} waiting for one stdout line from {}; stderr so far: {note}",
+                    self.timeout, self.label
+                ))
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                let note = self.stderr_note();
+                Err(format!(
+                    "stdout ended for {}; stderr so far: {note}",
+                    self.label
+                ))
+            }
+        }
     }
 
     pub fn kill(&mut self) -> Result<Outcome, String> {
-        self.child
-            .kill()
-            .map_err(|e| format!("殺 PID {} 失敗：{e}", self.pid()))?;
-        self.finish()
+        let pid = self.pid();
+        let label = self.label.clone();
+        kill_child(&mut self.child, pid, &label);
+        let Some(deadline) = Instant::now().checked_add(Duration::from_secs(5)) else {
+            return Err("kill deadline overflow".to_owned());
+        };
+        let poll = poll_exit(&mut self.child, pid, Duration::from_secs(5), deadline)?;
+        self.collect(poll)
     }
 
     pub fn finish(&mut self) -> Result<Outcome, String> {
-        let stdout = String::new();
-        let status = self
-            .child
-            .wait()
-            .map_err(|e| format!("等 PID {} 失敗：{e}", self.pid()))?;
-        let stderr_text = self.join_stderr();
+        let pid = self.pid();
+        let Some(deadline) = Instant::now().checked_add(self.timeout) else {
+            return Err("finish deadline overflow".to_owned());
+        };
+        let poll = poll_exit(&mut self.child, pid, self.timeout, deadline)?;
+        self.collect(poll)
+    }
+
+    fn collect(&mut self, poll: PollState) -> Result<Outcome, String> {
+        let status = finish_poll(poll);
+        let stderr = self.stderr_text();
         Ok(Outcome {
-            code: status.code().unwrap_or(-1),
-            stdout,
-            stderr: stderr_text,
+            code: exit_status_code(&status)?,
+            stdout: String::new(),
+            stderr,
         })
     }
 
-    fn join_stderr(&mut self) -> String {
-        let Some(thread) = self.stderr_thread.take() else {
+    fn stderr_text(&mut self) -> String {
+        let Some(thread) = self.lines_thread.take() else {
             return String::new();
         };
-        if thread.join().is_err() {
-            return String::new();
-        }
-        let Ok(guard) = self.stderr.lock() else {
-            return String::new();
-        };
-        String::from_utf8_lossy(&guard).into_owned()
+        let _result = thread.join();
+        collect_stream(&self.stderr, self.timeout)
+            .unwrap_or_else(|err| format!("stderr unreadable: {err}"))
     }
+
+    fn stderr_note(&mut self) -> String {
+        match self.stderr.try_recv() {
+            Ok(buf) => String::from_utf8_lossy(&buf).into_owned(),
+            Err(_) => "(nothing collected yet)".to_owned(),
+        }
+    }
+}
+
+fn boxed_read<R: std::io::Read + Send + 'static>(stream: R) -> Box<dyn std::io::Read + Send> {
+    Box::new(stream)
+}
+
+fn spawn_line_reader(
+    stream: Option<std::process::ChildStdout>,
+    label: String,
+) -> (mpsc::Receiver<String>, thread::JoinHandle<()>) {
+    let (tx, rx) = mpsc::channel();
+    let handle = thread::spawn(move || {
+        let Some(stream) = stream else {
+            let mut stderr = std::io::stderr();
+            let _result = writeln!(stderr, "harness: {label} has no stdout pipe");
+            let _result = tx.send(String::new());
+            return;
+        };
+        let mut reader = std::io::BufReader::new(stream);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) | Err(_) => break,
+                Ok(_) => {
+                    if tx.send(line).is_err() {
+                        break;
+                    }
+                }
+            }
+        }
+    });
+    (rx, handle)
 }

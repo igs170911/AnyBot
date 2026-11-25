@@ -227,7 +227,10 @@ mod tests {
             }
             for per_key in e.values() {
                 for set in per_key.values() {
-                    assert!(!set.contains(env), "{env} 不准豁免（spec/07 §3）");
+                    assert!(
+                        !set.contains(env),
+                        "{env} must not be exempted (spec/07 section 3)"
+                    );
                 }
             }
         }

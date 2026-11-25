@@ -1,6 +1,6 @@
-# clippy 禁用清單（spec/07 §3「用 lint 禁用的寫法」）
-# 准許的套件在自己的資料夾放一份一模一樣的 clippy.toml，只少它被准許的禁用項目
-# （spec/09 K75；由 tools/iron-laws 核對，不寫在程式碼裡）。
+# clippy disallowed list (spec/07 §3 "banned spellings")
+# A permitted package keeps an identical copy in its own folder, missing only
+# the entries it is permitted to exempt (spec/09 K75; verified by tools/iron-laws).
 msrv = "1.98"
 too-many-lines-threshold = 60
 cognitive-complexity-threshold = 15
@@ -9,14 +9,32 @@ allow-expect-in-tests = true
 allow-panic-in-tests = true
 
 disallowed-methods = [
-    { path = "std::env::var", reason = "讀環境變數任何地方都不准（spec/07 §3）；設定用命令列 --data-dir、--bootstrap" },
-    { path = "std::env::var_os", reason = "同上（spec/07 §3）" },
-    { path = "std::env::vars", reason = "同上（spec/07 §3）" },
-    { path = "std::env::vars_os", reason = "同上（spec/07 §3）" },
-    { path = "std::env::home_dir", reason = "讀環境變數任何地方都不准（spec/07 §3）；只有 foundation 豁免（K85 的 App 資料夾）" },
-    { path = "std::env::temp_dir", reason = "同上（spec/07 §3）；暫存檔一律放 repo 的 target/（AGENTS §一7）" },
+    # reading environment variables: banned everywhere (spec/07 §3; command-line arguments are allowed)
+    { path = "std::env::var", reason = "reading environment variables is banned everywhere (spec/07 §3); settings come from --data-dir and --bootstrap" },
+    { path = "std::env::var_os", reason = "same (spec/07 §3)" },
+    { path = "std::env::vars", reason = "same (spec/07 §3)" },
+    { path = "std::env::vars_os", reason = "same (spec/07 §3)" },
+    { path = "std::env::home_dir", reason = "reading environment variables is banned everywhere (spec/07 §3); only foundation is exempt (K85 app data dir)" },
+    { path = "std::env::temp_dir", reason = "same (spec/07 §3); scratch files always live in the repo target/ (AGENTS §1.7)" },
+    # running external programs: only computers and tests/harness, and only with a trust passport
+    # sending HTTP requests: only models, mcp, sync, channels, computers, tests/harness
+    # reading and writing arbitrary files: only computers, blob, store-client, tests/harness
+    { path = "tokio::fs::read", reason = "same" },
+    { path = "tokio::fs::read_to_string", reason = "same" },
+    { path = "tokio::fs::write", reason = "same" },
+    { path = "tokio::fs::remove_file", reason = "same" },
+    { path = "tokio::fs::rename", reason = "same" },
+    { path = "tokio::fs::create_dir", reason = "same" },
+    { path = "tokio::fs::create_dir_all", reason = "same" },
+    { path = "tokio::fs::remove_dir", reason = "same" },
+    { path = "tokio::fs::remove_dir_all", reason = "same" },
+    { path = "tokio::fs::read_dir", reason = "same" },
+    { path = "tokio::fs::metadata", reason = "same" },
+    { path = "tokio::fs::set_permissions", reason = "same" },
+    { path = "tokio::fs::hard_link", reason = "same" },
+    { path = "tokio::fs::copy", reason = "same" },
+    { path = "tokio::fs::file", allow-invalid = true, reason = "same" },
 ]
 
 disallowed-types = [
-
 ]

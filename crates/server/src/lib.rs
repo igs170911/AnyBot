@@ -4,9 +4,9 @@ use anybot_channels::ChannelHttpClient;
 use anybot_domain::TaskStatus;
 use anybot_foundation::{Clock, TimestampMs};
 use anybot_protocol::RunEvent;
+use serde_json as _;
 
 use anybot_store_server::Pool;
-use serde_json as _;
 
 pub mod app;
 pub mod health;
@@ -17,7 +17,7 @@ pub mod startup;
 pub use app::{AppState, build_router};
 pub use health::{HealthResponse, health};
 pub use openapi::ApiDoc;
-pub use startup::{DEFAULT_PORT, ServerStartup, bind_listeners, prepare, startup_line};
+pub use startup::{DEFAULT_PORT, ServerStartup, bind_listeners, prepare, startup_message};
 
 #[derive(Debug)]
 pub struct AppStateRef {

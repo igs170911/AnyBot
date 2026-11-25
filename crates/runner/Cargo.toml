@@ -4,7 +4,7 @@ name = "anybot-runner"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AnyBot runner 套件骨架（spec/07 §2）"
+description = "AnyBot runner skeleton crate (spec/07 section 2)"
 [dependencies]
 anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }

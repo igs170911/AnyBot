@@ -1,29 +1,29 @@
 openapi: 3.1.0
 info:
-  title: AnyBot 伺服器 API
-  description: AnyBot 新版伺服器的 HTTP API。跟著程式碼產生，文件即合約。
+  title: AnyBot Server API
+  description: HTTP API of the new AnyBot server. Generated from the code; the document is the contract.
   contact:
-    name: AnyBot 開發團隊
+    name: AnyBot dev team
   license:
     name: MIT OR Apache-2.0
     identifier: MIT OR Apache-2.0
   version: 0.1.0
 servers:
 - url: http://127.0.0.1:8787
-  description: 本機開發伺服器（M3 只聽本機）
+  description: loopback development server (M3 listens on loopback only)
 - url: http://[::1]:8787
-  description: 本機 IPv6 開發伺服器
+  description: loopback IPv6 development server
 paths:
   /v1/health:
     get:
       tags:
       - system
-      summary: 伺服器健康檢查
-      description: 回傳伺服器版本、現在時間（RFC 3339）和事件協定版本；不需要身分。
+      summary: Server health check
+      description: Returns the server version, the current time (RFC 3339) and the event protocol version; no identity required.
       operationId: get_health
       responses:
         '200':
-          description: 伺服器活著
+          description: The server is alive
           content:
             application/json:
               schema:
@@ -33,24 +33,28 @@ paths:
                 protocol_version: 1
                 version: 0.1.0
         '400':
-          description: 請求格式錯誤
+          description: The request was malformed
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemJson'
               example:
+                code: problem-bad-request
+                params: {}
                 status: 400
-                title: 請求格式錯誤
+                title: The request was malformed.
                 type: https://anybot.test/problems/bad-request
         '500':
-          description: 伺服器內部錯誤
+          description: The server hit an internal error
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemJson'
               example:
+                code: problem-internal
+                params: {}
                 status: 500
-                title: 伺服器內部錯誤
+                title: The server hit an internal error.
                 type: https://anybot.test/problems/internal
       security:
       - {}
@@ -74,23 +78,34 @@ components:
         version:
           type: string
           example: 0.1.0
+    MessageParams:
+      type: object
+      additionalProperties: {}
+      propertyNames:
+        type: string
     ProblemJson:
       type: object
       required:
       - type
       - title
       - status
+      - code
       properties:
+        code:
+          type: string
+          example: problem-bad-request
         detail:
           type:
           - string
           - 'null'
-          example: 明細說明
+          example: developer detail text
         instance:
           type:
           - string
           - 'null'
           example: /v1/health
+        params:
+          $ref: '#/components/schemas/MessageParams'
         status:
           type: integer
           format: int32
@@ -98,10 +113,10 @@ components:
           minimum: 0
         title:
           type: string
-          example: 請求格式錯誤
+          example: The request was malformed.
         type:
           type: string
-          example: https://anybot.test/problems/bad-request
+          example: https://anybot.test/problems/not-found
   securitySchemes:
     bearer:
       type: http
@@ -110,4 +125,4 @@ security:
 - bearer: []
 tags:
 - name: system
-  description: 伺服器本身：健康檢查與啟動狀態
+  description: 'the server itself: health check and startup state'

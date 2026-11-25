@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "crates/*",
-    # apps/* 的 glob 會掃到 apps/desktop（前端目錄，沒有 Cargo.toml），所以執行檔逐個列出來。
+    # the apps/* glob also scans apps/desktop (a frontend directory with no Cargo.toml), so executables are listed one by one.
     "apps/server",
     "apps/runner-service",
     "apps/agent",
@@ -19,7 +19,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-# 內部套件（crates/）
+# internal crates
 anybot-foundation = { path = "crates/foundation", version = "0.1.0" }
 anybot-protocol = { path = "crates/protocol", version = "0.1.0" }
 anybot-domain = { path = "crates/domain", version = "0.1.0" }
@@ -38,8 +38,9 @@ anybot-blob = { path = "crates/blob", version = "0.1.0" }
 anybot-channels = { path = "crates/channels", version = "0.1.0" }
 anybot-server = { path = "crates/server", version = "0.1.0" }
 anybot-migrate-old = { path = "crates/migrate-old", version = "0.1.0" }
+anybot-messages = { path = "crates/messages", version = "0.1.0" }
 test-harness = { path = "tests/harness", version = "0.1.0" }
-# 外部套件（照 spec/06）
+# external crates (spec/06)
 anyhow = "1"
 time = { version = "0.3", features = ["formatting", "macros"] }
 jiff = "1"
@@ -60,12 +61,16 @@ tower = "0.5"
 http-body-util = "0.1"
 clap = { version = "4", features = ["derive"] }
 regex = "1"
+libc = { version = "0.2" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.9", features = ["runtime-tokio"] }
 thiserror = "2"
 tracing = "0.1"
+fluent-bundle = "0.16"
+fluent-syntax = "0.12"
+unic-langid = "0.9"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

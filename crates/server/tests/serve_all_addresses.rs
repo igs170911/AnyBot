@@ -15,7 +15,7 @@ use utoipa as _;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
-use anybot_server::serve_all::serve_all;
+use anybot_server::serve_all::{CODE_SERVER_STOP_NO_LISTENER, serve_all};
 use anybot_server::{AppState, build_router};
 
 async fn bind_pair() -> Result<(TcpListener, TcpListener, SocketAddr, SocketAddr), String> {
@@ -62,5 +62,5 @@ async fn serve_all_reports_when_no_address_is_served() {
     let reason = match serve_all(Vec::new(), app).await {
         Ok(reason) | Err(reason) => reason,
     };
-    assert!(reason.contains("沒有任何位址"), "{reason}");
+    assert_eq!(reason.code, CODE_SERVER_STOP_NO_LISTENER);
 }

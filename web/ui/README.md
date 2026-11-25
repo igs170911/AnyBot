@@ -1,11 +1,12 @@
-# `web/ui` · 共用畫面元件庫（骨架）
+# `web/ui` · shared UI component library (skeleton)
 
-照 `spec/06` §2.4、`spec/07` §2：桌面（`apps/desktop`）和手機／瀏覽器（`apps/web`）**共用同一套畫面**，
-共用的元件放這裡。
+Per `spec/06` section 2.4 and `spec/07` section 2: desktop (`apps/desktop`) and
+phone/browser (`apps/web`) **share the same UI**; shared components live here.
 
-M2 是骨架：只有 `src/shell.tsx` 一個外殼元件，**沒有任何頁面、路由、功能**。
-之後的功能畫面都加進這個套件，兩邊一起用。
+M2 is a skeleton: one shell component in `src/shell.tsx`, **no pages, no
+routing, no features**. Later feature screens are added to this package and used
+by both sides.
 
-- 建置：`vite build`（lib mode，輸出 `dist/index.js`）。
-- 測試：`vitest run`（用 `react-dom/server` 的 `renderToString`，不需要瀏覽器）。
-- 桌面和手機的測試在之後的里程碑用 Playwright 端對端一起測（`spec/06` §2.7）。
+- Build: `vite build` (lib mode, outputs `dist/index.js`).
+- Tests: `vitest run` (uses `renderToString` from `react-dom/server`, no browser needed).
+- Desktop and mobile tests are run together with Playwright end-to-end in later milestones (`spec/06` section 2.7).

@@ -4,7 +4,9 @@ use axum::http::StatusCode;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use anybot_protocol::{PROBLEM_TYPE_BASE, PROTOCOL_VERSION, ProblemJson};
+use anybot_protocol::{
+    PROBLEM_CODE_INTERNAL, PROBLEM_TITLE_INTERNAL, PROBLEM_TYPE_BASE, PROTOCOL_VERSION, ProblemJson,
+};
 
 use crate::app::AppState;
 
@@ -18,32 +20,43 @@ pub struct HealthResponse {
     pub protocol_version: u32,
 }
 
+#[derive(Debug)]
+pub struct HealthInternalError {
+    problem: Box<ProblemJson>,
+}
+
+impl axum::response::IntoResponse for HealthInternalError {
+    fn into_response(self) -> axum::response::Response {
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(self.problem)).into_response()
+    }
+}
+
 #[utoipa::path(
     get,
     path = "/v1/health",
     operation_id = "get_health",
-    summary = "伺服器健康檢查",
-    description = "回傳伺服器版本、現在時間（RFC 3339）和事件協定版本；不需要身分。",
+    summary = "Server health check",
+    description = "Returns the server version, the current time (RFC 3339) and the event protocol version; no identity required.",
     tag = "system",
     security(()),
     responses(
-        (status = 200, description = "伺服器活著",
+        (status = 200, description = "The server is alive",
             content_type = "application/json",
             body = HealthResponse,
             example = json!({"version": "0.1.0", "now": "2026-01-01T00:00:00Z", "protocol_version": 1})),
-        (status = 400, description = "請求格式錯誤",
+        (status = 400, description = "The request was malformed",
             content_type = "application/problem+json",
             body = ProblemJson,
-            example = json!({"type": "https://anybot.test/problems/bad-request", "title": "請求格式錯誤", "status": 400})),
-        (status = 500, description = "伺服器內部錯誤",
+            example = json!({"type": "https://anybot.test/problems/bad-request", "title": "The request was malformed.", "status": 400, "code": "problem-bad-request", "params": {}})),
+        (status = 500, description = "The server hit an internal error",
             content_type = "application/problem+json",
             body = ProblemJson,
-            example = json!({"type": "https://anybot.test/problems/internal", "title": "伺服器內部錯誤", "status": 500})),
+            example = json!({"type": "https://anybot.test/problems/internal", "title": "The server hit an internal error.", "status": 500, "code": "problem-internal", "params": {}})),
     )
 )]
 pub async fn health(
     State(state): State<AppState>,
-) -> Result<Json<HealthResponse>, (StatusCode, Json<ProblemJson>)> {
+) -> Result<Json<HealthResponse>, HealthInternalError> {
     let now = state
         .clock
         .now_ms()
@@ -56,11 +69,12 @@ pub async fn health(
     }))
 }
 
-fn internal_problem() -> (StatusCode, Json<ProblemJson>) {
-    let problem = ProblemJson::new(
+fn internal_problem() -> HealthInternalError {
+    let problem = Box::new(ProblemJson::new(
         500,
-        "伺服器內部錯誤".to_owned(),
+        PROBLEM_TITLE_INTERNAL.to_owned(),
         format!("{PROBLEM_TYPE_BASE}/internal"),
-    );
-    (StatusCode::INTERNAL_SERVER_ERROR, Json(problem))
+        PROBLEM_CODE_INTERNAL.to_owned(),
+    ));
+    HealthInternalError { problem }
 }

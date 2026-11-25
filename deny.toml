@@ -1,4 +1,4 @@
-# cargo-deny（spec/06 §2.7）
+# cargo-deny (spec/06 section 2.7)
 [graph]
 all-features = true
 
@@ -33,10 +33,10 @@ license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 [advisories]
 version = 2
-# Tauri 2（apps/desktop，Linux 側）經 glib-macros 拉到 proc-macro-error：
-# 那顆套件「維護者失蹤」的 advisory 沒有可用的升級（tauri 那一側還沒換掉），
-# 它是唯讀的 proc-macro 輔助、不碰網路和金鑰，先記錄原因後放過。
-# （M2：桌面殼是 Tauri 2，`spec/06` §2.4）
+# Tauri 2 (apps/desktop, Linux side) pulls in proc-macro-error via glib-macros:
+# the maintainer-missing advisory has no available upgrade (the tauri side has not swapped it out yet),
+# it is a read-only proc-macro helper touching no network and no keys; allow it with this recorded reason.
+# (M2: the desktop shell is Tauri 2, spec/06 section 2.4)
 yanked = "deny"
 ignore = ["RUSTSEC-2024-0370"]
 
@@ -50,28 +50,28 @@ skip = []
 
 [[bans.deny]]
 name = "openssl"
-reason = "TLS 一律用 rustls（spec/06）"
+reason = "TLS always uses rustls (spec/06)"
 
 [[bans.deny]]
 name = "openssl-sys"
-reason = "TLS 一律用 rustls（spec/06）"
+reason = "TLS always uses rustls (spec/06)"
 
 [[bans.deny]]
 name = "openssl-macros"
-reason = "TLS 一律用 rustls（spec/06）"
+reason = "TLS always uses rustls (spec/06)"
 
 [[bans.deny]]
 name = "native-tls"
-reason = "TLS 一律用 rustls（spec/06）"
+reason = "TLS always uses rustls (spec/06)"
 
 [[bans.deny]]
 name = "noyalib"
-reason = "0.0.x、半年 64 版、單一作者，作者上一代 YAML 套件已被 RustSec 標成不安全（spec/06 §2.7；M3 審查第 14 項）"
+reason = "0.0.x, 64 releases in half a year, single author; the author previous YAML crate is flagged unsafe by RustSec (spec/06 section 2.7; M3 review item 14)"
 
 [[bans.deny]]
 name = "serde_yml"
-reason = "RustSec 標成不安全、無人維護的 noyalib 作者前作（M3 審查第 14 項）"
+reason = "flagged unsafe by RustSec; the unmaintained noyalib predecessor by the same author (M3 review item 14)"
 
 [[bans.deny]]
 name = "serde_yaml"
-reason = "serde_yaml 已停止維護，官方後繼是 yaml_serde（M3 審查第 14 項）"
+reason = "serde_yaml is unmaintained; the official successor is yaml_serde (M3 review item 14)"

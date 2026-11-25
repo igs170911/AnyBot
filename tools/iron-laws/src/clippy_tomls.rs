@@ -99,13 +99,13 @@ fn check_scalars(root: &Config, cfg: &Config, path: &str) -> Vec<String> {
     for (key, value) in &cfg.scalars {
         if root.scalars.get(key.as_str()) != Some(value) {
             out.push(format!(
-                "{path}：「{key}」跟根目錄的 clippy.toml 不一樣（K75）"
+                "{path}: scalar {key} differs from the root clippy.toml (K75)"
             ));
         }
     }
     for key in root.scalars.keys() {
         if !cfg.scalars.contains_key(key.as_str()) {
-            out.push(format!("{path}：少了根目錄有的「{key}」（K75）"));
+            out.push(format!("{path}: missing root scalar {key} (K75)"));
         }
     }
     out
@@ -136,19 +136,19 @@ fn check_lists(
         let allowed_set = pick(allowed, key, &empty);
         for extra in crate_set.difference(root_set) {
             out.push(format!(
-                "{path}：多了根目錄沒有的禁用項目「{extra}」（K75）"
+                "{path}: extra disallowed entry \"{extra}\" absent from the root clippy.toml (K75)"
             ));
         }
         for missing in root_set.difference(crate_set) {
             if !allowed_set.contains(missing.as_str()) {
                 out.push(format!(
-                    "{path}：少了根目錄的禁用項目「{missing}」，但這個套件不准豁免它（K75）"
+                    "{path}: missing banned entry {missing}, and this package is not allowed to exempt it (K75)"
                 ));
             }
         }
         for extra_allowed in allowed_set.difference(root_set) {
             out.push(format!(
-                "{path}：豁免清單裡的「{extra_allowed}」根目錄根本沒禁用（K75）"
+                "{path}: exemption list entry {extra_allowed} is not banned in the root (K75)"
             ));
         }
     }
@@ -161,12 +161,14 @@ pub fn violations(root: &Config, files: &[(String, String)]) -> Vec<String> {
     let mut out = Vec::new();
     for (path, content) in files {
         let Some(pkg) = package_of_path(path) else {
-            out.push(format!("{path}：clippy.toml 放在不认识的資料夾（K75）"));
+            out.push(format!(
+                "{path}: clippy.toml sits in an unknown folder (K75)"
+            ));
             continue;
         };
         let Some(allowed) = exemptions.get(&pkg) else {
             out.push(format!(
-                "{path}：不准有自己的 clippy.toml（K75：只有准許的套件才有）"
+                "{path}: may not have its own clippy.toml (K75: only permitted packages may)"
             ));
             continue;
         };
@@ -180,7 +182,7 @@ pub fn violations(root: &Config, files: &[(String, String)]) -> Vec<String> {
             .any(|(path, _)| package_of_path(path).as_ref() == Some(pkg));
         if !has_file {
             out.push(format!(
-                "准許的套件 {pkg} 沒有自己的 clippy.toml（K75：豁免要寫在套件自己的 clippy.toml）"
+                "permitted package {pkg} has no clippy.toml of its own (K75: exemptions live in the package clippy.toml)"
             ));
         }
     }
@@ -199,7 +201,10 @@ mod tests {
     fn test_iron_laws_clippy_toml_in_unauthorized_package_is_blocked() {
         let root = parse(&base());
         let v = violations(&root, &[("crates/domain/clippy.toml".to_owned(), base())]);
-        assert!(v.iter().any(|x| x.contains("不准有自己的 clippy.toml")));
+        assert!(
+            v.iter()
+                .any(|x| x.contains("may not have its own clippy.toml"))
+        );
     }
 
     #[test]
@@ -212,7 +217,7 @@ mod tests {
         );
         assert!(
             v.iter()
-                .any(|x| x.contains("少了根目錄的禁用項目") && x.contains("env::var"))
+                .any(|x| x.contains("missing banned entry") && x.contains("env::var"))
         );
     }
 

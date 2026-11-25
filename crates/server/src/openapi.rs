@@ -21,25 +21,25 @@ impl Modify for BearerAuth {
 #[derive(OpenApi)]
 #[openapi(
     info(
-        title = "AnyBot 伺服器 API",
-        description = "AnyBot 新版伺服器的 HTTP API。跟著程式碼產生，文件即合約。",
+        title = "AnyBot Server API",
+        description = "HTTP API of the new AnyBot server. Generated from the code; the document is the contract.",
         version = env!("CARGO_PKG_VERSION"),
         license(
             name = "MIT OR Apache-2.0",
             identifier = "MIT OR Apache-2.0"
         ),
-        contact(name = "AnyBot 開發團隊"),
+        contact(name = "AnyBot dev team"),
     ),
     paths(crate::health::health),
     components(schemas(crate::health::HealthResponse, anybot_protocol::ProblemJson)),
     servers(
-        (url = "http://127.0.0.1:8787", description = "本機開發伺服器（M3 只聽本機）"),
-        (url = "http://[::1]:8787", description = "本機 IPv6 開發伺服器"),
+        (url = "http://127.0.0.1:8787", description = "loopback development server (M3 listens on loopback only)"),
+        (url = "http://[::1]:8787", description = "loopback IPv6 development server"),
     ),
     security(("bearer" = [])),
     modifiers(&BearerAuth),
     tags(
-        (name = "system", description = "伺服器本身：健康檢查與啟動狀態")
+        (name = "system", description = "the server itself: health check and startup state")
     )
 )]
 pub struct ApiDoc;

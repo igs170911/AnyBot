@@ -1,0 +1,19 @@
+[package]
+publish = false
+name = "anybot-messages"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot messages crate: code + params + lang to text (spec/07 section 2)"
+
+[dependencies]
+fluent-bundle = { workspace = true }
+fluent-syntax = { workspace = true }
+unic-langid = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+[lints]
+workspace = true
+
+[dev-dependencies]

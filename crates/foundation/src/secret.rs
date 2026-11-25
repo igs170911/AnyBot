@@ -16,7 +16,7 @@ impl Secret {
 
 impl std::fmt::Debug for Secret {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Secret(遮罩)")
+        f.write_str("Secret(masked)")
     }
 }
 
@@ -39,7 +39,7 @@ mod tests {
     #[test]
     fn test_secret_debug_is_redacted_and_expose_is_explicit() {
         let s = Secret::from_untrusted("hunter2".to_owned());
-        assert_eq!(format!("{s:?}"), "Secret(遮罩)");
+        assert_eq!(format!("{s:?}"), "Secret(masked)");
         assert_eq!(s.expose(), "hunter2");
     }
 

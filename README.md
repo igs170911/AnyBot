@@ -1,94 +1,108 @@
 # AnyBotNext
 
-AnyBot 新版的 repo。需求規格在 `spec/`（唯一的需求來源），給寫程式 agent 的規則在 `AGENTS.md`。
+The repo of the new AnyBot. Requirements live in `spec/` (the single source of
+requirements); rules for coding agents live in `AGENTS.md`.
 
-## 跑檢查關卡
+## Check gates
 
 ```sh
 make check
 ```
 
-依序跑（任何一步失敗就整個失敗）：
+Runs in order (any step failing fails the whole run):
 
-Rust（M1）：
+Rust (M1):
 
 1. `cargo fmt --all --check`
-2. `cargo clippy --workspace --all-targets -- -D warnings`（含 `clippy.toml` 的禁用清單）
-3. `cargo nextest run --workspace`（沒裝 nextest 時退回 `cargo test --workspace`）
-4. `cargo deny check`（授權、漏洞、禁用套件；`deny.toml`）
-5. `cargo machete`（沒在用的依賴）
-6. depcheck（`cargo run -p depcheck`）：依賴方向照 `spec/07` §3
-7. spec-trace（`cargo run -p spec-trace -- --against HEAD`）：規格功能追蹤表
-   （`spec/10-behavior/`＋`tools/spec-trace/baseline.txt`）。只掃產品程式碼
-   （crates/apps/tests/web/adapters 的 `.rs`、`.ts`、`.tsx`，不掃 tools/）、標記只認註解；
-   基準檔缺失＝關卡失敗，重新產生是明確指令 `make spec-baseline`；
-   `--against <ref>` 比對那個 ref 的基準檔，**基準檔只能變短**
-   （多出來的編號只准是這段變更新增的規格編號；CI 跟主分支的分岔點比，見 `.gitea/workflows/ci.yml`）
+2. `cargo clippy --workspace --all-targets -- -D warnings` (including the
+   `clippy.toml` disallowed list)
+3. `cargo nextest run --workspace` (falls back to `cargo test --workspace` when nextest is absent)
+4. `cargo deny check` (licenses, advisories, bans; `deny.toml`)
+5. `cargo machete` (unused dependencies)
+6. depcheck (`cargo run -p depcheck`): dependency direction per `spec/07` section 3
+7. spec-trace (`cargo run -p spec-trace -- --against HEAD`): the spec feature
+   trace table (`spec/10-behavior/` + `tools/spec-trace/baseline.txt`). Scans
+   product code only (`.rs`, `.ts`, `.tsx` under crates/apps/tests/web/adapters;
+   tools/ is not scanned) and counts only doc comments; a missing baseline file
+   fails the gate, regeneration is an explicit command `make spec-baseline`;
+   `--against <ref>` compares against that ref's baseline and **the baseline may
+   only shrink** (extra ids must be spec ids added by this change; CI compares
+   against the merge base of the main branch, see `.gitea/workflows/ci.yml`)
+8. locale-gen (`cargo run -p locale-gen -- check`): CJK scan of all tracked
+   files (locales/, spec/, docs/, AGENTS.md excluded) plus translation
+   consistency and generated-code freshness (spec/09 K91, K92)
 
-TypeScript（M2）：
+TypeScript (M2):
 
-8. `pnpm install --frozen-lockfile`
-9. `pnpm exec biome ci .`（格式＋lint，`biome.json`；`*.md` 和 `pnpm-lock.yaml` 不掃：
-   `spec/` 是需求來源、不能被工具重排，鎖檔是工具產物）
-10. `pnpm -r --no-bail typecheck`（各套件 `tsc --noEmit`，`tsconfig.base.json` strict 全開）
-11. `pnpm -r --no-bail test`（各套件 `vitest run`）
-12. `pnpm -r --no-bail build`（各套件 `vite build`）
+9. `pnpm install --frozen-lockfile`
+10. `pnpm exec biome ci .` (format + lint, `biome.json`; `*.md` and
+    `pnpm-lock.yaml` are not scanned: `spec/` is the requirements source and
+    must not be reshaped by tools, the lockfile is a tool artifact)
+11. `pnpm -r --no-bail typecheck` (per-package `tsc --noEmit`, `tsconfig.base.json` strict fully on)
+12. `pnpm -r --no-bail test` (per-package `vitest run`)
+13. `pnpm -r --no-bail build` (per-package `vite build`)
 
-Tauri 的 Rust 部分（`apps/desktop/src-tauri`）走上面 1–7 的 Rust 關卡（在 workspace 裡）。
+The Rust part of Tauri (`apps/desktop/src-tauri`) goes through Rust gates 1–7 above (it is in the workspace).
 
-### 邊寫邊跑
+### Fast loop
 
 ```sh
 make check-fast
 ```
 
-只跑最快的四個：`cargo fmt --all --check`、`cargo clippy`、depcheck、`biome ci`。
-改完一批就跑，錯了當場修（`spec/05` §1 第 3 步、`AGENTS.md` 二）。
+Runs only the fastest gates: `cargo fmt --all --check`, `cargo clippy`,
+depcheck, iron-laws, locale, `biome ci`, plus the API document gates. Run it
+after each batch of changes and fix failures on the spot (`spec/05` section 1
+step 3, `AGENTS.md` section 2).
 
-## 需要的工具
+## Required tools
 
-Rust：rustup（版本由 `rust-toolchain.toml` 鎖住）、`cargo-deny`、`cargo-machete`、
-`cargo-nextest`（自選，可退回 `cargo test`）。
+Rust: rustup (version pinned by `rust-toolchain.toml`), `cargo-deny`,
+`cargo-machete`, `cargo-nextest` (optional; falls back to `cargo test`).
 
 ```sh
 rustup component add rustfmt clippy
 cargo install --locked cargo-deny cargo-machete cargo-nextest
 ```
 
-TypeScript／桌面：Node 22 以上、pnpm、（要真的開桌面視窗時）`cargo install --locked tauri-cli`。
+TypeScript/desktop: Node 22+, pnpm, and (to open a real desktop window) `cargo install --locked tauri-cli`.
 
 ```sh
 npm install -g pnpm
-pnpm install            # 裝完會產生 pnpm-lock.yaml（要 commit）
-pnpm --filter @anybot/desktop dev   # 需要 tauri-cli：cargo tauri dev
+pnpm install            # produces pnpm-lock.yaml (must be committed)
+pnpm --filter @anybot/desktop dev   # needs tauri-cli: cargo tauri dev
 ```
 
-CI（`.gitea/workflows/ci.yml`）跑同樣的 `make check`；Linux 上會先裝 Tauri 要的
-WebKitGTK 等系統套件，並把 `SPEC_TRACE_REF` 設成跟主分支的分岔點。
+CI (`.gitea/workflows/ci.yml`) runs the same `make check`; on Linux it first
+installs the system packages Tauri needs (WebKitGTK etc.) and sets
+`SPEC_TRACE_REF` to the merge base of the main branch.
 
-## 各資料夾在做什麼
+## What each folder does
 
-完整說明見 `spec/07-repo-layout.md`：
+Full description in `spec/07-repo-layout.md`:
 
-| 資料夾 | 內容 |
+| Folder | Contents |
 |---|---|
-| `spec/` | 唯一的需求來源（規格＋功能追蹤表） |
-| `crates/` | 18 個 Rust 函式庫套件，照 `spec/02` 分層；依賴方向由 `tools/depcheck` 擋 |
-| `apps/` | 執行檔：server、runner-service、agent、cli（main 極簡）；`desktop/`（Tauri 2：`src-tauri/` 是 Rust 殼、前端載入 `web/ui` 的外殼）、`web/`（PWA：手機和瀏覽器） |
-| `web/` | 共用的 TypeScript 套件：`ui/`（共用畫面元件，桌面和手機都用）、`api-client/`（由 `api/openapi.yaml` 產生，見該目錄的 README） |
-| `adapters/` | 非 Rust 的轉接器（之後的里程碑） |
-| `tools/` | 自家檢查工具：depcheck（依賴方向）、spec-trace（功能追蹤表＋基準檔只能變短） |
-| `api/` | openapi.yaml（由程式產生、提交）＋執行事件協定 schema |
-| `migrations/` | server（PostgreSQL）、client（SQLite）的資料庫遷移 |
-| `tests/` | 跨套件端對端、壓力測試、遷移固定測資（OLD 最後一版的真實資料） |
-| `images/` `deploy/` | Docker 映像與 compose／helm 部署 |
-| `docs/` | 給使用者和維運的文件；`docs/tasks/` 是里程碑任務 |
+| `spec/` | the single requirements source (specs + feature trace tables) |
+| `crates/` | 19 Rust library crates layered per `spec/02`; dependency direction enforced by `tools/depcheck` |
+| `apps/` | executables: server, runner-service, agent, cli (main kept minimal); `desktop/` (Tauri 2: `src-tauri/` is the Rust shell, the frontend loads the `web/ui` shell), `web/` (PWA for phones and browsers) |
+| `web/` | shared TypeScript packages: `ui/` (shared UI components used by both desktop and mobile), `api-client/` (generated from `api/openapi.yaml`, see that directory's README) |
+| `adapters/` | non-Rust adapters (later milestones) |
+| `tools/` | in-house check tools: depcheck (dependency direction), spec-trace (feature trace table + baseline may only shrink), iron-laws (four iron laws), locale-gen (locale gates), api-docs (document generator) |
+| `api/` | openapi.yaml (generated by code, committed) + the run-event protocol schema |
+| `migrations/` | database migrations for the server (PostgreSQL) and the client (SQLite) |
+| `tests/` | cross-package end-to-end and stress tests, migration fixtures (real data from the last OLD version) |
+| `images/` `deploy/` | Docker images and compose/helm deployments |
+| `docs/` | user and operations documentation; `docs/tasks/` holds milestone tasks |
 
-根目錄的 `package.json`、`pnpm-workspace.yaml`、`biome.json`、`tsconfig.base.json` 是
-TypeScript 工作區的設定；工作區成員是 `web/ui`、`web/api-client`、`apps/web`、`apps/desktop`。
+The root `package.json`, `pnpm-workspace.yaml`, `biome.json`, `tsconfig.base.json`
+configure the TypeScript workspace; members are `web/ui`, `web/api-client`,
+`apps/web`, `apps/desktop`.
 
-## 桌面殼（`apps/desktop`）
+## Desktop shell (`apps/desktop`)
 
-照 `spec/06` §2.4、`spec/07` §3：**視窗只是畫面**，做事的是背景程式 `apps/agent`；
-桌面殼不准依賴 server、store-server、runner、models、tools、computers、mcp、external-agents
-（由 `tools/depcheck` 擋）。M2 只有骨架：一個視窗顯示 `web/ui` 的外殼，沒有頁面、沒有功能。
+Per `spec/06` section 2.4 and `spec/07` sections 2, 3: **the window is only a
+view**; the background program `apps/agent` does the work. The desktop shell
+must not depend on server, store-server, runner, models, tools, computers, mcp,
+external-agents (enforced by `tools/depcheck`). M2 is a skeleton: one window
+showing the `web/ui` shell, no pages, no features.

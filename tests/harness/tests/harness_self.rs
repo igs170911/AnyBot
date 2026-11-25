@@ -1,6 +1,11 @@
+extern crate libc as _;
 extern crate reqwest as _;
 
-use test_harness::{Program, http_get, run_program, test_dir, write_file_with_mode};
+use std::sync::Mutex;
+
+use test_harness::{
+    Program, child_is_dead, http_get, run_program, run_program_with, test_dir, write_file_with_mode,
+};
 
 #[test]
 fn harness_run_program_captures_stdout_and_exit_code() {
@@ -53,6 +58,64 @@ fn harness_write_file_with_mode_sets_exact_permissions() {
     write_file_with_mode(&path, "postgresql://u:p@h/db\n", 0o600).unwrap();
     let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode, 0o600);
+}
+
+#[test]
+fn harness_run_program_times_out_on_program_that_never_exits() {
+    let dir = test_dir("harness-timeout").unwrap();
+    let program = Program::new("/bin/sleep", vec!["600".to_owned()])
+        .with_timeout(std::time::Duration::from_secs(2));
+    let started = std::time::Instant::now();
+    let spawned = Mutex::new(Vec::new());
+    let result = run_program_with(&program, &dir, |child| {
+        spawned.lock().unwrap().push(child.id());
+        Ok(())
+    });
+    let elapsed = started.elapsed();
+    let err = result.unwrap_err();
+    assert!(err.contains("timed out"), "{err}");
+    assert!(elapsed < std::time::Duration::from_secs(6), "{elapsed:?}");
+    assert!(err.contains("to exit"), "{err}");
+    let pid = spawned.lock().unwrap().first().copied().unwrap();
+    assert!(err.contains(&format!("PID {pid}")), "{err}");
+}
+
+#[test]
+fn harness_run_program_drains_one_megabyte_of_stderr() {
+    let dir = test_dir("harness-big-stderr").unwrap();
+    let program = Program::new(
+        "/bin/sh",
+        vec![
+            "-c".to_owned(),
+            "i=0; while [ $i -lt 64 ]; do seq 16384 | tr '0' x >&2; i=$((i+1)); done; exit 7"
+                .to_owned(),
+        ],
+    );
+    let outcome = run_program(&program, &dir).unwrap();
+    assert_eq!(outcome.code, 7);
+    assert!(
+        outcome.stderr.len() >= 1_000_000,
+        "{}",
+        outcome.stderr.len()
+    );
+}
+
+#[test]
+fn harness_running_line_wait_times_out_and_kills_child() {
+    let dir = test_dir("harness-line-timeout").unwrap();
+    let program = Program::new("/bin/sleep", vec!["600".to_owned()])
+        .with_timeout(std::time::Duration::from_secs(2));
+    let mut running = test_harness::Running::start(&program, &dir).unwrap();
+    let started = std::time::Instant::now();
+    let err = running.next_stdout_line().unwrap_err();
+    assert!(err.contains("timed out"), "{err}");
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(6),
+        "{:?}",
+        started.elapsed()
+    );
+    let dead = child_is_dead(running.child()).unwrap();
+    assert!(dead, "child still alive after line timeout");
 }
 
 #[tokio::test]

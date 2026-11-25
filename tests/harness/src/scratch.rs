@@ -12,7 +12,7 @@ pub fn repo_root() -> PathBuf {
 pub fn test_dir(test_name: &str) -> Result<PathBuf, String> {
     let base = repo_root().join("target").join("tests").join(test_name);
     clean(&base)?;
-    std::fs::create_dir_all(&base).map_err(|e| format!("建 {} 失敗：{e}", base.display()))?;
+    std::fs::create_dir_all(&base).map_err(|e| format!("create {} failed: {e}", base.display()))?;
     Ok(base)
 }
 
@@ -20,12 +20,12 @@ fn clean(base: &Path) -> Result<(), String> {
     match std::fs::remove_dir_all(base) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(format!("清 {} 失敗：{e}", base.display())),
+        Err(e) => Err(format!("clean {} failed: {e}", base.display())),
     }
 }
 
 pub fn write_file_with_mode(path: &Path, contents: &str, mode: u32) -> Result<(), String> {
-    std::fs::write(path, contents).map_err(|e| format!("寫 {} 失敗：{e}", path.display()))?;
+    std::fs::write(path, contents).map_err(|e| format!("write {} failed: {e}", path.display()))?;
     set_mode(path, mode)
 }
 
@@ -33,7 +33,7 @@ pub fn write_file_with_mode(path: &Path, contents: &str, mode: u32) -> Result<()
 fn set_mode(path: &Path, mode: u32) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
-        .map_err(|e| format!("設 {} 的權限失敗：{e}", path.display()))
+        .map_err(|e| format!("set permissions on {} failed: {e}", path.display()))
 }
 
 #[cfg(not(unix))]

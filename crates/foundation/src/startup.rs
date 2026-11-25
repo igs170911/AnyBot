@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use crate::error::FoundationError;
+use crate::error::{CODE_CLIENT_DATA_DIR_MISSING, FoundationError, MessageRef};
 
 pub const APP_IDENTIFIER: &str = "app.anybot.desktop";
 
@@ -43,9 +43,9 @@ impl ClientLaunch {
             }),
             None => default_data_dir()
                 .map(|data_dir| ClientLaunch { data_dir })
-                .ok_or(FoundationError::DataDirMissing(
-                    "找不到本機資料夾的慣例位置：請用 --data-dir 指定".to_owned(),
-                )),
+                .ok_or(FoundationError::DataDirMissing(MessageRef::new(
+                    CODE_CLIENT_DATA_DIR_MISSING,
+                ))),
         }
     }
 }

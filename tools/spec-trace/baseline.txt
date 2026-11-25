@@ -1,4 +1,4 @@
-# spec-trace 基準檔：還沒有測試的規格編號（只能變短，不能變長）
+# spec-trace baseline: spec ids without a test yet (may only shrink, never grow)
 T-account-backup-1
 T-account-backup-2
 T-account-backup-3

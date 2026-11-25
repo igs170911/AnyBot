@@ -6,11 +6,11 @@ fn set(items: &[&str]) -> BTreeSet<String> {
 
 #[test]
 fn test_spec_trace_collects_table_ids() {
-    let md = "| 編號 | 種類 | 前提 | 步驟 | 預期 |\n\
+    let md = "| id | kind | given | when | expect |\n\
               |---|---|---|---|---|\n\
-              | T-chat-steer-1 | 端對端 | a | b | c |\n\
-              | T-chat-steer-2 | 整合 | a | b | c |\n\
-              內文提到的 T-chat-steer-9 在表格欄外，不進清單。\n";
+              | T-chat-steer-1 | e2e | a | b | c |\n\
+              | T-chat-steer-2 | integration | a | b | c |\n\
+              the T-chat-steer-9 mentioned in prose sits outside table cells and stays out of the list.\n";
     let ids = spec_ids_from_md(md).unwrap();
     assert!(ids.contains("T-chat-steer-1"));
     assert!(ids.contains("T-chat-steer-2"));
@@ -51,7 +51,7 @@ fn test_spec_trace_ts_test_titles_are_the_trace_source() {
 
 #[test]
 fn test_spec_trace_finds_indented_and_macro_tests() {
-    let src = "mod tests {\n    use super::*;\n\n    #[test]\n    fn t_sync_id_1() {}\n\n    #[test]\n    /// 文件註解\n    fn t_chat_steer_3() {}\n\n    proptest! {\n        #[test]\n        fn t_sync_seq_1(v in 0..64u64) {\n            let _ = v;\n        }\n    }\n";
+    let src = "mod tests {\n    use super::*;\n\n    #[test]\n    fn t_sync_id_1() {}\n\n    #[test]\n    /// doc comment\n    fn t_chat_steer_3() {}\n\n    proptest! {\n        #[test]\n        fn t_sync_seq_1(v in 0..64u64) {\n            let _ = v;\n        }\n    }\n";
     let ids = code_ids_from_source(src).unwrap();
     assert!(ids.contains("T-sync-id-1"));
     assert!(ids.contains("T-chat-steer-3"));
@@ -70,7 +70,7 @@ fn test_spec_trace_blocks_unknown_id() {
     assert!(
         r.violations
             .iter()
-            .any(|v| v.contains("測試名稱標了規格沒有的編號：T-nope-1"))
+            .any(|v| v.contains("test name carries an id absent from the spec: T-nope-1"))
     );
 }
 
@@ -85,7 +85,7 @@ fn test_spec_trace_baseline_only_shrinks() {
     assert!(
         r.violations
             .iter()
-            .any(|v| v.contains("T-chat-steer-1 已有測試，還留在基準檔"))
+            .any(|v| v.contains("T-chat-steer-1 already has a test and is still in the baseline"))
     );
     assert_eq!(r.total, 2);
     assert_eq!(r.tested(), 1);
@@ -103,7 +103,7 @@ fn test_spec_trace_new_id_must_be_tracked() {
     assert!(
         r.violations
             .iter()
-            .any(|v| v.contains("規格新增編號 T-chat-steer-2"))
+            .any(|v| v.contains("spec added id T-chat-steer-2"))
     );
 }
 
@@ -117,7 +117,7 @@ fn test_spec_trace_missing_baseline_fails() {
     assert!(
         r.violations
             .iter()
-            .any(|v| v.contains("基準檔 tools/spec-trace/baseline.txt 不存在"))
+            .any(|v| v.contains("baseline tools/spec-trace/baseline.txt is missing"))
     );
 }
 
@@ -153,5 +153,5 @@ fn test_spec_trace_against_ref_blocks_stuffed_back_id() {
     assert_eq!(v.len(), 1);
     let first = v.first().unwrap();
     assert!(first.contains("T-chat-steer-1"));
-    assert!(first.contains("只能變短"));
+    assert!(first.contains("may only shrink"));
 }

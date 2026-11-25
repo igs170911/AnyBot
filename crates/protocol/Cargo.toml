@@ -4,15 +4,18 @@ name = "anybot-protocol"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AnyBot protocol 套件骨架（spec/07 §2）"
+description = "AnyBot protocol crate skeleton (spec/07 section 2)"
+[features]
+schema = ["dep:schemars", "dep:utoipa"]
+
 [dependencies]
 jiff = { workspace = true }
 
 anybot-foundation = { workspace = true }
-schemars = { workspace = true }
+schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-utoipa = { workspace = true }
+utoipa = { workspace = true, optional = true }
 [lints]
 workspace = true
 

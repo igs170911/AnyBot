@@ -17,7 +17,7 @@ function IdempotencyKeyRequired() {
           );
           if (!hasKey) {
             ctx.report({
-              message: `寫入操作 ${method} 缺少 Idempotency-Key 標頭參數（spec/05 §2）`,
+              message: `write operation ${method} lacks the Idempotency-Key header parameter (spec/05 section 2)`,
               location: ctx.location.key("parameters"),
             });
           }

@@ -4,7 +4,7 @@ name = "anybot-bus"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AnyBot bus 套件骨架（spec/07 §2）"
+description = "AnyBot bus skeleton crate (spec/07 section 2)"
 [dependencies]
 anybot-foundation = { workspace = true }
 [lints]

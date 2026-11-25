@@ -45,7 +45,7 @@ fn test_licensing_cargo_toml_without_license_is_blocked() {
     let v = violations(&repo);
     assert!(
         v.iter()
-            .any(|x| x.contains("crates/x/Cargo.toml") && x.contains("繼承"))
+            .any(|x| x.contains("crates/x/Cargo.toml") && x.contains("inherit"))
     );
     assert!(
         std::fs::write(

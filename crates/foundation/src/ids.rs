@@ -38,7 +38,7 @@ macro_rules! define_id {
             pub fn parse(text: &str) -> Result<Self, FoundationError> {
                 Uuid::parse_str(text)
                     .map(Self)
-                    .map_err(|e| FoundationError::IdParse(format!("ID 解析失敗：{e}")))
+                    .map_err(|e| FoundationError::IdParse(format!("id parse failed: {e}")))
             }
 
             #[must_use]

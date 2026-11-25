@@ -73,7 +73,7 @@ fn test_lints_member_without_inherit_is_blocked() {
     let v = check_members(&manifests, &ws_fixture(), &[]);
     assert!(
         v.first()
-            .is_some_and(|x| x.contains("沒有 [lints] workspace = true"))
+            .is_some_and(|x| x.contains("missing [lints] workspace = true"))
     );
 }
 
@@ -88,8 +88,8 @@ fn test_lints_context_extra_disabled_lint_is_blocked() {
         "pub fn make_context() {}\n".to_owned(),
     )];
     let v = check_members(&manifests, &ws_fixture(), &files);
-    assert!(v.iter().any(|x| x.contains("少了 clippy.all")));
-    assert!(!v.iter().any(|x| x.contains("少了 clippy.exit")));
+    assert!(v.iter().any(|x| x.contains("missing clippy.all")));
+    assert!(!v.iter().any(|x| x.contains("missing clippy.exit")));
 }
 
 #[test]
@@ -123,7 +123,10 @@ fn test_lints_context_extra_code_is_blocked() {
         ),
     ];
     let v = check_members(&manifests, &ws_fixture(), &files);
-    assert!(v.first().is_some_and(|x| x.contains("只准有那一個函式")));
+    assert!(
+        v.first()
+            .is_some_and(|x| x.contains("may have exactly one function"))
+    );
 }
 
 #[test]
@@ -139,7 +142,7 @@ fn test_lints_context_using_workspace_true_is_blocked() {
     let v = check_members(&manifests, &ws_fixture(), &files);
     assert!(
         v.iter()
-            .any(|x| x.contains("不准用 [lints] workspace = true"))
+            .any(|x| x.contains("must not use [lints] workspace = true"))
     );
 }
 
@@ -149,7 +152,10 @@ fn test_lints_gitleaks_allowlist_is_blocked() {
     assert!(std::fs::create_dir_all(&repo).is_ok());
     assert!(std::fs::write(repo.join(".gitleaks.toml"), "[allowlist]\n").is_ok());
     let v = gitleaks_violations(&repo);
-    assert!(v.first().is_some_and(|x| x.contains("不准有任何放行清單")));
+    assert!(
+        v.first()
+            .is_some_and(|x| x.contains("must have no exemption lists"))
+    );
     assert!(std::fs::remove_file(repo.join(".gitleaks.toml")).is_ok());
     assert!(gitleaks_violations(&repo).is_empty());
 }
@@ -194,7 +200,7 @@ fn test_lints_edition_check_accepts_workspace_inheritance_and_flags_literals() {
     );
     assert!(
         v.iter()
-            .any(|s| s.contains("crates/c") && s.contains("沒有寫"))
+            .any(|s| s.contains("crates/c") && s.contains("does not set"))
     );
 }
 
@@ -203,5 +209,5 @@ fn test_lints_edition_check_needs_workspace_base() {
     let root = "[workspace.package]\nversion = \"0.1.0\"\n";
     let v = crate::editions::edition_violations(root, &[]);
     assert_eq!(v.len(), 1);
-    assert!(v.first().is_some_and(|s| s.contains("沒有寫")));
+    assert!(v.first().is_some_and(|s| s.contains("does not set")));
 }

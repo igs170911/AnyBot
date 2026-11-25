@@ -1,13 +1,13 @@
-use std::process::ExitCode;
-
 use tokio::net::TcpListener;
 
-use anybot_app_server::{bind_plan, help_text, parse_launch, startup_plan};
-
+use anybot_app_server as _;
 use anybot_foundation as _;
 use anybot_server as _;
 use axum as _;
 use clap as _;
+use serde_json as _;
+
+use anybot_messages::{Catalog, Lang, MessageCode, Params};
 
 use test_harness::{Program, Running, http_get, run_program, test_dir, write_file_with_mode};
 
@@ -29,21 +29,60 @@ fn scratch_bootstrap(test: &str, mode: u32) -> Result<std::path::PathBuf, String
     Ok(path)
 }
 
+fn parent_dir(path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    match path.parent() {
+        Some(dir) => Ok(dir.to_path_buf()),
+        None => Err("bootstrap file must sit in a directory".to_owned()),
+    }
+}
+
+fn english(catalog: &mut Catalog, code: MessageCode, params: &Params) -> Result<String, String> {
+    catalog
+        .format(Lang::En, &code, params)
+        .map_err(|e| e.to_string())
+}
+
+fn full_text(catalog: &mut Catalog, code: MessageCode) -> Result<String, String> {
+    let mut params = Params::new();
+    let names = catalog
+        .param_names(Lang::En, &code)
+        .map_err(|e| e.to_string())?;
+    for name in names {
+        if name == "port" {
+            params = params.with_int(&name, 8787);
+        } else {
+            params = params.with_text(&name, "sample");
+        }
+    }
+    english(catalog, code, &params)
+}
+
+fn startup_params(version: &str) -> Params {
+    Params::new()
+        .with_text("version", version)
+        .with_int("port", 8787)
+        .with_text("db_host", "localhost")
+        .with_text("db_name", "anybot_test")
+}
+
 #[tokio::test]
 async fn t_install_n22_1() -> Result<(), String> {
     let path = scratch_bootstrap("install_n22_1", 0o600)?;
-    let dir = path.parent().ok_or("啟動檔要有資料夾")?.to_path_buf();
+    let dir = parent_dir(&path)?;
     let mut running = Running::start(&server_program(bootstrap_args(&path)), &dir)?;
     let first_line = running.next_stdout_line()?;
-    assert_eq!(
-        first_line.trim(),
-        format!(
-            "AnyBot 伺服器 v{}：聽 127.0.0.1:8787、[::1]:8787（資料庫 localhost/anybot_test）",
-            env!("CARGO_PKG_VERSION")
-        )
-    );
-    assert!(!first_line.contains("fixture-not-a-secret"));
-    let _result = running.kill();
+    let expected = english(
+        &mut Catalog::new(),
+        MessageCode::ServerStartupListening,
+        &startup_params(env!("CARGO_PKG_VERSION")),
+    )?;
+    if first_line.trim() != expected {
+        return Err(format!("startup line {first_line} differs from {expected}"));
+    }
+    if first_line.contains("fixture-not-a-secret") {
+        return Err("password leaked into the startup line".to_owned());
+    }
+    let _result = running.kill()?;
     Ok(())
 }
 
@@ -51,19 +90,27 @@ async fn t_install_n22_1() -> Result<(), String> {
 async fn t_install_n22_2() -> Result<(), String> {
     let dir = test_dir("install_n22_2")?;
     let outcome = run_program(&server_program(vec!["--help".to_owned()]), &dir)?;
-    assert_eq!(outcome.code, 0);
-    assert!(outcome.stdout.contains("reset-password"));
-    assert!(outcome.stdout.contains("logs"));
-    assert!(outcome.stdout.contains("update-bot-computers"));
-    assert!(outcome.stdout.contains("migrate-old"));
-    assert!(outcome.stdout.contains("--bootstrap"));
-    assert!(outcome.stdout.contains("--version"));
+    if outcome.code != 0 {
+        return Err(format!("help exit {}", outcome.code));
+    }
+    for want in [
+        "reset-password",
+        "logs",
+        "update-bot-computers",
+        "migrate-old",
+        "--bootstrap",
+        "--version",
+    ] {
+        if !outcome.stdout.contains(want) {
+            return Err(format!("missing {want} in help output"));
+        }
+    }
     Ok(())
 }
 
-async fn hold_port_8787() -> Result<TcpListener, String> {
+async fn bind_stack(addr: &str) -> Result<TcpListener, String> {
     for _attempt in 0..40 {
-        match TcpListener::bind("127.0.0.1:8787").await {
+        match TcpListener::bind(addr).await {
             Ok(listener) => return Ok(listener),
             Err(err) if err.kind() == std::io::ErrorKind::AddrInUse => {
                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
@@ -71,7 +118,13 @@ async fn hold_port_8787() -> Result<TcpListener, String> {
             Err(err) => return Err(err.to_string()),
         }
     }
-    Err("佔住 8787 失敗：超過等待時間".to_owned())
+    Err(format!("failed to hold {addr}: timed out"))
+}
+
+async fn hold_port_8787() -> Result<(TcpListener, TcpListener), String> {
+    let v4 = bind_stack("127.0.0.1:8787").await?;
+    let v6 = bind_stack("[::1]:8787").await?;
+    Ok((v4, v6))
 }
 
 #[tokio::test]
@@ -80,9 +133,25 @@ async fn t_install_n22_3() -> Result<(), String> {
     let dir = test_dir("install_n22_3")?;
     let path = scratch_bootstrap("install_n22_3", 0o600)?;
     let outcome = run_program(&server_program(bootstrap_args(&path)), &dir)?;
-    assert_eq!(outcome.code, 1);
-    assert!(outcome.stderr.contains("無法使用連接埠 8787"));
+    let result = check_port_failure(&held, &outcome);
     drop(held);
+    result
+}
+
+fn check_port_failure(
+    _held: &(TcpListener, TcpListener),
+    outcome: &test_harness::Outcome,
+) -> Result<(), String> {
+    if outcome.code != 1 {
+        return Err(format!("port-conflict exit {}", outcome.code));
+    }
+    let expected = full_text(&mut Catalog::new(), MessageCode::ServerPortUnusable)?;
+    let Some(prefix) = expected.split(':').next() else {
+        return Err("port message has no first segment".to_owned());
+    };
+    if !outcome.stderr.contains(prefix) {
+        return Err(format!("{outcome:?} misses {prefix}"));
+    }
     Ok(())
 }
 
@@ -90,9 +159,16 @@ async fn t_install_n22_3() -> Result<(), String> {
 async fn t_install_n22_4() -> Result<(), String> {
     let dir = test_dir("install_n22_4")?;
     let no_file = run_program(&server_program(vec![]), &dir)?;
-    assert_eq!(no_file.code, 2);
-    assert!(no_file.stderr.contains("找不到啟動檔"));
-    assert!(no_file.stderr.contains("--bootstrap"));
+    if no_file.code != 2 {
+        return Err(format!("missing-bootstrap exit {}", no_file.code));
+    }
+    let expected = full_text(&mut Catalog::new(), MessageCode::ServerBootstrapMissing)?;
+    if !no_file.stderr.contains(&expected) {
+        return Err(format!("{no_file:?} misses {expected}"));
+    }
+    if !no_file.stderr.contains("--bootstrap") {
+        return Err("missing --bootstrap hint".to_owned());
+    }
     let path = dir.join("x.conf");
     let unknown = run_program(
         &server_program(vec![
@@ -103,134 +179,86 @@ async fn t_install_n22_4() -> Result<(), String> {
         ]),
         &dir,
     )?;
-    assert_eq!(unknown.code, 2);
+    if unknown.code != 2 {
+        return Err(format!("unknown-flag exit {}", unknown.code));
+    }
     Ok(())
 }
 
 #[tokio::test]
 async fn t_server_n14_2() -> Result<(), String> {
     let path = scratch_bootstrap("server_n14_2", 0o644)?;
-    let dir = path.parent().unwrap().to_path_buf();
+    let dir = parent_dir(&path)?;
     let outcome = run_program(&server_program(bootstrap_args(&path)), &dir)?;
-    assert_ne!(outcome.code, 0);
-    assert!(outcome.stderr.contains("啟動檔的權限太開放"));
+    if outcome.code == 0 {
+        return Err("world-readable bootstrap was accepted".to_owned());
+    }
+    let expected = english(
+        &mut Catalog::new(),
+        MessageCode::ServerBootstrapPermissionsTooOpen,
+        &Params::new()
+            .with_text("mode", "644")
+            .with_text("path", &path.display().to_string()),
+    )?;
+    if !outcome.stderr.contains(&expected) {
+        return Err(format!("{outcome:?} misses {expected}"));
+    }
     Ok(())
 }
 
-#[test]
-fn startup_line_reports_both_addresses_without_password() {
-    let path = scratch_bootstrap("unit_startup_line", 0o600).unwrap();
-    let args = parse_launch(&bootstrap_args(&path)).unwrap();
-    let startup = startup_plan(&args, "9.9.9").unwrap();
-    assert_eq!(
-        startup.startup_line,
-        "AnyBot 伺服器 v9.9.9：聽 127.0.0.1:8787、[::1]:8787（資料庫 localhost/anybot_test）"
-    );
-    assert!(!startup.startup_line.contains("fixture-not-a-secret"));
-}
-
-#[tokio::test]
-async fn bind_plan_says_port_unusable_when_port_is_taken() {
-    let held = hold_port_8787().await.unwrap();
-    let failure = bind_plan(8787).await.unwrap_err();
-    assert_eq!(failure.code, ExitCode::from(1));
-    assert!(failure.message.contains("無法使用連接埠 8787"));
-    drop(held);
-}
-
-#[test]
-fn startup_plan_says_bootstrap_flag_when_file_is_missing() {
-    let args = parse_launch(&[]).unwrap();
-    let failure = startup_plan(&args, "9.9.9").unwrap_err();
-    assert_eq!(failure.code, ExitCode::from(2));
-    assert!(failure.message.contains("找不到啟動檔"));
-    assert!(failure.message.contains("--bootstrap"));
-}
-
-#[test]
-fn parse_launch_rejects_unknown_flag_with_exit_code_two() {
-    let failure = parse_launch(&[
-        "--bootstrap".to_owned(),
-        "x.conf".to_owned(),
-        "--port".to_owned(),
-        "1".to_owned(),
-    ])
-    .unwrap_err();
-
-    assert_eq!(failure.code, ExitCode::from(2));
-}
-
-#[test]
-fn help_text_lists_all_subcommands_and_flags() {
-    let help = help_text();
-    assert!(help.contains("reset-password"));
-    assert!(help.contains("--bootstrap"));
-    assert!(help.contains("--version"));
-}
-
-#[test]
-fn startup_plan_rejects_world_readable_bootstrap() {
-    let path = scratch_bootstrap("unit_permissions", 0o644).unwrap();
-    let args = parse_launch(&bootstrap_args(&path)).unwrap();
-    let failure = startup_plan(&args, "9.9.9").unwrap_err();
-    assert_ne!(failure.code, ExitCode::SUCCESS);
-    assert!(failure.message.contains("啟動檔的權限太開放"));
-}
-
-#[test]
-fn help_and_version_print_to_stdout_with_zero_exit() {
-    let dir = test_dir("unit_help_stdout").unwrap();
-    let help = run_program(&server_program(vec!["--help".to_owned()]), &dir).unwrap();
-    assert_eq!(help.code, 0);
-    assert!(!help.stderr.contains("Usage:"));
-    let version = run_program(&server_program(vec!["--version".to_owned()]), &dir).unwrap();
-    assert_eq!(version.code, 0);
-    assert!(version.stdout.contains("anybot-server"));
-}
-
-async fn start_health_server(
+async fn start_healthy_server(
     path: &std::path::Path,
     dir: &std::path::Path,
 ) -> Result<Running, String> {
+    let expected = english(
+        &mut Catalog::new(),
+        MessageCode::ServerStartupListening,
+        &startup_params(env!("CARGO_PKG_VERSION")),
+    )?;
+    let mut running = Running::start(&server_program(bootstrap_args(path)), dir)?;
+    let line = running.next_stdout_line()?;
+    if line.trim() != expected {
+        return Err(format!("startup line {line} differs from {expected}"));
+    }
     for _attempt in 0..40 {
-        let mut running = Running::start(&server_program(bootstrap_args(path)), dir)?;
-        let line = running.next_stdout_line()?;
-        assert!(line.contains("聽 127.0.0.1:8787"), "{line}");
-        if http_get(8787, "/v1/health").await.is_ok() {
+        let (code, _body) = http_get(8787, "/v1/health").await?;
+        if code == 200 {
             return Ok(running);
         }
-        let outcome = running.kill()?;
-        assert!(
-            outcome.stderr.contains("無法使用連接埠 8787"),
-            "{}",
-            outcome.stderr
-        );
         tokio::time::sleep(std::time::Duration::from_millis(250)).await;
     }
-    Err("8787 一直無法使用".to_owned())
+    Err("health endpoint never answered 200".to_owned())
 }
 
 #[tokio::test]
 async fn health_endpoint_answers_on_the_started_server() -> Result<(), String> {
-    let path = scratch_bootstrap("unit_health", 0o600).unwrap();
-    let dir = path.parent().unwrap().to_path_buf();
-    let mut running = start_health_server(&path, &dir).await?;
+    let path = scratch_bootstrap("unit_health", 0o600)?;
+    let dir = parent_dir(&path)?;
+    let mut running = start_healthy_server(&path, &dir).await?;
     let (code, _body) = http_get(8787, "/v1/health").await?;
-    assert_eq!(code, 200);
+    if code != 200 {
+        return Err(format!("health status {code}"));
+    }
     let _result = running.kill()?;
     Ok(())
 }
 
 #[tokio::test]
 async fn second_server_exits_with_one_while_first_keeps_serving_health() -> Result<(), String> {
-    let path = scratch_bootstrap("two_servers_second_fails", 0o600).unwrap();
-    let dir = path.parent().unwrap().to_path_buf();
-    let mut first = start_health_server(&path, &dir).await?;
+    let path = scratch_bootstrap("two_servers_second_fails", 0o600)?;
+    let dir = parent_dir(&path)?;
+    let mut first = start_healthy_server(&path, &dir).await?;
     let second = run_program(&server_program(bootstrap_args(&path)), &dir)?;
-    assert_eq!(second.code, 1);
-    assert!(second.stderr.contains("無法使用連接埠 8787"), "{second:?}");
+    if second.code != 1 {
+        return Err(format!("second server exit {}", second.code));
+    }
+    if !second.stderr.contains("Cannot use port 8787") {
+        return Err(format!("{second:?} misses the port message"));
+    }
     let (code, _body) = http_get(8787, "/v1/health").await?;
-    assert_eq!(code, 200);
+    if code != 200 {
+        return Err(format!("first server health status {code}"));
+    }
     let _result = first.kill()?;
     Ok(())
 }

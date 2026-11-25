@@ -4,7 +4,7 @@ name = "anybot-app-agent"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AnyBot 使用者電腦上的背景程式（骨架）"
+description = "background program on a user computer (skeleton)"
 
 [[bin]]
 name = "anybot-agent"
@@ -12,5 +12,6 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { workspace = true }
+anybot-messages = { workspace = true }
 [lints]
 workspace = true

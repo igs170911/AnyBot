@@ -11,7 +11,7 @@ pub fn env_usage_violations(files: &[(String, String)]) -> Vec<String> {
         for (i, line) in content.lines().enumerate() {
             if PATS.iter().any(|pat| line.contains(pat)) {
                 violations.push(format!(
-                    "{path}:{}：讀環境變數任何地方都不准（spec/07 §3）",
+                    "{path}:{}: reading environment variables is banned everywhere (spec/07 section 3)",
                     i.saturating_add(1)
                 ));
             }
@@ -50,7 +50,7 @@ pub fn scan_exemption_attrs(files: &[(String, String)]) -> Vec<String> {
                 || t.contains("allow(clippy::disallowed_types")
             {
                 violations.push(format!(
-                    "{path}:{}：allow(clippy::disallowed_…) 只准出現在准許的套件（現在在 {pkg}，spec/07 §3）",
+                    "{path}:{}: allow(clippy::disallowed_...) may appear only in exempt packages (now in {pkg}, spec/07 section 3)",
                     i.saturating_add(1)
                 ));
             }
@@ -142,19 +142,19 @@ pub fn cargo_toml_violations(files: &[(String, String)]) -> Vec<String> {
         for f in feature_list_of(content, "tokio") {
             if f == "process" && !TOKIO_PROCESS_ALLOWED.contains(&pkg.as_str()) {
                 violations.push(format!(
-                    "{path}：tokio 的 process 功能只准 {TOKIO_PROCESS_ALLOWED:?}（spec/07 §3）"
+                    "{path}: tokio process features are allowed only in {TOKIO_PROCESS_ALLOWED:?} (spec/07 section 3)"
                 ));
             }
             if f == "fs" && !TOKIO_FS_ALLOWED.contains(&pkg.as_str()) {
                 violations.push(format!(
-                    "{path}：tokio 的 fs 功能只准 {TOKIO_FS_ALLOWED:?}（spec/07 §3）"
+                    "{path}: tokio fs features are allowed only in {TOKIO_FS_ALLOWED:?} (spec/07 section 3)"
                 ));
             }
         }
         for c in http_client_names(content) {
             if !HTTP_CLIENT_ALLOWED.contains(&pkg.as_str()) {
                 violations.push(format!(
-                    "{path}：HTTP 客戶端套件 {c} 只准 {HTTP_CLIENT_ALLOWED:?}（spec/07 §3）"
+                    "{path}: HTTP client crate {c} is allowed only in {HTTP_CLIENT_ALLOWED:?} (spec/07 section 3)"
                 ));
             }
         }
@@ -180,7 +180,7 @@ mod tests {
             ),
             (
                 "apps/cli/src/main.rs".to_owned(),
-                format!("{}(clippy::disallowed_types) 在 apps 不准\n", "allow"),
+                format!("{}(clippy::disallowed_types) in apps is banned\n", "allow"),
             ),
         ];
         let v = scan_exemption_attrs(&files);
@@ -206,7 +206,10 @@ mod tests {
             ),
             (
                 "crates/bus/src/lib.rs".to_owned(),
-                format!("{}令參數可以讀；這裡沒有禁用。\n", "//"),
+                format!(
+                    "{}reading parameters is allowed; nothing is disallowed here.\n",
+                    "//"
+                ),
             ),
         ];
         let v = env_usage_violations(&files);
@@ -241,7 +244,7 @@ mod tests {
         let v = cargo_toml_violations(&files);
         assert_eq!(v.len(), 3);
         assert!(v.iter().any(|s| s.contains("crates/server/Cargo.toml")));
-        assert!(v.iter().all(|s| s.contains("只准")));
+        assert!(v.iter().all(|s| s.contains("allowed only")));
     }
 
     #[test]

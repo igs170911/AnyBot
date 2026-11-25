@@ -22,7 +22,7 @@ fn test_redocly_lint_ignore_file_is_blocked() {
     let v = violations(&repo);
     assert!(
         v.first()
-            .is_some_and(|x| x.contains(".redocly.lint-ignore.yaml") && x.contains("放行檔"))
+            .is_some_and(|x| x.contains(".redocly.lint-ignore.yaml") && x.contains("ignore file"))
     );
     assert!(std::fs::remove_file(repo.join(".redocly.lint-ignore.yaml")).is_ok());
     assert!(violations(&repo).is_empty());

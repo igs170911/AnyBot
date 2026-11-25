@@ -48,6 +48,12 @@ pub fn clippy_exemptions() -> BTreeMap<String, BTreeMap<String, BTreeSet<String>
     insert(&mut m, "api-docs", &FS_STD_M, &[FS_T[0], FS_T[1], FS_T[2]]);
     insert(
         &mut m,
+        "locale-gen",
+        &merge(&[&STD_PROC, &FS_STD_M]),
+        &[CMD_T[0], FS_T[0], FS_T[1], FS_T[2]],
+    );
+    insert(
+        &mut m,
         "test-harness",
         &merge(&[&PROC_M, &HTTP_M, &FS_M]),
         &[CMD_T[0], CMD_T[1], FS_T[0], FS_T[1], FS_T[2], FS_T[3]],

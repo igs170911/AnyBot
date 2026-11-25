@@ -4,7 +4,7 @@ name = "anybot-app-runner-service"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AnyBot 伺服器上的執行服務（骨架）"
+description = "runner service on the server (skeleton)"
 
 [[bin]]
 name = "anybot-runner-service"
@@ -12,5 +12,6 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { workspace = true }
+anybot-messages = { workspace = true }
 [lints]
 workspace = true

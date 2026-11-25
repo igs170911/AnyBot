@@ -2,34 +2,38 @@ use std::net::SocketAddr;
 
 use tokio::net::TcpListener;
 
-use anybot_foundation::{FoundationError, ServerBootstrap, ServerLaunchArgs};
+use anybot_foundation::{
+    CODE_BOOTSTRAP_MISSING, FoundationError, MessageRef, ServerBootstrap, ServerLaunchArgs,
+};
 
 pub const DEFAULT_PORT: u16 = 8787;
+pub use anybot_foundation::CODE_SERVER_STARTUP_LISTENING;
 
 #[derive(Debug)]
 pub struct ServerStartup {
-    pub startup_line: String,
+    pub startup: MessageRef,
     pub bootstrap: ServerBootstrap,
 }
 
 #[must_use]
-pub fn startup_line(version: &str, port: u16, bootstrap: &ServerBootstrap) -> String {
-    format!(
-        "AnyBot 伺服器 v{version}：聽 127.0.0.1:{port}、[::1]:{port}（資料庫 {}）",
-        bootstrap.describe_db()
-    )
+pub fn startup_message(version: &str, port: u16, bootstrap: &ServerBootstrap) -> MessageRef {
+    MessageRef::new(CODE_SERVER_STARTUP_LISTENING)
+        .with_text("version", version)
+        .with_int("port", i64::from(port))
+        .with_text("db_host", &bootstrap.host)
+        .with_text("db_name", &bootstrap.database)
 }
 
 pub fn prepare(args: &ServerLaunchArgs, version: &str) -> Result<ServerStartup, FoundationError> {
     let path = args
         .bootstrap
         .as_ref()
-        .ok_or(FoundationError::BootstrapNotFound(
-            "找不到啟動檔（用 --bootstrap 指定）".to_owned(),
-        ))?;
+        .ok_or(FoundationError::BootstrapNotFound(MessageRef::new(
+            CODE_BOOTSTRAP_MISSING,
+        )))?;
     let bootstrap = ServerBootstrap::read(path)?;
     Ok(ServerStartup {
-        startup_line: startup_line(version, DEFAULT_PORT, &bootstrap),
+        startup: startup_message(version, DEFAULT_PORT, &bootstrap),
         bootstrap,
     })
 }

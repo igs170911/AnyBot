@@ -1,31 +1,32 @@
-# AnyBotNext · 檢查關卡（spec/05 §1 第 2 步）
-# make check 依序跑全部關卡，任何一步失敗就整個失敗。
-# Rust 關卡在前（M1），TypeScript 關卡在後（M2），Tauri 的 Rust 部分走原本的 Rust 關卡。
+# AnyBotNext: check gates (spec/05 section 1 step 2)
+# make check runs every gate in order; any step failing fails the whole run.
+# Rust gates first (M1), TypeScript gates after (M2); the Rust part of Tauri uses the Rust gates.
 
 CARGO ?= cargo
 PNPM ?= pnpm
 SHELL := /bin/bash
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 
-# spec-trace 基準比對的 ref：本機跟 HEAD 比；CI 跟主分支的分岔點比（CI 設這個變數）。
+# spec-trace baseline compare ref: locally compares against HEAD; CI compares against the merge-base of the main branch (CI sets this variable).
 SPEC_TRACE_REF ?= HEAD
 
 .PHONY: check check-fast fmt clippy test deny machete depcheck spec-trace spec-baseline \
 	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
-	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest
+	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
+	locale locale-refresh
 
-check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks \
+check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks locale \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build
 
-# 邊寫邊跑：最快的關卡＋四條鐵律的檢查（cargo fmt 檢查、clippy、depcheck、iron-laws、biome）。
-check-fast: fmt clippy depcheck ironlaws api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
+# fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
+check-fast: fmt clippy depcheck ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
 
-# Clippy 只讀「執行時的最近設定檔」，不會合併：逐套件在自己的資料夾裡跑，
-# 准許豁免的套件才會讀到自己的 clippy.toml（spec/09 K75）。
+# Clippy reads only the nearest config at run time and does not merge: each package runs clippy in its own folder,
+# only exempt packages pick up their own clippy.toml (spec/09 K75).
 clippy:
 	@for manifest in $(shell $(CARGO) metadata --format-version 1 --no-deps | jq -r '.packages[].manifest_path'); do \
 		(cd "$$(dirname $$manifest)" && $(CARGO) clippy --all-targets -- -D warnings) || exit 1; \
@@ -33,7 +34,7 @@ clippy:
 
 test:
 ifdef NEXTTEST
-	$(CARGO) nextest run --workspace
+	$(CARGO) nextest run --workspace --test-threads 1
 else
 	$(CARGO) test --workspace
 endif
@@ -53,15 +54,24 @@ spec-trace:
 ironlaws:
 	$(CARGO) run --locked -p iron-laws
 
-# 掃金鑰：整個 repo 含 git 歷史（spec/09 K79）。
+# locale gates (spec/09 K91): CJK scan of source files plus translation consistency
+# plus generated-code freshness (locale-gen check).
+locale:
+	$(CARGO) run --locked -p locale-gen -- check
+
+# explicit command: regenerate the committed message code tables (CI does not run it).
+locale-refresh:
+	$(CARGO) run --locked -p locale-gen -- generate
+
+# key scan: the whole repo including git history (spec/09 K79).
 gitleaks:
 	gitleaks detect --source . --no-banner --exit-code 1
 
-# 明確指令：重新產生 spec-trace 基準檔（CI 不跑；只有人要重新產生時跑）。
+# explicit command: regenerate the spec-trace baseline (CI does not run it; only when a person regenerates).
 spec-baseline:
 	$(CARGO) run --locked -p spec-trace -- --write-baseline
 
-# TypeScript 關卡（M2 第 3 項，依序）。
+# TypeScript gates (M2 item 3, in order).
 ts-install:
 	$(PNPM) install --frozen-lockfile
 
@@ -77,7 +87,7 @@ ts-test:
 ts-build:
 	$(PNPM) -r --no-bail build
 
-# API 文件關卡（spec/02 §8）：重新產生跟已提交的檔一比，有差異就擋（文件跟著程式碼走）。
+# API document gates (spec/02 section 8): regenerate and diff against the committed files; any difference blocks (docs follow the code).
 api-docs:
 	mkdir -p target/api
 	$(CARGO) run --locked -p api-docs -- openapi target/api/openapi.yaml
@@ -95,24 +105,24 @@ ts-licenses:
 	@$(PNPM) -r licenses list --prod --json > target/licenses.json
 	@$(LICENSE_ALLOW_CMD) > target/allowed-licenses.txt
 	@LC_ALL=C comm -23 <(jq -r 'keys[] | split(" OR ")[]' target/licenses.json | LC_ALL=C sort -u) target/allowed-licenses.txt > target/license-reject.txt
-	@! test -s target/license-reject.txt || { echo "TS 生產依賴有不准的授權："; cat target/license-reject.txt; exit 1; }
+	@! test -s target/license-reject.txt || { echo "TS production dependencies have a disallowed license:"; cat target/license-reject.txt; exit 1; }
 	@echo "ts-licenses OK"
 
 ts-licenses-selftest:
 	@$(LICENSE_ALLOW_CMD) > target/allowed-licenses.txt
 	@LC_ALL=C comm -23 <(jq -r 'keys[] | split(" OR ")[]' tests/fixtures/licenses/forbidden.json | LC_ALL=C sort -u) target/allowed-licenses.txt > target/license-selftest-reject.txt
-	@test -s target/license-selftest-reject.txt || { echo "selftest 沒擋下 GPL-3.0"; exit 1; }
+	@test -s target/license-selftest-reject.txt || { echo "selftest did not block GPL-3.0"; exit 1; }
 	@grep -F GPL-3.0 target/license-selftest-reject.txt
 	@echo "ts-licenses-selftest OK"
 
-# 自測：tests/fixtures/api-lint 每個坏檔都要被指定規則擋、好檔要過（spec/09 K86）。
+# selftest: every bad file under tests/fixtures/api-lint must be blocked by its named rule and every good file must pass (spec/09 K86).
 api-lint-selftest: ts-install
 	$(PNPM) exec redocly lint --config redocly.yaml tests/fixtures/api-lint/base.yaml
 	@for pair in "no-5xx.yaml rule/operation-has-5xx" "no-example.yaml rule/media-content-example-required" "no-idempotency.yaml anybot/idempotencyKeyRequired" "no-problem-json.yaml rule/problem-json-in-4xx-5xx" "no-tags.yaml rule/operation-tags-not-empty"; do \
 		file=$${pair%% *}; rule=$${pair##* }; \
 		out=$$($(PNPM) exec redocly lint --config redocly.yaml tests/fixtures/api-lint/$$file 2>&1); rc=$$?; \
-		if [ $$rc -eq 0 ]; then echo "selftest: $$file 應該要被擋"; exit 1; fi; \
-		if ! echo "$$out" | grep -F "$$rule" > /dev/null; then echo "selftest: $$file 沒有命中 $$rule"; exit 1; fi; \
+		if [ $$rc -eq 0 ]; then echo "selftest: $$file should have been blocked"; exit 1; fi; \
+		if ! echo "$$out" | grep -F "$$rule" > /dev/null; then echo "selftest: $$file did not hit $$rule"; exit 1; fi; \
 	done
 	@echo "api-lint-selftest OK"
 
@@ -128,7 +138,7 @@ api-html:
 	$(PNPM) exec redocly build-docs api/asyncapi.yaml -o target/api/docs/asyncapi.html
 	diff api/docs/asyncapi.html target/api/docs/asyncapi.html
 
-# 相容性檢查（spec/02 §8）：跟 git 上已提交的版本比，破壞性變更就擋。
+# compatibility check (spec/02 section 8): compare against the committed version in git; breaking changes block.
 api-compat:
 	mkdir -p target/api
 	@if git cat-file -e $(SPEC_TRACE_REF):api/openapi.yaml 2>/dev/null; then \

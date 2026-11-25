@@ -17,7 +17,7 @@ pub fn violations(files: &[(String, String)]) -> Vec<String> {
             for token in &tokens {
                 if norm.contains(&token.to_lowercase()) {
                     out.push(format!(
-                        "{path}:{} 出現抑制檢查標記「{token}」（K75）",
+                        "{path}:{} contains a check-suppression marker \"{token}\" (K75)",
                         idx.saturating_add(1)
                     ));
                 }

@@ -4,7 +4,7 @@ name = "anybot-app-desktop"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AnyBot 桌面殼（Tauri 2）：視窗只是畫面，做事的是 apps/agent（spec/06 §2.4、spec/07 §3）"
+description = "desktop shell (Tauri 2): the window is only a view, apps/agent does the work (spec/06 section 2.4, spec/07 section 3)"
 
 [[bin]]
 name = "anybot-desktop"

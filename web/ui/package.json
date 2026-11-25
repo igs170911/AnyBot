@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
   "private": true,
-  "description": "共用的畫面元件庫（React）。M2 只有外殼元件，不做任何頁面或功能（spec/06 §2.4）。",
+  "description": "shared UI component library (React). M2 ships the shell component only, no pages and no features (spec/06 section 2.4).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

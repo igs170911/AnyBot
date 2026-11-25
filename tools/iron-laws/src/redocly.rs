@@ -74,7 +74,7 @@ pub fn violations(repo: &Path) -> Vec<String> {
     let mut out = Vec::new();
     for rel in lint_ignore_rels(repo) {
         out.push(format!(
-            "{rel}：redocly 的放行檔不准存在，規則要全部 error（第二輪審查第 5 項）"
+            "{rel}: redocly ignore files must not exist; every rule must be error (second review item 5)"
         ));
     }
     for rel in redocly_config_rels(repo) {
@@ -83,7 +83,7 @@ pub fn violations(repo: &Path) -> Vec<String> {
         };
         for line in soft_severity_lines(&text) {
             out.push(format!(
-                "{rel}：redocly 設定裡有非 error 的規則（{line}），要設成 error（第二輪審查第 5 項）"
+                "{rel}: redocly config has a non-error rule ({line}); set it to error (second review item 5)"
             ));
         }
     }

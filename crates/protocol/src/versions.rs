@@ -62,8 +62,11 @@ pub fn accepts_with(releases: &[ProtocolRelease], version: u32, clock: &dyn Cloc
 }
 
 fn today_from(ms: TimestampMs) -> Result<Date, jiff::Error> {
-    let millis = i64::try_from(ms.millis())
-        .map_err(|_| jiff::Error::from_args(format_args!("毫秒超過 Timestamp 可表示的範圍")))?;
+    let millis = i64::try_from(ms.millis()).map_err(|_| {
+        jiff::Error::from_args(format_args!(
+            "milliseconds exceed the Timestamp representable range"
+        ))
+    })?;
     let timestamp = Timestamp::from_millisecond(millis)?;
     Ok(timestamp.to_zoned_datetime(TimeZone::UTC).datetime().date())
 }

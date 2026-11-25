@@ -2,15 +2,21 @@ use axum::Router;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-fn stop_reason(result: Result<(), std::io::Error>) -> String {
+use anybot_foundation::MessageRef;
+
+pub const CODE_SERVER_STOP_NORMAL: &str = "server-stop-normal";
+pub const CODE_SERVER_STOP_ERROR: &str = "server-stop-error";
+pub const CODE_SERVER_STOP_NO_LISTENER: &str = "server-stop-no-listener";
+
+fn stop_reason(result: Result<(), std::io::Error>) -> MessageRef {
     match result {
-        Ok(()) => "其中一個位址的伺服器正常結束".to_owned(),
-        Err(err) => format!("伺服器停止：{err}"),
+        Ok(()) => MessageRef::new(CODE_SERVER_STOP_NORMAL),
+        Err(err) => MessageRef::new(CODE_SERVER_STOP_ERROR).with_text("reason", &err.to_string()),
     }
 }
 
-pub async fn serve_all(listeners: Vec<TcpListener>, app: Router) -> Result<String, String> {
-    let (sender, mut receiver) = mpsc::channel::<String>(16);
+pub async fn serve_all(listeners: Vec<TcpListener>, app: Router) -> Result<MessageRef, MessageRef> {
+    let (sender, mut receiver) = mpsc::channel::<MessageRef>(16);
     let mut tasks = Vec::new();
     for listener in listeners {
         let sender = sender.clone();
@@ -24,7 +30,7 @@ pub async fn serve_all(listeners: Vec<TcpListener>, app: Router) -> Result<Strin
     let reason = receiver
         .recv()
         .await
-        .ok_or("沒有任何位址的伺服器在服務".to_owned())?;
+        .ok_or(MessageRef::new(CODE_SERVER_STOP_NO_LISTENER))?;
     for task in tasks {
         task.abort();
     }

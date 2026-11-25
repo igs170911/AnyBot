@@ -1,33 +1,33 @@
 openapi: 3.1.0
 info:
-  title: AnyBot 伺服器 API
-  description: 自檢基準檔：完全合規的文件，五個變體各缺一樣。
+  title: AnyBot server API
+  description: "self-test baseline: a fully compliant document; each of the five variants lacks one thing."
   contact:
-    name: AnyBot 開發團隊
+    name: AnyBot dev team
   license:
     name: MIT OR Apache-2.0
     identifier: MIT OR Apache-2.0
   version: 0.1.0
 servers:
   - url: http://127.0.0.1:8787
-    description: 本機開發伺服器
+    description: local dev server
 security:
   - bearer: []
 tags:
   - name: system
-    description: 伺服器本身
+    description: the server itself
 paths:
   /v1/health:
     get:
       tags: [system]
-      summary: 伺服器健康檢查
-      description: 回傳伺服器版本、現在時間和事件協定版本。
+      summary: server health check
+      description: returns the server version, the current time, and the event protocol version.
       operationId: get_health
       security:
         - {}
       responses:
         "200":
-          description: 伺服器活著
+          description: the server is alive
           content:
             application/json:
               schema:
@@ -37,24 +37,24 @@ paths:
                 protocol_version: 1
                 version: 0.1.0
         "400":
-          description: 請求格式錯誤
+          description: the request was malformed
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProblemJson"
               example:
                 type: https://anybot.test/problems/bad-request
-                title: 請求格式錯誤
+                title: the request was malformed
                 status: 400
         "500":
-          description: 伺服器內部錯誤
+          description: the server hit an internal error
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemJson"
               example:
                 type: https://anybot.test/problems/internal
-                title: 伺服器內部錯誤
+                title: the server hit an internal error
                 status: 500
 components:
   securitySchemes:
@@ -64,7 +64,7 @@ components:
   schemas:
     HealthResponse:
       type: object
-      title: 健康檢查回應
+      title: health check response
       required: [version, now, protocol_version]
       properties:
         version:
@@ -78,7 +78,7 @@ components:
           examples: [1]
     ProblemJson:
       type: object
-      title: RFC 7807 問題詳情
+      title: RFC 7807 problem details
       required: [type, title, status]
       properties:
         type:
@@ -86,10 +86,10 @@ components:
           examples: ["https://anybot.test/problems/bad-request"]
         title:
           type: string
-          examples: ["請求格式錯誤"]
+          examples: ["the request was malformed"]
         status:
           type: integer
           examples: [400]
         detail:
           type: string
-          examples: ["明細說明"]
+          examples: ["detailed explanation"]

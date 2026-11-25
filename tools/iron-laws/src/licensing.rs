@@ -58,13 +58,15 @@ fn cargo_license_violations(repo: &Path, rels: &[String]) -> Vec<String> {
         if rel == "Cargo.toml" {
             if !text.contains(&format!("license = \"{DUAL_LICENSE}\"")) {
                 out.push(format!(
-                    "{rel}：workspace 授權欄位必須是 {DUAL_LICENSE}（spec/09 K88）"
+                    "{rel}: the workspace license field must be {DUAL_LICENSE} (spec/09 K88)"
                 ));
             }
             continue;
         }
         if !text.contains("license.workspace = true") {
-            out.push(format!("{rel}：授權欄位必須繼承 workspace（spec/09 K88）"));
+            out.push(format!(
+                "{rel}: the license field must inherit the workspace (spec/09 K88)"
+            ));
         }
     }
     out
@@ -82,7 +84,7 @@ fn json_license_violations(repo: &Path, rels: &[String]) -> Vec<String> {
         let flat: String = text.split_whitespace().collect();
         if !flat.contains(&want) {
             out.push(format!(
-                "{rel}：授權欄位必須是 {DUAL_LICENSE}（spec/09 K88）"
+                "{rel}: the license field must be {DUAL_LICENSE} (spec/09 K88)"
             ));
         }
     }
@@ -95,7 +97,7 @@ pub fn violations(repo: &Path) -> Vec<String> {
     for name in ["LICENSE-MIT", "LICENSE-APACHE"] {
         if !repo.join(name).exists() {
             out.push(format!(
-                "{name}：開源授權全文檔必須在 repo 根目錄（spec/09 K88）"
+                "{name}: the full open-source license texts must sit at the repo root (spec/09 K88)"
             ));
         }
     }

@@ -9,20 +9,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # 基準比對要算分岔點，所以要把歷史抓完整。
+          # the baseline compare needs the merge base, so fetch the full history.
           fetch-depth: 0
-      # 工具鏈版本由 rust-toolchain.toml 鎖住；這裡只補關卡要用的元件和工具。
+      # the toolchain version is pinned by rust-toolchain.toml; install only the components and tools the gates need here.
       - run: rustup component add rustfmt clippy
       - run: cargo install --locked cargo-deny cargo-machete cargo-nextest
-      # 關卡要用的兩個官方Release 工具（spec/05 §1：gitleaks、oasdiff）。
+      # the two official release tools the gates need (spec/05 section 1: gitleaks, oasdiff).
       - run: |
           curl -sL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz -C /usr/local/bin
           curl -sL https://github.com/oasdiff/oasdiff/releases/download/v1.39.0/oasdiff_1.39.0_linux_amd64.tar.gz | tar -xz -C /usr/local/bin
           gitleaks --version && oasdiff --version
-      # TypeScript 關卡（M2 第 3 項）：pnpm 工作區。
+      # TypeScript gates (M2 item 3): the pnpm workspace.
       - run: npm install -g pnpm
-      # Tauri 2 的 Rust 部分（apps/desktop/src-tauri）在 Linux 上要 WebKitGTK 等系統套件
-      # （spec/06 §2.4：Linux 的 WebKitGTK 要多測）。
+      # the Rust part of Tauri 2 (apps/desktop/src-tauri) needs system packages such as WebKitGTK on Linux
+      # (spec/06 section 2.4: WebKitGTK on Linux needs extra testing).
       - run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -35,8 +35,8 @@ jobs:
             curl wget file \
             libssl-dev \
             gitleaks
-      # spec-trace 的基準檔「只能變短」比對：CI 跟主分支的分岔點比
-      # （本機 make check 跟 HEAD 比，見 Makefile 的 SPEC_TRACE_REF）。
+      # the spec-trace baseline "may only shrink" compare: CI uses the merge base of the main branch
+      # (the local make check compares against HEAD; see SPEC_TRACE_REF in the Makefile).
       - run: |
           git fetch origin main
           BASE=$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD)

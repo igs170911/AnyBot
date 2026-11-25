@@ -94,7 +94,7 @@ fn test_versions_cutoff_clamps_end_of_month_for_every_release_month() {
         assert_eq!(
             cutoff,
             Date::new(year, exp_month, day).unwrap(),
-            "月份 {month}"
+            "month {month}"
         );
     }
 }

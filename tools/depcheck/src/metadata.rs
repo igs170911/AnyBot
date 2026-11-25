@@ -35,13 +35,13 @@ fn check_app_package(pkg: &Package, deps: &BTreeSet<String>) -> Vec<String> {
     };
     for dep in deps {
         if dep == &pkg.name {
-            violations.push(format!("{} 依賴自己（循環）", pkg.name));
+            violations.push(format!("{} depends on itself (cycle)", pkg.name));
             continue;
         }
         for dis in disallowed_app_deps(app_dir) {
             if *dep == format!("anybot-{dis}") {
                 violations.push(format!(
-                    "{} 依賴 {dep}：執行檔不准依賴（spec/07 §3）",
+                    "{} depends on {dep}: apps must not depend (spec/07 section 3)",
                     pkg.name
                 ));
             }
@@ -59,25 +59,25 @@ fn check_internal_package(
     let allowed = allowed_internal_deps();
     let Some(allow_set) = allowed.get(&pkg.name) else {
         violations.push(format!(
-            "{}：depcheck 沒有這條依賴規則，請照 spec/07 §3 補進 allowed_internal_deps",
+            "{}: depcheck has no rule for this dependency; add it to allowed_internal_deps per spec/07 section 3",
             pkg.name
         ));
         return violations;
     };
     for dep in deps {
         if dep == &pkg.name {
-            violations.push(format!("{} 依賴自己（循環）", pkg.name));
+            violations.push(format!("{} depends on itself (cycle)", pkg.name));
             continue;
         }
         if internal.contains(dep) && !allow_set.contains(dep) {
             violations.push(format!(
-                "{} 依賴 {dep}：准許清單裡沒有（spec/07 §3）",
+                "{} depends on {dep}: not in the allow list (spec/07 section 3)",
                 pkg.name
             ));
         }
         if pkg.name == "anybot-domain" && forbidden_external_for_domain().contains(dep) {
             violations.push(format!(
-                "anybot-domain 依賴 {dep}：domain 不准碰網路、檔案、資料庫、非同步（spec/07 §3）",
+                "anybot-domain depends on {dep}: domain must not touch network, files, databases, async (spec/07 section 3)",
             ));
         }
     }
@@ -94,7 +94,7 @@ fn check_harness_rules(
         for dep in deps {
             if internal.contains(dep) {
                 violations.push(format!(
-                    "test-harness 依賴 {dep}：測試輔助套件不准依賴產品套件（spec/07 §3）"
+                    "test-harness depends on {dep}: the test harness must not depend on product crates (spec/07 section 3)"
                 ));
             }
         }
@@ -102,7 +102,7 @@ fn check_harness_rules(
     }
     if deps.contains("test-harness") {
         violations.push(format!(
-            "{} 在正式依賴裡用 test-harness：harness 只准當開發用依賴（spec/09 K87）",
+            "{} uses test-harness in normal dependencies: the harness is allowed only as a dev dependency (spec/09 K87)",
             pkg.name
         ));
     }
@@ -138,7 +138,7 @@ pub fn check_metadata_value(meta: &Metadata) -> Vec<String> {
 
 pub fn check_metadata(json: &str) -> Result<Vec<String>, String> {
     let meta: Metadata =
-        serde_json::from_str(json).map_err(|e| format!("無法解析 cargo metadata：{e}"))?;
+        serde_json::from_str(json).map_err(|e| format!("cannot parse cargo metadata: {e}"))?;
     Ok(check_metadata_value(&meta))
 }
 
@@ -191,13 +191,16 @@ mod tests {
         assert_eq!(v.len(), 3);
         assert!(
             v.iter()
-                .any(|s| s.contains("anybot-foundation 依賴 anybot-protocol"))
+                .any(|s| s.contains("anybot-foundation depends on anybot-protocol"))
         );
         assert!(
             v.iter()
-                .any(|s| s.contains("anybot-server 依賴 anybot-runner"))
+                .any(|s| s.contains("anybot-server depends on anybot-runner"))
         );
-        assert!(v.iter().any(|s| s.contains("anybot-domain 依賴 tokio")));
+        assert!(
+            v.iter()
+                .any(|s| s.contains("anybot-domain depends on tokio"))
+        );
     }
 
     #[test]
@@ -212,11 +215,11 @@ mod tests {
         assert_eq!(v.len(), 3);
         assert!(
             v.iter()
-                .any(|s| s.contains("anybot-server 在正式依賴裡用 test-harness"))
+                .any(|s| s.contains("anybot-server uses test-harness in normal dependencies"))
         );
         assert!(
             v.iter()
-                .any(|s| s.contains("test-harness 依賴 anybot-foundation"))
+                .any(|s| s.contains("test-harness depends on anybot-foundation"))
         );
     }
 
@@ -244,25 +247,25 @@ mod tests {
         let v = check_metadata_value(&m);
         assert!(
             v.iter()
-                .any(|s| s.contains("anybot-app-server 依賴 anybot-runner"))
+                .any(|s| s.contains("anybot-app-server depends on anybot-runner"))
         );
         assert!(
             v.iter()
-                .any(|s| s.contains("anybot-app-runner-service 依賴 anybot-server"))
+                .any(|s| s.contains("anybot-app-runner-service depends on anybot-server"))
         );
         assert!(
             v.iter()
-                .any(|s| s.contains("anybot-app-runner-service 依賴 anybot-store-server"))
+                .any(|s| s.contains("anybot-app-runner-service depends on anybot-store-server"))
         );
         assert!(
             v.iter()
-                .any(|s| s.contains("anybot-app-cli 依賴 anybot-store-server"))
+                .any(|s| s.contains("anybot-app-cli depends on anybot-store-server"))
         );
         assert!(!v.iter().any(|s| s.contains("anybot-protocol")));
         assert!(!v.iter().any(|s| s.contains("anybot-sync")));
         assert!(
             !v.iter()
-                .any(|s| s.contains("anybot-app-server 依賴 anybot-server"))
+                .any(|s| s.contains("anybot-app-server depends on anybot-server"))
         );
     }
 

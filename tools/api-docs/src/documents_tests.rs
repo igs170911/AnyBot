@@ -61,7 +61,7 @@ fn test_openapi_documents_health_path_with_required_metadata() {
     for (code, response) in responses {
         assert!(
             response.get("content").is_some(),
-            "回應 {code} 缺少 content"
+            "response {code} lacks content"
         );
     }
 }
@@ -111,7 +111,7 @@ fn test_openapi_error_responses_only_use_problem_json() {
             assert_eq!(
                 keys,
                 vec!["application/problem+json"],
-                "{code} 應只用 application/problem+json"
+                "{code} must use only application/problem+json"
             );
         }
     }
@@ -133,7 +133,7 @@ fn test_openapi_every_response_has_example() {
                     .and_then(|m| m.values().next())
                     .and_then(|media| media.get("example"))
                     .is_some(),
-                "回應 {code} 缺少例子"
+                "response {code} lacks an example"
             );
         }
     }

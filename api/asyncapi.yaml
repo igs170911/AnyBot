@@ -2,7 +2,7 @@ asyncapi: 3.0.0
 channels:
   runEvents:
     address: /v1/tasks/{taskId}/events/stream
-    description: 依任務推送事件；每則有遞增編號。
+    description: events pushed per task; each carries an increasing sequence number
     messages:
       approval_card:
         $ref: '#/components/messages/approval_card'
@@ -56,7 +56,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: approval_card
     evidence_added:
       name: evidence_added
@@ -86,7 +86,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: evidence_added
     run_error:
       name: run_error
@@ -94,12 +94,15 @@ components:
         properties:
           data:
             properties:
-              message:
+              code:
                 examples:
                 - 2026-01-01T00:00:00Z
                 type: string
+              params:
+                additionalProperties: true
+                type: object
             required:
-            - message
+            - code
             type: object
           kind:
             const: run_error
@@ -110,7 +113,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: run_error
     task_status_changed:
       name: task_status_changed
@@ -139,7 +142,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: task_status_changed
     tool_call_result:
       name: tool_call_result
@@ -168,7 +171,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: tool_call_result
     tool_call_started:
       name: tool_call_started
@@ -197,7 +200,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: tool_call_started
     turn_ended:
       name: turn_ended
@@ -214,7 +217,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: turn_ended
     turn_started:
       name: turn_started
@@ -231,7 +234,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: turn_started
     turn_text:
       name: turn_text
@@ -255,7 +258,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: turn_text
     turn_thinking:
       name: turn_thinking
@@ -279,7 +282,7 @@ components:
         - kind
         - data
         type: object
-      summary: 執行事件協定的事件種類
+      summary: event kinds of the run event protocol
       title: turn_thinking
   schemas:
     BlobId:
@@ -471,10 +474,13 @@ components:
       - properties:
           data:
             properties:
-              message:
+              code:
                 type: string
+              params:
+                additionalProperties: true
+                type: object
             required:
-            - message
+            - code
             type: object
           kind:
             const: run_error
@@ -549,19 +555,19 @@ components:
       type: httpApiKey
 info:
   contact:
-    name: AnyBot 開發團隊
-  description: 伺服器推給執行端與畫面的執行事件，走 SSE；內容 schema 由 Rust 型別產生。
+    name: AnyBot dev team
+  description: Server-pushed run events for runners and the UI, over SSE; the content schema is generated from Rust types.
   license:
     name: MIT OR Apache-2.0
     url: https://opensource.org/license/mit/
-  title: AnyBot 執行事件協定
+  title: AnyBot Run Event Protocol
   version: '1'
 operations:
   streamRunEvents:
     action: receive
     channel:
       $ref: '#/channels/runEvents'
-    description: 客戶端從伺服器接收事件串流
+    description: the client receives the event stream from the server
     messages:
     - $ref: '#/components/messages/approval_card'
     - $ref: '#/components/messages/evidence_added'
@@ -575,11 +581,11 @@ operations:
     - $ref: '#/components/messages/turn_thinking'
     operationId: stream_run_events
     security:
-    - description: M3 佔位；Bearer 金鑰。
+    - description: M3 placeholder; bearer key.
       in: header
       name: Authorization
       type: httpApiKey
     tags:
-    - description: 執行事件協定的事件種類
+    - description: event kinds of the run event protocol
       name: events
-    title: 接收事件串流
+    title: receive the event stream

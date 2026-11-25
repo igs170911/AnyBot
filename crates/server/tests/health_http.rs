@@ -28,8 +28,10 @@ fn start_test_server() -> Result<u16, String> {
             Ok(()) => {}
             Err(err) => {
                 let mut stderr = std::io::stderr();
-                let _result =
-                    std::io::Write::write_fmt(&mut stderr, format_args!("測試伺服器停止：{err}\n"));
+                let _result = std::io::Write::write_fmt(
+                    &mut stderr,
+                    format_args!("test server stopped{err}\n"),
+                );
             }
         }
     });
@@ -54,7 +56,7 @@ async fn get_response(port: u16, path: &str) -> Result<(String, String), String>
     let text = String::from_utf8(raw).map_err(|e| e.to_string())?;
     let (head, body) = text
         .split_once("\r\n\r\n")
-        .ok_or("回應缺少區塊分隔".to_owned())?;
+        .ok_or("response lacks a chunk separator".to_owned())?;
     Ok((head.to_owned(), body.to_owned()))
 }
 

@@ -16,10 +16,10 @@ pub fn is_skipped_dir(name: &str) -> bool {
 
 pub fn read_file_lossy(path: &Path) -> Result<String, String> {
     let mut file =
-        std::fs::File::open(path).map_err(|e| format!("讀 {} 失敗：{e}", path.display()))?;
+        std::fs::File::open(path).map_err(|e| format!("failed to read {}: {e}", path.display()))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)
-        .map_err(|e| format!("讀 {} 失敗：{e}", path.display()))?;
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
     Ok(String::from_utf8_lossy(&buf).into_owned())
 }
 

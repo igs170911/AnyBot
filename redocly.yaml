@@ -11,7 +11,7 @@ rules:
     assertions:
       defined: true
       minLength: 1
-    message: 每個 API 都要有標籤，標籤不能是空的（spec/05 §2）。
+    message: every API must have tags and the tags must not be empty (spec/05 section 2).
     severity: error
 oas3_1Rules:
   operation-operationId: error
@@ -37,7 +37,7 @@ oas3_1Rules:
           type: Operation
         assertions:
           defined: true
-    message: 每個操作都要有一個 5xx 回應（spec/05 §2：錯誤回應要有 5xx）。
+    message: "every operation must have a 5xx response (spec/05 section 2: error responses need 5xx)."
     severity: error
   rule/problem-json-in-4xx-5xx:
     subject:
@@ -50,12 +50,12 @@ oas3_1Rules:
           matchParentKeys: "^[45]"
         assertions:
           defined: true
-    message: 4xx／5xx 回應的內容要用 application/problem+json（spec/05 §2）。
+    message: 4xx and 5xx response content must use application/problem+json (spec/05 section 2).
     severity: error
   rule/media-content-example-required:
     subject:
       type: MediaType
     assertions:
       requireAny: ["example", "examples"]
-    message: 每個請求內容和回應內容都要有 example 或 examples（spec/05 §2）。
+    message: every request body and response body must have example or examples (spec/05 section 2).
     severity: error

@@ -21,13 +21,13 @@ fn main() -> ExitCode {
         }
     }
     if violations.is_empty() {
-        if writeln!(stdout, "iron-laws: 四條鐵律全部通過").is_err() {
+        if writeln!(stdout, "iron-laws: all four iron laws pass").is_err() {
             return ExitCode::FAILURE;
         }
         return ExitCode::SUCCESS;
     }
     let tail = format!(
-        "iron-laws: {} 個違規（請修到通過，不要關掉檢查）",
+        "iron-laws: {} violations (fix the code until they pass; do not silence the checks)",
         violations.len()
     );
     if writeln!(stdout, "{tail}").is_err() {

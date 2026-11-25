@@ -12,8 +12,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 伺服器健康檢查
-         * @description 回傳伺服器版本、現在時間（RFC 3339）和事件協定版本；不需要身分。
+         * Server health check
+         * @description Returns the server version, the current time (RFC 3339) and the event protocol version; no identity required.
          */
         get: operations["get_health"];
         put?: never;
@@ -39,19 +39,25 @@ export interface components {
             /** @example 0.1.0 */
             version: string;
         };
+        MessageParams: {
+            [key: string]: unknown;
+        };
         ProblemJson: {
-            /** @example 明細說明 */
+            /** @example problem-bad-request */
+            code: string;
+            /** @example developer detail text */
             detail?: string | null;
             /** @example /v1/health */
             instance?: string | null;
+            params?: components["schemas"]["MessageParams"];
             /**
              * Format: int32
              * @example 400
              */
             status: number;
-            /** @example 請求格式錯誤 */
+            /** @example The request was malformed. */
             title: string;
-            /** @example https://anybot.test/problems/bad-request */
+            /** @example https://anybot.test/problems/not-found */
             type: string;
         };
     };
@@ -72,7 +78,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 伺服器活著 */
+            /** @description The server is alive */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -88,7 +94,7 @@ export interface operations {
                     "application/json": components["schemas"]["HealthResponse"];
                 };
             };
-            /** @description 請求格式錯誤 */
+            /** @description The request was malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -96,15 +102,17 @@ export interface operations {
                 content: {
                     /**
                      * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
                      *       "status": 400,
-                     *       "title": "請求格式錯誤",
+                     *       "title": "The request was malformed.",
                      *       "type": "https://anybot.test/problems/bad-request"
                      *     }
                      */
                     "application/problem+json": components["schemas"]["ProblemJson"];
                 };
             };
-            /** @description 伺服器內部錯誤 */
+            /** @description The server hit an internal error */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -112,8 +120,10 @@ export interface operations {
                 content: {
                     /**
                      * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
                      *       "status": 500,
-                     *       "title": "伺服器內部錯誤",
+                     *       "title": "The server hit an internal error.",
                      *       "type": "https://anybot.test/problems/internal"
                      *     }
                      */

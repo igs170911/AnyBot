@@ -4,12 +4,13 @@ name = "test-harness"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "測試輔助套件：啟動真的執行檔、打 HTTP、準備 target/ 裡的測試檔案（spec/09 K87）"
+description = "Test support crate: launches real executables, speaks HTTP, prepares target/ test files (spec/09 K87)"
 
 [lints]
 workspace = true
 
 [dependencies]
+libc = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 
