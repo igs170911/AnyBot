@@ -1,7 +1,7 @@
 use super::{is_slash_wrapped, matches_done_when};
 
 #[test]
-fn t_goal_followup_13_plain_and_regex_patterns_both_work() {
+fn t_goal_followup_13() {
     assert!(matches_done_when("/\\d+%/", "progress 42% done"));
     assert!(!matches_done_when("/\\d+%/", "no percent here"));
     assert!(matches_done_when("DONE", "echo DONE at the end"));

@@ -29,7 +29,7 @@ fn starts(n: usize) -> Vec<KnownTaskEventKind> {
 }
 
 #[test]
-fn t_task_budget_1_tokens_over_limit_stalls() {
+fn t_task_budget_1() {
     let view = drive(&[
         created(),
         KnownTaskEventKind::BudgetLimit {
@@ -53,7 +53,7 @@ fn t_task_budget_1_tokens_over_limit_stalls() {
 }
 
 #[test]
-fn t_task_budget_2_eleventh_tool_call_never_starts() {
+fn t_task_budget_2() {
     let mut kinds = vec![
         created(),
         KnownTaskEventKind::BudgetLimit {
@@ -90,7 +90,7 @@ fn t_task_budget_2_eleventh_tool_call_never_starts() {
 }
 
 #[test]
-fn t_task_budget_3_model_swap_keeps_usage() {
+fn t_task_budget_3() {
     let view = drive(&[
         created(),
         KnownTaskEventKind::BudgetUsage {
@@ -111,7 +111,7 @@ fn t_task_budget_3_model_swap_keeps_usage() {
 }
 
 #[test]
-fn t_task_budget_4_raising_the_limit_resumes() {
+fn t_task_budget_4() {
     let view = drive(&[
         created(),
         KnownTaskEventKind::BudgetLimit {
@@ -136,7 +136,7 @@ fn t_task_budget_4_raising_the_limit_resumes() {
 }
 
 #[test]
-fn t_task_budget_5_step_retry_cap_fails_the_step_not_the_task() {
+fn t_task_budget_5() {
     let mut kinds = vec![
         created(),
         KnownTaskEventKind::BudgetLimit {

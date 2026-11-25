@@ -13,7 +13,7 @@ fn fifteen_minutes() -> Duration {
 }
 
 #[test]
-fn t_task_stall_4_running_and_idle_time_both_must_agree() {
+fn t_task_stall_4() {
     let running = [RunningSpan::new(ms(0), ms(100_000))];
     assert!(!is_stalled(
         &running,

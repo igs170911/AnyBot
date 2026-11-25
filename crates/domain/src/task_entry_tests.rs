@@ -18,7 +18,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
 
     #[test]
-    fn t_task_entry_4_entries_and_turns_are_consistent(
+    fn t_task_entry_4(
         head in prop::collection::vec(Just(EntryInput::UserMessage), 1..3),
         tail in prop::collection::vec(input_strategy(), 0..60),
     ) {

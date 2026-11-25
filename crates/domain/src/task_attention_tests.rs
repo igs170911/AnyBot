@@ -4,7 +4,7 @@ use super::{badge_count, routine_should_pause};
 use crate::needs_attention;
 
 #[test]
-fn t_task_state_8_stopped_and_cancelled_are_not_failures() {
+fn t_task_state_8() {
     let statuses = [
         TaskStatus::Stopped,
         TaskStatus::Cancelled,

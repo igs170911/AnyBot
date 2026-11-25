@@ -152,7 +152,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_task_events_1_full_replay_equals_snapshot_plus_tail((kinds, split) in events_strategy()) {
+    fn t_task_events_1((kinds, split) in events_strategy()) {
         let events = materialize(&kinds);
         let full = replay(&events).unwrap();
         prop_assert_eq!(replay(&events).unwrap(), full.clone());

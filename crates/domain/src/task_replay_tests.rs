@@ -25,7 +25,7 @@ fn raw_ev(seq: u64) -> TaskEvent {
 }
 
 #[test]
-fn t_task_events_2_duplicate_events_apply_once() {
+fn t_task_events_2() {
     let created = ev(
         1,
         KnownTaskEventKind::TaskCreated {
@@ -38,7 +38,7 @@ fn t_task_events_2_duplicate_events_apply_once() {
 }
 
 #[test]
-fn t_task_events_3_gap_reports_missing_seq_and_replays_after_fill() {
+fn t_task_events_3() {
     let a = ev(
         1,
         KnownTaskEventKind::TaskCreated {
@@ -65,7 +65,7 @@ fn t_task_events_3_gap_reports_missing_seq_and_replays_after_fill() {
 }
 
 #[test]
-fn t_task_events_4_unknown_events_are_skipped_and_kept() {
+fn t_task_events_4() {
     let known = [
         ev(
             1,
@@ -102,7 +102,7 @@ fn t_task_events_4_unknown_events_are_skipped_and_kept() {
 }
 
 #[test]
-fn t_task_events_5_old_snapshot_version_replays_from_zero() {
+fn t_task_events_5() {
     let events = vec![
         ev(
             1,
@@ -126,7 +126,7 @@ fn t_task_events_5_old_snapshot_version_replays_from_zero() {
 }
 
 #[test]
-fn t_task_events_6_completion_claim_text_changes_nothing() {
+fn t_task_events_6() {
     let events = vec![
         ev(
             1,

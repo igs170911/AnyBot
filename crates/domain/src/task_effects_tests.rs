@@ -24,7 +24,7 @@ fn reconcile_strategy() -> BoxedStrategy<Option<ReconcileOutcome>> {
 }
 
 #[test]
-fn t_task_effects_1_three_levels_give_three_plans() {
+fn t_task_effects_1() {
     assert_eq!(
         resume_action(ToolEffect::ReadOnly, None),
         ResumeAction::Redo
@@ -40,7 +40,7 @@ fn t_task_effects_1_three_levels_give_three_plans() {
 }
 
 #[test]
-fn t_task_effects_2_missing_level_defaults_to_irreversible() {
+fn t_task_effects_2() {
     assert_eq!(
         anybot_protocol::effect_level(None),
         ToolEffect::Irreversible
@@ -52,7 +52,7 @@ fn t_task_effects_2_missing_level_defaults_to_irreversible() {
 }
 
 #[test]
-fn t_task_effects_3_failed_reconcile_waits_for_user() {
+fn t_task_effects_3() {
     assert_eq!(
         resume_action(ToolEffect::Repeatable, Some(ReconcileOutcome::Unknown),),
         ResumeAction::WaitUser
@@ -63,7 +63,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(2000))]
 
     #[test]
-    fn t_task_effects_4_irreversible_never_redoes(
+    fn t_task_effects_4(
         level in level_strategy(),
         reconcile in reconcile_strategy(),
     ) {

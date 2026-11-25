@@ -17,7 +17,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(200))]
 
     #[test]
-    fn t_task_object_3_journal_invariants(ops in prop::collection::vec(op_strategy(), 1..60)) {
+    fn t_task_object_3(ops in prop::collection::vec(op_strategy(), 1..60)) {
         let mut journal = TaskJournal::new();
         let mut opens = 0usize;
         let mut prev_counts: Vec<usize> = Vec::new();

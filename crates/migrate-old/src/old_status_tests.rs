@@ -27,7 +27,7 @@ fn all_old() -> [LegacyTaskStatus; 12] {
 }
 
 #[test]
-fn t_task_state_6_every_legacy_status_maps_to_a_new_pair() {
+fn t_task_state_6() {
     let mapped = migrate_all(&all_old(), &ctx(), "r");
     assert_eq!(mapped.len(), 12);
     for (status, detail) in &mapped {
@@ -35,10 +35,7 @@ fn t_task_state_6_every_legacy_status_maps_to_a_new_pair() {
     }
     let statuses: BTreeSet<TaskStatus> = mapped.iter().map(|(status, _)| *status).collect();
     assert_eq!(statuses.len(), 8);
-}
 
-#[test]
-fn t_task_state_6_specific_legacy_pairs() {
     let cases = [
         (LegacyTaskStatus::FollowingUp, TaskStatus::Running),
         (LegacyTaskStatus::Verifying, TaskStatus::Running),

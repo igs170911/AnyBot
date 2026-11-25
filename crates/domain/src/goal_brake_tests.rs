@@ -1,19 +1,14 @@
 use super::{GapRecord, numbers_stable, reason_similarity, same_gap};
 
 #[test]
-fn t_goal_brake_9_same_item_with_moving_numbers_is_not_same() {
+fn t_goal_brake_9() {
     let prev = GapRecord::new("upload", "checked 7 of 10 files ok");
-    let next = GapRecord::new("upload", "checked 6 of 10 files ok");
-    assert!(reason_similarity(&prev.reason, &next.reason) >= 0.7);
-    assert!(!numbers_stable(&prev.reason, &next.reason));
-    assert!(!same_gap(&prev, &next));
-}
-
-#[test]
-fn t_goal_brake_9_same_item_with_steady_reason_is_same() {
-    let prev = GapRecord::new("upload", "checked 7 of 10 files ok");
-    let next = GapRecord::new("upload", "checked 7 of 10 files okay");
-    assert!(same_gap(&prev, &next));
+    let moving = GapRecord::new("upload", "checked 6 of 10 files ok");
+    let steady = GapRecord::new("upload", "checked 7 of 10 files okay");
+    assert!(reason_similarity(&prev.reason, &moving.reason) >= 0.7);
+    assert!(!numbers_stable(&prev.reason, &moving.reason));
+    assert!(!same_gap(&prev, &moving));
+    assert!(same_gap(&prev, &steady));
 }
 
 #[test]

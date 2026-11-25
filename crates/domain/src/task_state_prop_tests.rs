@@ -216,7 +216,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_task_state_7_invariants_hold_at_every_prefix(
+    fn t_task_state_7(
         tail in prop::collection::vec(user_call_seq(), 1..25),
         n_criteria in 0usize..4usize,
     ) {
@@ -243,7 +243,7 @@ proptest! {
     }
 
     #[test]
-    fn t_task_done_gate_1_completed_iff_four_conditions(
+    fn t_task_done_gate_1(
         results in prop::collection::vec(proptest::bool::ANY, 1..4),
         claims_ok in 0usize..2usize,
         unknowns in 0usize..2usize,

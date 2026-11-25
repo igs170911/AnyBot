@@ -21,7 +21,7 @@ fn call() -> CallId {
 }
 
 #[test]
-fn t_task_done_gate_2_reply_only_completes_as_replied() {
+fn t_task_done_gate_2() {
     let view = drive(&[
         KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
@@ -36,7 +36,7 @@ fn t_task_done_gate_2_reply_only_completes_as_replied() {
 }
 
 #[test]
-fn t_task_done_gate_3_auto_checks_all_pass_completes_as_accepted() {
+fn t_task_done_gate_3() {
     let c = call();
     let view = drive(&[
         KnownTaskEventKind::TaskCreated {
@@ -87,7 +87,7 @@ fn t_task_done_gate_3_auto_checks_all_pass_completes_as_accepted() {
 }
 
 #[test]
-fn t_task_done_gate_4_acceptance_unavailable_never_completes() {
+fn t_task_done_gate_4() {
     let view = drive(&[
         KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
@@ -113,7 +113,7 @@ fn t_task_done_gate_4_acceptance_unavailable_never_completes() {
 }
 
 #[test]
-fn t_task_done_gate_5_bot_loosening_waits_for_user_decision() {
+fn t_task_done_gate_5() {
     let set = DoneWhenChange::SetItems {
         items: vec![
             Criterion::FileExists {
@@ -173,7 +173,7 @@ fn t_task_done_gate_5_bot_loosening_waits_for_user_decision() {
 }
 
 #[test]
-fn t_task_done_gate_6_raised_limit_makes_budget_pass_again() {
+fn t_task_done_gate_6() {
     let mut view = initial_view();
     advance(
         &mut view,
