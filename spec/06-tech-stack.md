@@ -137,7 +137,7 @@
 | 端對端 | Playwright（畫面）＋黑箱 API 測試 |
 | 壓力測試 | k6（驗證 §0 的 5,000 人目標） |
 | 形式驗證 | TLA+（核准卡片的路徑） |
-| CI | Gitea Actions（照舊） |
+| CI 和發佈 | GitHub Actions（`09` K110）：推上去跑全部關卡；版本標籤觸發三種系統的編譯和 GitHub Release |
 | 寫程式的 AI 即時回饋 | Claude Code hooks：改檔就跑格式、lint、型別檢查 |
 
 ## 3. 舊版「選型紅線」為什麼不沿用
