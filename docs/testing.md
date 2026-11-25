@@ -45,6 +45,7 @@
   - `dark-mode`：colorScheme dark。
   - `lang-en`、`lang-zh-TW`：語言情境。
 - 畫面文字一律用訊息代碼查 `locales/*.ftl`（`src/ftl.ts`），動作詞彙對應的輔助函式在 `src/act.ts`（按〔按鈕上的字〕、填欄位、出現在螢幕／不出現、版面量測、console 檢查）。
+- 時間快轉連瀏覽器一起轉：控制 API `/control/status` 回 `now_ms`，測試用 `src/act.ts` 的 `installFakeClock`／`syncBrowserClock`（Playwright 的 `page.clock`）把瀏覽器時鐘設成假時鐘的現在時間；自我測試快轉一小時後，瀏覽器 `Date.now()` 必須剛好等於 `/v1/health` 的新 `now`。
 - 端對端測試從外面打真程式：煙霧測試打 `vite preview` 的靜態站；自我測試（`selftest.spec.ts`）用控制 API 寫模型腳本、直接打假模型、讀請求記錄、快轉時鐘後驗證 `/v1/health` 的 `now` 位移 3,600,000 毫秒。
 - 執行：`make e2e`（先 `cargo build -p testenv`，再跑 Playwright）；`make check` 含 e2e 閘。CI（`.gitea/workflows/ci.yml`）加裝 `pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit`。
 - 輸出（截圖、trace、html 報告）一律在 `target/playwright`、`target/playwright-html`。

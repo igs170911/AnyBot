@@ -22,8 +22,17 @@ pub struct AdvanceReply {
     pub now_ms: u64,
 }
 
-async fn status(State(state): State<Arc<TestEnvState>>) -> Json<crate::state::EnvPorts> {
-    Json(state.ports.clone())
+#[derive(serde::Serialize)]
+pub struct StatusView {
+    pub ports: crate::state::EnvPorts,
+    pub now_ms: u64,
+}
+
+async fn status(State(state): State<Arc<TestEnvState>>) -> Json<StatusView> {
+    Json(StatusView {
+        ports: state.ports.clone(),
+        now_ms: state.clock.now_ms(),
+    })
 }
 
 async fn set_script(

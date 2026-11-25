@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { installFakeClock, syncBrowserClock } from "./src/act.ts";
 import { readEnvPorts } from "./src/env.ts";
 
 const SCRIPT_TEXT = "hello from the control script";
@@ -14,6 +15,7 @@ function nowMs(iso: string): number {
 
 test("testenv control api drives fake model, records, and clock end to end", async ({
   request,
+  page,
 }) => {
   test.skip(test.info().project.name !== "desktop-large", "one cross-side run is enough");
   const ports = readEnvPorts();
@@ -39,6 +41,8 @@ test("testenv control api drives fake model, records, and clock end to end", asy
   expect(recordList[0]?.path).toBe("/v1/chat/completions");
   expect(recordList[0]?.body).toContain("gpt-test");
 
+  await installFakeClock(request, page);
+
   const healthBefore = await request.get(`http://127.0.0.1:${String(ports.server_port)}/v1/health`);
   const nowBefore = nowMs(((await healthBefore.json()) as { now: string }).now);
   const advance = await request.post(`${control}/control/clock/advance`, {
@@ -48,4 +52,8 @@ test("testenv control api drives fake model, records, and clock end to end", asy
   const healthAfter = await request.get(`http://127.0.0.1:${String(ports.server_port)}/v1/health`);
   const nowAfter = nowMs(((await healthAfter.json()) as { now: string }).now);
   expect(nowAfter - nowBefore).toBe(3_600_000);
+
+  await syncBrowserClock(request, page);
+  const browserNow = await page.evaluate(() => Date.now());
+  expect(browserNow).toBe(nowAfter);
 });

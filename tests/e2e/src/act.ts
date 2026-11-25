@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { type APIRequestContext, expect, type Locator, type Page } from "@playwright/test";
+import { readEnvPorts } from "./env.ts";
 import type { Lang } from "./ftl.ts";
 import { textFor } from "./ftl.ts";
 
@@ -35,6 +36,21 @@ export function collectConsoleErrors(page: Page): string[] {
     }
   });
   return seen;
+}
+
+export async function fakeNowMs(request: APIRequestContext): Promise<number> {
+  const ports = readEnvPorts();
+  const reply = await request.get(`http://127.0.0.1:${String(ports.control_port)}/control/status`);
+  const view = (await reply.json()) as { now_ms: number };
+  return view.now_ms;
+}
+
+export async function installFakeClock(request: APIRequestContext, page: Page): Promise<void> {
+  await page.clock.install({ time: new Date(await fakeNowMs(request)) });
+}
+
+export async function syncBrowserClock(request: APIRequestContext, page: Page): Promise<void> {
+  await page.clock.setFixedTime(new Date(await fakeNowMs(request)));
 }
 
 export async function expectNoHorizontalScroll(page: Page): Promise<void> {
