@@ -59,6 +59,8 @@ async fn serve_all_serves_every_address_at_the_same_time() {
 #[tokio::test]
 async fn serve_all_reports_when_no_address_is_served() {
     let app = build_router(AppState::new("test-9.9.9"));
-    let reason = serve_all(Vec::new(), app).await;
+    let reason = match serve_all(Vec::new(), app).await {
+        Ok(reason) | Err(reason) => reason,
+    };
     assert!(reason.contains("沒有任何位址"), "{reason}");
 }

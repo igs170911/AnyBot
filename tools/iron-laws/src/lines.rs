@@ -64,11 +64,9 @@ fn fn_span(content: &str, from: usize) -> Option<FnSpan> {
 }
 
 fn depth_delta(line: &str) -> i32 {
-    let open = line.matches('{').count();
-    let close = line.matches('}').count();
-    let a = i32::try_from(open.saturating_sub(close)).unwrap_or(i32::MAX);
-    let b = i32::try_from(close.saturating_sub(open)).unwrap_or(i32::MAX);
-    a.checked_sub(b).unwrap_or(0)
+    let open = i32::try_from(line.matches('{').count()).unwrap_or(i32::MAX);
+    let close = i32::try_from(line.matches('}').count()).unwrap_or(i32::MAX);
+    open.saturating_sub(close)
 }
 
 fn ts_open_line(t: &str) -> bool {

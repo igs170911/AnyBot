@@ -4,6 +4,7 @@
 
 CARGO ?= cargo
 PNPM ?= pnpm
+SHELL := /bin/bash
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 
 # spec-trace 基準比對的 ref：本機跟 HEAD 比；CI 跟主分支的分岔點比（CI 設這個變數）。
@@ -11,14 +12,14 @@ SPEC_TRACE_REF ?= HEAD
 
 .PHONY: check check-fast fmt clippy test deny machete depcheck spec-trace spec-baseline \
 	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
-	api-docs api-lint api-client api-html api-compat
+	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest
 
 check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks \
-	api-docs api-lint api-client api-html api-compat \
-	ts-install ts-biome ts-typecheck ts-test ts-build
+	api-docs api-lint api-client api-html api-compat api-lint-selftest \
+	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build
 
 # 邊寫邊跑：最快的關卡＋四條鐵律的檢查（cargo fmt 檢查、clippy、depcheck、iron-laws、biome）。
-check-fast: fmt clippy depcheck ironlaws api-docs api-lint api-client api-html ts-biome
+check-fast: fmt clippy depcheck ironlaws api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -87,6 +88,33 @@ api-docs:
 api-lint:
 	$(PNPM) exec redocly lint --config redocly.yaml api/openapi.yaml
 	$(PNPM) exec redocly lint --config redocly-asyncapi.yaml api/asyncapi.yaml
+
+LICENSE_ALLOW_CMD = sed -n "/^\[licenses\]/,/^\[advisories\]/p" deny.toml | sed -n "/^allow = \[/,/^\]/p" | tr -d " \"[]," | grep -v "^allow=$$" | sed "/^$$/d" | LC_ALL=C sort -u
+
+ts-licenses:
+	@$(PNPM) -r licenses list --prod --json > target/licenses.json
+	@$(LICENSE_ALLOW_CMD) > target/allowed-licenses.txt
+	@LC_ALL=C comm -23 <(jq -r 'keys[] | split(" OR ")[]' target/licenses.json | LC_ALL=C sort -u) target/allowed-licenses.txt > target/license-reject.txt
+	@! test -s target/license-reject.txt || { echo "TS 生產依賴有不准的授權："; cat target/license-reject.txt; exit 1; }
+	@echo "ts-licenses OK"
+
+ts-licenses-selftest:
+	@$(LICENSE_ALLOW_CMD) > target/allowed-licenses.txt
+	@LC_ALL=C comm -23 <(jq -r 'keys[] | split(" OR ")[]' tests/fixtures/licenses/forbidden.json | LC_ALL=C sort -u) target/allowed-licenses.txt > target/license-selftest-reject.txt
+	@test -s target/license-selftest-reject.txt || { echo "selftest 沒擋下 GPL-3.0"; exit 1; }
+	@grep -F GPL-3.0 target/license-selftest-reject.txt
+	@echo "ts-licenses-selftest OK"
+
+# 自測：tests/fixtures/api-lint 每個坏檔都要被指定規則擋、好檔要過（spec/09 K86）。
+api-lint-selftest: ts-install
+	$(PNPM) exec redocly lint --config redocly.yaml tests/fixtures/api-lint/base.yaml
+	@for pair in "no-5xx.yaml rule/operation-has-5xx" "no-example.yaml rule/media-content-example-required" "no-idempotency.yaml anybot/idempotencyKeyRequired" "no-problem-json.yaml rule/problem-json-in-4xx-5xx" "no-tags.yaml rule/operation-tags-not-empty"; do \
+		file=$${pair%% *}; rule=$${pair##* }; \
+		out=$$($(PNPM) exec redocly lint --config redocly.yaml tests/fixtures/api-lint/$$file 2>&1); rc=$$?; \
+		if [ $$rc -eq 0 ]; then echo "selftest: $$file 應該要被擋"; exit 1; fi; \
+		if ! echo "$$out" | grep -F "$$rule" > /dev/null; then echo "selftest: $$file 沒有命中 $$rule"; exit 1; fi; \
+	done
+	@echo "api-lint-selftest OK"
 
 api-client:
 	mkdir -p target/api

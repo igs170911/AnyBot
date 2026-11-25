@@ -41,10 +41,21 @@ pub struct SystemClock;
 impl Clock for SystemClock {
     fn now_ms(&self) -> TimestampMs {
         let now = OffsetDateTime::now_utc();
-        let secs = u64::try_from(now.unix_timestamp()).unwrap_or(0);
-        let sub_ms = u64::from(now.nanosecond() / 1_000_000);
-        TimestampMs(secs.saturating_mul(1_000).saturating_add(sub_ms))
+        system_now_ms(
+            now.unix_timestamp(),
+            u64::from(now.nanosecond()) / 1_000_000,
+        )
     }
+}
+
+fn system_now_ms(secs: i64, sub_ms: u64) -> TimestampMs {
+    let Some(secs_ms) = u64::try_from(secs)
+        .ok()
+        .and_then(|positive| positive.checked_mul(1_000))
+    else {
+        return TimestampMs::from_millis(sub_ms);
+    };
+    TimestampMs::from_millis(secs_ms.saturating_add(sub_ms))
 }
 
 #[cfg(test)]

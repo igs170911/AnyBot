@@ -550,7 +550,6 @@ components:
 info:
   contact:
     name: AnyBot 開發團隊
-    url: http://127.0.0.1:8787/v1/health
   description: 伺服器推給執行端與畫面的執行事件，走 SSE；內容 schema 由 Rust 型別產生。
   license:
     name: MIT OR Apache-2.0

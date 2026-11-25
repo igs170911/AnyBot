@@ -6,6 +6,8 @@ use url::Url;
 use crate::error::FoundationError;
 use crate::secret::Secret;
 
+pub const DEFAULT_POSTGRES_PORT: u16 = 5432;
+
 #[derive(Debug)]
 pub struct ServerBootstrap {
     pub user: String,
@@ -73,7 +75,7 @@ pub fn parse_connection(text: &str) -> Result<ServerBootstrap, FoundationError> 
         ));
     }
     let user = percent_decode(url.username());
-    let password = url.password().unwrap_or("").to_owned();
+    let password = url.password().map(percent_decode).unwrap_or_default();
     if user.is_empty() || password.is_empty() {
         return Err(FoundationError::BootstrapMalformed(
             "啟動檔缺少使用者與密碼".to_owned(),
@@ -85,12 +87,8 @@ pub fn parse_connection(text: &str) -> Result<ServerBootstrap, FoundationError> 
             "啟動檔缺少主機位址".to_owned(),
         ))?
         .to_owned();
-    let port = url
-        .port_or_known_default()
-        .ok_or(FoundationError::BootstrapMalformed(
-            "啟動檔的埠格式錯".to_owned(),
-        ))?;
-    let database = url.path().trim_start_matches('/').to_owned();
+    let port = url.port().unwrap_or(DEFAULT_POSTGRES_PORT);
+    let database = percent_decode(url.path().trim_start_matches('/'));
     if database.is_empty() {
         return Err(FoundationError::BootstrapMalformed(
             "啟動檔缺少資料庫名稱".to_owned(),
@@ -111,3 +109,7 @@ fn percent_decode(part: &str) -> String {
         .decode_utf8_lossy()
         .into_owned()
 }
+
+#[cfg(test)]
+#[path = "bootstrap_tests.rs"]
+mod tests;

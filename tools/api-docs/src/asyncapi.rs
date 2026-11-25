@@ -161,7 +161,7 @@ fn base_info() -> Value {
         "title": "AnyBot 執行事件協定",
         "version": PROTOCOL_VERSION.to_string(),
         "description": "伺服器推給執行端與畫面的執行事件，走 SSE；內容 schema 由 Rust 型別產生。",
-        "contact": { "name": "AnyBot 開發團隊", "url": "http://127.0.0.1:8787/v1/health" },
+        "contact": { "name": "AnyBot 開發團隊" },
         "license": {
             "name": "MIT OR Apache-2.0",
             "url": "https://opensource.org/license/mit/",
@@ -175,10 +175,10 @@ pub fn document() -> Result<String, String> {
     let mut defs = serde_json::Map::new();
     normalize_schema(&mut run_schema, &mut defs);
     let component_messages = component_messages(&mut defs)?;
-    let message_entries: serde_json::Map<String, Value> = component_messages
-        .as_object()
-        .map(|m| m.keys().map(|k| (k.clone(), ref_entry(k))).collect())
-        .unwrap_or_default();
+    let message_entries: serde_json::Map<String, Value> = match component_messages.as_object() {
+        Some(map) => map.keys().map(|k| (k.clone(), ref_entry(k))).collect(),
+        None => return Err("component messages 不是物件結構".to_owned()),
+    };
     let message_refs: Vec<Value> = message_entries.values().cloned().collect();
     let mut schemas = serde_json::Map::new();
     schemas.insert("runEventEnvelope".to_owned(), run_schema);

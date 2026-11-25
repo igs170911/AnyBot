@@ -9,7 +9,7 @@ fn stop_reason(result: Result<(), std::io::Error>) -> String {
     }
 }
 
-pub async fn serve_all(listeners: Vec<TcpListener>, app: Router) -> String {
+pub async fn serve_all(listeners: Vec<TcpListener>, app: Router) -> Result<String, String> {
     let (sender, mut receiver) = mpsc::channel::<String>(16);
     let mut tasks = Vec::new();
     for listener in listeners {
@@ -24,9 +24,9 @@ pub async fn serve_all(listeners: Vec<TcpListener>, app: Router) -> String {
     let reason = receiver
         .recv()
         .await
-        .unwrap_or("沒有任何位址的伺服器在服務".to_owned());
+        .ok_or("沒有任何位址的伺服器在服務".to_owned())?;
     for task in tasks {
         task.abort();
     }
-    reason
+    Ok(reason)
 }

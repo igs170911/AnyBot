@@ -28,10 +28,7 @@ impl Modify for BearerAuth {
             name = "MIT OR Apache-2.0",
             identifier = "MIT OR Apache-2.0"
         ),
-        contact(
-            name = "AnyBot 開發團隊",
-            url = "http://127.0.0.1:8787/v1/health"
-        ),
+        contact(name = "AnyBot 開發團隊"),
     ),
     paths(crate::health::health),
     components(schemas(crate::health::HealthResponse, anybot_protocol::ProblemJson)),

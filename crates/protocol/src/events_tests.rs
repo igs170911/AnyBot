@@ -139,15 +139,18 @@ fn test_events_unknown_kind_keeps_raw_and_batch_parses() {
 
 #[test]
 fn test_events_accept_accepts_current_and_rejects_old_after_grace() {
+    let grace_end = FixedClock(1_782_000_000_000);
     let e = sample_event(text_kind());
-    assert!(e.accept(&SystemClock).is_ok());
+    assert!(e.accept(&grace_end).is_ok());
     let mut old = sample_event(text_kind());
     old.protocol_version = 0;
-    assert!(old.accept(&SystemClock).is_err());
+    assert!(old.accept(&grace_end).is_err());
     let mut old = sample_event(text_kind());
     old.protocol_version = 1;
     let long_past = FixedClock(1_000_000_000_000);
     assert!(old.accept(&long_past).is_ok());
+    let after_grace = FixedClock(1_783_000_000_000);
+    assert!(old.accept(&after_grace).is_err());
 }
 
 #[test]

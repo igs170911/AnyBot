@@ -1,0 +1,18 @@
+{
+  "MIT": [
+    {
+      "name": "ok-package",
+      "versions": ["1.0.0"],
+      "paths": ["/dev/null"],
+      "license": "MIT"
+    }
+  ],
+  "GPL-3.0": [
+    {
+      "name": "copyleft-package",
+      "versions": ["2.0.0"],
+      "paths": ["/dev/null"],
+      "license": "GPL-3.0"
+    }
+  ]
+}

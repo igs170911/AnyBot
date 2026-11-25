@@ -44,8 +44,8 @@ pub fn edition_violations(root_text: &str, manifests: &[(String, String)]) -> Ve
             None => out.push(format!("{rel}：[package] 沒有寫 edition（K78）")),
             Some(s) if s == "workspace" => {}
             Some(s) if s != base => {
-                let shown = s.strip_prefix("literal:").unwrap_or("");
-                let want = base.strip_prefix("literal:").unwrap_or("");
+                let shown = s.strip_prefix("literal:").unwrap_or(&s);
+                let want = base.strip_prefix("literal:").unwrap_or(&base);
                 out.push(format!(
                     "{rel}：edition 跟 workspace 不一致（K78）：{shown} 應用 {want}"
                 ));

@@ -6,8 +6,10 @@ pub mod comments;
 pub mod deny_limits;
 pub mod editions;
 pub mod exemptions;
+pub mod licensing;
 pub mod lines;
 pub mod lints;
+pub mod redocly;
 pub mod suppressions;
 pub mod table;
 
@@ -28,6 +30,8 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
         &collect::clippy_toml_files(repo),
     ));
     out.extend(lints::violations(repo));
+    out.extend(licensing::violations(repo));
+    out.extend(redocly::violations(repo));
     out.sort();
     out
 }

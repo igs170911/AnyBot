@@ -49,7 +49,6 @@ fn bind_one(addr: SocketAddr) -> std::io::Result<TcpListener> {
     };
     let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
     socket.set_reuse_address(true)?;
-    socket.set_reuse_port(true)?;
     socket.bind(&addr.into())?;
     socket.listen(128)?;
     let std_listener: std::net::TcpListener = socket.into();

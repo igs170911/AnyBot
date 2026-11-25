@@ -8,3 +8,10 @@ description = "測試輔助套件：啟動真的執行檔、打 HTTP、準備 ta
 
 [lints]
 workspace = true
+
+[dependencies]
+reqwest = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

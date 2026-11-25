@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 description = "AnyBot protocol 套件骨架（spec/07 §2）"
 [dependencies]
-time = { workspace = true }
+jiff = { workspace = true }
 
 anybot-foundation = { workspace = true }
 schemars = { workspace = true }

@@ -196,7 +196,7 @@ async fn start_health_server(
         let mut running = Running::start(&server_program(bootstrap_args(path)), dir)?;
         let line = running.next_stdout_line()?;
         assert!(line.contains("聽 127.0.0.1:8787"), "{line}");
-        if http_get(8787, "/v1/health").is_ok() {
+        if http_get(8787, "/v1/health").await.is_ok() {
             return Ok(running);
         }
         let outcome = running.kill()?;
@@ -215,8 +215,22 @@ async fn health_endpoint_answers_on_the_started_server() -> Result<(), String> {
     let path = scratch_bootstrap("unit_health", 0o600).unwrap();
     let dir = path.parent().unwrap().to_path_buf();
     let mut running = start_health_server(&path, &dir).await?;
-    let (code, _body) = http_get(8787, "/v1/health")?;
+    let (code, _body) = http_get(8787, "/v1/health").await?;
     assert_eq!(code, 200);
     let _result = running.kill()?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn second_server_exits_with_one_while_first_keeps_serving_health() -> Result<(), String> {
+    let path = scratch_bootstrap("two_servers_second_fails", 0o600).unwrap();
+    let dir = path.parent().unwrap().to_path_buf();
+    let mut first = start_health_server(&path, &dir).await?;
+    let second = run_program(&server_program(bootstrap_args(&path)), &dir)?;
+    assert_eq!(second.code, 1);
+    assert!(second.stderr.contains("無法使用連接埠 8787"), "{second:?}");
+    let (code, _body) = http_get(8787, "/v1/health").await?;
+    assert_eq!(code, 200);
+    let _result = first.kill()?;
     Ok(())
 }

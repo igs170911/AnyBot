@@ -1,114 +1,112 @@
-use super::*;
-use anybot_foundation::Clock;
+use jiff::civil::{Date, Time};
+use jiff::tz::UtcOffset;
 
-struct FixedClock(u64);
+use anybot_foundation::{Clock, FixedClock, TimestampMs};
 
-impl Clock for FixedClock {
-    fn now_ms(&self) -> TimestampMs {
-        TimestampMs::from_millis(self.0)
+use super::{ProtocolRelease, accepts_with};
+
+fn release(version: u32, year: i16, month: i8, day: i8) -> ProtocolRelease {
+    ProtocolRelease::new(version, Date::new(year, month, day).unwrap())
+}
+
+fn ms_at(year: i16, month: i8, day: i8, hour: i8) -> TimestampMs {
+    let date = Date::new(year, month, day).unwrap();
+    let dt = date
+        .to_datetime(Time::from_hour(hour).unwrap())
+        .to_timestamp(UtcOffset::UTC)
+        .unwrap();
+    TimestampMs::from_millis(u64::try_from(dt.as_millisecond()).unwrap())
+}
+
+#[test]
+fn test_versions_accepts_latest_and_rejects_higher() {
+    let releases = [release(2, 2026, 1, 1)];
+    let clock = FixedClock::at(TimestampMs::from_millis(1_700_000_000_000));
+    assert!(accepts_with(&releases, 2, &clock));
+    assert!(!accepts_with(&releases, 3, &clock));
+    assert!(!accepts_with(&releases, 0, &clock));
+}
+
+#[test]
+fn test_versions_empty_table_rejects_everything() {
+    let clock = FixedClock::at(TimestampMs::from_millis(1_700_000_000_000));
+    assert!(!accepts_with(&[], 1, &clock));
+    assert!(!accepts_with(&[], 2, &clock));
+}
+
+#[test]
+fn test_versions_superseded_is_accepted_until_cutoff_day() {
+    let releases = [release(1, 2025, 6, 1), release(2, 2026, 6, 15)];
+    assert!(accepts_with(&releases, 1, &FixedClock::at(ms_at(2026, 12, 15, 0))));
+    assert!(!accepts_with(&releases, 1, &FixedClock::at(ms_at(2026, 12, 16, 0))));
+}
+
+#[test]
+fn test_versions_june_release_cutoff_is_same_year_december() {
+    let cutoff = release(2, 2026, 6, 15).cutoff().unwrap();
+    assert_eq!(cutoff, Date::new(2026, 12, 15).unwrap());
+}
+
+#[test]
+fn test_versions_cutoff_clamps_end_of_month_for_every_release_month() {
+    let expected: [(i16, i8, i8); 12] = [
+        (2026, 7, 31),
+        (2026, 8, 28),
+        (2026, 9, 30),
+        (2026, 10, 30),
+        (2026, 11, 30),
+        (2026, 12, 30),
+        (2027, 1, 31),
+        (2027, 2, 28),
+        (2027, 3, 30),
+        (2027, 4, 30),
+        (2027, 5, 30),
+        (2027, 6, 30),
+    ];
+    let days: [i8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    for month in 1..=12 {
+        let cutoff = release(2, 2026, month as i8, days[month - 1]).cutoff().unwrap();
+        let (year, exp_month, day) = expected[month - 1];
+        assert_eq!(cutoff, Date::new(year, exp_month, day).unwrap(), "月份 {month}");
     }
 }
 
-const DAY: u64 = 86_400_000;
-
-fn ms_at(y: u64, mo: u64, d: u64) -> u64 {
-    let epoch = time::Date::from_calendar_date(1970, time::Month::January, 1)
-        .ok()
-        .unwrap_or(time::Date::MIN);
-    let year = i32::try_from(y).unwrap_or(0);
-    let month =
-        time::Month::try_from(u8::try_from(mo).unwrap_or(1)).unwrap_or(time::Month::January);
-    let day = u8::try_from(d).unwrap_or(1);
-    let dt = time::Date::from_calendar_date(year, month, day)
-        .ok()
-        .unwrap_or(epoch)
-        .midnight()
-        .assume_utc();
-    u64::try_from(dt.unix_timestamp())
-        .unwrap_or(0)
-        .checked_mul(1_000)
-        .unwrap_or(0)
-}
-
-fn release(version: u32, y: u32, mo: u32, d: u32) -> ProtocolRelease {
-    ProtocolRelease {
-        version,
-        released_year: y,
-        released_month: mo,
-        released_day: d,
-    }
-}
-
-const V2: &[ProtocolRelease] = &[
-    ProtocolRelease {
-        version: 1,
-        released_year: 2026,
-        released_month: 1,
-        released_day: 1,
-    },
-    ProtocolRelease {
-        version: 2,
-        released_year: 2026,
-        released_month: 8,
-        released_day: 31,
-    },
-];
-
 #[test]
-fn test_versions_latest_is_always_accepted() {
-    let far_future = FixedClock(ms_at(2126, 1, 1));
-    assert!(accepts_protocol_version(PROTOCOL_VERSION, &far_future));
+fn test_versions_august_cutoff_crosses_year() {
+    let cutoff = release(2, 2026, 8, 31).cutoff().unwrap();
+    assert_eq!(cutoff, Date::new(2027, 2, 28).unwrap());
+    let releases = [release(1, 2025, 6, 1), release(2, 2026, 8, 31)];
+    assert!(accepts_with(&releases, 1, &FixedClock::at(ms_at(2027, 2, 28, 23))));
+    assert!(!accepts_with(&releases, 1, &FixedClock::at(ms_at(2027, 3, 1, 0))));
 }
 
 #[test]
-fn test_versions_newer_than_latest_is_rejected() {
-    let clock = FixedClock(ms_at(2026, 2, 1));
-    assert!(!accepts_protocol_version(2, &clock));
-    assert!(!accepts_protocol_version(99, &clock));
-    assert!(!accepts_protocol_version(0, &clock));
+fn test_versions_clock_far_beyond_cutoff_rejects_superseded() {
+    let releases = [release(1, 2025, 6, 1), release(2, 2026, 8, 31)];
+    let far = FixedClock::at(ms_at(2080, 1, 1, 0));
+    assert!(!accepts_with(&releases, 1, &far));
+    assert!(accepts_with(&releases, 2, &far));
 }
 
 #[test]
-fn test_versions_superseded_boundaries_at_cutoff_day() {
-    let cutoff_ms = ms_at(2027, 2, 28);
-    let one_before = FixedClock(cutoff_ms.saturating_sub(DAY));
-    let exact = FixedClock(cutoff_ms);
-    let one_after = FixedClock(cutoff_ms.saturating_add(DAY));
-    assert!(accepts_with(V2, 1, &one_before));
-    assert!(accepts_with(V2, 1, &exact));
-    assert!(!accepts_with(V2, 1, &one_after));
-    assert!(accepts_with(V2, 2, &one_after));
+fn test_versions_unrepresentable_clock_rejects_superseded() {
+    let releases = [release(1, 2025, 6, 1), release(2, 2026, 8, 31)];
+    assert!(!accepts_with(&releases, 1, &FixedClock::at(TimestampMs::from_millis(u64::MAX))));
+    assert!(accepts_with(&releases, 2, &FixedClock::at(TimestampMs::from_millis(u64::MAX))));
 }
 
 #[test]
-fn test_versions_clamps_missing_days_to_last_day_of_month() {
-    assert_eq!(cutoff_date(&release(2, 2026, 8, 31)), (2027, 2, 28));
-    assert_eq!(cutoff_date(&release(2, 2025, 8, 31)), (2026, 2, 28));
-    assert_eq!(cutoff_date(&release(2, 2026, 9, 30)), (2027, 3, 30));
-    assert_eq!(cutoff_date(&release(2, 2026, 10, 31)), (2027, 4, 30));
-    assert_eq!(cutoff_date(&release(2, 2026, 1, 31)), (2026, 7, 31));
-    assert_eq!(cutoff_date(&release(2, 2026, 12, 31)), (2027, 6, 30));
-    assert_eq!(cutoff_date(&release(2, 2026, 8, 30)), (2027, 2, 28));
+fn test_versions_today_from_ms_matches_jiff_dates() {
+    assert_eq!(ms_at(1970, 1, 1, 0).millis(), 0);
+    let today = super::today_from(ms_at(2026, 6, 15, 12)).unwrap();
+    assert_eq!(today, Date::new(2026, 6, 15).unwrap());
+    let future = super::today_from(ms_at(9999, 12, 31, 23)).unwrap();
+    assert_eq!(future, Date::new(9999, 12, 31).unwrap());
+    assert!(super::today_from(TimestampMs::from_millis(u64::MAX)).is_err());
 }
 
 #[test]
-fn test_versions_leap_february_allows_29() {
-    assert_eq!(cutoff_date(&release(2, 2027, 8, 31)), (2028, 2, 29));
-}
-
-#[test]
-fn test_versions_today_from_ms_matches_expected_dates() {
-    assert_eq!(
-        today_from(TimestampMs::from_millis(ms_at(2026, 1, 1))),
-        (2026, 1, 1)
-    );
-    assert_eq!(
-        today_from(TimestampMs::from_millis(ms_at(2027, 2, 28))),
-        (2027, 2, 28)
-    );
-    assert_eq!(today_from(TimestampMs::from_millis(0)), (1970, 1, 1));
-    assert_eq!(
-        today_from(TimestampMs::from_millis(ms_at(2000, 3, 1))),
-        (2000, 3, 1)
-    );
+fn test_versions_rejects_negative_clock_as_epoch() {
+    let releases = [release(1, 2025, 6, 1), release(2, 2026, 8, 31)];
+    assert!(accepts_with(&releases, 1, &FixedClock::at(TimestampMs::from_millis(0))));
 }

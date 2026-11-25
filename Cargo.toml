@@ -42,6 +42,7 @@ test-harness = { path = "tests/harness", version = "0.1.0" }
 # 外部套件（照 spec/06）
 anyhow = "1"
 time = { version = "0.3", features = ["formatting", "macros"] }
+jiff = "1"
 axum = "0.8"
 rand = "0.10"
 schemars = { version = "1", features = ["uuid1"] }

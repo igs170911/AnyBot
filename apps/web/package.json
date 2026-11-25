@@ -1,6 +1,7 @@
 {
   "name": "@anybot/web",
   "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
   "private": true,
   "description": "手機和瀏覽器用的 PWA（Vite＋React）。M2 只顯示 web/ui 的外殼（spec/06 §2.4）。",
   "type": "module",

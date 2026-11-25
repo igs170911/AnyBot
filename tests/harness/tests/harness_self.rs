@@ -1,3 +1,5 @@
+extern crate reqwest as _;
+
 use test_harness::{Program, http_get, run_program, test_dir, write_file_with_mode};
 
 #[test]
@@ -53,8 +55,8 @@ fn harness_write_file_with_mode_sets_exact_permissions() {
     assert_eq!(mode, 0o600);
 }
 
-#[test]
-fn harness_http_get_reports_connection_failure_without_crashing() {
-    let result = http_get(1, "/v1/health");
+#[tokio::test]
+async fn harness_http_get_reports_connection_failure_without_crashing() {
+    let result = http_get(1, "/v1/health").await;
     assert!(result.is_err());
 }

@@ -236,11 +236,11 @@ name = "anybot-protocol"
 version = "0.1.0"
 dependencies = [
  "anybot-foundation",
+ "jiff 1.0.3",
  "proptest",
  "schemars 1.2.3",
  "serde",
  "serde_json",
- "time",
  "utoipa",
 ]
 
@@ -4683,6 +4683,10 @@ dependencies = [
 [[package]]
 name = "test-harness"
 version = "0.1.0"
+dependencies = [
+ "reqwest 0.12.28",
+ "tokio",
+]
 
 [[package]]
 name = "thiserror"

@@ -54,7 +54,9 @@ async fn main() -> ExitCode {
         Err(failure) => return report_failure(&failure),
     };
     let app = build_router(AppState::new(version));
-    let reason = serve_all(listeners, app).await;
+    let reason = match serve_all(listeners, app).await {
+        Ok(reason) | Err(reason) => reason,
+    };
     print_problem(&reason);
     ExitCode::from(1)
 }
