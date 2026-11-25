@@ -9,7 +9,7 @@
 2. **規格沒寫的行為，不要猜。** 不要憑印象補「舊版大概怎麼做」。寫進回報的「要問的問題」。
 3. **`spec/09-decisions.md` 是最終決定。** 跟其他文件不一致時，以它為準。
 4. **不 push、不建遠端 repo。** 只在本地 commit；每個里程碑做完、`make check` 全綠後 commit 一次，訊息用繁體中文寫做了什麼。
-5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`；`brew install gitleaks`。要裝別的先停下來回報。
+5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`；`brew install gitleaks`、`brew install oasdiff`。要裝別的先停下來回報。
 6. **不放任何金鑰、帳號、個人資料進 repo。** 新版也不讀環境變數做設定（`spec/02` A10）。
 7. **暫存檔、紀錄檔一律放在 repo 的 `target/` 裡**（已經在 `.gitignore`），不要寫到 `/tmp` 或其他地方。
 8. **不准改寫 git 歷史**：不准用 `filter-branch`、`rebase`、`reset --hard`、`commit --amend` 改已經存在的 commit，也不准把好幾個 commit 壓成一個。遇到「要改歷史才能過」的情況，停下來回報。
@@ -20,6 +20,8 @@
 2. **檔案要小。** 每個原始碼檔案最多 300 行、每個函式最多 60 行。快超過就拆，不要寫成一個大檔。
 3. **不寫註解，程式即註解。** 用好的名字、小的函式、清楚的型別表達意思。產生出來的檔案除外。
 4. **測試用名稱標出它驗的規格編號**：Rust 測試函式叫 `t_chat_steer_1`（`spec/10-behavior/` 的 `T-chat-steer-1`，`-` 換成 `_`）；TypeScript 測試標題開頭寫 `T-chat-steer-1`。
+   - **名稱帶編號＝驗完那一列全部的「預期」**（`spec/09` K86）。只驗一部分、縮小規模、還沒接上畫面的，用描述性的名字，編號留在基準檔。
+   - 種類是「整合」「端對端」的，要從外面打真的程式（執行檔、HTTP），不能只呼叫內部函式。
 
 ## 三、開發原則（`spec/05` 摘要）
 
@@ -30,6 +32,8 @@
 - **禁用的寫法**照 `spec/07` §3，由 clippy 的禁用清單擋：讀環境變數、執行外部程式、發 HTTP、讀寫任意檔案，只准在指定的套件。
 - 正式程式碼裡不准 `unwrap`、`expect`、`panic!`；測試裡可以（靠 `clippy.toml` 的測試設定，不是在程式碼裡關掉）。
 - 金鑰一律用專用型別：不能印、不能直接序列化。
+- 根目錄 `tests/` 底下的測試輔助套件可以執行程式、連網路、寫 `target/` 裡的檔案（`spec/07` §3、`spec/09` K87）；產品套件只能把它當開發用依賴。
+- 選第三方套件前先查：誰維護、多久沒更新、有沒有 RustSec 紀錄。0.0.x 版、只有一個作者的套件，先在回報裡提出來再用。
 - **`spec/` 是唯讀的**：任何人、任何工具都不准改 `spec/` 底下的檔案（包括格式化工具）。
 
 ## 四、技術選型（`spec/06`）

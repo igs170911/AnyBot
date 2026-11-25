@@ -138,6 +138,7 @@ T-agent-ext-protocol-1
 T-agent-ext-protocol-2
 T-agent-ext-protocol-3
 T-agent-ext-protocol-4
+T-agent-ext-protocol-5
 T-agent-ext-protocol-6
 T-agent-ext-setup-1
 T-agent-ext-setup-2

@@ -111,6 +111,8 @@ anybot/
 | 執行外部程式 | `computers`（而且要經過 `trust` 給的通行證） |
 | 發 HTTP 請求 | `models`、`mcp`、`sync`、`channels`、`computers` |
 | 讀寫任意檔案 | `computers`、`blob`、`store-client`；`foundation` 只准讀 `--bootstrap` 指定的那個啟動檔 |
+| 找使用者的家目錄（作業系統的慣例資料夾） | 只有 `foundation`，用來算本機資料夾的預設位置（`09` K85）；不算讀設定 |
+| 以上全部（執行外部程式、連網路、讀寫 `target/` 裡的檔案） | 根目錄 `tests/` 底下的測試輔助套件（`09` K87）；產品套件只能把它當開發用依賴 |
 
 **執行檔（`apps/`）的依賴**（2026-11-24 補）：只加真的用到的；而且：
 
