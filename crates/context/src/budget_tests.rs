@@ -43,7 +43,7 @@ fn with_turns(
 }
 
 #[test]
-fn t_context_budget_3() {
+fn swap_model_masks_and_restores() {
     let steps: Vec<StepRecord> = (0..30)
         .map(|i| sup::step_len(i, 1_500, &format!("r{i}")))
         .collect();
@@ -158,7 +158,7 @@ fn budget_3_swap_back_restores_ten(steps: &[StepRecord], events: Vec<anybot_prot
 }
 
 #[test]
-fn t_context_budget_5() {
+fn budget_drops_oldest_steps_first() {
     let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
     let mut collapses: Vec<usize> = Vec::new();
     for i in 0..40usize {
@@ -200,7 +200,7 @@ fn t_context_budget_5() {
 }
 
 #[test]
-fn t_context_budget_4() {
+fn old_chat_keeps_head_and_reference() {
     let prior: Vec<crate::input::ChatRecord> = (0..400)
         .map(|i| sup::record(&format!("p{i}"), &format!("old line {i}")))
         .collect();

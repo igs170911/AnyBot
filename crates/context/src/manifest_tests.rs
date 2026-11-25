@@ -9,7 +9,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_context_manifest_1(input in build_input(1_000, 200_000, 8)) {
+    fn manifest_matches_request(input in build_input(1_000, 200_000, 8)) {
         if let Compiled::Sent { request, manifest, .. } = compile(&input) {
             prop_assert_eq!(manifest.included.len(), request.blocks.len());
             for (entry, block) in manifest.included.iter().zip(request.blocks.iter()) {
@@ -33,7 +33,7 @@ proptest! {
 }
 
 #[test]
-fn t_context_manifest_2() {
+fn manifest_excludes_raw_records_and_secrets() {
     let mut base = sup::base_input();
     base.model = sup::plan(50_000);
     let hidden = sup::secret("hunter2");
@@ -56,7 +56,7 @@ fn t_context_manifest_2() {
 }
 
 #[test]
-fn t_context_manifest_3() {
+fn manifest_usage_matches_response_stream() {
     let mut base = sup::base_input();
     base.steps = vec![sup::step_len(0, 300, "r0")];
     match compile(&base) {

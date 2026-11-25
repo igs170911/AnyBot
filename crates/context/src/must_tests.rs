@@ -32,7 +32,7 @@ fn input_with(
 }
 
 #[test]
-fn t_context_must_5() {
+fn user_turns_survive_many_steps() {
     let base = sup::base_input();
     let users: Vec<crate::input::ChatRecord> = (0..12)
         .map(|i| sup::record(&format!("u{i}"), &format!("user line {i}")))
@@ -57,7 +57,7 @@ fn t_context_must_5() {
 }
 
 #[test]
-fn t_context_must_4() {
+fn long_user_turn_head_length_id() {
     let base = sup::base_input();
     let text = "w".repeat(50_000);
     let input = input_with(&base, Vec::new(), vec![sup::record("ubig", &text)], 32_000);
@@ -127,7 +127,7 @@ fn must_docs_and_pending_actions_are_mandatory() {
 }
 
 #[test]
-fn t_context_must_3() {
+fn model_swap_preserves_criteria() {
     let base = sup::base_input();
     let mut input = input_with(&base, Vec::new(), Vec::new(), 32_000);
     input.constraints = vec!["m".to_owned(); 400];
@@ -164,7 +164,7 @@ fn t_context_must_3() {
 }
 
 #[test]
-fn t_context_must_2() {
+fn huge_criteria_survive_tiny_model() {
     let base = sup::base_input();
     let mut input = input_with(&base, Vec::new(), Vec::new(), 4_000);
     input.constraints = vec!["m".to_owned(); 400];

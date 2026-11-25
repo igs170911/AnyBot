@@ -182,7 +182,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_context_mask_2(
+    fn mask_pairs_and_accumulation(
         raw_steps in prop::collection::vec(step_record(0), 1..10),
         users in prop::collection::vec(chat_record("u", 0), 1..3),
         bots in prop::collection::vec(chat_record("b", 0), 0..3),
@@ -219,7 +219,7 @@ proptest! {
     }
 
     #[test]
-    fn t_context_budget_2(
+    fn budget_shrinks_in_order(
         raw_steps in prop::collection::vec(step_record(0), 3..12),
         constraints in prop::collection::vec(mixed_text(30), 1..3),
     ) {

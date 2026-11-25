@@ -98,7 +98,7 @@ proptest! {
     }
 
     #[test]
-    fn t_context_must_1(
+    fn mandatory_verbatim_or_refuse(
         constraints in prop::collection::vec(mixed_text(40), 1..4),
         events in events_strategy(8),
         input in build_input(80_000, 400_000, 4),
@@ -139,7 +139,7 @@ proptest! {
     }
 
     #[test]
-    fn t_context_budget_1(input in build_input(500, 60_000, 6)) {
+    fn budget_never_oversends(input in build_input(500, 60_000, 6)) {
         match compile(&input) {
             Compiled::Sent { manifest, request, .. } => {
                 let usable = input.model.usable();
@@ -157,7 +157,7 @@ proptest! {
 
 proptest! {
     #[test]
-    fn t_context_build_2(steps in prop::collection::vec(0usize..3_000usize, 1..12), tick in 0..700u64) {
+    fn prefix_stable_across_steps(steps in prop::collection::vec(0usize..3_000usize, 1..12), tick in 0..700u64) {
         let base = crate::compile_tests_support::base_input();
         let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
         let mut prev: Option<(usize, Vec<Block>)> = None;

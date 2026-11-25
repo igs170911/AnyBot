@@ -20,7 +20,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_context_state_1(events in events_strategy(24)) {
+    fn state_is_pure_function_of_events(events in events_strategy(24)) {
         let a = fit_summary(&build_state(&events));
         let b = fit_summary(&build_state(&events));
         prop_assert_eq!(&a, &b);
@@ -76,7 +76,7 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
 }
 
 #[test]
-fn t_context_state_2() {
+fn state_tracks_evidence_and_exit_code() {
     let mut base = sup::base_input();
     base.events = state_2_events();
     match compile(&base) {
@@ -105,7 +105,7 @@ fn t_context_state_2() {
 }
 
 #[test]
-fn t_context_state_3() {
+fn bot_claims_are_not_state() {
     let mut base = sup::base_input();
     let mut events = base.events.clone();
     events.push(sup::known(
@@ -146,7 +146,7 @@ fn t_context_state_3() {
 }
 
 #[test]
-fn t_context_state_4() {
+fn plan_compression_over_token_limit() {
     let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
     events.push(sup::known(
         1,
