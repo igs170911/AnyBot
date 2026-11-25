@@ -23,8 +23,8 @@ pub const EXIT_SCHEMA: u8 = 2;
 pub struct Ctx {
     pub catalog: Catalog,
     pub lang: Lang,
-    pub stdout: std::io::Stdout,
-    pub stderr: std::io::Stderr,
+    pub stdout: Box<dyn std::io::Write + Send>,
+    pub stderr: Box<dyn std::io::Write + Send>,
 }
 
 impl Default for Ctx {
@@ -39,8 +39,8 @@ impl Ctx {
         Ctx {
             catalog: Catalog::new(),
             lang: Lang::En,
-            stdout: std::io::stdout(),
-            stderr: std::io::stderr(),
+            stdout: Box::new(std::io::stdout()),
+            stderr: Box::new(std::io::stderr()),
         }
     }
 
@@ -68,13 +68,20 @@ impl Ctx {
     }
 }
 
-pub async fn connect_plan(bootstrap: &ServerBootstrap, ctx: &mut Ctx) -> Result<Pool, String> {
-    let clock = Arc::new(SystemClock);
+pub async fn connect_plan(
+    bootstrap: &ServerBootstrap,
+    ctx: &mut Ctx,
+    clock: &dyn Clock,
+) -> Result<Pool, String> {
     loop {
         let gate = probe_pool(bootstrap);
         match probe(&gate).await {
-            Ok(_one) => return Ok(open_lazy(bootstrap)),
+            Ok(_one) => {
+                let _closed = gate.close().await;
+                return Ok(open_lazy(bootstrap));
+            }
             Err(err) => {
+                let _closed = gate.close().await;
                 let reference = connect_retry_line(bootstrap, &err.to_string());
                 ctx.print_ref(&reference)?;
                 let _result = clock.sleep(Duration::from_secs(5)).await;
@@ -163,7 +170,8 @@ pub async fn serve_main(args: &ServerLaunchArgs, version: &str, ctx: &mut Ctx) -
         Ok(Err(failure)) => return ctx.report(&failure),
         Err(err) => return messages_exit(ctx, &err.to_string()),
     };
-    let pool = match connect_plan(&startup.bootstrap, ctx).await {
+    let clock = Arc::new(SystemClock);
+    let pool = match connect_plan(&startup.bootstrap, ctx, clock.as_ref()).await {
         Ok(pool) => pool,
         Err(err) => return messages_exit(ctx, &err),
     };

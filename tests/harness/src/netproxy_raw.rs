@@ -31,6 +31,7 @@ impl NetMode {
             NetMode::Slow { connect, .. } => *connect,
             NetMode::Open
             | NetMode::Cut
+            | NetMode::HangConnect
             | NetMode::Buffer
             | NetMode::IdleCut { .. }
             | NetMode::Down => std::time::Duration::ZERO,

@@ -1,9 +1,13 @@
+#[cfg(test)]
+use anybot_app_test as _;
 use axum as _;
 use serde_json as _;
 use sqlx as _;
 use std::process::ExitCode;
 #[cfg(test)]
 use test_harness as _;
+#[cfg(test)]
+use tracing as _;
 
 use anybot_app_server::{Ctx, Parsed, emit, parse_launch, server_run, subcommand_plan};
 use anybot_foundation as _;

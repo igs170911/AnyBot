@@ -1,0 +1,23 @@
+[package]
+publish = false
+name = "anybot-app-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared test support for the server executable suites (spec/07 §3, spec/09 K87)"
+
+[lints]
+workspace = true
+
+[dependencies]
+anybot-foundation = { workspace = true }
+anybot-messages = { workspace = true }
+anybot-server = { workspace = true }
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio", "migrate"] }
+test-harness = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+

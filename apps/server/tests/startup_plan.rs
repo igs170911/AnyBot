@@ -6,12 +6,16 @@ use tokio::net::TcpListener;
 
 use anybot_app_server::{Parsed, bind_plan, help_text, parse_launch, startup_line, startup_plan};
 
+use anybot_app_server as _;
+use anybot_app_test as _;
 use anybot_foundation as _;
 use anybot_messages::{Catalog, Lang, MessageCode, Params};
 use anybot_server as _;
 use axum as _;
 use clap as _;
 use serde_json as _;
+use test_harness as _;
+use tracing as _;
 
 use test_harness::{Program, run_program, test_dir, write_file_with_mode};
 

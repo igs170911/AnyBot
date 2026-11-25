@@ -9,6 +9,7 @@ use sqlx as _;
 use toml as _;
 use url as _;
 
+pub mod capture;
 pub mod cloud_map;
 pub mod fake_clock;
 pub mod fake_model;
@@ -26,6 +27,16 @@ pub mod model_vllm;
 pub mod model_vllm_body;
 pub mod model_vllm_chunks;
 pub mod netctl;
+pub mod netctl_bind;
+
+pub fn test_tracing() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let _started = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .try_init();
+    });
+}
 pub(crate) mod netctl_state;
 pub mod netproxy;
 pub(crate) mod netproxy_flow;
@@ -40,6 +51,7 @@ pub mod running;
 pub mod scratch;
 pub mod serverdb;
 
+pub use capture::{ArcWriter, Capture, poll_contains};
 pub use cloud_map::{NameMap, cloud_name_matches, mapped_origin};
 pub use fake_clock::{
     ClockGone, FakeClock, advance_clock, sleep_for, sleep_until, timeout as fake_clock_timeout,
@@ -72,8 +84,8 @@ pub use origin::{
 
 pub use netctl::{
     NetMode, net_alias, net_attach, net_buffer, net_connect_tunnel, net_cut, net_cut_target,
-    net_down, net_hang_connect, net_idle_cut, net_mode, net_restore, net_restore_target, net_slow,
-    net_source_addr, net_start, net_start_raw,
+    net_down, net_hang_connect, net_idle_cut, net_mode, net_probe_open, net_restore,
+    net_restore_target, net_slow, net_source_addr, net_start, net_start_raw,
 };
 pub use ports::{bind_pair, bind_v4, bind_v6, port_is_free};
 pub use postgres::{

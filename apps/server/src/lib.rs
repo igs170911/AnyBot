@@ -1,7 +1,11 @@
+#[cfg(test)]
+use anybot_app_test as _;
 use sqlx as _;
 use std::process::ExitCode;
 #[cfg(test)]
 use test_harness as _;
+#[cfg(test)]
+use tracing as _;
 
 use tokio::net::TcpListener;
 

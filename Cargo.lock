@@ -164,6 +164,7 @@ dependencies = [
 name = "anybot-app-server"
 version = "0.1.0"
 dependencies = [
+ "anybot-app-test",
  "anybot-foundation",
  "anybot-messages",
  "anybot-server",
@@ -173,6 +174,20 @@ dependencies = [
  "sqlx",
  "test-harness",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "anybot-app-test"
+version = "0.1.0"
+dependencies = [
+ "anybot-foundation",
+ "anybot-messages",
+ "anybot-server",
+ "sqlx",
+ "test-harness",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

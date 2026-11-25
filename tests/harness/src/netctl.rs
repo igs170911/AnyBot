@@ -48,10 +48,10 @@ async fn watch_target(watched: Arc<NetCtl>, port: u16, initial: TcpListener) {
         };
         if !spec.open {
             close_listener(&watched, port).await;
-            tokio::time::sleep(Duration::from_millis(20)).await;
+            tokio::time::sleep(Duration::from_millis(2)).await;
             continue;
         }
-        let rebind = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await;
+        let rebind = crate::netctl_bind::tokio_bind(port).await;
         let Ok(proxy_listener) = rebind else {
             return;
         };
@@ -94,7 +94,7 @@ async fn accept_loop(watched: &NetCtl, port: u16, proxy_listener: TcpListener, w
         let accept = tokio::select! {
             () = wake.notified() => None,
             pair = proxy_listener.accept() => Some(pair),
-            () = tokio::time::sleep(Duration::from_millis(100)) => None,
+            () = tokio::time::sleep(Duration::from_millis(20)) => None,
         };
         let Some(Ok((stream, _peer))) = accept else {
             if watched.is_closed(port).await {
@@ -107,6 +107,89 @@ async fn accept_loop(watched: &NetCtl, port: u16, proxy_listener: TcpListener, w
             return;
         };
         netproxy::serve_target(stream, spec, kill).await;
+    }
+}
+
+pub async fn net_probe_open(ctl: &Arc<NetCtl>, proxy_port: u16) -> Result<bool, String> {
+    Ok(!ctl.is_closed(proxy_port).await)
+}
+
+pub async fn net_start_raw() -> Result<(Arc<NetCtl>, u16), String> {
+    let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+        .await
+        .map_err(|e| format!("bind raw proxy failed: {e}"))?;
+    let addr = listener
+        .local_addr()
+        .map_err(|e| format!("raw proxy local addr failed: {e}"))?;
+    let ctl = Arc::new(NetCtl::new());
+    let port = addr.port();
+    ctl.open_target(port, addr).await;
+    let watched = Arc::clone(&ctl);
+    tokio::spawn(async move { watch_raw_target(watched, port, listener).await });
+    Ok((ctl, port))
+}
+
+async fn watch_raw_target(watched: Arc<NetCtl>, port: u16, initial: TcpListener) {
+    raw_accept_loop_for(&watched, port, initial).await;
+    loop {
+        let spec = match watched.target(port).await {
+            Ok(spec) => spec,
+            Err(_gone) => return,
+        };
+        if !spec.open {
+            close_listener(&watched, port).await;
+            tokio::time::sleep(Duration::from_millis(2)).await;
+            continue;
+        }
+        let rebind = crate::netctl_bind::tokio_bind(port).await;
+        let Ok(proxy_listener) = rebind else {
+            return;
+        };
+        raw_accept_loop_for(&watched, port, proxy_listener).await;
+    }
+}
+
+async fn raw_accept_loop_for(watched: &Arc<NetCtl>, port: u16, proxy_listener: TcpListener) {
+    let wake = watched.wake_for(port).await;
+    raw_accept_loop(watched, port, proxy_listener, wake).await;
+}
+
+async fn raw_accept_loop(
+    watched: &NetCtl,
+    port: u16,
+    proxy_listener: TcpListener,
+    wake: Arc<Notify>,
+) {
+    loop {
+        let registered: Result<Arc<Notify>, String> = {
+            let mut state = watched.state.write().await;
+            let Some(entry) = state.entries.get_mut(&port) else {
+                return;
+            };
+            if !entry.open {
+                return;
+            }
+            Ok(Arc::new(Notify::new()))
+        };
+        let Ok(kill) = registered else {
+            return;
+        };
+        let accept = tokio::select! {
+            () = wake.notified() => None,
+            pair = proxy_listener.accept() => Some(pair),
+            () = tokio::time::sleep(Duration::from_millis(20)) => None,
+        };
+        let Some(Ok((stream, _peer))) = accept else {
+            if watched.is_closed(port).await {
+                return;
+            }
+            continue;
+        };
+        watched.register_kill(Arc::clone(&kill)).await;
+        let Ok(spec) = watched.target(port).await else {
+            return;
+        };
+        tokio::spawn(crate::netproxy_raw::serve_raw_target(stream, spec, kill));
     }
 }
 
