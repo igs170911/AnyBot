@@ -63,6 +63,13 @@ export async function expectNoHorizontalScroll(page: Page): Promise<void> {
   expect(overflow, "page must not overflow its viewport width").toBeLessThanOrEqual(1);
 }
 
+const WIDE_FONT_CSS =
+  "html { font-family: monospace; letter-spacing: 0.8em; word-spacing: 0.4em; }";
+
+export async function installWideFont(page: Page): Promise<void> {
+  await page.addStyleTag({ content: WIDE_FONT_CSS });
+}
+
 export function registerScenarioScreenshots(): void {
   test.afterEach(async ({ page }, testInfo) => {
     const safeTitle = testInfo.title.replaceAll(/[^A-Za-z0-9-]/g, "_");
