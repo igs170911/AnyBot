@@ -10,10 +10,12 @@ use test_harness as _;
 use tracing as _;
 
 use anybot_app_server::{Ctx, Parsed, emit, parse_launch, server_run, subcommand_plan};
-use anybot_foundation as _;
+use anybot_foundation::{self as _, ServerCommand};
 use anybot_messages as _;
 use anybot_server as _;
+use anybot_store_server as _;
 use clap as _;
+use rpassword as _;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
@@ -27,6 +29,15 @@ async fn main() -> ExitCode {
         }
         Err(failure) => return ctx.report(&failure),
     };
+    if let Some(ServerCommand::ResetPassword { account }) = &args.command {
+        return anybot_app_server::cli_reset::reset_main(
+            &args,
+            env!("CARGO_PKG_VERSION"),
+            account,
+            &mut ctx,
+        )
+        .await;
+    }
     if let Some(failure) = subcommand_plan(&args) {
         return ctx.report(&failure);
     }

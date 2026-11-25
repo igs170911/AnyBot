@@ -12,6 +12,14 @@ mod tests {
     use anybot_domain::is_valid_invite;
 
     #[test]
+    fn t_server_invite_2() {
+        for _round in 0..10_000 {
+            let code = draw_invite().unwrap();
+            assert!(is_valid_invite(&code), "bad shape: {code}");
+        }
+    }
+
+    #[test]
     fn drawn_invites_follow_the_shape() {
         for _round in 0..20 {
             let code = draw_invite().unwrap();

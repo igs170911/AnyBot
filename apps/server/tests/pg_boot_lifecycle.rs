@@ -13,8 +13,10 @@ use anybot_server::{
     DEFAULT_PORT, Pool, ServerConfig, boot, product_migrations, read_config_rows, set_config_rows,
     write_config_row,
 };
+use anybot_store_server as _;
 use axum as _;
 use clap as _;
+use rpassword as _;
 use serde_json as _;
 use sqlx as _;
 use test_harness as _;

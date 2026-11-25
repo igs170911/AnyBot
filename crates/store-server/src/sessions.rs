@@ -1,6 +1,5 @@
 use crate::Pool;
 
-
 #[derive(Debug)]
 pub struct SessionRow {
     pub id: String,

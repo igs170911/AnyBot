@@ -1,7 +1,4 @@
-use sqlx::Row;
-
 use crate::Pool;
-
 
 #[derive(Debug)]
 pub struct AccountRow {
@@ -10,6 +7,7 @@ pub struct AccountRow {
     pub admin: bool,
     pub disabled: bool,
     pub created_at_ms: i64,
+    pub last_password_at_ms: i64,
 }
 
 pub async fn insert_account(
@@ -34,7 +32,7 @@ pub async fn insert_account(
 
 pub async fn find_account(pool: &Pool, account: &str) -> Result<Option<AccountRow>, sqlx::Error> {
     let row = sqlx::query!(
-        "SELECT account, password_hash, admin, disabled, created_at_ms \
+        "SELECT account, password_hash, admin, disabled, created_at_ms, last_password_at_ms \
          FROM accounts WHERE account = $1",
         account,
     )
@@ -49,6 +47,7 @@ pub async fn find_account(pool: &Pool, account: &str) -> Result<Option<AccountRo
         admin: row.admin,
         disabled: row.disabled,
         created_at_ms: row.created_at_ms,
+        last_password_at_ms: row.last_password_at_ms,
     }))
 }
 
@@ -80,9 +79,17 @@ pub async fn set_disabled(pool: &Pool, account: &str, disabled: bool) -> Result<
     Ok(())
 }
 
+pub async fn account_count(pool: &Pool) -> Result<i64, sqlx::Error> {
+    let row = sqlx::query!("SELECT count(*) AS total FROM accounts")
+        .fetch_one(pool)
+        .await?;
+    row.total
+        .ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
+}
+
 pub async fn list_accounts(pool: &Pool) -> Result<Vec<AccountRow>, sqlx::Error> {
     let rows = sqlx::query!(
-        "SELECT account, password_hash, admin, disabled, created_at_ms \
+        "SELECT account, password_hash, admin, disabled, created_at_ms, last_password_at_ms \
          FROM accounts ORDER BY created_at_ms",
     )
     .fetch_all(pool)
@@ -95,6 +102,7 @@ pub async fn list_accounts(pool: &Pool) -> Result<Vec<AccountRow>, sqlx::Error> 
             admin: row.admin,
             disabled: row.disabled,
             created_at_ms: row.created_at_ms,
+            last_password_at_ms: row.last_password_at_ms,
         });
     }
     Ok(out)

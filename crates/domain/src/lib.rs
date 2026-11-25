@@ -2,13 +2,12 @@ use serde_json as _;
 
 #[cfg(test)]
 use serde_json as _;
+pub mod account_name;
 pub mod goal_brake;
 pub mod goal_followup;
 pub mod invite;
-pub mod account_name;
 pub mod session_term;
 pub mod source_addr;
-pub mod window;
 pub mod task_attention;
 pub mod task_budget;
 pub mod task_effects;
@@ -22,6 +21,7 @@ pub mod task_journal;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
+pub mod window;
 
 pub use anybot_protocol::TaskStatus;
 pub use invite::{INVITE_ALPHABET, alphabet_len, format_invite, is_valid_invite};

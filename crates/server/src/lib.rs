@@ -6,14 +6,28 @@ use anybot_foundation::{Clock, TimestampMs};
 use anybot_protocol::RunEvent;
 use serde_json as _;
 
+pub mod api_account;
+pub mod api_admin;
+pub mod api_admin_accounts;
+pub mod api_ops;
+pub mod api_register;
 pub mod app;
 pub mod boot;
+pub mod caller;
 pub mod config;
 pub mod health;
+pub mod hex;
+pub mod idem;
 pub mod invite;
+pub mod limits;
 pub mod openapi;
+pub mod pass_hash;
+pub mod problems;
+pub mod req_source;
+pub mod req_write;
 pub mod run;
 pub mod serve_all;
+pub mod session_key;
 pub mod startup;
 pub mod status;
 

@@ -22,10 +22,11 @@ pub fn source_address(
 ) -> String {
     let trusting = trust_proxy.is_some_and(|proxy| proxy == peer);
     let secret_passes = !secret_configured || proxy_secret_ok;
-    if trusting && secret_passes {
-        if let Some(value) = forwarded.and_then(last_forwarded_value) {
-            return value;
-        }
+    if trusting
+        && secret_passes
+        && let Some(value) = forwarded.and_then(last_forwarded_value)
+    {
+        return value;
     }
     peer.to_owned()
 }

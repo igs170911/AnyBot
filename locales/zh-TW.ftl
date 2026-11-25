@@ -77,6 +77,7 @@ account-exists-reset = 伺服器上已經有這個帳號；忘記密碼請找伺
 account-login-credentials = 帳號或密碼不對
 account-login-disabled = 這個帳號已被伺服器管理員停用
 account-login-rate = 密碼錯太多次，請 5 分鐘後再試
+account-password-rate = 改密碼嘗試太多次，請 5 分鐘後再試
 account-password-old-wrong = 目前的密碼不對
 account-password-new-short = 新密碼至少 8 個字
 account-admin-only = 只有伺服器管理員能做這件事

@@ -76,6 +76,7 @@ account-exists-reset = This account already exists on the server; if you forgot 
 account-login-credentials = Wrong account or password
 account-login-disabled = This account has been disabled by the server admin
 account-login-rate = Too many wrong passwords; try again in 5 minutes
+account-password-rate = Too many password change attempts; try again in 5 minutes
 account-password-old-wrong = The current password is wrong
 account-password-new-short = The new password must be at least 8 characters
 account-admin-only = Only the server admin can do this

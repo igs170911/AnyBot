@@ -7,6 +7,8 @@ use tracing as _;
 
 use test_harness::{Program, Running, migration_fixture, pg_start, pg_stop};
 
+pub mod http;
+pub mod serve;
 pub mod serverdb;
 
 pub use serverdb::{ServerDb, db_start};

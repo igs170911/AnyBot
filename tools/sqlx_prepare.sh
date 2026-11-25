@@ -25,9 +25,9 @@ done
 db_url="$(cat "$url_file")"
 
 if [ "$mode" = "check" ]; then
-  SQLX_OFFLINE= DATABASE_URL="$db_url" "$cargo" sqlx prepare --workspace --all --check -- --all-targets
+  SQLX_OFFLINE=false DATABASE_URL="$db_url" "$cargo" sqlx prepare --workspace --all --check -- --all-targets
 else
-  SQLX_OFFLINE= DATABASE_URL="$db_url" "$cargo" sqlx prepare --workspace --all -- --all-targets
+  SQLX_OFFLINE=false DATABASE_URL="$db_url" "$cargo" sqlx prepare --workspace --all -- --all-targets
   "$pnpm" exec biome format --write "$root/.sqlx"
 fi
 

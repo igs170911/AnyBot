@@ -168,8 +168,10 @@ dependencies = [
  "anybot-foundation",
  "anybot-messages",
  "anybot-server",
+ "anybot-store-server",
  "axum",
  "clap",
+ "rpassword",
  "serde_json",
  "sqlx",
  "test-harness",
@@ -184,6 +186,9 @@ dependencies = [
  "anybot-foundation",
  "anybot-messages",
  "anybot-server",
+ "axum",
+ "reqwest 0.12.28",
+ "serde_json",
  "sqlx",
  "test-harness",
  "tokio",
@@ -346,18 +351,24 @@ dependencies = [
  "anybot-channels",
  "anybot-domain",
  "anybot-foundation",
+ "anybot-messages",
  "anybot-protocol",
  "anybot-store-server",
  "argon2",
  "axum",
  "getrandom 0.4.3",
+ "rand_core 0.6.4",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "socket2",
+ "sqlx",
  "test-harness",
  "time",
  "tokio",
+ "url",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
@@ -3995,6 +4006,9 @@ name = "rand_core"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+dependencies = [
+ "getrandom 0.2.17",
+]
 
 [[package]]
 name = "rand_core"
@@ -4265,6 +4279,27 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "rpassword"
+version = "7.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa2c5d9304b618df61ff17f3d3485c6e1854a3d94902a49abbb8d43dfbe0464"
+dependencies = [
+ "libc",
+ "rtoolbox",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rtoolbox"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a1efe12a1469752d0e6ff5ebec0b6ef4924cc5c4c71046b0ec730040535819d"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -42,6 +42,7 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
             "blob",
             "bus",
             "channels",
+            "messages",
         ],
     );
     add(

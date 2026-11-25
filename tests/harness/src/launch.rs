@@ -1,3 +1,4 @@
+use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -53,6 +54,12 @@ impl Program {
         cmd
     }
 
+    fn build_command_piped_stdin(&self, dir: &Path) -> Command {
+        let mut cmd = self.build_command(dir);
+        cmd.stdin(Stdio::piped());
+        cmd
+    }
+
     #[must_use]
     pub fn label(&self) -> String {
         format!("{} {:?}", self.path.display(), self.args)
@@ -68,6 +75,47 @@ pub struct Outcome {
 
 pub fn run_program(program: &Program, dir: &Path) -> Result<Outcome, String> {
     run_program_with(program, dir, |_| Ok(()))
+}
+
+pub fn run_program_stdin(
+    program: &Program,
+    dir: &Path,
+    stdin_text: &str,
+) -> Result<Outcome, String> {
+    let mut sent = false;
+    let payload = stdin_text.to_owned();
+    let mut child = program
+        .build_command_piped_stdin(dir)
+        .spawn()
+        .map_err(|e| format!("start {} failed: {e}", program.label()))?;
+    let pid = child.id();
+    let out_rx = spawn_reader(child.stdout.take(), "stdout", program.label());
+    let err_rx = spawn_reader(child.stderr.take(), "stderr", program.label());
+    let Some(deadline) = Instant::now().checked_add(program.timeout) else {
+        return Err("launch deadline overflow".to_owned());
+    };
+    let mut observe = |kid: &mut std::process::Child| -> Result<(), String> {
+        if sent {
+            return Ok(());
+        }
+        sent = true;
+        let pipe = kid.stdin.as_mut().ok_or("no stdin pipe".to_owned())?;
+        pipe.write_all(payload.as_bytes())
+            .map_err(|e| format!("write stdin PID {pid}: {e}"))?;
+        pipe.flush()
+            .map_err(|e| format!("flush stdin PID {pid}: {e}"))?;
+        Ok(())
+    };
+    let poll = exit_poll(&mut child, pid, program, deadline, &mut observe)?;
+    let code = exit_code(&poll)?;
+    let stdout = collect_stream(&out_rx, program.timeout)?;
+    let stderr = collect_stream(&err_rx, program.timeout)?;
+    let _result = finish_poll(poll);
+    Ok(Outcome {
+        code,
+        stdout,
+        stderr,
+    })
 }
 
 pub fn run_program_with(

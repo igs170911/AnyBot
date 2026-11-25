@@ -1,5 +1,17 @@
 use crate::Pool;
 
+pub async fn read_config_value(pool: &Pool, key: &str) -> Result<Option<String>, sqlx::Error> {
+    let rows = read_config_rows(pool).await?;
+    Ok(rows
+        .into_iter()
+        .find(|(stored, _)| stored == key)
+        .map(|(_, value)| value))
+}
+
+pub async fn write_config_value(pool: &Pool, key: &str, value: &str) -> Result<(), sqlx::Error> {
+    write_config_row(pool, key, value).await
+}
+
 pub async fn read_config_rows(pool: &Pool) -> Result<Vec<(String, String)>, sqlx::Error> {
     let rows = sqlx::query!("SELECT key, value FROM server_config ORDER BY key")
         .fetch_all(pool)

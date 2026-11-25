@@ -81,6 +81,7 @@ pub enum MessageCode {
     AccountLoginCredentials,
     AccountLoginDisabled,
     AccountLoginRate,
+    AccountPasswordRate,
     AccountPasswordOldWrong,
     AccountPasswordNewShort,
     AccountAdminOnly,
@@ -246,6 +247,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     ),
     (MessageCode::AccountLoginDisabled, "account-login-disabled"),
     (MessageCode::AccountLoginRate, "account-login-rate"),
+    (MessageCode::AccountPasswordRate, "account-password-rate"),
     (
         MessageCode::AccountPasswordOldWrong,
         "account-password-old-wrong",

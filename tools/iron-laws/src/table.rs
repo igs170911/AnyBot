@@ -65,6 +65,7 @@ pub fn package_of_path(path: &str) -> Option<String> {
         ("apps", Some(_) | None) => Some(format!("anybot-app-{dir}")),
         ("tools", Some(_) | None) => Some(dir.to_owned()),
         ("tests", Some(_)) if dir == "harness" => Some("test-harness".to_owned()),
+        ("tests", Some(_)) if dir == "app-test" => Some("anybot-app-test".to_owned()),
         ("tests", Some(_)) if dir == "live-model" => Some("live-model".to_owned()),
         _ => None,
     }

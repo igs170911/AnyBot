@@ -15,6 +15,8 @@ use tracing as _;
 use anybot_app_test::{ServerDb, ServerProgram, db_start, english};
 use anybot_messages as _;
 use anybot_messages::{Catalog, MessageCode, Params};
+use anybot_store_server as _;
+use rpassword as _;
 
 use test_harness::{
     Outcome, Running, http_get, pg_stop, run_program, test_dir, write_file_with_mode,

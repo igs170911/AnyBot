@@ -78,6 +78,7 @@ export type MessageCode =
   "account-login-credentials" |
   "account-login-disabled" |
   "account-login-rate" |
+  "account-password-rate" |
   "account-password-old-wrong" |
   "account-password-new-short" |
   "account-admin-only" |
@@ -168,6 +169,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "account-login-credentials",
   "account-login-disabled",
   "account-login-rate",
+  "account-password-rate",
   "account-password-old-wrong",
   "account-password-new-short",
   "account-admin-only",

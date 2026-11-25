@@ -49,6 +49,12 @@ fn fill_client_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<Strin
         &[CMD_T[0], CMD_T[1], FS_T[0], FS_T[1], FS_T[2], FS_T[3]],
     );
     insert(m, "live-model", &merge(&[&HTTP_M, &FS_M]), &FS_T);
+    insert(
+        m,
+        "anybot-app-test",
+        &merge(&[&PROC_M, &HTTP_M, &FS_M, &TIME_M]),
+        &[CMD_T[0], CMD_T[1], FS_T[0], FS_T[1], FS_T[2], FS_T[3]],
+    );
 }
 
 fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>>>) {

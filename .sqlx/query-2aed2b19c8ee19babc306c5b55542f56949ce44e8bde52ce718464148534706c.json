@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT account, password_hash, admin, disabled, created_at_ms FROM accounts WHERE account = $1",
+  "query": "SELECT account, password_hash, admin, disabled, created_at_ms, last_password_at_ms FROM accounts WHERE account = $1",
   "describe": {
     "columns": [
       {
@@ -57,12 +57,23 @@
             "name": "created_at_ms"
           }
         }
+      },
+      {
+        "ordinal": 5,
+        "name": "last_password_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "accounts",
+            "name": "last_password_at_ms"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": ["Text"]
     },
-    "nullable": [false, false, false, false, false]
+    "nullable": [false, false, false, false, false, false]
   },
-  "hash": "420b850ca2d1b8ea1072f0e5e9a53373927719c35eda725fe4be6f262a1c24e0"
+  "hash": "2aed2b19c8ee19babc306c5b55542f56949ce44e8bde52ce718464148534706c"
 }

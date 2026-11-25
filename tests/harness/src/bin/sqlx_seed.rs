@@ -2,6 +2,7 @@
 
 use aes_gcm as _;
 use anybot_foundation as _;
+
 use axum as _;
 use base64 as _;
 use bytes as _;
@@ -32,7 +33,9 @@ async fn seed(url_file: &PathBuf, pid_file: &PathBuf) -> Result<(), String> {
     let pg = pg_start(&dir).await?;
     pg.create_database("anybot_prepare").await?;
     let url = pg.url_for("anybot_prepare");
-    let pool = sqlx::PgPool::connect(&url).await.map_err(|e| e.to_string())?;
+    let pool = sqlx::PgPool::connect(&url)
+        .await
+        .map_err(|e| e.to_string())?;
     let migrations = repo_root().join("migrations").join("server");
     let migrator = Migrator::new(migrations).await.map_err(|e| e.to_string())?;
     migrator.run(&pool).await.map_err(|e| e.to_string())?;
@@ -55,10 +58,21 @@ async fn main() -> Result<(), String> {
 }
 
 fn flag_path(argv: &[String], name: &str) -> Result<PathBuf, String> {
-    let slot = argv
-        .iter()
-        .position(|arg| arg == name)
-        .ok_or(format!("missing {name}"))?;
-    let value = argv.get(slot + 1).ok_or(format!("missing value for {name}"))?;
-    Ok(PathBuf::from(value))
+    let mut seen = false;
+    for arg in argv {
+        if seen {
+            return Ok(PathBuf::from(arg));
+        }
+        if arg == name {
+            seen = true;
+        }
+    }
+    Err(format!("missing value for {name}"))
+}
+
+#[cfg(test)]
+mod link_dev_deps {
+    use anybot_store_server as _;
+    use sad_web_push as _;
+    use sqlx as _;
 }

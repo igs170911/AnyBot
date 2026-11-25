@@ -196,7 +196,7 @@ pub async fn serve_main(args: &ServerLaunchArgs, version: &str, ctx: &mut Ctx) -
     serve_exit_stoppable(&mut ctx.catalog, listeners, app, shutdown).await
 }
 
-fn messages_exit(ctx: &mut Ctx, err: &str) -> ExitCode {
+pub fn messages_exit(ctx: &mut Ctx, err: &str) -> ExitCode {
     let _result = emit(err, &mut ctx.stderr);
     ExitCode::from(3)
 }

@@ -62,6 +62,7 @@ async fn serve_one(
     app: Router,
     shutdown: Option<Arc<Notify>>,
 ) -> Result<(), std::io::Error> {
+    let app = app.into_make_service_with_connect_info::<std::net::SocketAddr>();
     let Some(notify) = shutdown else {
         return axum::serve(listener, app).await;
     };

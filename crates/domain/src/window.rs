@@ -5,7 +5,10 @@ pub fn count_in_window(events: &[u64], now_ms: u64, span_ms: u64) -> usize {
     let Some(floor) = now_ms.checked_sub(span_ms) else {
         return events.len();
     };
-    events.iter().filter(|at| **at > floor && **at <= now_ms).count()
+    events
+        .iter()
+        .filter(|at| **at > floor && **at <= now_ms)
+        .count()
 }
 
 #[must_use]
@@ -24,9 +27,10 @@ mod tests {
 
     #[test]
     fn window_counts_only_recent_events() {
-        let events = [100, 200_000, 299_999];
-        assert_eq!(count_in_window(&events, 300_000, 300_000), 2);
-        assert_eq!(five_minute_count(&events, 300_000), 2);
+        let events = [100_000, 200_001, 299_999];
+        assert_eq!(count_in_window(&events, 300_000, 100_000), 2);
+        assert_eq!(five_minute_count(&[0, 100, 200_000, 299_999], 300_000), 3);
+        assert_eq!(count_in_window(&events, 300_000, 100_001), 2);
     }
 
     #[test]

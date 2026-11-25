@@ -20,6 +20,7 @@ use clap::{CommandFactory, Parser};
 use axum as _;
 
 pub mod bridge;
+pub mod cli_reset;
 pub mod line_out;
 pub mod server_run;
 
