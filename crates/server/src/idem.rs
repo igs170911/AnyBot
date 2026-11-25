@@ -5,6 +5,8 @@ use sha2::{Digest, Sha256};
 
 use anybot_store_server::{Pool, idempotency};
 
+use crate::req_write::{CallerDenied, internal_detail};
+
 pub const IDEMPOTENCY_HEADER: HeaderName = HeaderName::from_static("idempotency-key");
 pub const IDEMPOTENCY_RETENTION_MS: u64 = 7 * 24 * 3600 * 1000;
 
@@ -22,11 +24,12 @@ pub fn request_scope(method: &Method, path: &str, identity: &str) -> String {
     format!("{identity}|{method}|{path}")
 }
 
-#[must_use]
-pub fn strip_secrets(body: &[u8]) -> Vec<u8> {
-    let parsed: Value = serde_json::from_slice(body).unwrap_or(Value::Null);
+#[must_use = "the bytes are consumed by the caller"]
+pub fn strip_secrets(body: &[u8]) -> Result<Vec<u8>, CallerDenied> {
+    let parsed: Value =
+        serde_json::from_slice(body).map_err(|_| internal_detail("unparsable body"))?;
     let cleaned = strip_value(&parsed);
-    serde_json::to_vec(&cleaned).unwrap_or_default()
+    serde_json::to_vec(&cleaned).map_err(|_| internal_detail("body reformat"))
 }
 
 fn strip_value(value: &Value) -> Value {
@@ -59,9 +62,16 @@ pub fn body_digest(body: &[u8]) -> String {
     crate::hex::to_hex(&out)
 }
 
-#[must_use]
-pub fn safe_digest(body: &[u8]) -> String {
-    body_digest(&strip_secrets(body))
+#[must_use = "the digest is consumed by the caller"]
+pub fn safe_digest(body: &[u8]) -> Result<String, CallerDenied> {
+    Ok(body_digest(&strip_secrets(body)?))
+}
+
+pub fn replay_value(body: &str) -> Result<Value, CallerDenied> {
+    if body == DID_IT_BODY {
+        return Ok(Value::Object(serde_json::Map::new()));
+    }
+    serde_json::from_str(body).map_err(|_| internal_detail("stored body damaged"))
 }
 
 pub async fn find_recorded(
@@ -120,7 +130,7 @@ mod tests {
     fn t_conn_post_1() {
         let with = br#"{"account":"bob","password":"secret12345"}"#;
         let without = br#"{"account":"bob"}"#;
-        assert_eq!(safe_digest(with), safe_digest(without));
+        assert_eq!(safe_digest(with).unwrap(), safe_digest(without).unwrap());
     }
 
     #[test]

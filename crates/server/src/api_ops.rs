@@ -166,10 +166,10 @@ pub async fn guard_replay(
         .map_err(internal_sqlx)?;
     match stored {
         None => Ok(None),
-        Some(record) if record.request_hash == crate::idem::safe_digest(raw) => {
+        Some(record) if record.request_hash == crate::idem::safe_digest(raw)? => {
             let raw = u16::try_from(record.status_code).map_err(internal_text)?;
             let status = StatusCode::from_u16(raw).map_err(internal_text)?;
-            let value = replay_value(&record.body)?;
+            let value = crate::idem::replay_value(&record.body)?;
             Ok(Some(json_response(status, value)))
         }
         Some(_) => Err(denied(
@@ -177,13 +177,6 @@ pub async fn guard_replay(
             MessageCode::AccountIdempotencyConflict,
         )),
     }
-}
-
-fn replay_value(body: &str) -> Result<serde_json::Value, CallerDenied> {
-    if body == crate::idem::DID_IT_BODY {
-        return Ok(serde_json::json!({}));
-    }
-    serde_json::from_str(body).map_err(internal_text)
 }
 
 pub async fn record(

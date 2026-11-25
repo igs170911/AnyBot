@@ -43,7 +43,7 @@ impl Modify for BearerAuth {
         crate::api_admin::set_public_url,
         crate::api_admin_accounts::disable_account,
         crate::api_admin_accounts::enable_account,
-        crate::api_admin_accounts::reset_password,
+        crate::api_admin_reset::reset_password,
     ),
     components(schemas(
         crate::health::HealthResponse,

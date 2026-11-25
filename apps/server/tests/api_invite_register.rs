@@ -232,3 +232,38 @@ async fn t_account_login_3() -> Result<(), String> {
     served.stop().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn t_account_login_1() -> Result<(), String> {
+    let served = serve_start("t_account_login_1").await?;
+    let invite = served
+        .started
+        .new_invite
+        .clone()
+        .clone()
+        .ok_or("fresh boot must draw an invite".to_owned())?;
+    let base = served.base_url();
+    let registered = post(
+        &base,
+        "/v1/account/register",
+        &register_body("Bob", "longenough", &invite, "k-bob-reg"),
+    )
+    .await?;
+    assert_eq!(registered.status, 201);
+    let stored = anybot_store_server::accounts::find_account(&served.pool, "bob")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(stored.is_some(), "register must store the normalized name");
+    let logged = post(
+        &base,
+        "/v1/account/login",
+        &RequestSpec::new(
+            &json!({"account": "Bob", "password": "longenough", "label": "d1"}).to_string(),
+        )
+        .with_key("k-bob-login"),
+    )
+    .await?;
+    assert_eq!(logged.status, 200, "body: {}", logged.json);
+    served.stop().await?;
+    Ok(())
+}

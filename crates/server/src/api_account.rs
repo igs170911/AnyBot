@@ -12,7 +12,7 @@ use crate::api_login_flow::{open_session, slow_fail, verify_password};
 use crate::api_register::status_from_i32;
 use crate::app::AppState;
 use crate::caller::CallerDenied;
-use crate::idem::{DID_IT_BODY, find_recorded, request_scope, safe_digest};
+use crate::idem::{DID_IT_BODY, find_recorded, replay_value, request_scope, safe_digest};
 use crate::limits::Limiter;
 use crate::problems;
 use crate::req_write::{
@@ -121,7 +121,7 @@ async fn run_login(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
         row.as_ref(),
         &Secret::from_untrusted(run.body.password.clone()),
     )
-    .await;
+    .await?;
     if !verified || row.is_none() {
         return rejected(run).await;
     }
@@ -231,11 +231,15 @@ pub async fn guard_idem(
         .map_err(internal_sqlx)?;
     match stored {
         None => Ok(Guard::Fresh),
-        Some(record) if record.request_hash == safe_digest(raw) => Ok(Guard::Replay(
-            status_from_i32(record.status_code)?,
-            serde_json::from_str(&record.body).unwrap_or(serde_json::Value::Null),
-            record.body == DID_IT_BODY,
-        )),
+        Some(record) if record.request_hash == safe_digest(raw)? => {
+            let marker = record.body == DID_IT_BODY;
+            let value = replay_value(&record.body)?;
+            Ok(Guard::Replay(
+                status_from_i32(record.status_code)?,
+                value,
+                marker,
+            ))
+        }
         Some(_) => Err(denied(
             StatusCode::CONFLICT,
             MessageCode::AccountIdempotencyConflict,

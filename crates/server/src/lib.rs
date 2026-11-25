@@ -9,6 +9,7 @@ use serde_json as _;
 pub mod api_account;
 pub mod api_admin;
 pub mod api_admin_accounts;
+pub mod api_admin_reset;
 pub mod api_login_flow;
 pub mod api_ops;
 pub mod api_ops_session;
@@ -35,8 +36,9 @@ pub mod startup;
 pub mod status;
 
 pub use anybot_store_server::{
-    Migrator, Pool, SchemaError, ensure_schema, open_lazy, open_url, probe, probe_pool,
-    product_migrations, read_config_rows, set_config_rows, write_config_row,
+    Migrator, Pool, SchemaError, ensure_schema, max_applied_version, min_applied_version,
+    open_lazy, open_url, probe, probe_pool, product_migrations, read_config_rows, set_config_rows,
+    write_config_row,
 };
 pub use app::{AppState, build_router};
 pub use boot::{BootError, Started, boot};

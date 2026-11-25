@@ -9,7 +9,8 @@ use anybot_store_server::Pool;
 
 use crate::api_account::login;
 use crate::api_admin::{invite, rotate_invite, set_public_url};
-use crate::api_admin_accounts::{disable_account, enable_account, reset_password};
+use crate::api_admin_accounts::{disable_account, enable_account};
+use crate::api_admin_reset::reset_password;
 use crate::api_ops::change_password;
 use crate::api_ops_session::{logout, logout_all};
 use crate::api_register::register;

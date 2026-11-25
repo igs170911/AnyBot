@@ -90,24 +90,24 @@ pub fn peer_address(request: &Request) -> Result<String, CallerDenied> {
         .ok_or_else(|| internal_detail("missing connect info"))
 }
 
-pub fn path_account(request: &Request) -> String {
-    request
+pub fn path_account(request: &Request) -> Result<String, CallerDenied> {
+    let tail = request
         .uri()
         .path()
         .rsplit('/')
         .nth(1)
-        .unwrap_or_default()
-        .to_owned()
+        .ok_or_else(|| internal_detail("missing path account"))?;
+    Ok(tail.to_owned())
 }
 
-pub fn path_tail(request: &Request) -> String {
-    request
+pub fn path_tail(request: &Request) -> Result<String, CallerDenied> {
+    let tail = request
         .uri()
         .path()
         .rsplit('/')
         .next()
-        .unwrap_or_default()
-        .to_owned()
+        .ok_or_else(|| internal_detail("missing path tail"))?;
+    Ok(tail.to_owned())
 }
 
 pub fn request_address(request: &Request, state: &AppState) -> Result<String, CallerDenied> {
@@ -166,7 +166,7 @@ pub async fn record_outcome(
         pool,
         rec.key,
         rec.scope,
-        &crate::idem::safe_digest(rec.raw),
+        &crate::idem::safe_digest(rec.raw)?,
         rec.status.as_u16(),
         &body_text,
         at_ms,

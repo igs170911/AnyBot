@@ -41,7 +41,7 @@ pub fn connect_retry_line(bootstrap: &ServerBootstrap, reason: &str) -> MessageR
     MessageRef::new(CODE_SERVER_DB_CONNECT_RETRY)
         .with_text("db_host", &bootstrap.host)
         .with_text("reason", reason)
-        .with_int("seconds", i64::try_from(CONNECT_RETRY_SECONDS).unwrap_or(5))
+        .with_int("seconds", CONNECT_RETRY_SECONDS.cast_signed())
 }
 
 pub async fn boot_database(

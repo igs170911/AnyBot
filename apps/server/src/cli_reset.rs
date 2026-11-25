@@ -9,7 +9,8 @@ use anybot_store_server::{Pool, accounts, sessions};
 
 use crate::Ctx;
 use crate::line_out::emit;
-use crate::server_run::{boot_plan, connect_plan, messages_exit};
+use crate::server_run::{connect_plan, messages_exit};
+use anybot_store_server::max_applied_version;
 
 pub const MIN_PASSWORD_CHARS: usize = 8;
 
@@ -24,6 +25,25 @@ pub enum ResetFailure {
     Report(String),
     Prompt(String),
     Message(&'static str),
+}
+
+async fn schema_gate(pool: &Pool, version: &str, ctx: &mut Ctx) -> Option<ExitCode> {
+    let expected = anybot_server::product_migrations()
+        .migrations
+        .last()
+        .map(|migration| migration.version);
+    let low = expected?;
+    let applied = max_applied_version(pool).await;
+    let report = match applied {
+        Ok(value) if value == low => return None,
+        Ok(value) if value < low => {
+            format!("schema too old for version {version}: applied {value}")
+        }
+        Ok(value) => format!("schema newer than version {version}: applied {value}"),
+        Err(err) => format!("schema check failed: {err}"),
+    };
+    let _printed = emit(&report, &mut ctx.stderr);
+    Some(ExitCode::from(3))
 }
 
 pub async fn reset_main(
@@ -42,11 +62,9 @@ pub async fn reset_main(
         Ok(pool) => pool,
         Err(err) => return messages_exit(ctx, &err),
     };
-    let started = match boot_plan(&pool, version, &startup.bootstrap, ctx).await {
-        Ok(started) => started,
-        Err(code) => return code,
-    };
-    ctx.set_lang(&started.config.language);
+    if let Some(code) = schema_gate(&pool, version, ctx).await {
+        return code;
+    }
     match reset_account(ctx, &pool, account).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(ResetFailure::Report(reason)) => {

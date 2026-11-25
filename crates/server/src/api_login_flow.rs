@@ -6,7 +6,7 @@ use anybot_store_server::{Pool, accounts, sessions};
 use crate::app::AppState;
 use crate::caller::CallerDenied;
 use crate::pass_hash::key_digest;
-use crate::req_write::{internal_sqlx, internal_text};
+use crate::req_write::{internal_detail, internal_sqlx, internal_text};
 
 const LOGIN_DELAY_MS: u64 = 500;
 
@@ -14,17 +14,13 @@ pub(crate) async fn verify_password(
     state: &AppState,
     row: Option<&accounts::AccountRow>,
     password: &Secret,
-) -> bool {
-    let Ok(hasher) = state.pass_hasher().await else {
-        return false;
-    };
+) -> Result<bool, CallerDenied> {
+    let hasher = state.pass_hasher().await.map_err(|e| internal_detail(&e))?;
     match row {
-        Some(row) => hasher
-            .verify(password, &row.password_hash)
-            .await
-            .unwrap_or(false),
-        None => hasher.verify_dummy(password).await.unwrap_or(false),
+        Some(row) => hasher.verify(password, &row.password_hash).await,
+        None => hasher.verify_dummy(password).await,
     }
+    .map_err(|e| internal_detail(&e))
 }
 
 pub(crate) async fn open_session(

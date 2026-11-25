@@ -17,7 +17,9 @@ pub use config::{
 };
 pub use connect::{open_lazy, open_url, open_url_lazy, options, pool_options, probe, probe_pool};
 pub use migrate::{Migrator, SchemaError, ensure_schema, product_migrations};
-pub use rows::{account_count, public_tables, schema_marker_present};
+pub use rows::{
+    account_count, max_applied_version, min_applied_version, public_tables, schema_marker_present,
+};
 
 pub type Pool = sqlx::PgPool;
 
