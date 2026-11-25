@@ -215,3 +215,71 @@ async fn bob_admin_checks(
     );
     Ok(())
 }
+
+const SCAN_PASSWORDS: [&str; 5] = [
+    "alicepassword",
+    "bobpassword",
+    "brandnew2233",
+    "sunny2233",
+    "hunter2password",
+];
+
+#[tokio::test]
+async fn idempotency_records_hold_no_secrets() -> Result<(), String> {
+    let served = serve_start_real("idem_no_secrets").await?;
+    let base = served.base_url();
+    let invite = invite_of(&served.started)?;
+    assert_eq!(
+        register(&base, "alice", "alicepassword", &invite, "k-a").await?,
+        201
+    );
+    assert_eq!(
+        register(&base, "bob", "bobpassword", &invite, "k-b").await?,
+        201
+    );
+    let alice_bearer = bearer_of(&served, "alice", "alicepassword", "k-alice").await?;
+    let change = post(
+        &base,
+        "/v1/account/password",
+        &RequestSpec::new(&json!({"old": "alicepassword", "new": "brandnew2233"}).to_string())
+            .with_bearer(&alice_bearer)
+            .with_key("k-change"),
+    )
+    .await?;
+    assert_eq!(change.status, 200, "change body {0}", change.json);
+    let reset = admin_post(
+        &base,
+        "/v1/admin/accounts/bob/reset-password",
+        &alice_bearer,
+        &json!({"new": "sunny2233"}).to_string(),
+        "k-reset",
+    )
+    .await?;
+    assert_eq!(reset.status, 200, "reset body {0}", reset.json);
+    let rows = sqlx::query!("SELECT key, request_hash, status_code, body FROM idempotency")
+        .fetch_all(&served.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(
+        !rows.is_empty(),
+        "the flows above must record idempotency rows"
+    );
+    for row in rows {
+        let line = format!("{}{}{}", row.key, row.request_hash, row.body);
+        for secret in SCAN_PASSWORDS {
+            assert!(
+                !line.contains(secret),
+                "record {} holds a password",
+                row.key
+            );
+        }
+        assert!(!line.contains("argon2"), "record {} holds a hash", row.key);
+        assert!(
+            !line.contains(&alice_bearer),
+            "record {} holds a session key",
+            row.key
+        );
+    }
+    served.stop().await?;
+    Ok(())
+}

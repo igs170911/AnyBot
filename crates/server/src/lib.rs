@@ -16,6 +16,7 @@ pub mod api_register;
 pub mod app;
 pub mod boot;
 pub mod caller;
+pub mod cleanup;
 pub mod config;
 pub mod health;
 pub mod hex;

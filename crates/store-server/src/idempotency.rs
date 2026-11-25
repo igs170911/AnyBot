@@ -65,3 +65,14 @@ pub async fn prune_idempotency_before(pool: &Pool, floor_ms: i64) -> Result<u64,
         .await?;
     Ok(result.rows_affected())
 }
+
+pub async fn count_idempotency_key(pool: &Pool, key: &str) -> Result<i64, sqlx::Error> {
+    let row = sqlx::query!(
+        "SELECT count(*) AS total FROM idempotency WHERE key = $1",
+        key,
+    )
+    .fetch_one(pool)
+    .await?;
+    row.total
+        .ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
+}

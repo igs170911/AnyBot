@@ -207,7 +207,15 @@ pub async fn stage_serve(
     let clock = Arc::new(SystemClock);
     let state = AppState::with_pool(version, clock, pool, started.config);
     let shutdown = Arc::clone(&state.shutdown);
+    let cleanup = anybot_server::cleanup::cleanup_loop(
+        state
+            .pool()
+            .ok_or(messages_exit(ctx, "no pool for cleanup"))?,
+        Arc::clone(&state.clock),
+        Arc::clone(&shutdown),
+    );
     let app = build_router(state);
+    drop(cleanup);
     Ok(StagedServing {
         listeners,
         app,

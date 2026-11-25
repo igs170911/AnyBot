@@ -181,3 +181,14 @@ pub async fn drop_attempt(pool: &Pool, id: i64) -> Result<(), sqlx::Error> {
         .await?;
     Ok(())
 }
+
+pub async fn count_auth_event_id(pool: &Pool, id: i64) -> Result<i64, sqlx::Error> {
+    let row = sqlx::query!(
+        "SELECT count(*) AS total FROM auth_events WHERE id = $1",
+        id,
+    )
+    .fetch_one(pool)
+    .await?;
+    row.total
+        .ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
+}

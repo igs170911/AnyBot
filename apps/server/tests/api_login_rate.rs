@@ -212,3 +212,56 @@ fn median(values: &[u128]) -> Result<u128, String> {
         .copied()
         .ok_or(format!("no median at {mid}"))
 }
+
+const CLEANUP_TICKS: u64 = 24;
+
+#[tokio::test]
+async fn hourly_cleanup_prunes_old_records() -> Result<(), String> {
+    let served = serve_start("hourly_cleanup").await?;
+    let at = 0;
+    let event_id = anybot_store_server::auth_events::begin_attempt(
+        &served.pool,
+        anybot_server::limits::KIND_LOGIN_FAIL,
+        "10.40.0.1",
+        "oldaccount",
+        at,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+    anybot_store_server::idempotency::insert_idempotency(
+        &served.pool,
+        "k-old-key",
+        "scope|POST|/v1/account/login",
+        "hash",
+        200,
+        "{}",
+        at,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+    for _tick in 0..CLEANUP_TICKS {
+        let _hour = served.clock.advance(anybot_server::cleanup::CLEANUP_SPAN);
+        test_harness::sleep_real(std::time::Duration::from_millis(50)).await;
+        assert_cleaned(&served, event_id).await?;
+    }
+    served.stop().await?;
+    Ok(())
+}
+
+async fn assert_cleaned(
+    served: &anybot_app_test::serve::Served,
+    event_id: i64,
+) -> Result<(), String> {
+    let events = anybot_store_server::auth_events::count_auth_event_id(&served.pool, event_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let keys = anybot_store_server::idempotency::count_idempotency_key(&served.pool, "k-old-key")
+        .await
+        .map_err(|e| e.to_string())?;
+    if events == 0 && keys == 0 {
+        return Ok(());
+    }
+    Err(format!(
+        "records still present: events={events} keys={keys}"
+    ))
+}

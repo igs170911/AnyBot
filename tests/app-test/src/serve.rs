@@ -111,8 +111,9 @@ async fn bind_fake(
     ),
     String,
 > {
-    let state = AppState::with_pool(TEST_VERSION, clock, pool, config);
+    let state = AppState::with_pool(TEST_VERSION, Arc::clone(&clock), pool.clone(), config);
     let shutdown = Arc::clone(&state.shutdown);
+    let cleanup = anybot_server::cleanup::cleanup_loop(pool, clock, Arc::clone(&shutdown));
     let app = build_router(state.clone()).into_make_service_with_connect_info::<SocketAddr>();
     let app_v6 = build_router(state).into_make_service_with_connect_info::<SocketAddr>();
     let listener = bind_with_retry(db.listen_port).await?;
@@ -137,7 +138,7 @@ async fn bind_fake(
             _stop = spawned_shutdown_v6.notified() => {}
         }
     });
-    Ok((shutdown, vec![v4_task, v6_task], v6_port))
+    Ok((shutdown, vec![v4_task, v6_task, cleanup], v6_port))
 }
 
 async fn bind_v6_with_retry(port: u16) -> Result<TcpListener, String> {
