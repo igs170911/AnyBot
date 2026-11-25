@@ -1,0 +1,202 @@
+# CI-1 (spec/09 K110, K111): pushes to every branch and pull requests targeting dev run `make check` on Linux.
+name: CI
+on:
+  push:
+    # every branch push runs; tags do not (the release workflow handles tags, K111 ④).
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUSTUP_HOME: /home/runner/.rustup
+  CARGO_HOME: /home/runner/.cargo
+  # CI starts from a fresh checkout every time: incremental compilation data only bloats the cache.
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      # every pin below is the commit its tag points at, read from https://api.github.com/repos/<owner>/<action>/git/refs/tags/<tag>.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # the spec-trace baseline compare and gitleaks need the full history.
+          fetch-depth: 0
+
+      - name: spec-trace baseline ref
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = push ] && { [ "$GITHUB_REF" = refs/heads/main ] || [ "$GITHUB_REF" = refs/heads/dev ]; }; then
+            if git cat-file -e "$EVENT_BEFORE^{commit}" 2>/dev/null; then
+              echo "SPEC_TRACE_REF=$EVENT_BEFORE" >> "$GITHUB_ENV"
+            else
+              echo "SPEC_TRACE_REF=HEAD" >> "$GITHUB_ENV"
+            fi
+          else
+            git fetch --no-tags origin dev
+            BASE=$(git merge-base HEAD origin/dev 2>/dev/null || echo HEAD)
+            echo "SPEC_TRACE_REF=$BASE" >> "$GITHUB_ENV"
+          fi
+
+      - name: cache rust toolchains, cargo downloads, and cargo tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.cargo/registry
+            ~/.cargo/bin
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: rust toolchain
+        run: rustup component add rustfmt clippy
+
+      - name: restore the compiled output cache
+        # GitHub keeps at most 10 GB of caches per repository; caches are scoped to a branch and
+        # only the default branch (main) is readable by every branch. The key has no commit hash:
+        # one entry per lockfile, saved on main only (K111).
+        id: target-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            target
+            !target/pg-install
+          key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            target-${{ runner.os }}-
+
+      - name: cache the test postgres download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: target/pg-install
+          key: pg-install-${{ runner.os }}-17.6.0
+
+      - name: cache pnpm downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/share/pnpm
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: cache npm downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-pnpm-12.23.0
+
+      - name: cache playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: install cargo tools from prebuilt binaries
+        run: |
+          set -euo pipefail
+          mkdir -p "$CARGO_HOME/bin"
+          out="$CARGO_HOME/bin/cargo-nextest"
+          if [ ! -x "$out" ]; then
+          url="https://get.nexte.st/0.9.152/linux"
+          curl -sLf "$url" -o nextest.tar.gz
+          echo "d039b43c3e0958441b6ad0a39c8884d018b3d2e8fb9928f209074b1100b5e17a  nextest.tar.gz" | sha256sum -c -
+          tar -xzf nextest.tar.gz
+          mv cargo-nextest "$out"
+          rm nextest.tar.gz
+          fi
+          if [ ! -x "$CARGO_HOME/bin/cargo-deny" ]; then
+          url="https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-x86_64-unknown-linux-musl.tar.gz"
+          curl -sLf "$url" -o deny.tar.gz
+          echo "13f7e825e9cb811c2f8de63f29b0f45851dfb53004029f0f2501af524728364d  deny.tar.gz" | sha256sum -c -
+          tar -xzf deny.tar.gz
+          mv cargo-deny-0.22.1-x86_64-unknown-linux-musl/cargo-deny "$CARGO_HOME/bin/cargo-deny"
+          rm -r deny.tar.gz cargo-deny-0.22.1-x86_64-unknown-linux-musl
+          fi
+          if [ ! -x "$CARGO_HOME/bin/cargo-machete" ]; then
+          url="https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-x86_64-unknown-linux-musl.tar.gz"
+          curl -sLf "$url" -o machete.tar.gz
+          echo "785d381985140ffa172246d82089adeb7f2eb9c774d961c48f77a4494023afb5  machete.tar.gz" | sha256sum -c -
+          tar -xzf machete.tar.gz
+          mv cargo-machete-v0.10.1-x86_64-unknown-linux-musl/cargo-machete "$CARGO_HOME/bin/cargo-machete"
+          rm -r machete.tar.gz cargo-machete-v0.10.1-x86_64-unknown-linux-musl
+          fi
+          cargo --version
+          cargo nextest --version
+          cargo deny --version
+          cargo machete --version
+
+      - name: install gitleaks and oasdiff from pinned archives
+        run: |
+          set -euo pipefail
+          url="https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+          curl -sLf "$url" -o gitleaks.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          rm gitleaks gitleaks.tar.gz
+          url="https://github.com/oasdiff/oasdiff/releases/download/v1.40.0/oasdiff_1.40.0_linux_amd64.tar.gz"
+          curl -sLf "$url" -o oasdiff.tar.gz
+          echo "2d04b8f41b145809dd554e9be9ca04d21d1b4eedad5af983ddea36832d3c5e0d  oasdiff.tar.gz" | sha256sum -c -
+          tar -xzf oasdiff.tar.gz oasdiff
+          sudo install -m 0755 oasdiff /usr/local/bin/oasdiff
+          rm oasdiff oasdiff.tar.gz
+          gitleaks --version
+          oasdiff --version
+
+      - name: system packages for the Tauri Rust shell
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libxdo-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: pnpm
+        run: sudo npm install -g pnpm@12.23.0
+
+      - name: install the web workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: playwright browsers
+        run: pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit
+
+      - name: make check
+        run: make check
+
+      - name: upload e2e evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-evidence
+          path: |
+            target/playwright
+            target/e2e-screens
+          retention-days: 7
+
+      - name: save the compiled output cache on main only
+        if: success() && github.ref == 'refs/heads/main' && steps.target-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            target
+            !target/pg-install
+          key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}

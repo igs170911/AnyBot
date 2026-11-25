@@ -7,6 +7,7 @@ const RTL_VIEWPORT = { width: 1280, height: 800 };
 declare module "@playwright/test" {
   interface PlaywrightTestOptions {
     maxTextZoom: string | undefined;
+    wideFont: string | undefined;
   }
 }
 
@@ -35,6 +36,15 @@ export default defineConfig({
         ...devices["iPhone SE (3rd gen)"],
         viewport: PHONE_VIEWPORT,
         maxTextZoom: "3.1",
+      },
+    },
+    {
+      name: "phone-wide-font",
+      use: {
+        ...devices["iPhone SE (3rd gen)"],
+        viewport: PHONE_VIEWPORT,
+        maxTextZoom: "3.1",
+        wideFont: "1",
       },
     },
     {

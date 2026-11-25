@@ -9,5 +9,6 @@ description = "four iron laws checks (spec/09 K75-K78)"
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+yaml_serde = { workspace = true }
 [lints]
 workspace = true

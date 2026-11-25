@@ -2,6 +2,7 @@
 
 use serde as _;
 use serde_json as _;
+use yaml_serde as _;
 
 use std::io::Write;
 use std::path::PathBuf;
