@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE accounts SET password_hash = $2, last_password_at_ms = $3 WHERE account = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "1656638231731bb814b43193e91995182ffa5b215f9965882921bc723656db23"
+}

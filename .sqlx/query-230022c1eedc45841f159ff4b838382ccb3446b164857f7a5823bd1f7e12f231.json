@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO idempotency (key, request_hash, status_code, body, at_ms) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (key) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Int4", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "230022c1eedc45841f159ff4b838382ccb3446b164857f7a5823bd1f7e12f231"
+}

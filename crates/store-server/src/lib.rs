@@ -2,10 +2,14 @@ use anybot_domain::TaskStatus;
 use anybot_foundation::FoundationError;
 use anybot_protocol::RunEvent;
 
+pub mod accounts;
+pub mod auth_events;
 pub mod config;
 pub mod connect;
+pub mod idempotency;
 pub mod migrate;
 pub mod rows;
+pub mod sessions;
 
 pub use config::{
     clear_config_keys, delete_config_row, read_config_rows, set_config_rows, write_config_row,

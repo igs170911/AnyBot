@@ -88,6 +88,7 @@ hkdf = "0.13"
 sha2 = "0.11"
 aes-gcm = { version = "0.11", features = ["zeroize"] }
 base64 = "0.22"
+argon2 = "0.1"
 postgresql_embedded = { version = "0.22", default-features = false, features = ["tokio", "tls-rustls-ring", "theseus"] }
 toml = "1"
 rustls = "0.23"

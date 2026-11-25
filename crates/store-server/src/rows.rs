@@ -1,6 +1,6 @@
 use crate::Pool;
 
-fn required<T>(value: Option<T>, what: &str) -> Result<T, sqlx::Error> {
+pub fn required<T>(value: Option<T>, what: &str) -> Result<T, sqlx::Error> {
     value.ok_or(sqlx::Error::Protocol(format!("missing {what} column")))
 }
 

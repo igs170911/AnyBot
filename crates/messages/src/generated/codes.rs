@@ -72,6 +72,26 @@ pub enum MessageCode {
     ModelHandoffUnreachable,
     PushPayloadShort,
     PushKeyBase64,
+    AccountNameRule,
+    AccountPasswordRule,
+    AccountInviteInvalid,
+    AccountRegisterRate,
+    AccountExists,
+    AccountExistsReset,
+    AccountLoginCredentials,
+    AccountLoginDisabled,
+    AccountLoginRate,
+    AccountPasswordOldWrong,
+    AccountPasswordNewShort,
+    AccountAdminOnly,
+    AccountAdminSelfDisable,
+    AccountIdempotencyMissing,
+    AccountIdempotencyConflict,
+    ServerCliPasswordShort,
+    ServerCliPasswordMismatch,
+    ServerCliPasswordPrompt,
+    ServerCliPasswordConfirmPrompt,
+    ServerCliResetPasswordDone,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -214,6 +234,59 @@ const TABLE: &[(MessageCode, &str)] = &[
     ),
     (MessageCode::PushPayloadShort, "push-payload-short"),
     (MessageCode::PushKeyBase64, "push-key-base64"),
+    (MessageCode::AccountNameRule, "account-name-rule"),
+    (MessageCode::AccountPasswordRule, "account-password-rule"),
+    (MessageCode::AccountInviteInvalid, "account-invite-invalid"),
+    (MessageCode::AccountRegisterRate, "account-register-rate"),
+    (MessageCode::AccountExists, "account-exists"),
+    (MessageCode::AccountExistsReset, "account-exists-reset"),
+    (
+        MessageCode::AccountLoginCredentials,
+        "account-login-credentials",
+    ),
+    (MessageCode::AccountLoginDisabled, "account-login-disabled"),
+    (MessageCode::AccountLoginRate, "account-login-rate"),
+    (
+        MessageCode::AccountPasswordOldWrong,
+        "account-password-old-wrong",
+    ),
+    (
+        MessageCode::AccountPasswordNewShort,
+        "account-password-new-short",
+    ),
+    (MessageCode::AccountAdminOnly, "account-admin-only"),
+    (
+        MessageCode::AccountAdminSelfDisable,
+        "account-admin-self-disable",
+    ),
+    (
+        MessageCode::AccountIdempotencyMissing,
+        "account-idempotency-missing",
+    ),
+    (
+        MessageCode::AccountIdempotencyConflict,
+        "account-idempotency-conflict",
+    ),
+    (
+        MessageCode::ServerCliPasswordShort,
+        "server-cli-password-short",
+    ),
+    (
+        MessageCode::ServerCliPasswordMismatch,
+        "server-cli-password-mismatch",
+    ),
+    (
+        MessageCode::ServerCliPasswordPrompt,
+        "server-cli-password-prompt",
+    ),
+    (
+        MessageCode::ServerCliPasswordConfirmPrompt,
+        "server-cli-password-confirm-prompt",
+    ),
+    (
+        MessageCode::ServerCliResetPasswordDone,
+        "server-cli-reset-password-done",
+    ),
 ];
 
 impl MessageCode {

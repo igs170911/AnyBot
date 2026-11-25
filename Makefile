@@ -92,11 +92,10 @@ depcheck:
 
 # regenerate the committed offline query metadata with a throwaway harness PostgreSQL (the live url is passed here only).
 sqlx-prepare:
-	SQLX_OFFLINE= $(CARGO) run -q -p testenv --bin sqlx-prepare -- --cargo "$(CARGO)"
-	$(PNPM) exec biome format --write .sqlx
+	tools/sqlx_prepare.sh "$(CARGO)" "$(PNPM)" prepare
 
 sqlx-check:
-	SQLX_OFFLINE= $(CARGO) run -q -p testenv --bin sqlx-prepare -- --cargo "$(CARGO)" --check
+	tools/sqlx_prepare.sh "$(CARGO)" "$(PNPM)" check
 
 spec-trace:
 	$(CARGO) run --locked -p spec-trace -- --against $(SPEC_TRACE_REF)

@@ -68,7 +68,27 @@ export type MessageCode =
   "model-handoff-fallback" |
   "model-handoff-unreachable" |
   "push-payload-short" |
-  "push-key-base64";
+  "push-key-base64" |
+  "account-name-rule" |
+  "account-password-rule" |
+  "account-invite-invalid" |
+  "account-register-rate" |
+  "account-exists" |
+  "account-exists-reset" |
+  "account-login-credentials" |
+  "account-login-disabled" |
+  "account-login-rate" |
+  "account-password-old-wrong" |
+  "account-password-new-short" |
+  "account-admin-only" |
+  "account-admin-self-disable" |
+  "account-idempotency-missing" |
+  "account-idempotency-conflict" |
+  "server-cli-password-short" |
+  "server-cli-password-mismatch" |
+  "server-cli-password-prompt" |
+  "server-cli-password-confirm-prompt" |
+  "server-cli-reset-password-done";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -139,4 +159,24 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-handoff-unreachable",
   "push-payload-short",
   "push-key-base64",
+  "account-name-rule",
+  "account-password-rule",
+  "account-invite-invalid",
+  "account-register-rate",
+  "account-exists",
+  "account-exists-reset",
+  "account-login-credentials",
+  "account-login-disabled",
+  "account-login-rate",
+  "account-password-old-wrong",
+  "account-password-new-short",
+  "account-admin-only",
+  "account-admin-self-disable",
+  "account-idempotency-missing",
+  "account-idempotency-conflict",
+  "server-cli-password-short",
+  "server-cli-password-mismatch",
+  "server-cli-password-prompt",
+  "server-cli-password-confirm-prompt",
+  "server-cli-reset-password-done",
 ];

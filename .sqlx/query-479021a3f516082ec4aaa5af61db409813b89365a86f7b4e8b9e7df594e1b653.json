@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM auth_events WHERE at_ms < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "479021a3f516082ec4aaa5af61db409813b89365a86f7b4e8b9e7df594e1b653"
+}

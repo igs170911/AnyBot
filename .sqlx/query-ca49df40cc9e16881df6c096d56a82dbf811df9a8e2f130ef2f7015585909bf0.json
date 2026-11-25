@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE accounts SET disabled = $2 WHERE account = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Bool"]
+    },
+    "nullable": []
+  },
+  "hash": "ca49df40cc9e16881df6c096d56a82dbf811df9a8e2f130ef2f7015585909bf0"
+}
