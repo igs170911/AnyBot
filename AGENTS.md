@@ -9,7 +9,7 @@
 2. **規格沒寫的行為，不要猜。** 不要憑印象補「舊版大概怎麼做」。寫進回報的「要問的問題」。
 3. **`spec/09-decisions.md` 是最終決定。** 跟其他文件不一致時，以它為準。
 4. **不 push、不建遠端 repo。** 只在本地 commit；每個里程碑做完、`make check` 全綠後 commit 一次，訊息用繁體中文寫做了什麼。
-5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`；`brew install gitleaks`、`brew install oasdiff`。要裝別的先停下來回報。
+5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`；`brew install gitleaks`、`brew install oasdiff`；`pnpm exec playwright install chromium webkit`；測試用的 PostgreSQL 程式由 harness 下載到 `target/`。**不准用 Docker**（`spec/09` K90，這台電腦的 Docker 上有使用者真的在用的東西）。要裝別的先停下來回報。
 6. **不放任何金鑰、帳號、個人資料進 repo。** 新版也不讀環境變數做設定（`spec/02` A10）。
 7. **暫存檔、紀錄檔一律放在 repo 的 `target/` 裡**（已經在 `.gitignore`），不要寫到 `/tmp` 或其他地方。
 8. **不准改寫 git 歷史**：不准用 `filter-branch`、`rebase`、`reset --hard`、`commit --amend` 改已經存在的 commit，也不准把好幾個 commit 壓成一個。遇到「要改歷史才能過」的情況，停下來回報。
