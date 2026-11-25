@@ -1,7 +1,10 @@
 use anybot_foundation::{EventId, SystemClock, TimestampMs};
 use anybot_protocol::{KnownTaskEventKind, TaskEvent, TaskEventKind};
 
-use super::{ContextCollapseReason, ContextCollapsed, collapsed_kind, parse_collapsed};
+use super::{
+    CONTEXT_COLLAPSED_KIND, ContextCollapseReason, ContextCollapsed, collapsed_kind,
+    memory_dropped_kind, parse_collapsed, parse_memory_dropped,
+};
 use crate::task_replay::replay;
 
 fn event(seq: u64, kind: TaskEventKind) -> TaskEvent {
@@ -14,13 +17,39 @@ fn event(seq: u64, kind: TaskEventKind) -> TaskEvent {
 }
 
 #[test]
+fn collapsed_event_with_replace_all_roundtrips() {
+    let collapsed = ContextCollapsed {
+        ids: vec!["a".to_owned()],
+        reason: ContextCollapseReason::ReplaceAll,
+    };
+    let kind = collapsed_kind(&collapsed);
+    assert_eq!(parse_collapsed(&kind), Ok(Some(collapsed)));
+}
+
+#[test]
+fn memory_dropped_event_roundtrips() {
+    let ids = vec!["m1".to_owned(), "m2".to_owned()];
+    let kind = memory_dropped_kind(&ids);
+    assert_eq!(parse_memory_dropped(&kind), Ok(Some(ids)));
+}
+
+#[test]
+fn malformed_collapsed_event_reports_an_error() {
+    let kind = TaskEventKind::Raw(anybot_protocol::RawTaskEventKind {
+        kind: CONTEXT_COLLAPSED_KIND.to_owned(),
+        data: serde_json::Value::Null,
+    });
+    assert!(parse_collapsed(&kind).is_err());
+}
+
+#[test]
 fn test_context_events_roundtrip() {
     let collapsed = ContextCollapsed {
         ids: vec!["a".to_owned(), "b".to_owned()],
         reason: ContextCollapseReason::Accumulated,
     };
     let kind = collapsed_kind(&collapsed);
-    assert_eq!(parse_collapsed(&kind), Some(collapsed));
+    assert_eq!(parse_collapsed(&kind), Ok(Some(collapsed)));
 }
 
 #[test]
@@ -29,7 +58,7 @@ fn test_context_events_parse_ignores_other_raw_kinds() {
         kind: "something_new".to_owned(),
         data: serde_json::Value::Null,
     });
-    assert_eq!(parse_collapsed(&kind), None);
+    assert_eq!(parse_collapsed(&kind), Ok(None));
 }
 
 #[test]

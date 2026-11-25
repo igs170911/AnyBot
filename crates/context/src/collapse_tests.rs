@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 
-use super::{StepView, budget_collapse, plan_collapse, recorded_collapsed};
+use super::{
+    StepView, budget_collapse, model_swapped_after_last_built, plan_collapse, recorded_collapsed,
+};
 
 fn view(index: usize, ref_id: &str, tokens_full: u64) -> StepView {
     StepView {
@@ -63,7 +65,7 @@ fn test_collapse_recorded_ids_are_stable_between_events() {
                 assert!(!recorded.contains(id));
             }
         }
-        super::NewEvent::ContextBuilt => {}
+        super::NewEvent::ContextBuilt | super::NewEvent::MemoryDropped { .. } => {}
     }
 }
 
@@ -92,5 +94,83 @@ fn test_collapse_recorded_scan_ignores_other_events() {
         at_ms: TimestampMs::from_millis(1),
         kind: anybot_protocol::TaskEventKind::Known(KnownTaskEventKind::ContextBuilt),
     };
-    assert!(recorded_collapsed(&[e]).is_empty());
+    assert!(recorded_collapsed(&[e]).unwrap().is_empty());
+}
+
+#[test]
+fn swap_flag_clears_after_next_build() {
+    let events = vec![
+        crate::fixtures::event_with_seq(
+            1,
+            anybot_protocol::TaskEventKind::Known(
+                anybot_protocol::KnownTaskEventKind::ContextBuilt,
+            ),
+        ),
+        crate::fixtures::event_with_seq(
+            2,
+            anybot_protocol::TaskEventKind::Known(
+                anybot_protocol::KnownTaskEventKind::ModelSwapped {
+                    from: "a".to_owned(),
+                    to: "b".to_owned(),
+                    reason: "r".to_owned(),
+                },
+            ),
+        ),
+        crate::fixtures::event_with_seq(
+            3,
+            anybot_protocol::TaskEventKind::Known(
+                anybot_protocol::KnownTaskEventKind::ContextBuilt,
+            ),
+        ),
+        crate::fixtures::event_with_seq(
+            4,
+            anybot_protocol::TaskEventKind::Known(
+                anybot_protocol::KnownTaskEventKind::ContextBuilt,
+            ),
+        ),
+    ];
+    assert!(!model_swapped_after_last_built(&events));
+}
+
+#[test]
+fn replace_all_event_replaces_recorded_ids() {
+    let old = anybot_domain::collapsed_kind(&anybot_domain::ContextCollapsed {
+        ids: vec!["r1".to_owned(), "r2".to_owned()],
+        reason: anybot_domain::ContextCollapseReason::Accumulated,
+    });
+    let fresh = anybot_domain::collapsed_kind(&anybot_domain::ContextCollapsed {
+        ids: vec!["r3".to_owned()],
+        reason: anybot_domain::ContextCollapseReason::ReplaceAll,
+    });
+    let events = vec![
+        crate::fixtures::event_with_seq(1, old),
+        crate::fixtures::event_with_seq(2, fresh),
+    ];
+    let recorded = recorded_collapsed(&events).unwrap();
+    assert_eq!(recorded, BTreeSet::from(["r3".to_owned()]));
+}
+
+#[test]
+fn smaller_model_swap_recollapses_all_old() {
+    let views: Vec<StepView> = (0..30).map(|i| view(i, &format!("r{i}"), 375)).collect();
+    let recorded: BTreeSet<String> = (0..20).map(|i| format!("r{i}")).collect();
+    let (collapsed, events) = plan_collapse(&views, &recorded, 24_000, true, false);
+    assert_eq!(collapsed.len(), 20);
+    assert_eq!(events.len(), 1);
+    assert!(matches!(
+        events.first().expect("event"),
+        super::NewEvent::Collapsed {
+            reason: super::CollapseReason::ReplaceAll,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn larger_model_swap_restores_everything() {
+    let views: Vec<StepView> = (0..30).map(|i| view(i, &format!("r{i}"), 375)).collect();
+    let recorded: BTreeSet<String> = (0..20).map(|i| format!("r{i}")).collect();
+    let (collapsed, events) = plan_collapse(&views, &recorded, 128_000, true, false);
+    assert!(collapsed.is_empty());
+    assert_eq!(events.len(), 1);
 }

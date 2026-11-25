@@ -35,41 +35,53 @@ pub fn step_view(
     }
 }
 
-#[must_use]
-pub fn recorded_collapsed(events: &[anybot_protocol::TaskEvent]) -> BTreeSet<String> {
+pub fn recorded_collapsed(
+    events: &[anybot_protocol::TaskEvent],
+) -> Result<BTreeSet<String>, anybot_foundation::FoundationError> {
     let mut ids = BTreeSet::new();
     for e in events {
-        if let Some(c) = parse_collapsed(&e.kind) {
-            ids.extend(c.ids);
+        if let Some(c) = parse_collapsed(&e.kind)? {
+            if c.reason == ContextCollapseReason::ReplaceAll {
+                ids = c.ids.into_iter().collect();
+            } else {
+                ids.extend(c.ids);
+            }
         }
     }
-    ids
+    Ok(ids)
 }
 
 #[must_use]
 pub fn model_swapped_after_last_built(events: &[anybot_protocol::TaskEvent]) -> bool {
-    let mut last_built = 0u64;
-    let mut swapped = false;
-    for e in events {
-        if matches!(
+    let is_built = |e: &anybot_protocol::TaskEvent| {
+        matches!(
             &e.kind,
             anybot_protocol::TaskEventKind::Known(
                 anybot_protocol::KnownTaskEventKind::ContextBuilt
             )
-        ) {
-            last_built = e.seq;
-        }
-        if matches!(
+        )
+    };
+    let is_swap = |e: &anybot_protocol::TaskEvent| {
+        matches!(
             &e.kind,
             anybot_protocol::TaskEventKind::Known(
                 anybot_protocol::KnownTaskEventKind::ModelSwapped { .. }
             )
-        ) && e.seq > last_built
-        {
-            swapped = true;
-        }
-    }
-    swapped
+        )
+    };
+    let last_built = events
+        .iter()
+        .filter(|e| is_built(e))
+        .map(|e| e.seq)
+        .max()
+        .unwrap_or(0);
+    let last_swap = events
+        .iter()
+        .filter(|e| is_swap(e))
+        .map(|e| e.seq)
+        .max()
+        .unwrap_or(0);
+    last_swap > last_built
 }
 
 #[must_use]
@@ -82,30 +94,42 @@ pub fn plan_collapse(
 ) -> (BTreeSet<String>, Vec<NewEvent>) {
     let margin = milli_of(usable, K114_3_ACCUMULATE_MARGIN_MILLI);
     let old = old_candidates(views);
-    let fresh: Vec<&StepView> = old
-        .into_iter()
-        .filter(|v| !recorded.contains(&v.source_ref))
-        .collect();
+    let fresh: Vec<&StepView> = if swap && !compact {
+        old
+    } else {
+        old.into_iter()
+            .filter(|v| !recorded.contains(&v.source_ref))
+            .collect()
+    };
     let total: u64 = fresh.iter().map(|v| v.tokens_full).sum();
     let target: BTreeSet<String> = if compact || total > margin {
         fresh.iter().map(|v| v.source_ref.clone()).collect()
     } else {
         BTreeSet::new()
     };
-    let mut collapsed: BTreeSet<String> = recorded.clone();
-    if swap && !compact {
-        collapsed.clear();
-    }
-    collapsed.extend(target.iter().cloned());
+    let collapsed: BTreeSet<String> = if swap && !compact {
+        BTreeSet::from_iter(target.iter().cloned())
+    } else {
+        let mut c = recorded.clone();
+        c.extend(target.iter().cloned());
+        c
+    };
     let mut events = Vec::new();
-    let added: Vec<String> = target
-        .iter()
-        .filter(|id| !recorded.contains(*id))
-        .cloned()
-        .collect();
-    if !added.is_empty() {
-        let reason = collapse_reason(compact, swap);
-        events.push(NewEvent::Collapsed { ids: added, reason });
+    if swap && !compact {
+        events.push(NewEvent::Collapsed {
+            ids: target.iter().cloned().collect(),
+            reason: CollapseReason::ReplaceAll,
+        });
+    } else {
+        let added: Vec<String> = target
+            .iter()
+            .filter(|id| !recorded.contains(*id))
+            .cloned()
+            .collect();
+        if !added.is_empty() {
+            let reason = collapse_reason(compact, swap);
+            events.push(NewEvent::Collapsed { ids: added, reason });
+        }
     }
     (collapsed, events)
 }
@@ -150,6 +174,7 @@ pub fn reason_to_domain(reason: CollapseReason) -> ContextCollapseReason {
         CollapseReason::Budget => ContextCollapseReason::Budget,
         CollapseReason::Compact => ContextCollapseReason::Compact,
         CollapseReason::ModelSwapped => ContextCollapseReason::ModelSwapped,
+        CollapseReason::ReplaceAll => ContextCollapseReason::ReplaceAll,
     }
 }
 

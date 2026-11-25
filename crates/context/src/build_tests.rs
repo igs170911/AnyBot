@@ -55,9 +55,9 @@ pub(crate) fn prefix_of(request: &CompiledRequest) -> Vec<Block> {
 }
 
 pub(crate) fn collapse_recorded(events: &[anybot_protocol::TaskEvent]) -> bool {
-    events
-        .iter()
-        .any(|e| anybot_domain::parse_collapsed(&e.kind).is_some_and(|c| !c.ids.is_empty()))
+    events.iter().any(|e| {
+        (anybot_domain::parse_collapsed(&e.kind).unwrap()).is_some_and(|c| !c.ids.is_empty())
+    })
 }
 
 pub(crate) fn model_swap_present(events: &[anybot_protocol::TaskEvent]) -> bool {
@@ -84,8 +84,8 @@ proptest! {
 
     #[test]
     fn t_context_build_1(input in build_input(1_000, 100_000, 8)) {
-        let first = compile(&input);
-        let second = compile(&input);
+        let first = compile(&input).unwrap();
+        let second = compile(&input).unwrap();
         let a = match &first {
             Compiled::Sent { request, .. } => serde_json::to_vec(request).unwrap(),
             Compiled::Insufficient(x) => serde_json::to_vec(x).unwrap(),
@@ -106,7 +106,7 @@ proptest! {
         let steps = vec![step_at(0, 200, "r0"), step_at(1, 300, "r1")];
         let base = rebuilt(&input, steps, events.clone(), "v1");
         let with_constraints = rebuilt_constraints(&base, constraints.clone());
-        match compile(&with_constraints) {
+        match compile(&with_constraints).unwrap() {
             Compiled::Sent { request, .. } => {
                 for c in &constraints {
                     prop_assert!(request.blocks.iter().any(|b| b.kind == BlockKind::Constraint && b.text == *c));
@@ -140,7 +140,7 @@ proptest! {
 
     #[test]
     fn budget_never_oversends(input in build_input(500, 60_000, 6)) {
-        match compile(&input) {
+        match compile(&input).unwrap() {
             Compiled::Sent { manifest, request, .. } => {
                 let usable = input.model.usable();
                 prop_assert!(manifest.budget.estimate_calibrated <= usable);
@@ -168,11 +168,18 @@ proptest! {
             }
             let many: Vec<StepRecord> = (0..=index).map(|i| step_at(i, *len, &format!("r{i}"))).collect();
             let input = rebuilt(&base, many, events.clone(), &version.to_string());
-            let compiled = compile(&input);
+            let compiled = compile(&input).unwrap();
             if let Compiled::Sent { request, events: new, .. } = &compiled {
                 for e in new {
                     match e {
                         NewEvent::ContextBuilt => push_built(&mut events),
+                        NewEvent::MemoryDropped { ids } => {
+                            let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
+                            events.push(event_with_seq(
+                                seq,
+                                anybot_domain::memory_dropped_kind(ids),
+                            ));
+                        }
                         NewEvent::Collapsed { ids, reason } => {
                             let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
                             events.push(event_with_seq(
@@ -215,6 +222,9 @@ pub(crate) fn reason_to_domain(
         crate::output::CollapseReason::Compact => anybot_domain::ContextCollapseReason::Compact,
         crate::output::CollapseReason::ModelSwapped => {
             anybot_domain::ContextCollapseReason::ModelSwapped
+        }
+        crate::output::CollapseReason::ReplaceAll => {
+            anybot_domain::ContextCollapseReason::ReplaceAll
         }
     }
 }

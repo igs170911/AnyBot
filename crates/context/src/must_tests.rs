@@ -41,7 +41,7 @@ fn user_turns_survive_many_steps() {
         .map(|i| sup::step_len(i, 60, &format!("r{i}")))
         .collect();
     let input = input_with(&base, steps, users.clone(), 32_000);
-    match compile(&input) {
+    match compile(&input).unwrap() {
         Compiled::Sent { request, .. } => {
             for u in &users {
                 assert!(
@@ -61,7 +61,7 @@ fn long_user_turn_head_length_id() {
     let base = sup::base_input();
     let text = "w".repeat(50_000);
     let input = input_with(&base, Vec::new(), vec![sup::record("ubig", &text)], 32_000);
-    match compile(&input) {
+    match compile(&input).unwrap() {
         Compiled::Sent {
             request, manifest, ..
         } => {
@@ -99,7 +99,7 @@ fn must_docs_and_pending_actions_are_mandatory() {
             action: "what colour?".to_owned(),
         },
     )];
-    match compile(&input) {
+    match compile(&input).unwrap() {
         Compiled::Sent { request, .. } => {
             assert!(
                 request
@@ -148,7 +148,7 @@ fn model_swap_preserves_criteria() {
         },
     ));
     input.events = events;
-    match compile(&input) {
+    match compile(&input).unwrap() {
         Compiled::Sent { request, .. } => {
             let needle = "j".repeat(24_000);
             assert!(
@@ -185,7 +185,7 @@ fn huge_criteria_survive_tiny_model() {
         },
     ));
     input.events = events;
-    match compile(&input) {
+    match compile(&input).unwrap() {
         Compiled::Insufficient(x) => {
             assert_eq!(x.message.code, crate::compile::CODE_MODEL_BUDGET);
             assert!(x.deficit_tokens > 0);

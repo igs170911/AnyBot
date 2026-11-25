@@ -79,7 +79,7 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
 fn state_tracks_evidence_and_exit_code() {
     let mut base = sup::base_input();
     base.events = state_2_events();
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent { request, .. } => {
             let summaries: Vec<&crate::output::Block> = request
                 .blocks
@@ -126,7 +126,7 @@ fn bot_claims_are_not_state() {
     ));
     base.events = events;
     base.bot_turns = vec![sup::record("b1", "all tests passed, task done")];
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent { request, .. } => {
             let summary_items: Vec<&str> = request
                 .blocks

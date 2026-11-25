@@ -10,7 +10,7 @@ proptest! {
 
     #[test]
     fn manifest_matches_request(input in build_input(1_000, 200_000, 8)) {
-        if let Compiled::Sent { request, manifest, .. } = compile(&input) {
+        if let Compiled::Sent { request, manifest, .. } = compile(&input).unwrap() {
             prop_assert_eq!(manifest.included.len(), request.blocks.len());
             for (entry, block) in manifest.included.iter().zip(request.blocks.iter()) {
                 prop_assert_eq!(entry.estimate_raw, block.estimate_raw);
@@ -40,7 +40,7 @@ fn manifest_excludes_raw_records_and_secrets() {
     base.secrets = vec![hidden];
     base.memories = vec![sup::memory("m0", 90, false)];
     base.steps = vec![sup::step_len(0, 800, "r0")];
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent { manifest, .. } => {
             let text = serde_json::to_string(&manifest).unwrap();
             assert!(!text.contains("hunter2"));
@@ -59,7 +59,7 @@ fn manifest_excludes_raw_records_and_secrets() {
 fn manifest_usage_matches_response_stream() {
     let mut base = sup::base_input();
     base.steps = vec![sup::step_len(0, 300, "r0")];
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent { manifest, .. } => {
             assert!(manifest.actual_input_tokens.is_none());
             assert!(manifest.estimate_delta.is_none());
@@ -83,10 +83,10 @@ fn excluded_budget_reasons_recorded() {
     base.memories = (0..8)
         .map(|i| sup::memory(&format!("m{i}"), 10, false))
         .collect();
-    base.prior_chat = (0..14)
+    base.prior_chat = (0..40)
         .map(|i| sup::record(&format!("p{i}"), &"q".repeat(400)))
         .collect();
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent { manifest, .. } => {
             assert!(
                 manifest

@@ -54,7 +54,7 @@ fn swap_model_masks_and_restores() {
         },
     )];
     let big = budget_3_input(steps.clone(), 128_000, events.clone());
-    match compile(&big) {
+    match compile(&big).unwrap() {
         Compiled::Sent { events: new, .. } => sup::push_new(&mut events, &new),
         Compiled::Insufficient(_) => panic!("big model must fit"),
     }
@@ -94,7 +94,7 @@ fn budget_3_small_masks_more(events: &mut Vec<anybot_protocol::TaskEvent>) {
         .map(|i| sup::step_len(i, 1_500, &format!("r{i}")))
         .collect();
     let small = budget_3_input(steps.clone(), 16_000, events.clone());
-    match compile(&small) {
+    match compile(&small).unwrap() {
         Compiled::Sent {
             request,
             manifest,
@@ -135,7 +135,7 @@ fn budget_3_small_masks_more(events: &mut Vec<anybot_protocol::TaskEvent>) {
 
 fn budget_3_swap_back_restores_ten(steps: &[StepRecord], events: Vec<anybot_protocol::TaskEvent>) {
     let big = budget_3_input(steps.to_vec(), 128_000, events);
-    match compile(&big) {
+    match compile(&big).unwrap() {
         Compiled::Sent { request, .. } => {
             let fulls: Vec<String> = request
                 .blocks
@@ -166,7 +166,7 @@ fn budget_drops_oldest_steps_first() {
             .map(|n| sup::step_len(n, 1_500, &format!("r{n}")))
             .collect();
         let input = assemble_input(steps, 16_000, events.clone(), Vec::new());
-        match compile(&input) {
+        match compile(&input).unwrap() {
             Compiled::Sent { events: new, .. } => {
                 let count = new
                     .iter()
@@ -202,10 +202,15 @@ fn budget_drops_oldest_steps_first() {
 #[test]
 fn old_chat_keeps_head_and_reference() {
     let prior: Vec<crate::input::ChatRecord> = (0..400)
-        .map(|i| sup::record(&format!("p{i}"), &format!("old line {i}")))
+        .map(|i| {
+            sup::record(
+                &format!("p{i}"),
+                &format!("old line {i} {}", "z".repeat(180)),
+            )
+        })
         .collect();
     let input = assemble_input(Vec::new(), 16_000, Vec::new(), prior);
-    match compile(&input) {
+    match compile(&input).unwrap() {
         Compiled::Sent {
             request, manifest, ..
         } => {
@@ -230,5 +235,44 @@ fn old_chat_keeps_head_and_reference() {
             assert!(manifest.excluded.len() > 100);
         }
         Compiled::Insufficient(_) => panic!("expected sent"),
+    }
+}
+
+#[test]
+fn watermark_gate_keeps_shrinking_after_first_item() {
+    let steps: Vec<StepRecord> = (0..16)
+        .map(|i| sup::step_len(i, 2_000, &format!("r{i}")))
+        .collect();
+    let prior: Vec<crate::input::ChatRecord> = (0..30)
+        .map(|i| sup::record(&format!("p{i}"), &"p".repeat(400)))
+        .collect();
+    let input = assemble_input(steps, 6_000, Vec::new(), prior);
+    let usable = input.model.usable();
+    let compiled = compile(&input).unwrap();
+    if let Compiled::Sent {
+        request, manifest, ..
+    } = &compiled
+    {
+        let fulls = request
+            .blocks
+            .iter()
+            .filter(|b| b.kind == BlockKind::PriorChatFull)
+            .count();
+        assert!(fulls > 0, "recent prior chat survives");
+        assert!(
+            manifest
+                .excluded
+                .iter()
+                .any(|e| e.source_id.starts_with('p')
+                    && e.reason == crate::output::ExcludedReason::Budget),
+            "prior chat dropped in the second stage"
+        );
+        assert!(
+            manifest.budget.estimate_calibrated
+                <= crate::numbers::milli_of(usable, crate::numbers::K114_4_WATERMARK_MILLI),
+            "estimate lands under the watermark"
+        );
+    } else {
+        panic!("expected sent");
     }
 }

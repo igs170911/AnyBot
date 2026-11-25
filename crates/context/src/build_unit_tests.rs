@@ -10,7 +10,7 @@ fn rebuild_is_deterministic_with_forty_steps() {
     base.steps = (0..40usize)
         .map(|i| sup::step_len(i, 300, &format!("r{i}")))
         .collect();
-    match (compile(&base), compile(&base)) {
+    match (compile(&base).unwrap(), compile(&base).unwrap()) {
         (
             Compiled::Sent {
                 request: a,
@@ -46,7 +46,7 @@ fn watermark_ladder_drops_in_order() {
         let mut input = input;
         input.model = crate::compile_tests_support::plan(usable);
         input.constraints = vec!["must keep me".to_owned()];
-        match compile(&input) {
+        match compile(&input).unwrap() {
             Compiled::Sent {
                 request, manifest, ..
             } => {
@@ -100,7 +100,7 @@ fn budget_ladder_constraints_survive_insufficient() {
     let mut input = input;
     input.model = crate::compile_tests_support::plan(1_200);
     input.constraints = vec!["must keep me".to_owned(); 30];
-    match compile(&input) {
+    match compile(&input).unwrap() {
         Compiled::Sent { request, .. } => {
             assert!(
                 request

@@ -15,14 +15,14 @@ fn accumulate_collapses_after_fifteen_percent() {
             .map(|i| sup::step_len(i, 700, &format!("r{i}")))
             .collect();
         let input = assemble_input(steps, usable, events.clone(), Vec::new());
-        match compile(&input) {
+        match compile(&input).unwrap() {
             Compiled::Sent { events: new, .. } => {
                 let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
                 push_events(&mut events, &new, seq);
                 let fresh: Vec<String> = events
                     .iter()
                     .rev()
-                    .find_map(|e| anybot_domain::parse_collapsed(&e.kind))
+                    .find_map(|e| anybot_domain::parse_collapsed(&e.kind).unwrap())
                     .map(|c| c.ids)
                     .unwrap_or_default();
                 let added: usize = fresh
@@ -55,6 +55,9 @@ fn domain_reason(reason: crate::output::CollapseReason) -> anybot_domain::Contex
         crate::output::CollapseReason::ModelSwapped => {
             anybot_domain::ContextCollapseReason::ModelSwapped
         }
+        crate::output::CollapseReason::ReplaceAll => {
+            anybot_domain::ContextCollapseReason::ReplaceAll
+        }
     }
 }
 
@@ -66,6 +69,9 @@ fn push_events(events: &mut Vec<anybot_protocol::TaskEvent>, new: &[NewEvent], s
                 seq,
                 anybot_protocol::KnownTaskEventKind::ContextBuilt,
             )),
+            NewEvent::MemoryDropped { ids } => {
+                events.push(sup::event(seq, anybot_domain::memory_dropped_kind(ids)));
+            }
             NewEvent::Collapsed { ids, reason } => events.push(sup::event(
                 seq,
                 anybot_domain::collapsed_kind(&anybot_domain::ContextCollapsed {

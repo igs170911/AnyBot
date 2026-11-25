@@ -22,8 +22,8 @@ pub mod task_view;
 pub use anybot_protocol::TaskStatus;
 pub use task_attention::{counts_as_failure, counts_in_task_badge};
 pub use task_context_events::{
-    CONTEXT_COLLAPSED_KIND, ContextCollapseReason, ContextCollapsed, collapsed_kind,
-    parse_collapsed,
+    CONTEXT_COLLAPSED_KIND, CONTEXT_MEMORY_DROPPED_KIND, ContextCollapseReason, ContextCollapsed,
+    collapsed_kind, memory_dropped_kind, parse_collapsed, parse_memory_dropped,
 };
 pub use task_effects::{ResumeAction, resume_action};
 pub use task_engine::advance;

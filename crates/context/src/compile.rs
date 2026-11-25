@@ -33,67 +33,105 @@ pub(crate) struct Stage {
     pub(crate) budget_collapse_done: bool,
 }
 
-#[must_use]
-pub fn compile(input: &BuildInput) -> Compiled {
+pub fn compile(input: &BuildInput) -> Result<Compiled, anybot_foundation::FoundationError> {
     let usable = input.model.usable();
     let views = build_views(input);
-    let recorded = recorded_collapsed(&input.events);
+    let recorded = recorded_collapsed(&input.events)?;
     let swap = model_swapped_after_last_built(&input.events);
     let (collapsed, events) =
         plan_collapse(&views, &recorded, usable, swap, input.compact_requested);
     let mut stage = Stage {
         collapsed,
         events,
-        prior_keep: K114_1_RECENT_STEPS,
+        prior_keep: usize::MAX,
         memory_cap: milli_of(usable, K114_6_MEMORY_CAP_MILLI),
         budget_collapse_done: false,
     };
-    for step_no in 0..4 {
+    for stage_no in 0..4 {
         let assembled = assemble(input, &stage);
         let total_raw = blocks_raw(&all_blocks(&assembled));
         let cal = calibrated(total_raw, &input.model.calibration);
-        let fits = cal <= usable;
         let under = cal <= milli_of(usable, K114_4_WATERMARK_MILLI);
-        if fits && (step_no > 0 || under) {
-            return crate::compile_sent::sent(input, &assembled, &stage, usable, total_raw, cal);
+        let send = if stage_no == 0 {
+            cal <= usable
+        } else if stage_no == 3 {
+            under || cal <= usable
+        } else {
+            under
+        };
+        if send {
+            return Ok(crate::compile_sent::sent(
+                input, &assembled, &stage, usable, total_raw, cal,
+            ));
         }
-        if fits {
-            return crate::compile_sent::sent(input, &assembled, &stage, usable, total_raw, cal);
-        }
-        apply_stage(step_no, &views, &mut stage);
+        apply_stage(stage_no, input, &views, &mut stage);
     }
     finish(input, &assemble(input, &stage), &stage, usable)
 }
 
-fn finish(input: &BuildInput, assembled: &Assembled, stage: &Stage, usable: u64) -> Compiled {
+fn finish(
+    input: &BuildInput,
+    assembled: &Assembled,
+    stage: &Stage,
+    usable: u64,
+) -> Result<Compiled, anybot_foundation::FoundationError> {
     let total_raw = blocks_raw(&all_blocks(assembled));
     let cal = calibrated(total_raw, &input.model.calibration);
     if cal > usable {
         let mandatory = crate::compile_must::mandatory_raw(assembled);
         let mandatory_cal = calibrated(mandatory, &input.model.calibration);
         let deficit = mandatory_cal.saturating_sub(usable);
-        let deficit_i64 = u64_to_i64(deficit);
-        return Compiled::Insufficient(Insufficient {
+        let deficit_i64 = u64_to_i64(deficit)?;
+        return Ok(Compiled::Insufficient(Insufficient {
             deficit_tokens: deficit,
             usable,
             message: MessageRef::new(CODE_MODEL_BUDGET).with_int("deficit", deficit_i64),
-        });
+        }));
     }
-    crate::compile_sent::sent(input, assembled, stage, usable, total_raw, cal)
+    Ok(crate::compile_sent::sent(
+        input, assembled, stage, usable, total_raw, cal,
+    ))
 }
 
-fn u64_to_i64(value: u64) -> i64 {
-    i64::try_from(value).unwrap_or(i64::MAX)
+fn u64_to_i64(value: u64) -> Result<i64, anybot_foundation::FoundationError> {
+    i64::try_from(value)
+        .map_err(|_| anybot_foundation::FoundationError::IdParse("deficit too large".to_owned()))
 }
 
-fn apply_stage(step_no: usize, views: &[StepView], stage: &mut Stage) {
+fn apply_stage(step_no: usize, input: &BuildInput, views: &[StepView], stage: &mut Stage) {
     if step_no == 1 && !stage.budget_collapse_done {
         apply_budget_stage(views, stage);
     } else if step_no == 2 {
-        stage.prior_keep = 0;
+        apply_prior_stage(input, stage);
     } else if step_no == 3 {
-        stage.memory_cap = 0;
+        apply_memory_stage(input, stage);
     }
+}
+
+fn apply_prior_stage(input: &BuildInput, stage: &mut Stage) {
+    let count = input.prior_chat.len();
+    if count > K114_1_RECENT_STEPS {
+        let split = count.saturating_sub(K114_1_RECENT_STEPS);
+        let ids: Vec<String> = input
+            .prior_chat
+            .iter()
+            .take(split)
+            .map(|r| r.record_id.clone())
+            .collect();
+        stage.events.push(NewEvent::Collapsed {
+            ids,
+            reason: CollapseReason::Budget,
+        });
+    }
+    stage.prior_keep = K114_1_RECENT_STEPS;
+}
+
+fn apply_memory_stage(input: &BuildInput, stage: &mut Stage) {
+    let ids: Vec<String> = input.memories.iter().map(|m| m.id.clone()).collect();
+    if !ids.is_empty() {
+        stage.events.push(NewEvent::MemoryDropped { ids });
+    }
+    stage.memory_cap = 0;
 }
 
 fn apply_budget_stage(views: &[StepView], stage: &mut Stage) {

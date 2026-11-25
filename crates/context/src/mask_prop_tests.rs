@@ -207,7 +207,7 @@ proptest! {
             compact_requested: false,
             secrets: Vec::new(),
         };
-        match compile(&input) {
+        match compile(&input).unwrap() {
             Compiled::Sent { request, .. } => {
                 let problems = mask_2_problems(&request, &users, &bots, &steps);
                 prop_assert!(problems.is_empty(), "{problems:?}");
@@ -233,7 +233,7 @@ proptest! {
         };
         for usable in [200_000u64, 60_000, 20_000, 8_000] {
             let input = ladder_input(&steps, &constraints, usable);
-            match compile(&input) {
+            match compile(&input).unwrap() {
                 Compiled::Sent { request, manifest, .. } => {
                     let problems =
                         ladder_round_problems(usable, &request, &manifest, &steps, &constraints, &mut st);

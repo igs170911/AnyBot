@@ -201,6 +201,7 @@ pub enum CollapseReason {
     Budget,
     Compact,
     ModelSwapped,
+    ReplaceAll,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -209,6 +210,9 @@ pub enum NewEvent {
     Collapsed {
         ids: Vec<String>,
         reason: CollapseReason,
+    },
+    MemoryDropped {
+        ids: Vec<String>,
     },
 }
 

@@ -124,12 +124,16 @@ pub(crate) fn push_new(events: &mut Vec<TaskEvent>, new: &[NewEvent]) {
         let seq = seq.saturating_add(u64::try_from(offset).unwrap_or(0));
         match e {
             NewEvent::ContextBuilt => events.push(known(seq, KnownTaskEventKind::ContextBuilt)),
+            NewEvent::MemoryDropped { ids } => {
+                events.push(event(seq, anybot_domain::memory_dropped_kind(ids)));
+            }
             NewEvent::Collapsed { ids, reason } => {
                 let domain = match reason {
                     CollapseReason::Accumulated => ContextCollapseReason::Accumulated,
                     CollapseReason::Budget => ContextCollapseReason::Budget,
                     CollapseReason::Compact => ContextCollapseReason::Compact,
                     CollapseReason::ModelSwapped => ContextCollapseReason::ModelSwapped,
+                    CollapseReason::ReplaceAll => ContextCollapseReason::ReplaceAll,
                 };
                 events.push(event(
                     seq,

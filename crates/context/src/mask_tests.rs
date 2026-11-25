@@ -60,7 +60,7 @@ fn duplicate_result_shown_once() {
     let mut second = sup::step_len(1, shared.chars().count(), "rb");
     second.content.clone_from(&shared);
     base.steps = vec![first, second];
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent {
             request, manifest, ..
         } => {
@@ -93,7 +93,7 @@ fn long_user_turn_becomes_reference() {
     base.model = sup::plan(4_000);
     base.user_turns = vec![sup::record("u1", &"z".repeat(60_000))];
     base.constraints = Vec::new();
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent {
             request, manifest, ..
         } => {
@@ -131,8 +131,8 @@ fn rebuild_identical_after_collapse_event() {
         },
     )];
     base.steps = vec![sup::step_len(0, 500, "ra")];
-    let first = compile(&base);
-    let second = compile(&base);
+    let first = compile(&base).unwrap();
+    let second = compile(&base).unwrap();
     let bytes = |c: &Compiled| match c {
         Compiled::Sent { request, .. } => serde_json::to_vec(request).unwrap(),
         Compiled::Insufficient(x) => serde_json::to_vec(x).unwrap(),
@@ -147,7 +147,7 @@ fn compact_plan_collapses_every_old_result() {
     base.steps = (0..14)
         .map(|i| sup::step_len(i, 2_000, &format!("r{i}")))
         .collect();
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent {
             request, events, ..
         } => {
@@ -179,7 +179,7 @@ fn compact_skips_unconfirmed_short_and_unknown() {
         big_step(120, false, crate::input::StepOutcomeKind::Completed),
         big_step(3_000, false, crate::input::StepOutcomeKind::Completed),
     ];
-    match compile(&base) {
+    match compile(&base).unwrap() {
         Compiled::Sent {
             request, events, ..
         } => {

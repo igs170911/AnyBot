@@ -50,7 +50,7 @@ fn recent_ten_full_and_old_masked() {
             request,
             events: new,
             ..
-        } = compile(&input)
+        } = compile(&input).unwrap()
         {
             sup::push_new(&mut events, &new);
             final_request = Some(request);
@@ -86,7 +86,7 @@ fn recent_ten_full_and_old_masked() {
     assert!(!masked.is_empty(), "masking happened");
     let collapsed_count = events
         .iter()
-        .filter(|e| anybot_domain::parse_collapsed(&e.kind).is_some())
+        .filter(|e| (anybot_domain::parse_collapsed(&e.kind).unwrap()).is_some())
         .count();
     assert!(collapsed_count >= 1);
 }
@@ -106,9 +106,9 @@ proptest! {
                 .map(|i| sup::step_len(i, *len, &format!("r{i}")))
                 .collect();
             let input = step_input(steps.clone(), usable, events.clone());
-            if let Compiled::Sent { events: new, .. } = compile(&input) {
+            if let Compiled::Sent { events: new, .. } = compile(&input).unwrap() {
                 sup::push_new(&mut events, &new);
-                let fresh = events.iter().rev().find_map(|e| anybot_domain::parse_collapsed(&e.kind));
+                let fresh = events.iter().rev().find_map(|e| anybot_domain::parse_collapsed(&e.kind).unwrap());
                 if let Some(c) = fresh.filter(|c| c.reason == anybot_domain::ContextCollapseReason::Accumulated) {
                         let added: usize = c
                             .ids
