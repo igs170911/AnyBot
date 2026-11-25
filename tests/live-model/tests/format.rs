@@ -28,7 +28,7 @@ fn live_profile_missing_file_names_every_field() {
         panic!("missing profile must fail");
     };
     assert!(message.contains(PROFILE_REL), "{message}");
-    for field in ["base_url", "model", "ca_file", "key_file"] {
+    for field in ["base_url", "model", "ca_file", "key_file", "always_thinks"] {
         assert!(message.contains(field), "{message}");
     }
 }

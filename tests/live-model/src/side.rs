@@ -52,7 +52,7 @@ pub async fn fake_side(model_name: &str) -> Outcome<FakeSide> {
         }
     };
     let (model, port) = started;
-    model.script_set(crate::cases::fake_script(model_name));
+    model.script_set(crate::cases::script_for(model_name, true));
     let outcome = fake_side_requests(&model, port, model_name).await;
     drop(model);
     outcome
@@ -122,6 +122,37 @@ pub fn write_report(repo: &Path, shapes: &Shapes, product: &[String]) -> Result<
     std::fs::create_dir_all(profile_dir(repo)).map_err(|e| e.to_string())?;
     std::fs::write(&path, text).map_err(|e| format!("write report failed: {e}"))?;
     Ok(path)
+}
+
+pub async fn compare_fake_formats(model_name: &str) -> Result<Vec<String>, String> {
+    let first = fake_side(model_name).await;
+    let second = fake_side(model_name).await;
+    if let Some(message) = first.failed.or(second.failed) {
+        return Err(message);
+    }
+    let shapes = Shapes {
+        fake: first.side.probe,
+        live: second.side.probe,
+    };
+    let lines = report_lines(&shapes);
+    let matched = lines
+        .iter()
+        .filter(|line| line.contains("identical format"))
+        .count();
+    if matched != crate::cases::SCENARIOS.len() {
+        return Err(format!("probe formats differ: {lines:?}"));
+    }
+    let product = crate::product::product_lines(&first.side.product, &second.side.product);
+    let product_matched = product
+        .iter()
+        .filter(|line| line.contains("identical structure"))
+        .count();
+    if product_matched != crate::cases::PRODUCT_SCENARIOS.len() {
+        return Err(format!("product structures differ: {product:?}"));
+    }
+    let mut out = lines;
+    out.extend(product);
+    Ok(out)
 }
 
 #[must_use]

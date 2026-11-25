@@ -37,9 +37,23 @@ async fn live_fake_side_product_shapes_match_scripts_in_order() {
     assert_eq!(outcome.failed, None);
     let product = &outcome.side.product;
     assert_eq!(product.first().expect("product normal").stop, "finished");
+    assert!(product.first().expect("product normal").has_thinking);
     assert_eq!(product.get(1).expect("product stream").stop, "finished");
+    assert!(product.get(1).expect("product stream").has_thinking);
     assert_eq!(product.get(2).expect("product tool").stop, "needs-tool");
     assert_eq!(product.get(2).expect("product tool").tool_calls, 1);
     assert_eq!(product.get(3).expect("product thinking").stop, "finished");
     assert!(product.get(3).expect("product thinking").has_thinking);
+}
+
+#[tokio::test]
+async fn live_fake_side_four_comparisons_are_structurally_equal() {
+    let lines = live_model::side::compare_fake_formats("local")
+        .await
+        .expect("fake comparison");
+    let identical = lines
+        .iter()
+        .filter(|line| line.contains("identical"))
+        .count();
+    assert_eq!(identical, 7, "{lines:?}");
 }

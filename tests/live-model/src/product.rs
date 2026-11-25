@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anybot_foundation::clock::{Clock, SystemClock};
 use anybot_models::{ProviderKind, StopKind, TurnResult, gateway, resolve_endpoint};
 
-use crate::cases::{product_cases, product_steps};
+use crate::cases::product_cases;
 use crate::profile::LiveProfile;
 use crate::side::Outcome;
 use test_harness::{ModelFormat, model_start_with_format};
@@ -153,12 +153,20 @@ pub async fn compare_fakes() -> Result<(), String> {
     if left != right {
         return Err(format!("neutral shapes differ: {left:?} vs {right:?}"));
     }
+    let lines = product_lines(&left, &right);
+    let matched = lines
+        .iter()
+        .filter(|line| line.contains("identical structure"))
+        .count();
+    if matched != crate::cases::PRODUCT_SCENARIOS.len() {
+        return Err(format!("product structures differ: {lines:?}"));
+    }
     Ok(())
 }
 
 async fn shapes_from(format: ModelFormat) -> Result<Vec<NeutralShape>, String> {
     let (model, port) = model_start_with_format(format).await?;
-    model.script_set(product_steps());
+    model.script_set(crate::cases::product_steps_for(true));
     let shapes = fake_product_shapes(port, "local").await;
     drop(model);
     match shapes.failed {
