@@ -98,7 +98,7 @@ async fn bind_plan_says_port_unusable_when_port_is_taken() -> Result<(), String>
                 return outcome;
             }
             Err(err) if err.kind() == std::io::ErrorKind::AddrInUse => {
-                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                test_harness::sleep_real(std::time::Duration::from_millis(250)).await;
             }
             Err(err) => return Err(format!("bind failed: {err}")),
         }

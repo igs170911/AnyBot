@@ -11,6 +11,14 @@ impl Clock for FixedClock {
     fn now_ms(&self) -> TimestampMs {
         self.0
     }
+
+    fn sleep(&self, _span: std::time::Duration) -> anybot_foundation::PinBoxFuture<'static, ()> {
+        Box::pin(std::future::ready(()))
+    }
+
+    fn sleep_until(&self, _deadline: TimestampMs) -> anybot_foundation::PinBoxFuture<'static, ()> {
+        Box::pin(std::future::ready(()))
+    }
 }
 
 fn release(version: u32, year: i16, month: i8, day: i8) -> ProtocolRelease {

@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
 
+use serde as _;
+use serde_json as _;
+
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -21,7 +24,7 @@ fn main() -> ExitCode {
         }
     }
     if violations.is_empty() {
-        if writeln!(stdout, "iron-laws: all four iron laws pass").is_err() {
+        if writeln!(stdout, "iron-laws: all gates pass").is_err() {
             return ExitCode::FAILURE;
         }
         return ExitCode::SUCCESS;

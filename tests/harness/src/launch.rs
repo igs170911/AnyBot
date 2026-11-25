@@ -1,9 +1,11 @@
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::fake_clock::FakeClock;
 use crate::process::{PollState, collect_stream, finish_poll, kill_child, spawn_reader};
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -128,4 +130,62 @@ pub fn child_is_dead(child: &mut std::process::Child) -> Result<bool, String> {
         Ok(None) => Ok(false),
         Err(err) => Err(format!("try_wait failed: {err}")),
     }
+}
+
+pub async fn run_program_clocked(
+    program: &Program,
+    dir: &Path,
+    clock: &Arc<FakeClock>,
+) -> Result<Outcome, String> {
+    use tokio::process::Command as TokioCommand;
+    let mut cmd = TokioCommand::new(&program.path);
+    cmd.args(&program.args);
+    cmd.current_dir(dir);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    let child = cmd
+        .spawn()
+        .map_err(|e| format!("start {} failed: {e}", program.label()))?;
+    let Some(pid) = child.id() else {
+        return Err(format!("no PID for {}", program.label()));
+    };
+    let mut child = child;
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let sleeper = crate::fake_clock::sleep_for(clock, program.timeout);
+    let status = tokio::select! {
+        result = child.wait() => result,
+        () = sleeper => {
+            let _killed = child.kill().await.is_ok();
+            return Err(format!(
+                "timed out after {:?} waiting for PID {pid} ({}) to exit",
+                program.timeout,
+                program.label()
+            ));
+        }
+    };
+    let status = status.map_err(|e| format!("wait PID {pid} failed: {e}"))?;
+    let code = crate::process::exit_status_code(&status)?;
+    let stdout = drain_pipe(stdout, program.timeout).await?;
+    let stderr = drain_pipe(stderr, program.timeout).await?;
+    Ok(Outcome {
+        code,
+        stdout,
+        stderr,
+    })
+}
+
+async fn drain_pipe<R: tokio::io::AsyncReadExt + Unpin>(
+    pipe: Option<R>,
+    timeout: Duration,
+) -> Result<String, String> {
+    let Some(mut pipe) = pipe else {
+        return Ok(String::new());
+    };
+    let mut buf = Vec::new();
+    let read = tokio::time::timeout(timeout, pipe.read_to_end(&mut buf)).await;
+    let Ok(Ok(_count)) = read else {
+        return Err("read child pipe timed out".to_owned());
+    };
+    Ok(String::from_utf8_lossy(&buf).into_owned())
 }

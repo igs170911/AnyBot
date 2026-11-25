@@ -104,6 +104,14 @@ mod tests {
         fn now_ms(&self) -> TimestampMs {
             TimestampMs::from_millis(self.0)
         }
+
+        fn sleep(&self, _span: std::time::Duration) -> crate::clock::PinBoxFuture<'static, ()> {
+            Box::pin(std::future::ready(()))
+        }
+
+        fn sleep_until(&self, _deadline: TimestampMs) -> crate::clock::PinBoxFuture<'static, ()> {
+            Box::pin(std::future::ready(()))
+        }
     }
 
     #[test]

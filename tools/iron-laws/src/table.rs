@@ -1,112 +1,8 @@
+pub use crate::banlists::{CMD_T, ENV_M, FS_M, FS_STD_M, FS_T, FS_TOKIO_M, HTTP_M, PROC_M, TIME_M};
+
 pub const SCAN_DIRS: [&str; 6] = ["crates", "apps", "tools", "web", "adapters", "tests"];
 
-pub const PROC_M: [&str; 9] = [
-    "std::process::Command::new",
-    "std::process::Command::output",
-    "std::process::Command::spawn",
-    "std::process::Command::status",
-    "tokio::process::Command::new",
-    "tokio::process::Command::output",
-    "tokio::process::Command::spawn",
-    "tokio::process::Command::status",
-    "std::os::unix::process::CommandExt::exec",
-];
-pub const ENV_M: [&str; 6] = [
-    "std::env::var",
-    "std::env::var_os",
-    "std::env::vars",
-    "std::env::vars_os",
-    "std::env::home_dir",
-    "std::env::temp_dir",
-];
-pub const HTTP_M: [&str; 11] = [
-    "reqwest::Client::new",
-    "reqwest::Client::get",
-    "reqwest::Client::post",
-    "reqwest::Client::put",
-    "reqwest::Client::delete",
-    "reqwest::Client::head",
-    "reqwest::Client::request",
-    "reqwest::RequestBuilder::send",
-    "reqwest::get",
-    "reqwest::blocking::Client::new",
-    "reqwest::blocking::Client::get",
-];
-pub const FS_STD_M: [&str; 16] = [
-    "std::fs::read",
-    "std::fs::read_to_string",
-    "std::fs::write",
-    "std::fs::remove_file",
-    "std::fs::rename",
-    "std::fs::create_dir_all",
-    "std::fs::copy",
-    "std::fs::create_dir",
-    "std::fs::remove_dir",
-    "std::fs::remove_dir_all",
-    "std::fs::read_dir",
-    "std::fs::set_permissions",
-    "std::fs::hard_link",
-    "std::fs::OpenOptions::new",
-    "std::fs::OpenOptions::open",
-    "std::fs::File::open",
-];
-pub const FS_TOKIO_M: [&str; 15] = [
-    "tokio::fs::read",
-    "tokio::fs::read_to_string",
-    "tokio::fs::write",
-    "tokio::fs::remove_file",
-    "tokio::fs::rename",
-    "tokio::fs::create_dir",
-    "tokio::fs::create_dir_all",
-    "tokio::fs::remove_dir",
-    "tokio::fs::remove_dir_all",
-    "tokio::fs::read_dir",
-    "tokio::fs::metadata",
-    "tokio::fs::set_permissions",
-    "tokio::fs::hard_link",
-    "tokio::fs::copy",
-    "tokio::fs::file",
-];
-pub const FS_M: [&str; 31] = [
-    "std::fs::read",
-    "std::fs::read_to_string",
-    "std::fs::write",
-    "std::fs::remove_file",
-    "std::fs::rename",
-    "std::fs::create_dir_all",
-    "std::fs::copy",
-    "std::fs::create_dir",
-    "std::fs::remove_dir",
-    "std::fs::remove_dir_all",
-    "std::fs::read_dir",
-    "std::fs::set_permissions",
-    "std::fs::hard_link",
-    "std::fs::OpenOptions::new",
-    "std::fs::OpenOptions::open",
-    "std::fs::File::open",
-    "tokio::fs::read",
-    "tokio::fs::read_to_string",
-    "tokio::fs::write",
-    "tokio::fs::remove_file",
-    "tokio::fs::rename",
-    "tokio::fs::create_dir",
-    "tokio::fs::create_dir_all",
-    "tokio::fs::remove_dir",
-    "tokio::fs::remove_dir_all",
-    "tokio::fs::read_dir",
-    "tokio::fs::metadata",
-    "tokio::fs::set_permissions",
-    "tokio::fs::hard_link",
-    "tokio::fs::copy",
-    "tokio::fs::file",
-];
-pub const FS_T: [&str; 4] = [
-    "std::fs::File",
-    "std::fs::OpenOptions",
-    "std::fs::DirBuilder",
-    "tokio::fs::File",
-];
-pub const CMD_T: [&str; 2] = ["std::process::Command", "tokio::process::Command"];
+pub const PACKAGE_SCAN_DIRS: [&str; 4] = ["src", "tests", "benches", "examples"];
 
 #[must_use]
 pub fn suppression_tokens() -> Vec<String> {
@@ -123,7 +19,7 @@ pub fn suppression_tokens() -> Vec<String> {
     ]
 }
 
-pub const SKIP_DIR_NAMES: [&str; 8] = [
+pub const SKIP_DIR_NAMES: [&str; 9] = [
     "node_modules",
     "dist",
     "target",
@@ -132,6 +28,7 @@ pub const SKIP_DIR_NAMES: [&str; 8] = [
     "coverage",
     ".pnpm",
     "generated",
+    "compilefail",
 ];
 
 pub const SOURCE_EXTENSIONS: [&str; 3] = ["rs", "ts", "tsx"];
@@ -185,11 +82,17 @@ mod tests {
         assert!(e.contains_key("anybot-computers"));
         assert!(e.contains_key("depcheck"));
         assert!(e.contains_key("api-docs"));
+        assert!(e.contains_key("test-harness"));
         assert!(!e.contains_key("anybot-domain"));
         let want = [
             "std::fs::read_to_string".to_owned(),
             "std::fs::File::open".to_owned(),
             "std::env::home_dir".to_owned(),
+            "time::OffsetDateTime::now_utc".to_owned(),
+            "tokio::time::sleep".to_owned(),
+            "tokio::time::sleep_until".to_owned(),
+            "tokio::time::timeout".to_owned(),
+            "tokio::time::Instant::now".to_owned(),
         ]
         .into_iter()
         .collect::<BTreeSet<String>>();
@@ -213,7 +116,7 @@ mod tests {
     #[test]
     fn test_table_harness_exempts_process_http_files_but_not_env() {
         let e = clippy_exemptions();
-        let want = merge(&[&PROC_M[..], &HTTP_M[..], &FS_M[..]])
+        let want = merge(&[&PROC_M[..], &HTTP_M[..], &FS_M[..], &TIME_M[..]])
             .into_iter()
             .map(String::from)
             .collect::<BTreeSet<String>>();
@@ -284,6 +187,49 @@ mod tests {
             Some("iron-laws")
         );
         assert_eq!(package_of_path("web/ui/src/shell.tsx"), None);
+    }
+
+    #[test]
+    fn test_table_time_methods_cover_the_clock_ban() {
+        let want = [
+            "std::time::SystemTime::now",
+            "std::time::Instant::now",
+            "std::thread::sleep",
+            "tokio::time::sleep",
+            "tokio::time::sleep_until",
+            "tokio::time::timeout",
+            "tokio::time::interval",
+            "tokio::time::Instant::now",
+            "time::OffsetDateTime::now_utc",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect::<BTreeSet<String>>();
+        let got = TIME_M
+            .into_iter()
+            .map(String::from)
+            .collect::<BTreeSet<String>>();
+        assert_eq!(got, want);
+        let all = clippy_exemptions();
+        let foundation = all
+            .get("anybot-foundation")
+            .and_then(|m| m.get("disallowed-methods"));
+        assert!(foundation.is_some_and(|s| s.contains("time::OffsetDateTime::now_utc")));
+        let harness = all
+            .get("test-harness")
+            .and_then(|m| m.get("disallowed-methods"));
+        assert!(harness.is_some_and(|s| s.contains("std::thread::sleep")));
+        for name in TIME_M {
+            if name == "std::time::SystemTime::now" || name == "std::time::Instant::now" {
+                let models = all
+                    .get("anybot-models")
+                    .and_then(|m| m.get("disallowed-methods"));
+                assert!(
+                    !models.is_some_and(|s| s.contains(name)),
+                    "{name} must not be exempted outside clock owners"
+                );
+            }
+        }
     }
 
     #[test]

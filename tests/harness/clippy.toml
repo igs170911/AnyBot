@@ -19,21 +19,7 @@ disallowed-methods = [
     # running external programs: only computers and tests/harness, and only with a trust passport
     # sending HTTP requests: only models, mcp, sync, channels, computers, tests/harness
     # reading and writing arbitrary files: only computers, blob, store-client, tests/harness
-    { path = "tokio::fs::read", reason = "same" },
-    { path = "tokio::fs::read_to_string", reason = "same" },
-    { path = "tokio::fs::write", reason = "same" },
-    { path = "tokio::fs::remove_file", reason = "same" },
-    { path = "tokio::fs::rename", reason = "same" },
-    { path = "tokio::fs::create_dir", reason = "same" },
-    { path = "tokio::fs::create_dir_all", reason = "same" },
-    { path = "tokio::fs::remove_dir", reason = "same" },
-    { path = "tokio::fs::remove_dir_all", reason = "same" },
-    { path = "tokio::fs::read_dir", reason = "same" },
-    { path = "tokio::fs::metadata", reason = "same" },
-    { path = "tokio::fs::set_permissions", reason = "same" },
-    { path = "tokio::fs::hard_link", reason = "same" },
-    { path = "tokio::fs::copy", reason = "same" },
-    { path = "tokio::fs::file", allow-invalid = true, reason = "same" },
+    # clock and time: every time access goes through the foundation Clock (M4 A.2)
 ]
 
 disallowed-types = [

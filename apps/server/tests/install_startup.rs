@@ -113,7 +113,7 @@ async fn bind_stack(addr: &str) -> Result<TcpListener, String> {
         match TcpListener::bind(addr).await {
             Ok(listener) => return Ok(listener),
             Err(err) if err.kind() == std::io::ErrorKind::AddrInUse => {
-                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                test_harness::sleep_real(std::time::Duration::from_millis(250)).await;
             }
             Err(err) => return Err(err.to_string()),
         }
@@ -249,7 +249,7 @@ async fn start_healthy_server(
         if code == 200 {
             return Ok(running);
         }
-        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        test_harness::sleep_real(std::time::Duration::from_millis(250)).await;
     }
     Err("health endpoint never answered 200".to_owned())
 }

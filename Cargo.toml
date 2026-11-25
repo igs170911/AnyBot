@@ -52,6 +52,8 @@ url = "2"
 percent-encoding = "2"
 tokio = { version = "1", features = ["macros", "rt", "net"] }
 socket2 = "0.6"
+getrandom = "0.4"
+bytes = "1"
 trybuild = "1"
 utoipa = { version = "6", features = ["yaml", "uuid"] }
 uuid = { version = "1", features = ["std", "serde"] }
@@ -62,7 +64,7 @@ http-body-util = "0.1"
 clap = { version = "4", features = ["derive"] }
 regex = "1"
 libc = { version = "0.2" }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.9", features = ["runtime-tokio"] }
@@ -71,6 +73,15 @@ tracing = "0.1"
 fluent-bundle = "0.16"
 fluent-syntax = "0.12"
 unic-langid = { version = "0.9", features = ["macros"] }
+tokio-stream = "0.1"
+sad-web-push = { version = "0.12", default-features = false }
+p256 = { version = "0.14", features = ["ecdh", "pkcs8", "pem"] }
+hkdf = "0.13"
+sha2 = "0.11"
+aes-gcm = { version = "0.11", features = ["zeroize"] }
+base64 = "0.22"
+postgresql_embedded = { version = "0.22", default-features = false, features = ["tokio", "tls-rustls-ring"] }
+toml = "1"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

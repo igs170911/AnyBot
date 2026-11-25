@@ -16,9 +16,11 @@ time = { workspace = true }
 url = { workspace = true }
 percent-encoding = { workspace = true }
 uuid = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 zeroize = { workspace = true }
 [lints]
 workspace = true
 
 [dev-dependencies]
 trybuild = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "time"] }

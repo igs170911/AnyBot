@@ -8,7 +8,7 @@ pub mod startup;
 mod startup_tests;
 
 pub use bootstrap::ServerBootstrap;
-pub use clock::{Clock, SystemClock, TimestampMs};
+pub use clock::{Clock, ClockExpired, PinBoxFuture, SystemClock, TimestampMs};
 pub use error::{
     CODE_BOOTSTRAP_CREDENTIALS_MISSING, CODE_BOOTSTRAP_DATABASE_MISSING,
     CODE_BOOTSTRAP_HOST_MISSING, CODE_BOOTSTRAP_MISSING, CODE_BOOTSTRAP_NOT_FOUND,

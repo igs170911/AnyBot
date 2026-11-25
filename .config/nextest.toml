@@ -1,6 +1,9 @@
 [profile.default]
-
-[profile.default.test-threads]
+slow-timeout = { period = "30s", terminate-after = 4 }
 
 [[profile.default.serial]]
 matcher = 'filter(r"^t_install_n22_1$|^t_install_n22_3$|^t_server_n14_2$|^health_endpoint_answers_on_the_started_server$|^bind_plan_says_port_unusable_when_port_is_taken$|^second_server_exits_with_one_while_first_keeps_serving_health$")'
+
+[[profile.default.overrides]]
+filter = 'test(^t_install|^t_server|postgres|pg_)'
+slow-timeout = { period = "90s", terminate-after = 4 }
