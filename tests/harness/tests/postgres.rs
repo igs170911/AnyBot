@@ -25,7 +25,7 @@ use sqlx::{PgPool, Row};
 
 use test_harness::ports::port_is_free;
 use test_harness::postgres::{
-    pg_install_cache_dir, pg_migrations_dir, pg_ready, pg_start, pg_stop,
+    pg_install_cache_dir, pg_migrations_dir, pg_ready, pg_socket_path, pg_start, pg_stop,
 };
 use test_harness::realtime::timeout_real;
 use test_harness::scratch::test_dir;
@@ -127,6 +127,48 @@ async fn postgres_install_cache_is_shared_under_target() {
     assert_eq!(tail, "pg-install");
     let parent = resolved.parent().unwrap().file_name().unwrap();
     assert_eq!(parent, "target");
+}
+
+#[tokio::test]
+async fn postgres_socket_directory_is_under_target() {
+    let instance = start_pg("pg-socket").await.unwrap();
+    let socket = pg_socket_path(instance.base_dir(), instance.port());
+    let socket_text = socket.display().to_string();
+    let mut stdout = std::io::stdout();
+    let _written = std::io::Write::write_fmt(
+        &mut stdout,
+        format_args!("unix socket path: {socket_text}\n"),
+    );
+    let resolved = std::path::absolute(&socket).unwrap_or(socket.clone());
+    assert!(
+        resolved.exists(),
+        "socket file missing at {}",
+        resolved.display()
+    );
+    assert!(
+        resolved.starts_with(test_harness::repo_root().join("target")),
+        "socket must live under target/: {}",
+        resolved.display()
+    );
+    let path_text = resolved.to_string_lossy();
+    assert!(
+        path_text.len() <= 100,
+        "macOS unix socket path limit is about 104: got {}",
+        path_text.len()
+    );
+    let tmp_socket = std::path::Path::new("/tmp").join(format!(".s.PGSQL.{}", instance.port()));
+    assert!(
+        !tmp_socket.exists(),
+        "socket leaked to /tmp: {}",
+        tmp_socket.display()
+    );
+    let lock = std::path::Path::new("/tmp").join(format!(".s.PGSQL.{}.lock", instance.port()));
+    assert!(
+        !lock.exists(),
+        "socket lock leaked to /tmp: {}",
+        lock.display()
+    );
+    pg_stop(&instance).await.unwrap();
 }
 
 #[tokio::test]

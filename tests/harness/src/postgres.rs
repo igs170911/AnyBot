@@ -91,6 +91,7 @@ pub async fn pg_start(base_dir: &Path) -> Result<PgInstance, String> {
         username: "postgres".to_owned(),
         password: pg_generated_password(),
         data_dir,
+        socket_dir: Some(base_dir.to_path_buf()),
         password_file: base_dir.join("pw"),
         installation_dir,
         temporary: false,
@@ -142,4 +143,9 @@ pub fn pg_migrations_dir() -> PathBuf {
 #[must_use]
 pub fn pg_ready(_base_dir: &Path, port: u16) -> bool {
     std::net::TcpStream::connect(("127.0.0.1", port)).is_ok()
+}
+
+#[must_use]
+pub fn pg_socket_path(base_dir: &Path, port: u16) -> PathBuf {
+    base_dir.join(format!(".s.PGSQL.{port}"))
 }

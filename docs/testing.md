@@ -5,9 +5,18 @@
 ## 跑測試
 
 - Rust 一律用 `cargo nextest run`（不要用 `cargo test`）。make 目標：`make check` 裡有 `test` 關卡；`make check-fast` 跑 `make test-fast`（`--profile quick`：跳過 PostgreSQL 群組的測試，e2e 是分開的目標）。
-- `make live-model-check`（`tests/live-model`）：跟真的本機模型比對請求格式（一般／串流／工具呼叫），設定只讀 `target/live-model/profile.toml`，只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印；差異報告寫在 `target/live-model/format-report.txt`。不在 `make check`、`make check-fast`、CI 裡。
+- `make live-model-check`（`tests/live-model`）：跟真的本機模型比對**請求與回應格式**（一般／串流／工具呼叫），設定只讀 `target/live-model/profile.toml`，只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印、**絕不放進命令列參數**（`ps` 會看到）；要打真的模型一律走這個程式，真的要手動 `curl` 時把標頭寫進 `target/` 裡權限 600 的檔案、用 `curl -H @檔案`，用完刪掉。假模型用 `vllm` 格式跟真的比，三種請求都要 identical；差異報告寫在 `target/live-model/format-report.txt`。不在 `make check`、`make check-fast`、CI 裡。
 - TypeScript 用 `pnpm vitest run`；端對端用 Playwright（見第二節）。
 - 逾時設定在 `.config/nextest.toml`：每個測試 30 秒慢速警戒，第 4 次逾時就終止。PostgreSQL 相關的測試另有 90 秒寬限，並在同一群組裡序列化執行（平行度 1）。
+
+## 假模型的兩種格式（OpenAI 相容端點）
+
+由建構假模型時選（`model_start_with_format`），或在啟動後用 `format_set` 選；`model_start()` 預設是 `openai`。
+
+| 格式 | 內容 | 什麼時候用 |
+|---|---|---|
+| `openai`（預設） | 照 OpenAI 官方文件：工具呼叫的 `finish_reason` 是 `tool_calls`；沒有本機模型伺服器特有的欄位（`kv_transfer_params`、`routed_experts`、`weight_versions`、`prompt_logprobs`、`reasoning` 這類都不出現）。 | 產品測試（假模型就是標準 OpenAI 供應商的樣子）。 |
+| `vllm` | 照那台本機模型伺服器的樣子：思考內容放在非標準的 `reasoning` 欄位；特有欄位都有（`kv_transfer_params`、`routed_experts`、`weight_versions`、`prompt_logprobs`、`stop_reason`、`token_ids`、`prompt_text`、`prompt_token_ids`、`ec_transfer_params`、`metrics`、`system_fingerprint`）；呼叫工具時 `finish_reason` 是 `stop`。 | 只有 `make live-model-check`：拿它跟真的本機模型比對回應格式，三種請求都要 identical。 |
 
 ## harness 提供什麼（`tests/harness/src/`）
 
@@ -18,9 +27,9 @@
 | `ports.rs` | 保留空閒 port，占用時排除 | 不准在正式程式加 `SO_REUSEPORT` 之类 |
 | `netctl.rs` / `netproxy.rs` / `origin.rs` | 網路控制：allow / cut / slow / down / buffer / idle-cut / source-addr；所有測試流量走代理 | 自我測試在 `tests/netctl_real.rs`：真的連線穿過代理驗每種行為（延遲、頻寬可量測），不准直接連外 |
 | `fake_clock.rs` | 假時鐘：實現在 `anybot_foundation::clock::Clock`；`advance()` 依到期順序喚醒 | 正式程式只准透過 `Clock` 介面等時間；`tokio::time::sleep/timeout` 在產品程式被 clippy 禁用，foundation 與 harness 豁免 |
-| `model_script.rs` / `model_openai.rs` / `model_anthropic.rs` / `model_plan.rs` / `fake_model.rs` | 假模型伺服器：照腳本回 OpenAI / Anthropic responses（串流、JSON、tool、reasoning、中斷、卡死、無回應、錯誤狀態），並記錄收到的請求 | 腳本依序回應；空腳本回錯誤 |
+| `model_script.rs` / `model_openai.rs` / `model_vllm.rs` / `model_anthropic.rs` / `model_plan.rs` / `fake_model.rs` | 假模型伺服器：照腳本回 responses（串流、JSON、tool、中斷、卡死、無回應、錯誤狀態），並記錄收到的請求 | 腳本依序回應；空腳本回錯誤；OpenAI 相容端點有兩種格式（見下面「假模型的兩種格式」） |
 | `http.rs` / `realtime.rs` | 測試用的 HTTP/SSE/WebSocket helper；`timeout_real` 给非同步等待包上真時間期限 | 等待外部的東西一律要有期限 |
-| `postgres.rs` | 測試用 PostgreSQL（K90：不用 Docker）：`pg_start` 把程式下載到 `target/pg-install`（共用快取），資料夾在 `target/`，TCP only，帳密為套件內建的 superuser；`pg_create_database` / `pg_drop_database` 走 admin pool；`pg_migrations_dir()` 指向 `tests/harness/fixtures/migrations/server` | 每個測試用獨立 base dir 與獨立 database；stop 會釋放 port 並清掉資料夾 |
+| `postgres.rs` | 測試用 PostgreSQL（K90：不用 Docker）：`pg_start` 把程式下載到 `target/pg-install`（共用快取），資料夾在 `target/`，`unix_socket_directories`（`socket_dir`）設在 `target/` 裡那個資料庫自己的資料夾（macOS socket 路徑上限約 104 字元，base dir 要短），帳密為套件內建的 superuser；`pg_create_database` / `pg_drop_database` 走 admin pool；`pg_migrations_dir()` 指向 `tests/harness/fixtures/migrations/server` | 每個測試用獨立 base dir 與獨立 database；stop 會釋放 port 並清掉資料夾；不准讓 socket 檔寫到 `/tmp` |
 | `fake_push.rs` / `push_crypto.rs` | 假推播（RFC 8030 的推播服務）：訂閱註冊、PUT `/push/{id}`，用測試自己產生的金鑰（RFC 8291 aes128gcm，金鑰在 body 的前 86 字节裡）解開內容，記錄 `subscription_id`、明文、`ttl`、`topic`、`urgency` | 加解密用 `sad-web-push`（純 Rust，不用 OpenSSL），不手寫；自我測試見 `tests/harness/tests/fake_push.rs` |
 
 ## 測試命名與分級（`spec/09` K86、`spec/05` 鐵律 4）

@@ -9,6 +9,7 @@ use crate::fake_model::ModelFormat;
 use crate::model_anthropic;
 use crate::model_openai;
 use crate::model_script::{CODE_MODEL_SCRIPT_EMPTY, Step};
+use crate::model_vllm;
 
 #[must_use]
 pub fn stream_response(step: Step, format: ModelFormat, model: String) -> Response {
@@ -43,6 +44,7 @@ pub struct Plan {
 pub async fn run_plan(tx: mpsc::Sender<String>, plan: Plan) {
     match plan.format {
         ModelFormat::OpenAi => model_openai::plan_lines(&tx, plan.step, &plan.model).await,
+        ModelFormat::Vllm => model_vllm::plan_lines(&tx, plan.step, &plan.model).await,
         ModelFormat::Anthropic => model_anthropic::plan_lines(&tx, plan.step, &plan.model).await,
     }
     drop(tx);
@@ -60,6 +62,7 @@ pub fn json_response(step: Step, format: ModelFormat, model: &str) -> Response {
         | Step::StallAfter { .. }) => {
             let body = match format {
                 ModelFormat::OpenAi => model_openai::json_body(&other, model),
+                ModelFormat::Vllm => model_vllm::json_body(&other, model),
                 ModelFormat::Anthropic => model_anthropic::json_body(&other, model),
             };
             (
@@ -92,7 +95,7 @@ pub fn empty_script_body() -> String {
 #[must_use]
 pub fn content_type_for(format: ModelFormat) -> &'static str {
     match format {
-        ModelFormat::OpenAi | ModelFormat::Anthropic => "text/event-stream",
+        ModelFormat::OpenAi | ModelFormat::Anthropic | ModelFormat::Vllm => "text/event-stream",
     }
 }
 

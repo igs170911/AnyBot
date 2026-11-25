@@ -21,11 +21,11 @@ use url as _;
 use std::sync::Arc;
 use std::time::Duration;
 
-use test_harness::fake_model::model_start;
+use test_harness::fake_model::{ModelFormat, model_start_with_format};
 use test_harness::http::{sse_post, sse_wait_for_line, test_post};
 use test_harness::model_script::{
     HeaderValueKind, Step, model_calls_tool, model_cut_off, model_no_response, model_replies_text,
-    model_reply_status, model_stall, model_think_then_reply,
+    model_reply_status, model_stall,
 };
 use test_harness::realtime::timeout_real;
 
@@ -52,7 +52,15 @@ fn anthropic_body(stream: bool) -> String {
 }
 
 async fn model_with(steps: Vec<Step>) -> Result<(Arc<test_harness::FakeModel>, u16), String> {
-    let (model, port) = timeout_real(model_start(), Duration::from_secs(20)).await??;
+    model_with_format(steps, ModelFormat::OpenAi).await
+}
+
+async fn model_with_format(
+    steps: Vec<Step>,
+    format: ModelFormat,
+) -> Result<(Arc<test_harness::FakeModel>, u16), String> {
+    let (model, port) =
+        timeout_real(model_start_with_format(format), Duration::from_secs(20)).await??;
     model.script_set(steps);
     Ok((model, port))
 }
@@ -120,22 +128,6 @@ async fn fake_model_openai_tool_call_fields_in_json_and_stream() {
             .unwrap(),
         "tool_calls"
     );
-}
-
-#[tokio::test]
-async fn fake_model_openai_reasoning_stream_uses_reasoning_field() {
-    let (_model, port) = model_with(vec![model_think_then_reply("ponder", "answer", true)])
-        .await
-        .unwrap();
-    let lines = sse_post(
-        &format!("http://127.0.0.1:{port}/v1/chat/completions"),
-        &openai_body(true),
-    )
-    .await
-    .unwrap();
-    assert!(lines.iter().any(|l| l.contains("\"reasoning\"")));
-    assert!(lines.iter().any(|l| l.contains("ponder")));
-    assert!(lines.iter().any(|l| l.contains("answer")));
 }
 
 #[tokio::test]

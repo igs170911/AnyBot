@@ -15,6 +15,7 @@ use crate::model_script::{CODE_MODEL_SCRIPT_EMPTY, RecordedRequest, Script, Step
 struct ModelInner {
     script: Script,
     recorded: Vec<RecordedRequest>,
+    format: ModelFormat,
 }
 
 #[derive(Default)]
@@ -45,6 +46,21 @@ impl FakeModel {
             return 0;
         };
         inner.script.len()
+    }
+
+    pub fn format_set(&self, format: ModelFormat) {
+        let Ok(mut inner) = self.inner.lock() else {
+            return;
+        };
+        inner.format = format;
+    }
+
+    #[must_use]
+    pub fn format(&self) -> ModelFormat {
+        let Ok(inner) = self.inner.lock() else {
+            return ModelFormat::OpenAi;
+        };
+        inner.format
     }
 
     pub fn recorded(&self) -> Vec<RecordedRequest> {
@@ -81,7 +97,12 @@ impl FakeModel {
 }
 
 pub async fn model_start() -> Result<(Arc<FakeModel>, u16), String> {
+    model_start_with_format(ModelFormat::OpenAi).await
+}
+
+pub async fn model_start_with_format(format: ModelFormat) -> Result<(Arc<FakeModel>, u16), String> {
     let model = Arc::new(FakeModel::default());
+    model.format_set(format);
     let (std_listener, port) = crate::ports::bind_v4()?;
     std_listener
         .set_nonblocking(true)
@@ -108,7 +129,11 @@ async fn handle_openai(
     body: String,
 ) -> Response {
     model.record("/v1/chat/completions", body.clone(), &headers);
-    respond(&model, &body, ModelFormat::OpenAi)
+    let format = match model.format() {
+        ModelFormat::OpenAi | ModelFormat::Anthropic => ModelFormat::OpenAi,
+        ModelFormat::Vllm => ModelFormat::Vllm,
+    };
+    respond(&model, &body, format)
 }
 
 async fn handle_anthropic(
@@ -120,10 +145,12 @@ async fn handle_anthropic(
     respond(&model, &body, ModelFormat::Anthropic)
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub enum ModelFormat {
+    #[default]
     OpenAi,
     Anthropic,
+    Vllm,
 }
 
 #[must_use]

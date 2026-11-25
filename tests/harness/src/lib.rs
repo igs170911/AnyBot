@@ -18,6 +18,7 @@ pub mod model_anthropic;
 pub mod model_openai;
 pub mod model_plan;
 pub mod model_script;
+pub mod model_vllm;
 pub mod netctl;
 pub(crate) mod netctl_state;
 pub mod netproxy;
@@ -34,7 +35,7 @@ pub mod scratch;
 pub use fake_clock::{
     ClockGone, FakeClock, advance_clock, sleep_for, sleep_until, timeout as fake_clock_timeout,
 };
-pub use fake_model::{FakeModel, model_start};
+pub use fake_model::{FakeModel, ModelFormat, model_start, model_start_with_format};
 pub use fake_push::{FakePush, PushRecord, push_start};
 pub use http::{
     http_get, http_get_addr, http_send_get, http_wait, plain_client, request, sse_lines, sse_post,

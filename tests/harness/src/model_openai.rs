@@ -6,15 +6,12 @@ use crate::model_script::Step;
 
 pub const FAKE_CREATED: i64 = 1_700_000_000;
 pub const CODE_OPENAI_DONE: &str = "[DONE]";
+pub const FAKE_FINGERPRINT: &str = "fake-fingerprint";
 
 pub async fn plan_lines(tx: &mpsc::Sender<String>, step: Step, model: &str) {
     let send_done = match step {
-        Step::ReplyText { text, .. } => {
+        Step::ReplyText { text, .. } | Step::ThinkThenReply { text, .. } => {
             reply(tx, model, &text).await;
-            true
-        }
-        Step::ThinkThenReply { thinking, text, .. } => {
-            think_reply(tx, model, &thinking, &text).await;
             true
         }
         Step::CallTool { name, args, .. } => {
@@ -40,24 +37,13 @@ async fn send(tx: &mpsc::Sender<String>, value: serde_json::Value) {
 
 async fn reply(tx: &mpsc::Sender<String>, model: &str, text: &str) {
     send(tx, role_chunk(model)).await;
-    send(tx, delta_chunk(model, &json!({ "reasoning": "" }))).await;
     send(tx, content_chunk(model, text)).await;
     send(tx, finish_chunk(model, "stop")).await;
-    send(tx, usage_chunk(model)).await;
-}
-
-async fn think_reply(tx: &mpsc::Sender<String>, model: &str, thinking: &str, text: &str) {
-    send(tx, role_chunk(model)).await;
-    send(tx, delta_chunk(model, &json!({ "reasoning": thinking }))).await;
-    send(tx, content_chunk(model, text)).await;
-    send(tx, finish_chunk(model, "stop")).await;
-    send(tx, usage_chunk(model)).await;
 }
 
 async fn tool_call(tx: &mpsc::Sender<String>, model: &str, name: &str, args: &serde_json::Value) {
     let arguments = args.to_string();
     send(tx, role_chunk(model)).await;
-    send(tx, delta_chunk(model, &json!({ "reasoning": "" }))).await;
     send(
         tx,
         delta_chunk(
@@ -68,7 +54,6 @@ async fn tool_call(tx: &mpsc::Sender<String>, model: &str, name: &str, args: &se
     )
     .await;
     send(tx, finish_chunk(model, "tool_calls")).await;
-    send(tx, usage_chunk(model)).await;
 }
 
 async fn silence(_tx: &mpsc::Sender<String>) -> bool {
@@ -92,7 +77,7 @@ async fn stall(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {
     true
 }
 
-fn split_head(text: &str) -> String {
+pub(crate) fn split_head(text: &str) -> String {
     let bytes = text.as_bytes();
     let Some(mid) = bytes.len().checked_div(2) else {
         return String::new();
@@ -116,22 +101,13 @@ fn delta_chunk(model: &str, delta: &serde_json::Value) -> serde_json::Value {
             "index": 0,
             "delta": delta,
             "logprobs": null,
-            "token_ids": null,
             "finish_reason": null,
         }],
-        "kv_transfer_params": null,
     })
 }
 
 fn role_chunk(model: &str) -> serde_json::Value {
-    let mut chunk = delta_chunk(model, &json!({ "role": "assistant", "content": "" }));
-    let Some(top) = chunk.as_object_mut() else {
-        return chunk;
-    };
-    top.insert("prompt_text".to_owned(), json!(null));
-    top.insert("prompt_token_ids".to_owned(), json!(null));
-    top.remove("kv_transfer_params");
-    chunk
+    delta_chunk(model, &json!({ "role": "assistant", "content": "" }))
 }
 
 fn finish_chunk(model: &str, reason: &str) -> serde_json::Value {
@@ -140,18 +116,6 @@ fn finish_chunk(model: &str, reason: &str) -> serde_json::Value {
         choice["finish_reason"] = json!(reason);
     }
     chunk
-}
-
-fn usage_chunk(model: &str) -> serde_json::Value {
-    json!({
-        "id": "chatcmpl-fake",
-        "object": "chat.completion.chunk",
-        "created": FAKE_CREATED,
-        "model": model,
-        "choices": [],
-        "usage": { "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2 },
-        "system_fingerprint": "fake-fingerprint",
-    })
 }
 
 #[must_use]
@@ -167,36 +131,25 @@ pub fn json_body(step: &Step, model: &str) -> String {
             "message": message,
             "logprobs": null,
             "finish_reason": reason,
-            "stop_reason": null,
-            "token_ids": null,
-            "routed_experts": null,
-            "weight_versions": null,
         }],
         "usage": { "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2 },
         "service_tier": null,
-        "system_fingerprint": "fake-fingerprint",
-        "prompt_logprobs": null,
-        "prompt_text": null,
-        "prompt_token_ids": null,
-        "kv_transfer_params": null,
-        "ec_transfer_params": null,
-        "metrics": null,
+        "system_fingerprint": FAKE_FINGERPRINT,
     });
     body.to_string()
 }
 
 fn completion_message(step: &Step) -> (serde_json::Value, &'static str) {
     match step {
-        Step::ReplyText { text, .. } => (plain_message(text, ""), "stop"),
-        Step::ThinkThenReply { thinking, text, .. } => (plain_message(text, thinking), "stop"),
+        Step::ReplyText { text, .. } | Step::ThinkThenReply { text, .. } => {
+            (plain_message(text), "stop")
+        }
         Step::CallTool { name, args, .. } => (
             json!({
                 "role": "assistant",
                 "content": "",
                 "refusal": null,
                 "audio": null,
-                "function_call": null,
-                "reasoning": "",
                 "tool_calls": [{
                     "id": "call_fake", "type": "function",
                     "function": { "name": name, "arguments": args.to_string() } }]
@@ -206,17 +159,15 @@ fn completion_message(step: &Step) -> (serde_json::Value, &'static str) {
         Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
-        | Step::ReplyStatus { .. } => (plain_message("", ""), "stop"),
+        | Step::ReplyStatus { .. } => (plain_message(""), "stop"),
     }
 }
 
-fn plain_message(text: &str, thinking: &str) -> serde_json::Value {
+fn plain_message(text: &str) -> serde_json::Value {
     json!({
         "role": "assistant",
         "content": text,
         "refusal": null,
         "audio": null,
-        "function_call": null,
-        "reasoning": thinking,
     })
 }

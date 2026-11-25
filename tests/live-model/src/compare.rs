@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 
 use reqwest::Client;
 use test_harness::{
-    FakeModel, Step, model_start, plain_client, request, sse_post_client, sse_send,
+    FakeModel, ModelFormat, Step, model_start_with_format, plain_client, request, sse_post_client,
+    sse_send,
 };
 
 use crate::probe::{chat_url, live_client, normal_request, stream_request, tool_request};
@@ -170,7 +171,7 @@ pub async fn run() -> Result<(), String> {
     let repo = test_harness::repo_root();
     let profile = load_profile(&repo)?;
     let client = live_client(&profile)?;
-    let (model, port) = model_start().await?;
+    let (model, port) = model_start_with_format(ModelFormat::Vllm).await?;
     let fake = fake_shapes(&model, port, &profile.model).await?;
     let live = live_shapes(&profile, &client, &profile.model).await?;
     let shapes = Shapes { fake, live };
