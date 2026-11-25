@@ -949,17 +949,16 @@ operations:
       $ref: '#/channels/runEvents'
     description: the client receives the event stream from the server
     messages:
-    - $ref: '#/components/messages/approval_card'
-    - $ref: '#/components/messages/evidence_added'
-    - $ref: '#/components/messages/run_error'
-    - $ref: '#/components/messages/task_status_changed'
-    - $ref: '#/components/messages/tool_call_result'
-    - $ref: '#/components/messages/tool_call_started'
-    - $ref: '#/components/messages/turn_ended'
-    - $ref: '#/components/messages/turn_started'
-    - $ref: '#/components/messages/turn_text'
-    - $ref: '#/components/messages/turn_thinking'
-    operationId: stream_run_events
+    - $ref: '#/channels/runEvents/messages/approval_card'
+    - $ref: '#/channels/runEvents/messages/evidence_added'
+    - $ref: '#/channels/runEvents/messages/run_error'
+    - $ref: '#/channels/runEvents/messages/task_status_changed'
+    - $ref: '#/channels/runEvents/messages/tool_call_result'
+    - $ref: '#/channels/runEvents/messages/tool_call_started'
+    - $ref: '#/channels/runEvents/messages/turn_ended'
+    - $ref: '#/channels/runEvents/messages/turn_started'
+    - $ref: '#/channels/runEvents/messages/turn_text'
+    - $ref: '#/channels/runEvents/messages/turn_thinking'
     security:
     - description: M3 placeholder; bearer key.
       in: header

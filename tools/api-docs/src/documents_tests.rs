@@ -39,6 +39,34 @@ fn test_asyncapi_covers_every_event_kind() {
 }
 
 #[test]
+fn test_asyncapi_operation_points_at_channel_messages() {
+    let text = asyncapi::document().unwrap();
+    let doc: serde_json::Value = yaml_serde::from_str(&text).unwrap();
+    let operation = doc
+        .get("operations")
+        .and_then(|ops| ops.get("streamRunEvents"))
+        .unwrap();
+    assert!(operation.get("operationId").is_none());
+    let refs: BTreeSet<String> = operation
+        .get("messages")
+        .and_then(|v| v.as_array())
+        .unwrap()
+        .iter()
+        .map(|item| {
+            item.get("$ref")
+                .and_then(|v| v.as_str())
+                .unwrap()
+                .to_owned()
+        })
+        .collect();
+    let expected: BTreeSet<String> = kind_names()
+        .iter()
+        .map(|name| format!("#/channels/runEvents/messages/{name}"))
+        .collect();
+    assert_eq!(refs, expected);
+}
+
+#[test]
 fn test_openapi_documents_health_path_with_required_metadata() {
     let text = openapi::document().unwrap();
     let doc: serde_json::Value = yaml_serde::from_str(&text).unwrap();

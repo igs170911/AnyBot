@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use anybot_protocol::{KnownEventKind, PROTOCOL_VERSION, RecordedEvent};
 
+const CHANNEL_NAME: &str = "runEvents";
 const CHANNEL_ADDRESS: &str = "/v1/tasks/{taskId}/events/stream";
 const DEF_MARKER: &str = "#/$defs/";
 
@@ -175,11 +176,8 @@ pub fn document() -> Result<String, String> {
     let mut defs = serde_json::Map::new();
     normalize_schema(&mut run_schema, &mut defs);
     let component_messages = component_messages(&mut defs)?;
-    let message_entries: serde_json::Map<String, Value> = match component_messages.as_object() {
-        Some(map) => map.keys().map(|k| (k.clone(), ref_entry(k))).collect(),
-        None => return Err("component messages is not an object schema".to_owned()),
-    };
-    let message_refs: Vec<Value> = message_entries.values().cloned().collect();
+    let names = message_names(&component_messages)?;
+    let (message_entries, message_refs) = message_links(&names);
     let mut schemas = serde_json::Map::new();
     schemas.insert("runEventEnvelope".to_owned(), run_schema);
     for (name, def) in defs {
@@ -211,9 +209,8 @@ pub fn document() -> Result<String, String> {
                 "action": "receive",
                 "title": "receive the event stream",
                 "description": "the client receives the event stream from the server",
-                "operationId": "stream_run_events",
                 "tags": [{ "name": "events", "description": "event kinds of the run event protocol" }],
-                "channel": { "$ref": "#/channels/runEvents" },
+                "channel": { "$ref": format!("#/channels/{CHANNEL_NAME}") },
                 "security": [{
                     "type": "httpApiKey",
                     "name": "Authorization",
@@ -227,9 +224,28 @@ pub fn document() -> Result<String, String> {
     yaml_serde::to_string(&doc).map_err(|e| e.to_string())
 }
 
-fn ref_entry(name: &String) -> Value {
-    Value::Object(serde_json::Map::from_iter([(
-        "$ref".to_owned(),
-        Value::String(format!("#/components/messages/{name}")),
-    )]))
+fn message_names(messages: &Value) -> Result<Vec<String>, String> {
+    messages
+        .as_object()
+        .map(|map| map.keys().cloned().collect())
+        .ok_or_else(|| "component messages is not an object schema".to_owned())
+}
+
+fn message_links(names: &[String]) -> (serde_json::Map<String, Value>, Vec<Value>) {
+    let entries = names
+        .iter()
+        .map(|name| (name.clone(), component_message_ref(name)))
+        .collect();
+    let refs = names.iter().map(|name| channel_message_ref(name)).collect();
+    (entries, refs)
+}
+
+fn component_message_ref(name: &str) -> Value {
+    serde_json::json!({ "$ref": format!("#/components/messages/{name}") })
+}
+
+fn channel_message_ref(name: &str) -> Value {
+    serde_json::json!({
+        "$ref": format!("#/channels/{CHANNEL_NAME}/messages/{name}"),
+    })
 }
