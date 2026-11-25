@@ -32,7 +32,7 @@ anybot/
 ├── api/                       # openapi.yaml（由程式產生、提交）、執行事件協定的 schema
 │
 ├── crates/                    # Rust 函式庫
-│   ├── foundation/            # 最底層：ID、時間、錯誤、Secret 型別、啟動設定（唯一可以讀「資料庫在哪」的地方）
+│   ├── foundation/            # 最底層：ID、時間、錯誤、Secret 型別、啟動設定（唯一可以讀「資料庫在哪」的地方）、信任的憑證（`09` K115：模型閘道、連伺服器的客戶端、連接器共用同一份）
 │   ├── messages/              # 照訊息代碼和語言，把翻譯檔排成字（命令列、伺服器印的訊息；`09` K91、K92）
 │   ├── protocol/              # 執行事件協定、API 的請求和回應型別（伺服器、執行端、畫面共用）
 │   ├── domain/                # 任務、Bot、對話紀錄、核准規則、證據、同步合併規則。純邏輯，不碰網路和檔案
@@ -41,6 +41,7 @@ anybot/
 │   ├── tools/                 # 工具介面＋內建工具
 │   ├── mcp/                   # MCP 客戶端（接外部工具）、MCP 伺服器（提供工具給外部 agent）
 │   ├── computers/             # 電腦介面＋實作：local（使用者的電腦）、docker、kubernetes、第三方轉接
+│   ├── context/               # 上下文編譯器：從任務事件、原始紀錄、記憶，組出每次給模型看的內容和清單（`09` K95、K114）。純邏輯
 │   ├── runner/                # 執行端：Bot 的回合（問模型 → 經過信任層 → 工具）
 │   ├── external-agents/       # 外部 agent 的轉接（Rust 這一側；Claude Code 的另一側在 adapters/）
 │   ├── store-server/          # 伺服器資料層（PostgreSQL）
@@ -95,6 +96,7 @@ anybot/
 | `domain` | foundation、protocol | **不准碰網路、檔案、資料庫、非同步執行環境**：純邏輯才好測 |
 | `trust` | foundation、protocol、domain | |
 | `models`、`tools`、`computers`、`mcp` | foundation、protocol、domain | 彼此不互相依賴 |
+| `context` | foundation、protocol、domain、models | **純函式，沒有非同步、不發任何請求、不碰檔案和資料庫**：只用 `models` 的型別、能力表和 token 估算。記憶和原始紀錄由呼叫的人先拿好再傳進來 |
 | `blob`、`bus` | foundation | |
 | `store-server`、`store-client` | foundation、protocol、domain | |
 | `sync` | foundation、protocol、store-client | |

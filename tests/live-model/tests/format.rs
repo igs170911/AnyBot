@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use anybot_foundation as _;
 use anybot_models as _;
-use live_model::compare::{Shapes, diff_tokens_public, report_lines};
 use live_model::profile::{PROFILE_REL, load_profile};
 use live_model::shape::{json_shape, stream_shape};
+use live_model::side::{Shapes, diff_tokens_public, report_lines};
 use reqwest as _;
 use rustls as _;
 use rustls_pki_types as _;

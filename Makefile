@@ -10,21 +10,12 @@ NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 # sqlx compile-time queries build from the committed .sqlx metadata; the live database url reaches sqlx-cli only through the sqlx-prepare target.
 export SQLX_OFFLINE := true
 
-# cross-worktree test lock (docs/testing.md, parallel work): the lock file lives in the git common
-# directory so every worktree of this repo shares it; macOS uses lockf, Linux uses flock,
-# neither present (CI runs one checkout at a time) means no lock.
-TESTLOCK := $(shell git rev-parse --git-common-dir)/anybot-tests.lock
-
+# cross-worktree test lock (docs/testing.md, parallel work): tools/testlock.sh takes the lock
+# (the lock file lives in the git common directory so every worktree of this repo shares it;
+# macOS uses lockf, Linux uses flock, neither present (CI runs one checkout at a time) means
+# no lock). The script keeps every exit status; `;` sequences in recipes are blocked by iron-laws.
 define locked
-	@LOCK="$(TESTLOCK)"; mkdir -p "$$(dirname "$$LOCK")"; \
-	if command -v flock >/dev/null 2>&1; then \
-		exec 9>"$$LOCK"; flock -n 9 || echo "waiting for test lock: $$LOCK"; flock -x 9; $1; \
-	elif command -v lockf >/dev/null 2>&1; then \
-		lockf -t 0 -s -w "$$LOCK" true || echo "waiting for test lock: $$LOCK"; \
-		lockf -k -w "$$LOCK" $1; \
-	else \
-		$1; \
-	fi
+	@bash tools/testlock.sh $1
 endef
 
 # spec-trace baseline compare ref: locally compares against HEAD; CI compares against the commit pushed to before the push on dev and main, otherwise the merge base of origin/dev (K111; CI sets this variable).
@@ -34,15 +25,15 @@ SPEC_TRACE_REF ?= HEAD
 	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
-	_test-body _test-fast-body _e2e-body \
+	_test-body _test-fast-body _e2e-body gate-selftest \
 	locale locale-refresh
 
-check: fmt clippy test deny machete depcheck sqlx-check spec-trace ironlaws gitleaks locale \
+check: fmt clippy gate-selftest test deny machete depcheck sqlx-check spec-trace ironlaws gitleaks locale \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
 # fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
-check-fast: fmt clippy test-fast depcheck sqlx-check ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
+check-fast: fmt clippy gate-selftest test-fast depcheck sqlx-check ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -50,21 +41,32 @@ fmt:
 # Clippy reads only the nearest config at run time and does not merge: each package runs clippy in its own folder,
 # only exempt packages pick up their own clippy.toml (spec/09 K75).
 clippy:
-	@for manifest in $(shell $(CARGO) metadata --format-version 1 --no-deps | jq -r '.packages[].manifest_path'); do \
-		(cd "$$(dirname $$manifest)" && $(CARGO) clippy --all-targets -- -D warnings) || exit 1; \
-	done
+	@mkdir -p target
+	@$(CARGO) metadata --format-version 1 --no-deps > target/cargo-metadata.json
+	@jq -r '.packages[].manifest_path' target/cargo-metadata.json > target/clippy-manifests.txt
+	@test -s target/clippy-manifests.txt || { echo "cargo metadata listed no package manifests"; exit 1; }
+	@while read -r manifest; do (cd "$$(dirname "$$manifest")" && $(CARGO) clippy --all-targets -- -D warnings) || exit 1; done < target/clippy-manifests.txt
 
 test:
 	$(call locked,$(MAKE) --no-print-directory _test-body)
 
+# the gate (tools/test-gate.sh, shared with gate-selftest): nextest must exit 0 and the log
+# must not contain the unknown-keys warning; both halves block.
 _test-body:
 ifdef NEXTTEST
 	@mkdir -p target
-	$(CARGO) nextest run --workspace --test-threads 1 2>&1 | tee target/nextest.log; \
-		! grep -q "ignoring unknown configuration keys" target/nextest.log
+	bash tools/test-gate.sh run target/nextest.log $(CARGO) nextest run --workspace --test-threads 1
 else
 	$(CARGO) test --workspace
 endif
+
+# selftest for the gate above: a failing command and a clean-exit command carrying the
+# forbidden phrase must both be blocked; a clean command must pass (spec/05 §2, HOTFIX).
+gate-selftest:
+	@mkdir -p target
+	bash tools/test-gate.sh expect-fail target/gate-selftest.log bash -c 'exit 3'
+	bash tools/test-gate.sh expect-fail target/gate-selftest.log bash -c 'echo "ignoring unknown configuration keys" >&2; exit 0'
+	bash tools/test-gate.sh expect-pass target/gate-selftest.log bash -c 'echo clean gate output'
 
 # check-fast Rust tests: everything except the postgres group (spec/09 K90 real DB, slow) and e2e (separate target).
 test-fast:
@@ -90,7 +92,6 @@ machete:
 depcheck:
 	$(CARGO) run --locked -p depcheck
 
-# regenerate the committed offline query metadata with a throwaway harness PostgreSQL (the live url is passed here only).
 sqlx-prepare:
 	tools/sqlx_prepare.sh "$(CARGO)" "$(PNPM)" prepare
 
@@ -159,15 +160,19 @@ api-lint:
 LICENSE_ALLOW_CMD = sed -n "/^\[licenses\]/,/^\[advisories\]/p" deny.toml | sed -n "/^allow = \[/,/^\]/p" | tr -d " \"[]," | grep -v "^allow=$$" | sed "/^$$/d" | LC_ALL=C sort -u
 
 ts-licenses:
+	@mkdir -p target
 	@$(PNPM) -r licenses list --prod --json > target/licenses.json
 	@$(LICENSE_ALLOW_CMD) > target/allowed-licenses.txt
-	@LC_ALL=C comm -23 <(jq -r 'keys[] | split(" OR ")[]' target/licenses.json | LC_ALL=C sort -u) target/allowed-licenses.txt > target/license-reject.txt
-	@! test -s target/license-reject.txt || { echo "TS production dependencies have a disallowed license:"; cat target/license-reject.txt; exit 1; }
+	@jq -r 'keys[] | split(" OR ")[]' target/licenses.json | LC_ALL=C sort -u > target/license-keys.txt
+	@LC_ALL=C comm -23 target/license-keys.txt target/allowed-licenses.txt > target/license-reject.txt
+	@! test -s target/license-reject.txt || { echo "TS production dependencies have a disallowed license; see target/license-reject.txt"; exit 1; }
 	@echo "ts-licenses OK"
 
 ts-licenses-selftest:
+	@mkdir -p target
 	@$(LICENSE_ALLOW_CMD) > target/allowed-licenses.txt
-	@LC_ALL=C comm -23 <(jq -r 'keys[] | split(" OR ")[]' tests/fixtures/licenses/forbidden.json | LC_ALL=C sort -u) target/allowed-licenses.txt > target/license-selftest-reject.txt
+	@jq -r 'keys[] | split(" OR ")[]' tests/fixtures/licenses/forbidden.json | LC_ALL=C sort -u > target/license-selftest-keys.txt
+	@LC_ALL=C comm -23 target/license-selftest-keys.txt target/allowed-licenses.txt > target/license-selftest-reject.txt
 	@test -s target/license-selftest-reject.txt || { echo "selftest did not block GPL-3.0"; exit 1; }
 	@grep -F GPL-3.0 target/license-selftest-reject.txt
 	@echo "ts-licenses-selftest OK"
@@ -199,7 +204,7 @@ api-html:
 api-compat:
 	mkdir -p target/api
 	@if git cat-file -e $(SPEC_TRACE_REF):api/openapi.yaml 2>/dev/null; then \
-		git show $(SPEC_TRACE_REF):api/openapi.yaml > target/api/baseline.yaml; \
-		$(CARGO) run --locked -p api-docs -- openapi target/api/fresh.yaml; \
-		oasdiff breaking target/api/baseline.yaml target/api/fresh.yaml -o ERR; \
+		git show $(SPEC_TRACE_REF):api/openapi.yaml > target/api/baseline.yaml \
+		&& $(CARGO) run --locked -p api-docs -- openapi target/api/fresh.yaml \
+		&& oasdiff breaking target/api/baseline.yaml target/api/fresh.yaml -o ERR; \
 	fi
