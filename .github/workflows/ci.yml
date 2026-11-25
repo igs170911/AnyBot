@@ -2,8 +2,8 @@
 name: CI
 on:
   push:
-    # tags are handled by the release workflow (K111 ④), not here.
-    tags-ignore:
+    # every branch push runs; tags do not (the release workflow handles tags, K111 ④).
+    branches:
       - "**"
   pull_request:
     branches:
