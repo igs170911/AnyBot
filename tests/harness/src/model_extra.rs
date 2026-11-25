@@ -86,6 +86,7 @@ pub fn status_response(step: &Step) -> Option<Response> {
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::StreamError { .. }
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }

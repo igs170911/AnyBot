@@ -31,6 +31,7 @@ fn anthropic_usage_of(step: &Step) -> serde_json::Value {
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody
@@ -90,6 +91,7 @@ fn content_blocks(step: &Step) -> (Vec<serde_json::Value>, String) {
         Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody

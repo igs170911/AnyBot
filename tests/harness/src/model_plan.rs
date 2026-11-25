@@ -67,6 +67,7 @@ fn stream_special(plan: &Plan) -> Option<String> {
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::ReplyStatus { .. }
         | Step::EmptyBody
         | Step::Redirect { .. }
@@ -109,6 +110,7 @@ pub fn json_response(step: Step, format: ModelFormat, model: &str) -> Response {
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::StreamError { .. }
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }

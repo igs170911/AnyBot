@@ -2,6 +2,7 @@ use anybot_foundation as _;
 use anybot_models::{RunPlace, classify_url, first_token_wait};
 use bytes as _;
 use futures_util as _;
+use proptest as _;
 use reqwest as _;
 use serde as _;
 use serde_json as _;

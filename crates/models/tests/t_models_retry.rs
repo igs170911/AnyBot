@@ -1,3 +1,4 @@
+use proptest as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,7 +15,7 @@ use test_harness::{
 use tokio as _;
 use url as _;
 
-#[path = "common/mod.rs"]
+#[path = "../test_support/mod.rs"]
 mod support;
 
 fn share(clock: &Arc<FakeClock>) -> Arc<dyn Clock> {

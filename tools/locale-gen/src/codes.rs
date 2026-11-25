@@ -101,17 +101,11 @@ fn rust_from_code(_entries: &[FtlEntry], out: &mut String) {
     w(out, "    }");
 }
 
-fn rust_all(entries: &[FtlEntry], out: &mut String) {
+fn rust_all(_entries: &[FtlEntry], out: &mut String) {
     w(out, "    #[must_use]");
     w(out, "    pub fn all() -> Vec<Self> {");
-    w(out, "        vec![");
-    for entry in entries {
-        w(
-            out,
-            &format!("            Self::{},", camel_case(&entry.id)),
-        );
-    }
-    w(out, "        ]\n    }\n}\n");
+    w(out, "        TABLE.iter().map(|row| row.0).collect()");
+    w(out, "    }\n}\n");
     w(
         out,
         "impl crate::catalog::MessageCodeLike for MessageCode {\n    fn as_str(&self) -> &str {\n        MessageCode::as_str(*self)\n    }\n}\n",
@@ -263,6 +257,7 @@ mod tests {
         assert!(text.contains("\"server-startup-listening\""));
         assert!(text.contains("UiShell2"));
         assert!(text.contains("pub fn all()"));
+        assert!(text.contains("TABLE.iter().map(|row| row.0).collect()"));
     }
 
     #[test]

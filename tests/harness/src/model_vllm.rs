@@ -1,15 +1,13 @@
 use serde_json::json;
 use tokio::sync::mpsc;
 
-use crate::model_extra::openai_usage;
-use crate::model_openai::{CODE_OPENAI_DONE, FAKE_CREATED, FAKE_FINGERPRINT};
-use crate::model_plan::json_line;
-use crate::model_script::{Step, UsageScript};
+use crate::model_openai::CODE_OPENAI_DONE;
+use crate::model_script::Step;
 
 pub const VLLM_TOOL_FINISH: &str = "stop";
-#[path = "model_vllm_body.rs"]
-mod body;
-pub use body::json_body;
+use crate::model_vllm_body as body;
+pub use crate::model_vllm_body::json_body;
+use crate::model_vllm_chunks as chunks;
 pub async fn plan_lines(tx: &mpsc::Sender<String>, step: Step, model: &str) {
     let send_done = dispatch(tx, step, model).await;
     if send_done {
@@ -37,6 +35,7 @@ async fn dispatch(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bool {
         Step::NoResponse { .. } => silence(tx).await,
         Step::CutOffAfter { text, .. } => cut_off(tx, model, &text).await,
         Step::StallAfter { text, .. } => stall(tx, model, &text).await,
+        Step::HoldThenFinish { text, .. } => hold_then_finish(tx, model, &text).await,
         Step::UsageReply {
             text,
             usage,
@@ -98,6 +97,7 @@ async fn dispatch_rest(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bo
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::UsageReply { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
@@ -107,7 +107,7 @@ async fn dispatch_rest(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bo
     }
 }
 async fn send(tx: &mpsc::Sender<String>, value: serde_json::Value) {
-    let _sent = tx.send(json_line(&value)).await.is_ok();
+    chunks::send(tx, value).await;
 }
 async fn think_reply(tx: &mpsc::Sender<String>, model: &str, thinking: &str, text: &str) {
     send(tx, role_chunk(model)).await;
@@ -116,27 +116,8 @@ async fn think_reply(tx: &mpsc::Sender<String>, model: &str, thinking: &str, tex
     send(tx, finish_chunk(model, VLLM_TOOL_FINISH)).await;
     send(tx, body::usage_chunk(model)).await;
 }
-async fn think_tools(
-    tx: &mpsc::Sender<String>,
-    model: &str,
-    thinking: &str,
-    calls: &[crate::model_script::ToolCallScript],
-) {
-    send(tx, role_chunk(model)).await;
-    send(tx, delta_chunk(model, &json!({ "reasoning": thinking }))).await;
-    for (index, call) in calls.iter().enumerate() {
-        send(
-            tx,
-            delta_chunk(
-                model,
-                &json!({ "tool_calls": [{ "index": index, "id": call.id, "type": "function",
-                    "function": { "name": call.name, "arguments": call.arguments } }] }),
-            ),
-        )
-        .await;
-    }
-    send(tx, finish_chunk(model, VLLM_TOOL_FINISH)).await;
-}
+
+pub(crate) use chunks::think_tools;
 
 pub(crate) fn vllm_think_tools(
     thinking: &str,
@@ -176,6 +157,16 @@ async fn cut_off(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {
     send(tx, role_chunk(model)).await;
     send(tx, content_chunk(model, &head)).await;
     false
+}
+
+async fn hold_then_finish(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {
+    let head = crate::model_openai::split_head(text);
+    send(tx, role_chunk(model)).await;
+    send(tx, content_chunk(model, &head)).await;
+    crate::model_hold::wait_release().await;
+    send(tx, content_chunk(model, text)).await;
+    send(tx, finish_chunk(model, "stop")).await;
+    true
 }
 
 async fn stall(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {
@@ -250,50 +241,22 @@ fn vllm_tool_delta(
     delta_chunk(model, &json!({ "tool_calls": [call] }))
 }
 
-fn usage_value_chunk(model: &str, usage: &UsageScript) -> serde_json::Value {
-    let mut chunk = body::usage_chunk(model);
-    if let Some(top) = chunk.as_object_mut() {
-        top.insert("usage".to_owned(), openai_usage(usage));
-    }
-    chunk
+fn usage_value_chunk(model: &str, usage: &crate::model_script::UsageScript) -> serde_json::Value {
+    chunks::usage_value_chunk(model, usage)
 }
 
 fn content_chunk(model: &str, text: &str) -> serde_json::Value {
-    delta_chunk(model, &json!({ "content": text }))
+    chunks::content_chunk(model, text)
 }
 
 fn delta_chunk(model: &str, delta: &serde_json::Value) -> serde_json::Value {
-    json!({
-        "id": "chatcmpl-fake",
-        "object": "chat.completion.chunk",
-        "created": FAKE_CREATED,
-        "model": model,
-        "choices": [{
-            "index": 0,
-            "delta": delta,
-            "logprobs": null,
-            "token_ids": null,
-            "finish_reason": null,
-        }],
-        "kv_transfer_params": null,
-    })
+    chunks::delta_chunk(model, delta)
 }
 
 fn role_chunk(model: &str) -> serde_json::Value {
-    let mut chunk = delta_chunk(model, &json!({ "role": "assistant", "content": "" }));
-    let Some(top) = chunk.as_object_mut() else {
-        return chunk;
-    };
-    top.insert("prompt_text".to_owned(), json!(null));
-    top.insert("prompt_token_ids".to_owned(), json!(null));
-    top.remove("kv_transfer_params");
-    chunk
+    chunks::role_chunk(model)
 }
 
 fn finish_chunk(model: &str, reason: &str) -> serde_json::Value {
-    let mut chunk = delta_chunk(model, &json!({}));
-    if let Some(choice) = chunk.get_mut("choices").and_then(|c| c.get_mut(0)) {
-        choice["finish_reason"] = json!(reason);
-    }
-    chunk
+    chunks::finish_chunk(model, reason)
 }

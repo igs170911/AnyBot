@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anybot_foundation::clock::Clock;
 use tokio::sync::watch;
 
 use crate::ask::{self, AttemptLimit};
-use crate::capabilities::{self, Learned};
+use crate::capabilities::Learned;
 use crate::egress::{self, DataPolicy, ModelUse};
 use crate::handoff::{HandoffRecord, SwitchReason};
 use crate::notice::{Notice, skip_notice};
@@ -64,6 +64,22 @@ pub struct AskOutcome {
     pub skips: Vec<Notice>,
 }
 
+pub struct SwitchHandle {
+    pending: Arc<Mutex<Option<ModelRef>>>,
+    reason: Arc<Mutex<Option<SwitchReason>>>,
+}
+
+impl SwitchHandle {
+    pub fn request(&self, model: &ModelRef, reason: SwitchReason) {
+        if let Ok(mut slot) = self.pending.lock() {
+            *slot = Some(crate::model_copy::copy_model(model));
+        }
+        if let Ok(mut slot) = self.reason.lock() {
+            *slot = Some(reason);
+        }
+    }
+}
+
 pub struct Session {
     gateway: Gateway,
     clock: Arc<dyn Clock>,
@@ -71,13 +87,18 @@ pub struct Session {
     pub(crate) resting: Vec<RestMark>,
     jitter_milli: i32,
     stop: watch::Receiver<bool>,
-    pub(crate) pending: Option<(ProviderKind, String)>,
-    pub(crate) pending_reason: Option<SwitchReason>,
+    pub(crate) pending: Arc<Mutex<Option<ModelRef>>>,
+    pub(crate) pending_reason: Arc<Mutex<Option<SwitchReason>>>,
     pub(crate) active: Option<(ProviderKind, String)>,
     pub(crate) failed: Option<(ProviderKind, String)>,
     pub(crate) failed_reason: Option<SwitchReason>,
+    pub(crate) failed_code: Option<String>,
+    pub(crate) adopted: Option<ModelRef>,
+    pub(crate) primary_override: Option<ModelRef>,
     pub(crate) handoffs: Vec<HandoffRecord>,
     pub(crate) notices: Vec<Notice>,
+    pub(crate) logs: Vec<crate::failure_log::FailureLog>,
+    last_estimate: Option<u64>,
 }
 
 impl Session {
@@ -90,14 +111,24 @@ impl Session {
             resting: Vec::new(),
             jitter_milli,
             stop,
-            pending: None,
-            pending_reason: None,
+            pending: Arc::new(Mutex::new(None)),
+            pending_reason: Arc::new(Mutex::new(None)),
             active: None,
             failed: None,
             failed_reason: None,
+            failed_code: None,
+            adopted: None,
+            primary_override: None,
             handoffs: Vec::new(),
             notices: Vec::new(),
+            logs: Vec::new(),
+            last_estimate: None,
         }
+    }
+
+    #[must_use]
+    pub fn failure_logs(&self) -> &[crate::failure_log::FailureLog] {
+        &self.logs
     }
 
     #[must_use]
@@ -124,9 +155,16 @@ impl Session {
         &self.resting
     }
 
-    pub fn request_switch(&mut self, provider: ProviderKind, model: &str, reason: SwitchReason) {
-        self.pending = Some((provider, model.to_owned()));
-        self.pending_reason = Some(reason);
+    pub fn request_switch(&self, model: &ModelRef, reason: SwitchReason) {
+        self.switch_handle().request(model, reason);
+    }
+
+    #[must_use]
+    pub fn switch_handle(&self) -> SwitchHandle {
+        SwitchHandle {
+            pending: Arc::clone(&self.pending),
+            reason: Arc::clone(&self.pending_reason),
+        }
     }
 
     #[must_use]
@@ -137,8 +175,16 @@ impl Session {
     }
 
     pub async fn ask(&mut self, plan: &mut AskPlan<'_>) -> Result<AskOutcome, GatewayFail> {
-        let chain =
-            crate::session_chain::chain_of(plan.primary, plan.fallbacks, self.pending.as_ref());
+        if let Some(next) = self.adopted.take() {
+            self.primary_override = Some(next);
+        }
+        let pending = crate::session_io::peek_pending(self);
+        let chain = crate::session_chain::chain_of(
+            plan.primary,
+            plan.fallbacks,
+            pending.as_ref(),
+            self.primary_override.as_ref(),
+        );
         let request = plan.request;
         let policy = plan.policy;
         let stream = plan.stream;
@@ -169,68 +215,23 @@ impl Session {
             }
             crate::session_switch::note_active(self, &model.endpoint);
             let built = crate::session_step::request_for_model(
-                model,
+                &model,
                 plan.primary,
                 request,
                 &mut plan.request_for,
             );
-            match self.one(model, &built, stream, audience).await {
-                Ok(result) => return Ok(crate::session_switch::finish_ask(self, result, skips)),
-                Err(err) => match crate::session_switch::keep_or_stop(self, model, err) {
+            match crate::session_ask::one(self, &model, &built, stream, audience).await {
+                Ok(result) => {
+                    crate::session_switch::note_pending_after(self, &model.endpoint);
+                    return Ok(crate::session_switch::finish_ask(self, result, skips));
+                }
+                Err(err) => match crate::session_switch::keep_or_stop(self, &model, err) {
                     crate::session_switch::ChainStep::Next(kept) => last = Some(kept),
                     crate::session_switch::ChainStep::Stop(err) => return Err(err),
                 },
             }
         }
-        Err(match last {
-            Some(err) => err,
-            None => ask::classified_fail(
-                crate::errors::classify(&crate::errors::FailInput::MissingKey),
-                std::mem::take(&mut self.notices),
-            ),
-        })
-    }
-
-    async fn one(
-        &mut self,
-        model: &ModelRef,
-        request: &TurnRequest,
-        stream: bool,
-        audience: Audience,
-    ) -> Result<TurnResult, GatewayFail> {
-        let cap = capabilities::resolve(
-            model.endpoint.kind,
-            &model.endpoint.model,
-            model.bot_context,
-            self.learned_for(&model.endpoint),
-        );
-        if !cap.tools && !request.tools.is_empty() {
-            return Err(crate::session_step::no_tools_fail());
-        }
-        let usable = capabilities::usable_context(
-            cap.context_tokens,
-            model.bot_context,
-            self.learned_for(&model.endpoint)
-                .and_then(|row| row.context_tokens),
-            request.max_output_tokens.unwrap_or(0),
-        );
-        let calibration = match self.learned_for(&model.endpoint) {
-            Some(row) => row.calibration.clone(),
-            None => crate::estimate::Calibration::new(),
-        };
-        if crate::session_step::over_budget(request, usable, &calibration) {
-            return Err(crate::session_step::budget_fail());
-        }
-        crate::session_rest::send_tries(
-            self,
-            model,
-            request,
-            stream,
-            audience,
-            &calibration,
-            cap.thinking,
-        )
-        .await
+        Err(crate::session_io::exhausted(last, skips))
     }
 
     pub(crate) async fn wait_or_stop(
@@ -268,8 +269,13 @@ impl Session {
         self.clock.now_ms().millis()
     }
 
-    fn learned_for(&self, endpoint: &ProviderEndpoint) -> Option<&Learned> {
-        crate::session_rest::learned_for(&self.learned, endpoint)
+    pub(crate) fn remember_estimate(&mut self, tokens: u64) {
+        self.last_estimate = Some(tokens);
+    }
+
+    #[must_use]
+    pub fn last_estimate(&self) -> Option<u64> {
+        self.last_estimate
     }
 }
 

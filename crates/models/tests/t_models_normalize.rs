@@ -1,6 +1,7 @@
 use anybot_foundation as _;
 use bytes as _;
 use futures_util as _;
+use proptest as _;
 use reqwest as _;
 use serde as _;
 use serde_json as _;
@@ -13,7 +14,7 @@ use test_harness::{
     model_think_then_reply, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,
     model_usage,
 };
-#[path = "common/mod.rs"]
+#[path = "../test_support/mod.rs"]
 mod support;
 
 fn with_tool(request: anybot_models::TurnRequest, name: &str) -> anybot_models::TurnRequest {

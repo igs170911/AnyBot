@@ -17,6 +17,7 @@ pub enum FailKind {
     StreamError,
     Other4xx,
     Redirect,
+    Budget,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -97,7 +98,7 @@ pub fn classify(input: &FailInput) -> Classified {
             "model-redirect",
         ),
         FailInput::Budget => plain(
-            FailKind::Other4xx,
+            FailKind::Budget,
             RetryPlan::None,
             FallbackPlan::None,
             "model-budget",

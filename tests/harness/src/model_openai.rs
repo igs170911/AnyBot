@@ -42,6 +42,7 @@ async fn dispatch(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bool {
         Step::NoResponse { .. } => silence(tx).await,
         Step::CutOffAfter { text, .. } => cut_off(tx, model, &text).await,
         Step::StallAfter { text, .. } => stall(tx, model, &text).await,
+        Step::HoldThenFinish { text, .. } => hold_then_finish(tx, model, &text).await,
         Step::UsageReply {
             text,
             usage,
@@ -226,6 +227,16 @@ async fn cut_off(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {
     send(tx, role_chunk(model)).await;
     send(tx, content_chunk(model, &head)).await;
     false
+}
+
+async fn hold_then_finish(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {
+    let head = split_head(text);
+    send(tx, role_chunk(model)).await;
+    send(tx, content_chunk(model, &head)).await;
+    crate::model_hold::wait_release().await;
+    send(tx, content_chunk(model, text)).await;
+    send(tx, finish_chunk(model, "stop")).await;
+    true
 }
 
 async fn stall(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {

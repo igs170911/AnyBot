@@ -57,6 +57,10 @@ export type MessageCode =
   "model-budget" |
   "model-refusal" |
   "model-length-note" |
+  "model-handoff-user" |
+  "model-handoff-bot" |
+  "model-handoff-fallback" |
+  "model-handoff-unreachable" |
   "push-payload-short" |
   "push-key-base64";
 
@@ -117,6 +121,10 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-budget",
   "model-refusal",
   "model-length-note",
+  "model-handoff-user",
+  "model-handoff-bot",
+  "model-handoff-fallback",
+  "model-handoff-unreachable",
   "push-payload-short",
   "push-key-base64",
 ];

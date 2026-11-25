@@ -1,4 +1,5 @@
 use anybot_models::{Message, Role, ThinkingMode, TurnRequest};
+use proptest as _;
 
 pub(crate) fn hi(thinking: ThinkingMode) -> TurnRequest {
     TurnRequest {

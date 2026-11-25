@@ -19,7 +19,13 @@ pub(crate) fn keep_or_stop(
     else {
         return ChainStep::Stop(err);
     };
-    session.notices.extend(notices);
+    session.notices.extend(notices.clone());
+    session.logs.push(crate::failure_log::failure_log(
+        &classified,
+        u32::try_from(session.logs.len().saturating_add(1)).unwrap_or(u32::MAX),
+        notice_detail(&notices),
+        None,
+    ));
     if classified.code == "model-budget" {
         return ChainStep::Stop(crate::ask::classified_fail(
             classified,
@@ -39,6 +45,7 @@ pub(crate) fn keep_or_stop(
         session,
         &model.endpoint,
         crate::session_step::switch_reason(&classified),
+        classified.code,
     );
     ChainStep::Next(crate::ask::classified_fail(
         classified,
@@ -60,6 +67,19 @@ pub(crate) fn finish_ask(
     }
 }
 
+fn notice_detail(notices: &[crate::notice::Notice]) -> &str {
+    notices
+        .iter()
+        .find_map(|notice| {
+            notice
+                .params
+                .iter()
+                .find(|(key, _)| key == "detail")
+                .map(|(_, value)| value.as_str())
+        })
+        .unwrap_or("")
+}
+
 fn finish_notices(
     session: &mut Session,
     stop: crate::types::StopKind,
@@ -75,24 +95,28 @@ fn finish_notices(
 }
 
 pub(crate) fn note_active(session: &mut Session, endpoint: &ProviderEndpoint) {
+    let pending = crate::session_io::peek_pending(session);
+    adopt_outside(session, endpoint, pending.as_ref());
     record_failed(session, endpoint);
-    record_pending(session, endpoint);
-    let next = match session.pending.clone() {
-        Some(pair) => pair,
-        None => (endpoint.kind, endpoint.model.clone()),
-    };
-    session.pending = None;
-    session.pending_reason = None;
-    session.active = Some(next);
+    record_pending(session, endpoint, pending.as_ref());
+    crate::session_io::clear_pending(session);
+    session.active = Some((endpoint.kind, endpoint.model.clone()));
+}
+
+pub(crate) fn note_pending_after(session: &mut Session, endpoint: &ProviderEndpoint) {
+    let pending = crate::session_io::peek_pending(session);
+    record_pending(session, endpoint, pending.as_ref());
 }
 
 pub(crate) fn mark_failed(
     session: &mut Session,
     endpoint: &ProviderEndpoint,
     reason: SwitchReason,
+    kind_code: &str,
 ) {
     session.failed = Some((endpoint.kind, endpoint.model.clone()));
     session.failed_reason = Some(reason);
+    session.failed_code = Some(kind_code.to_owned());
 }
 
 pub(crate) fn remember(
@@ -116,36 +140,56 @@ fn record_failed(session: &mut Session, endpoint: &ProviderEndpoint) {
     if kind == endpoint.kind && model == endpoint.model {
         return;
     }
+    let (code, params) = handoff::reason_parts(reason, session.failed_code.take().as_deref());
     session.handoffs.push(handoff::record(
         kind,
         &model,
         endpoint.kind,
         &endpoint.model,
         reason,
-        "",
+        code,
+        params,
     ));
 }
 
-fn record_pending(session: &mut Session, _endpoint: &ProviderEndpoint) {
-    let Some((next_kind, next_model)) = session.pending.clone() else {
+fn adopt_outside(
+    session: &mut Session,
+    endpoint: &ProviderEndpoint,
+    pending: Option<&crate::session::ModelRef>,
+) {
+    let Some(pending) = pending else {
         return;
     };
+    if endpoint.kind == pending.endpoint.kind && endpoint.model == pending.endpoint.model {
+        session.adopted = Some(crate::model_copy::copy_model(pending));
+    }
+}
+
+fn record_pending(
+    session: &mut Session,
+    _endpoint: &ProviderEndpoint,
+    pending: Option<&crate::session::ModelRef>,
+) {
+    let Some(pending) = pending else {
+        return;
+    };
+    let next_kind = pending.endpoint.kind;
+    let next_model = pending.endpoint.model.clone();
     let Some((kind, model)) = session.active.clone() else {
         return;
     };
     if kind == next_kind && model == next_model {
         return;
     }
-    let reason = match session.pending_reason {
-        Some(reason) => reason,
-        None => SwitchReason::User,
-    };
+    let reason = crate::session_io::pending_reason(session).unwrap_or(SwitchReason::User);
+    let (code, params) = handoff::reason_parts(reason, None);
     session.handoffs.push(handoff::record(
         kind,
         &model,
         next_kind,
         &next_model,
         reason,
-        "",
+        code,
+        params,
     ));
 }

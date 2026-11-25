@@ -86,7 +86,9 @@ pub(crate) async fn send_tries(
             .await;
         match crate::session_step::decide(outcome, sent) {
             crate::session_step::Step::Done(result) => {
-                return Ok(done_try(session, model, request, calibration, result));
+                let estimated = crate::session_step::estimate_request(request, calibration);
+                session.remember_estimate(estimated);
+                return Ok(done_try(session, model, estimated, result));
             }
             crate::session_step::Step::DropParam => {
                 current.thinking = ThinkingMode::Auto;
@@ -109,11 +111,9 @@ pub(crate) async fn send_tries(
 fn done_try(
     session: &mut Session,
     model: &crate::session::ModelRef,
-    request: &TurnRequest,
-    calibration: &crate::estimate::Calibration,
+    estimated: u64,
     result: TurnResult,
 ) -> TurnResult {
-    let estimated = crate::session_step::estimate_request(request, calibration);
     note_usage(session.learned_rows(), &model.endpoint, estimated, &result);
     result
 }

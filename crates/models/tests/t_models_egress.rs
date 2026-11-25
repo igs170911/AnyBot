@@ -1,3 +1,4 @@
+use proptest as _;
 use std::sync::Arc;
 
 use anybot_foundation as _;

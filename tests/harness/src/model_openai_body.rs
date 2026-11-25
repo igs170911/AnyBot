@@ -37,6 +37,7 @@ fn usage_of(step: &Step) -> serde_json::Value {
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody
@@ -74,6 +75,7 @@ fn completion_message(step: &Step) -> (serde_json::Value, String) {
         Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody
@@ -91,6 +93,7 @@ fn stop_of(step: &Step) -> String {
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody

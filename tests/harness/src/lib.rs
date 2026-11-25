@@ -18,10 +18,13 @@ pub(crate) mod json_edit;
 pub mod launch;
 pub mod model_anthropic;
 pub mod model_extra;
+pub(crate) mod model_hold;
 pub mod model_openai;
 pub mod model_plan;
 pub mod model_script;
 pub mod model_vllm;
+pub mod model_vllm_body;
+pub mod model_vllm_chunks;
 pub mod netctl;
 pub(crate) mod netctl_state;
 pub mod netproxy;
@@ -48,10 +51,11 @@ pub use http::{
 pub use launch::{
     Outcome, Program, child_is_dead, run_program, run_program_clocked, run_program_with,
 };
+pub use model_hold::arm as arm_model_hold;
 pub use model_script::{
     ErrorBodyKind, HeaderValueKind, KeyMatch, RecordedRequest, Step, ToolCallScript, UsageScript,
-    model_calls_tool, model_cut_off, model_empty_body, model_error_body, model_list,
-    model_list_silent, model_no_response, model_omit_usage, model_redacted_thinking,
+    model_calls_tool, model_cut_off, model_empty_body, model_error_body, model_hold_then_finish,
+    model_list, model_list_silent, model_no_response, model_omit_usage, model_redacted_thinking,
     model_redirect, model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
     model_stop_reason, model_stream_error, model_think_then_reply, model_think_then_tool,
     model_thinking_block, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,

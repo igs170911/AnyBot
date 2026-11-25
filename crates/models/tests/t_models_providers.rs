@@ -1,6 +1,7 @@
 use anybot_foundation as _;
 use bytes as _;
 use futures_util as _;
+use proptest as _;
 use reqwest as _;
 use serde as _;
 use serde_json as _;
@@ -10,7 +11,7 @@ use url as _;
 use anybot_models::{ProviderKind, ThinkingMode, resolve_endpoint};
 use test_harness::{ModelFormat, model_replies_text};
 
-#[path = "common/mod.rs"]
+#[path = "../test_support/mod.rs"]
 mod support;
 
 #[tokio::test]

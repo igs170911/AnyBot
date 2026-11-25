@@ -1,8 +1,9 @@
 use serde_json::json;
 
-use super::{FAKE_CREATED, FAKE_FINGERPRINT, VLLM_TOOL_FINISH};
 use crate::model_extra::openai_usage;
+use crate::model_openai::{FAKE_CREATED, FAKE_FINGERPRINT};
 use crate::model_script::Step;
+use crate::model_vllm::VLLM_TOOL_FINISH;
 
 #[must_use]
 pub fn json_body(step: &Step, model: &str) -> String {
@@ -59,7 +60,7 @@ fn completion_message(step: &Step) -> (serde_json::Value, String) {
         Step::ThinkThenTool {
             thinking, calls, ..
         } => (
-            super::vllm_think_tools(thinking, calls),
+            crate::model_vllm::vllm_think_tools(thinking, calls),
             VLLM_TOOL_FINISH.to_owned(),
         ),
         Step::StopReason {
@@ -68,6 +69,7 @@ fn completion_message(step: &Step) -> (serde_json::Value, String) {
         Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody
@@ -119,6 +121,7 @@ fn vllm_usage(step: &Step) -> serde_json::Value {
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody

@@ -42,6 +42,14 @@ impl Gateway {
     }
 
     #[must_use]
+    pub fn clone_gateway(&self) -> Self {
+        Self {
+            transport: TimedTransport::new(self.transport.client.clone(), self.transport.clock()),
+            name_map: Arc::clone(&self.name_map),
+        }
+    }
+
+    #[must_use]
     pub fn clone_with_names(&self, name_map: Arc<dyn NameResolver>) -> Self {
         Self {
             transport: TimedTransport::new(self.transport.client.clone(), self.transport.clock()),

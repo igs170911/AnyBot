@@ -40,6 +40,7 @@ async fn dispatch(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bool {
         Step::NoResponse { .. } => stream::silence(tx).await,
         Step::CutOffAfter { text, .. } => stream::cut_off(tx, model, &text).await,
         Step::StallAfter { text, .. } => stream::stall(tx, model, &text).await,
+        Step::HoldThenFinish { text, .. } => stream::hold_then_finish(tx, model, &text).await,
         Step::UsageReply { text, usage, .. } => {
             reply(tx, model, &text).await;
             send(tx, stream::message_delta_usage("end_turn", &usage)).await;
@@ -106,6 +107,7 @@ async fn dispatch_rest(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bo
         | Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }

@@ -56,7 +56,8 @@ pub(crate) fn switch_reason(classified: &Classified) -> SwitchReason {
         | FailKind::NotFound
         | FailKind::StreamError
         | FailKind::Other4xx
-        | FailKind::Redirect => SwitchReason::Fallback,
+        | FailKind::Redirect
+        | FailKind::Budget => SwitchReason::Fallback,
     }
 }
 

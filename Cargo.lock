@@ -289,6 +289,7 @@ dependencies = [
  "anybot-foundation",
  "bytes",
  "futures-util",
+ "proptest",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

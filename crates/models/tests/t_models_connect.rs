@@ -1,3 +1,4 @@
+use proptest as _;
 use serde as _;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -15,7 +16,7 @@ use test_harness::{
 use tokio as _;
 use url as _;
 
-#[path = "common/ask.rs"]
+#[path = "../test_support/ask.rs"]
 mod support;
 
 #[tokio::test]

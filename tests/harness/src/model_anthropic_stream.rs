@@ -120,6 +120,17 @@ pub(super) async fn cut_off(tx: &mpsc::Sender<String>, model: &str, text: &str) 
     false
 }
 
+pub(super) async fn hold_then_finish(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {
+    send(tx, message_start(model)).await;
+    send(tx, text_block_start()).await;
+    send(tx, text_delta(&split_head(text))).await;
+    crate::model_hold::wait_release().await;
+    send(tx, text_delta(text)).await;
+    send(tx, message_delta("end_turn")).await;
+    send(tx, serde_json::json!({ "type": "message_stop" })).await;
+    true
+}
+
 pub(super) async fn stall(tx: &mpsc::Sender<String>, model: &str, text: &str) -> bool {
     send(tx, message_start(model)).await;
     send(tx, text_block_start()).await;

@@ -18,6 +18,80 @@ pub struct NeutralShape {
     pub usage: String,
 }
 
+pub async fn compare_product(
+    fake_port: u16,
+    live_base: &str,
+    live_key: &str,
+    model: &str,
+) -> Result<Vec<String>, String> {
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+    let gateway = gateway(clock);
+    let fake = resolve_endpoint(
+        ProviderKind::Custom,
+        &format!("http://127.0.0.1:{fake_port}/v1"),
+        "k",
+        model,
+        None,
+    );
+    let live = resolve_endpoint(ProviderKind::Custom, live_base, live_key, model, None);
+    let mut lines = vec!["product client:".to_owned()];
+    for (name, request, stream) in product_cases() {
+        let left = gateway
+            .complete(&fake, &request, stream)
+            .await
+            .map_err(|err| format!("fake {name} failed: {err:?}"))?;
+        let right = gateway
+            .complete(&live, &request, stream)
+            .await
+            .map_err(|err| format!("live {name} failed: {err:?}"))?;
+        let fake_shape = shape_of(&left);
+        let live_shape = shape_of(&right);
+        if fake_shape == live_shape {
+            lines.push(format!("  {name}: identical structure"));
+        } else {
+            lines.push(format!("  {name}: fake {fake_shape:?} live {live_shape:?}"));
+        }
+    }
+    Ok(lines)
+}
+
+fn product_cases() -> Vec<(&'static str, TurnRequest, bool)> {
+    vec![
+        ("normal", request_for(ThinkingMode::Auto), false),
+        ("stream", request_for(ThinkingMode::Auto), true),
+        ("tool-call", tool_request(), false),
+        ("thinking", request_for(ThinkingMode::Deep), true),
+    ]
+}
+
+fn tool_request() -> TurnRequest {
+    let mut request = request_for(ThinkingMode::Auto);
+    request.tools.push(anybot_models::ToolSpec {
+        name: "probe_tool".to_owned(),
+        description: "Answer with the fixed word OK".to_owned(),
+        parameters: serde_json::json!({}),
+    });
+    request
+}
+
+fn request_for(thinking: ThinkingMode) -> TurnRequest {
+    TurnRequest {
+        system: String::new(),
+        messages: vec![anybot_models::Message {
+            role: anybot_models::Role::User,
+            text: "hi".to_owned(),
+            tool_calls: Vec::new(),
+            tool_call_id: None,
+        }],
+        tools: Vec::new(),
+        thinking,
+        max_output_tokens: None,
+        attachments: Vec::new(),
+        cache_prefix: false,
+        estimate_override: None,
+    }
+}
+
 pub async fn compare_fakes() -> Result<(), String> {
     let left = shapes_from(ModelFormat::Vllm).await?;
     let right = shapes_from(ModelFormat::Vllm).await?;

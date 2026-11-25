@@ -4,6 +4,7 @@ use anybot_foundation::clock::Clock;
 use anybot_models::{
     Gateway, ProviderEndpoint, ProviderKind, WireFormat, gateway, resolve_endpoint,
 };
+use proptest as _;
 use test_harness::{FakeClock, FakeModel, ModelFormat, Step, model_start_with_format};
 
 pub(crate) mod ask;

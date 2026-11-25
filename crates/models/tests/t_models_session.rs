@@ -1,3 +1,4 @@
+use proptest as _;
 use std::time::Duration;
 
 use anybot_foundation as _;
@@ -16,11 +17,15 @@ use test_harness::{
 use tokio as _;
 use url as _;
 
-#[path = "common/session.rs"]
+#[path = "../test_support/drive.rs"]
+mod drive;
+#[path = "../test_support/stopped.rs"]
+mod stop_slot;
+#[path = "../test_support/session.rs"]
 mod support;
 
 fn keep_stopped() -> bool {
-    let (tx, _rx) = support::stopped();
+    let (tx, _rx) = stop_slot::stopped();
     tx.send(false).is_ok()
 }
 
@@ -52,7 +57,7 @@ async fn fallback_after_retries_uses_second_model() -> Result<(), String> {
         .await
     });
     let ready = timeout_real(
-        support::drive_until(&world.clock, || task.is_finished()),
+        drive::drive_until(&world.clock, || task.is_finished()),
         Duration::from_secs(8),
     )
     .await;
@@ -266,7 +271,7 @@ async fn retry_after_is_capped_at_thirty_seconds() -> Result<(), String> {
         support::ask_watching(&mut session, &primary, &[], ThinkingMode::Auto).await
     });
     let ready = timeout_real(
-        support::drive_until(&world.clock, || task.is_finished()),
+        drive::drive_until(&world.clock, || task.is_finished()),
         Duration::from_secs(8),
     )
     .await;

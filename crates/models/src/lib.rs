@@ -7,13 +7,18 @@ pub mod egress;
 pub mod errors;
 pub(crate) mod errors_text;
 pub mod estimate;
+pub mod failure_log;
 pub mod handoff;
 pub(crate) mod jsonutil;
+pub(crate) mod model_copy;
+pub(crate) mod normalize_prop;
 pub mod notice;
 pub mod providers;
 pub mod retry;
 pub mod session;
+pub(crate) mod session_ask;
 pub(crate) mod session_chain;
+pub(crate) mod session_io;
 pub(crate) mod session_rest;
 pub(crate) mod session_step;
 pub(crate) mod session_switch;
@@ -44,7 +49,9 @@ pub use errors::{
 pub use estimate::{
     Calibration, EstimateInput, apply_calibration, fits, formula_tokens, margin_milli,
 };
-pub use handoff::{HandoffRecord, SwitchReason, record};
+pub use failure_log::{FailureLog, failure_log};
+pub use handoff::{HandoffRecord, SwitchReason, handoff_code, record};
+pub use normalize_prop::{Fixture, closed_tool_matches, cut_has_no_tools, normalize_pair};
 pub use notice::{
     Notice, busy_notice, failure_notice, missing_key_notice, retry_notice, skip_notice, stop_note,
 };
@@ -62,6 +69,8 @@ pub use where_run::{CONNECT_TIMEOUT, RunPlace, STALL_AFTER_TEXT, classify_url, f
 use anybot_foundation::clock::Clock;
 use std::sync::Arc;
 
+#[cfg(test)]
+use proptest as _;
 #[cfg(test)]
 use test_harness as _;
 

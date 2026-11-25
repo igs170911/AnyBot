@@ -175,11 +175,22 @@ pub async fn run() -> Result<(), String> {
     let fake = fake_shapes(&model, port, &profile.model).await?;
     let live = live_shapes(&profile, &client, &profile.model).await?;
     let shapes = Shapes { fake, live };
+    let product = crate::product::compare_product(
+        port,
+        &profile.base_url,
+        profile.key.expose(),
+        &profile.model,
+    )
+    .await?;
     let path = write_report(&repo, &shapes)?;
     let mut stdout = std::io::stdout();
     let mut tail = String::new();
     for line in report_lines(&shapes) {
         tail.push_str(&line);
+        tail.push('\n');
+    }
+    for line in &product {
+        tail.push_str(line);
         tail.push('\n');
     }
     tail.push_str(

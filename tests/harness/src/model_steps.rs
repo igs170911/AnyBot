@@ -47,6 +47,14 @@ pub fn model_stall(text: &str, stream: bool) -> Step {
     }
 }
 
+#[must_use]
+pub fn model_hold_then_finish(text: &str, stream: bool) -> Step {
+    Step::HoldThenFinish {
+        text: text.to_owned(),
+        stream,
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ErrorBodyKind {
     #[default]

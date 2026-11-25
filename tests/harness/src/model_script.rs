@@ -69,6 +69,10 @@ pub enum Step {
         text: String,
         stream: bool,
     },
+    HoldThenFinish {
+        text: String,
+        stream: bool,
+    },
     ReplyStatus {
         status: u16,
         message: String,
@@ -158,6 +162,7 @@ pub use model_keys::{
     CODE_MODEL_SCRIPT_EMPTY, HeaderValueKind, KeyMatch, RecordedRequest, StallDelay, classify_key,
     presented_key, record_headers,
 };
+pub use model_steps::model_hold_then_finish;
 pub use model_steps::{
     ErrorBodyKind, model_calls_tool, model_cut_off, model_empty_body, model_error_body, model_list,
     model_list_silent, model_no_response, model_omit_usage, model_redacted_thinking,

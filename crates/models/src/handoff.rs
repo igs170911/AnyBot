@@ -15,7 +15,8 @@ pub struct HandoffRecord {
     pub after_provider: ProviderKind,
     pub after_model: String,
     pub reason: SwitchReason,
-    pub detail: String,
+    pub reason_code: &'static str,
+    pub reason_params: Vec<(String, String)>,
 }
 
 #[must_use]
@@ -25,7 +26,8 @@ pub fn record(
     after_provider: ProviderKind,
     after_model: &str,
     reason: SwitchReason,
-    detail: &str,
+    reason_code: &'static str,
+    reason_params: Vec<(String, String)>,
 ) -> HandoffRecord {
     HandoffRecord {
         before_provider,
@@ -33,7 +35,32 @@ pub fn record(
         after_provider,
         after_model: after_model.to_owned(),
         reason,
-        detail: detail.to_owned(),
+        reason_code,
+        reason_params,
+    }
+}
+
+#[must_use]
+pub fn handoff_code(reason: SwitchReason) -> &'static str {
+    reason_parts(reason, None).0
+}
+
+#[must_use]
+pub fn reason_parts(
+    reason: SwitchReason,
+    kind_code: Option<&str>,
+) -> (&'static str, Vec<(String, String)>) {
+    match reason {
+        SwitchReason::User => ("model-handoff-user", Vec::new()),
+        SwitchReason::Bot => ("model-handoff-bot", Vec::new()),
+        SwitchReason::Unreachable => ("model-handoff-unreachable", Vec::new()),
+        SwitchReason::Fallback => (
+            "model-handoff-fallback",
+            vec![(
+                "kind".to_owned(),
+                kind_code.unwrap_or("model-other").to_owned(),
+            )],
+        ),
     }
 }
 

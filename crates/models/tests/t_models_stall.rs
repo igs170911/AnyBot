@@ -1,3 +1,4 @@
+use proptest as _;
 use serde as _;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,7 +13,7 @@ use test_harness::{ModelFormat, model_no_response, model_stall, sleep_real, time
 use tokio as _;
 use url as _;
 
-#[path = "common/mod.rs"]
+#[path = "../test_support/mod.rs"]
 mod support;
 
 #[tokio::test]

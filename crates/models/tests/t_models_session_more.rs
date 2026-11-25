@@ -7,6 +7,7 @@ use anybot_models::{
 };
 use bytes as _;
 use futures_util as _;
+use proptest as _;
 use reqwest as _;
 use serde as _;
 use serde_json as _;
@@ -16,7 +17,11 @@ use test_harness::{
 use tokio as _;
 use url as _;
 
-#[path = "common/session.rs"]
+#[path = "../test_support/drive.rs"]
+mod drive;
+#[path = "../test_support/stopped.rs"]
+mod stop_slot;
+#[path = "../test_support/session.rs"]
 mod support;
 
 #[tokio::test]
@@ -74,7 +79,7 @@ async fn stream_busy_waits_then_retries() -> Result<(), String> {
             .map_err(|err| format!("{err:?}"))
     });
     let ready = timeout_real(
-        support::drive_until(&world.clock, || task.is_finished()),
+        drive::drive_until(&world.clock, || task.is_finished()),
         Duration::from_secs(8),
     )
     .await;
@@ -101,7 +106,7 @@ async fn stop_during_retry_ends_quietly() -> Result<(), String> {
             model_reply_status(503, "down"),
         ],
     );
-    let (tx, rx) = support::stopped();
+    let (tx, rx) = stop_slot::stopped();
     let clock = std::sync::Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
@@ -153,7 +158,7 @@ async fn policy_skip_does_not_call_cloud_fallback() -> Result<(), String> {
         .await
     });
     let ready = timeout_real(
-        support::drive_until(&world.clock, || task.is_finished()),
+        drive::drive_until(&world.clock, || task.is_finished()),
         Duration::from_secs(8),
     )
     .await;
@@ -186,7 +191,7 @@ async fn switch_request_applies_to_the_next_ask() -> Result<(), String> {
     )
     .await?;
     assert_eq!(first.result.text, "one");
-    session.request_switch(ProviderKind::OpenAi, "m2", SwitchReason::User);
+    session.request_switch(&pair.fallback, SwitchReason::User);
     let second = support::ask_watching(
         &mut session,
         &pair.primary,
