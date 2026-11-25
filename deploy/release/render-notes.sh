@@ -12,7 +12,7 @@ out="$root/target/release-notes.md"
 python3 - "$src" "$out" "$channel" "$commit" "$built_at" "$tag" <<'PY'
 import pathlib, sys
 src, out, channel, commit, built_at, tag = sys.argv[1:]
-text = pathlib.Path(src).read_text()
+text = pathlib.Path(src).read_text(encoding="utf-8")
 built = __import__("time").strftime("%Y-%m-%dT%H:%M:%SZ", __import__("time").gmtime(int(built_at)))
 for key, value in {
     "{{CHANNEL}}": channel,
@@ -21,6 +21,6 @@ for key, value in {
     "{{TAG}}": tag,
 }.items():
     text = text.replace(key, value)
-pathlib.Path(out).write_text(text)
+pathlib.Path(out).write_text(text.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8")
 PY
 echo "$out"

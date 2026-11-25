@@ -1,6 +1,7 @@
 #!/bin/sh
-# Print the compile-time release values. Source this from a workflow step.
+# Print the compile-time release values, one KEY=value per line.
 # ANYBOT_GIT_DESCRIBE and SOURCE_DATE_EPOCH are the only values that vary per commit.
+# The server image has no .git (see .dockerignore); it must not run this script.
 set -eu
 
 channel="${ANYBOT_RELEASE_CHANNEL:-stable}"
@@ -19,6 +20,7 @@ if [ -n "${GITHUB_SHA:-}" ]; then
     exit 1
   fi
 fi
+# --dirty cannot be combined with a commit-ish. A tagged checkout is still clean.
 describe="$(git describe --tags --always --abbrev=12 --dirty)" || exit 1
 case "$describe" in
   *-dirty|*-dirty*)
@@ -37,9 +39,8 @@ fi
 
 short="$(printf '%s' "${GITHUB_SHA:-$(git rev-parse HEAD)}" | cut -c1-12)"
 
-cat <<EOF
-ANYBOT_RELEASE_CHANNEL=$channel
-ANYBOT_GIT_DESCRIBE=$describe
-SOURCE_DATE_EPOCH=$epoch
-ANYBOT_COMMIT_SHORT=$short
-EOF
+printf '%s\n' \
+  "ANYBOT_RELEASE_CHANNEL=$channel" \
+  "ANYBOT_GIT_DESCRIBE=$describe" \
+  "SOURCE_DATE_EPOCH=$epoch" \
+  "ANYBOT_COMMIT_SHORT=$short"

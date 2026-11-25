@@ -9,6 +9,8 @@ This build is **{{CHANNEL}}**. It is not code-signed and not notarized (spec/09 
 - Built at: {{BUILT_AT}} (UTC)
 - Tag: {{TAG}}
 
+When the channel is `dev`, this is the one fixed pre-release page. Each green `dev` build replaces the whole page: the previous installers are removed and these files are the only ones left. The `dev-build` tag is moved to this commit; it is not a new page and not a new tag name.
+
 The desktop app is still a shell: it opens one window and has no chat, tasks, or account pages. The server image answers `--version` and a health check. Do not use either as a product.
 
 ## How to get past the unsigned warning

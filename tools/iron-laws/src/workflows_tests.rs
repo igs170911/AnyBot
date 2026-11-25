@@ -109,6 +109,30 @@ fn test_workflows_gate_blocks_top_level_write_permission() {
 }
 
 #[test]
+fn test_workflows_gate_allows_push_only_write_job_beside_pull_request() {
+    let repo = scratch_repo("iron-workflows-push-write");
+    let body = "name: CI\non:\n  push:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  publish:\n    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'\n    permissions:\n      contents: write\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n      - run: echo ok\n";
+    write_workflow(&repo, body);
+    let v = violations(&repo);
+    assert_eq!(v, Vec::<String>::new(), "{v:?}");
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
+fn test_workflows_gate_blocks_or_pull_request_write_job() {
+    let repo = scratch_repo("iron-workflows-or-write");
+    let body = "name: CI\non:\n  push:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  publish:\n    if: github.event_name == 'push' || github.event_name == 'pull_request'\n    permissions:\n      contents: write\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n      - run: echo ok\n";
+    write_workflow(&repo, body);
+    let v = violations(&repo);
+    assert!(
+        v.iter()
+            .any(|x| x.contains("pull_request") && x.contains("write")),
+        "{v:?}"
+    );
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
 fn test_workflows_gate_blocks_write_job_on_pull_request() {
     let repo = scratch_repo("iron-workflows-pr-write");
     let body = "name: CI\non:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  publish:\n    permissions:\n      contents: write\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n      - run: echo ok\n";
@@ -119,6 +143,19 @@ fn test_workflows_gate_blocks_write_job_on_pull_request() {
             .any(|x| x.contains("pull_request") && x.contains("write")),
         "{v:?}"
     );
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
+fn test_workflows_gate_skips_expression_runner_labels() {
+    let repo = scratch_repo("iron-workflows-expression-runner");
+    let body = GOOD.replace(
+        "runs-on: ubuntu-24.04",
+        "runs-on: ${{ matrix.runner }} # pinned: ubuntu-24.04",
+    );
+    write_workflow(&repo, &body);
+    let v = violations(&repo);
+    assert_eq!(v, Vec::<String>::new(), "{v:?}");
     assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
 }
 

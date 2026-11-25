@@ -16,5 +16,5 @@ case "$commit" in
   *-g*) short="${commit##*-g}" ;;
   *) short="$commit" ;;
 esac
-stamp="$(python3 -c 'import os, time; print(time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(int(os.environ["SOURCE_DATE_EPOCH"]))))')"
+stamp="$(SOURCE_DATE_EPOCH="$epoch" python3 -c 'import os, time; print(time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(int(os.environ["SOURCE_DATE_EPOCH"]))))')"
 printf 'v%s-%s%s · %s\n' "$version" "$short" "$dirty" "$stamp"

@@ -1,6 +1,9 @@
 # Release skeleton (spec/09 K110, K111). No signing, no custom secrets: GITHUB_TOKEN only.
-# Rehearsal (ws/rel-* push) checks, builds, and uploads artifacts. It does not
-# create a Release, push an image, or move a tag.
+# Publish paths are a v* tag push (stable) and a workflow_call with mode=dev
+# (the CI workflow calls that only after Linux, Windows, and macOS are green).
+# A ws/rel-* push and a manual run are rehearsal: they build and upload artifacts,
+# and they do not create a Release, push an image, or move a tag.
+# A release: released event runs only the `latest` job.
 name: Release
 
 on:
@@ -8,21 +11,21 @@ on:
     tags:
       - "v*"
     branches:
-      - dev
       - "ws/rel-**"
   release:
     types:
       - released
   workflow_dispatch:
+  workflow_call:
     inputs:
       mode:
-        description: rehearsal or publish
+        description: dev publishes the dev channel; anything else rehearses
         required: true
-        default: rehearsal
-        type: choice
-        options:
-          - rehearsal
-          - publish
+        type: string
+      commit:
+        description: commit the caller already checked
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -33,10 +36,12 @@ concurrency:
 
 env:
   CARGO_INCREMENTAL: "0"
-  IMAGE: ghcr.io/igs170911/anybot
+  # Owner and name come from the repository, lowercased. Not a hardcoded account.
+  IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
   guard:
+    if: github.event_name != 'release'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
@@ -47,6 +52,7 @@ jobs:
       commit: ${{ steps.mode.outputs.commit }}
       built_at: ${{ steps.mode.outputs.built_at }}
       describe: ${{ steps.mode.outputs.describe }}
+      image: ${{ steps.mode.outputs.image }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,74 +62,19 @@ jobs:
       - name: decide mode and refuse a bad tag
         id: mode
         env:
-          DISPATCH_MODE: ${{ inputs.mode }}
+          CALL_MODE: ${{ inputs.mode || '' }}
+          CALL_COMMIT: ${{ inputs.commit || '' }}
           REF_NAME: ${{ github.ref_name }}
           REF_TYPE: ${{ github.ref_type }}
           EVENT_NAME: ${{ github.event_name }}
           SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          version="$(awk 'BEGIN{p=0} /^\[workspace\.package\]/{p=1; next} /^\[/{p=0} p && /^version[[:space:]]*=/{gsub(/"/, "", $3); print $3; exit}' Cargo.toml)"
-          tauri="$(python3 -c 'import json; print(json.load(open("apps/desktop/src-tauri/tauri.conf.json"))["version"])')"
-          desktop="$(python3 -c 'import json; print(json.load(open("apps/desktop/package.json"))["version"])')"
-          root="$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
-          if [ "$version" != "$tauri" ] || [ "$version" != "$desktop" ] || [ "$version" != "$root" ]; then
-            echo "version mismatch cargo=$version tauri=$tauri desktop=$desktop package=$root" >&2
-            exit 1
-          fi
-          mode="rehearsal"
-          channel="dev"
-          tag="rehearsal"
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            mode="$DISPATCH_MODE"
-          elif [ "$REF_TYPE" = "tag" ]; then
-            mode="publish"
-            channel="stable"
-            tag="$REF_NAME"
-          elif [ "$REF_NAME" = "dev" ]; then
-            mode="publish"
-            channel="dev"
-            tag="dev-build"
-          fi
-          if [ "$mode" != "rehearsal" ] && [ "$mode" != "publish" ]; then
-            echo "unknown mode $mode" >&2
-            exit 1
-          fi
-          if [ "$channel" = "stable" ]; then
-            if [ "$tag" != "v$version" ] && ! printf '%s' "$tag" | grep -Eq "^v${version}-rc[.][0-9]+$"; then
-              echo "tag $tag does not match workspace version $version" >&2
-              exit 1
-            fi
-            git fetch --no-tags origin main
-            if ! git merge-base --is-ancestor "$SHA" origin/main; then
-              echo "tag $tag is not on main" >&2
-              exit 1
-            fi
-            check="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${SHA}/statuses" --jq '[.[] | select(.context=="check")] | first | .state // ""')"
-            if [ "$check" != "success" ]; then
-              echo "commit $SHA has no green check status (got ${check:-none}); refusing to publish" >&2
-              exit 1
-            fi
-          fi
-          epoch="$(git log -1 --format=%ct "$SHA")"
-          describe="$(git describe --tags --always --abbrev=12 "$SHA")"
-          case "$describe" in
-            *-dirty*)
-              echo "refusing a dirty describe ($describe)" >&2
-              exit 1
-              ;;
-          esac
-          echo "mode=$mode" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "commit=$SHA" >> "$GITHUB_OUTPUT"
-          echo "built_at=$epoch" >> "$GITHUB_OUTPUT"
-          echo "describe=$describe" >> "$GITHUB_OUTPUT"
+        run: sh deploy/release/guard.sh
 
   desktop:
     needs: guard
+    if: github.event_name != 'release' && needs.guard.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -161,17 +112,23 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       - name: pnpm
+        shell: bash
         run: npm install -g pnpm@12.23.0
 
       - name: install the web workspace
+        shell: bash
         run: pnpm install --frozen-lockfile
 
       - name: export compile-time release values
+        shell: bash
         env:
           ANYBOT_RELEASE_CHANNEL: ${{ needs.guard.outputs.channel }}
         run: sh deploy/release/export-build-env.sh
 
       - name: write the channel overlay
+        shell: bash
+        env:
+          ANYBOT_RELEASE_CHANNEL: ${{ needs.guard.outputs.channel }}
         run: sh deploy/release/tauri-channel.sh target/tauri-channel.json
 
       - name: bundle the desktop shell
@@ -182,6 +139,7 @@ jobs:
           pnpm exec tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config ../../target/tauri-channel.json
 
       - name: collect installers
+        shell: bash
         run: sh deploy/release/collect-bundles.sh "target/release-assets/${{ matrix.target }}"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -192,8 +150,9 @@ jobs:
 
   image:
     needs: guard
+    if: github.event_name != 'release' && needs.guard.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -216,6 +175,8 @@ jobs:
           printf '%s\n' "$line" > target/expected-version.txt
           echo "expected $line"
 
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
       - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: build and load the amd64 image for --version
@@ -230,11 +191,11 @@ jobs:
             ANYBOT_RELEASE_CHANNEL=${{ needs.guard.outputs.channel }}
             ANYBOT_GIT_DESCRIBE=${{ needs.guard.outputs.describe }}
             SOURCE_DATE_EPOCH=${{ needs.guard.outputs.built_at }}
-          tags: ${{ env.IMAGE }}:verify
+          tags: ${{ needs.guard.outputs.image }}:verify
 
-      - name: run --version inside the image
+      - name: run --version inside the amd64 image
         env:
-          IMAGE: ${{ env.IMAGE }}
+          IMAGE: ${{ needs.guard.outputs.image }}
         run: |
           set -euo pipefail
           got="$(docker run --rm --entrypoint /usr/local/bin/anybot-server "${IMAGE}:verify" --version)"
@@ -247,18 +208,46 @@ jobs:
             exit 1
           fi
 
-      - name: build the arm64 image without pushing
+      - name: build and load the arm64 image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: images/server/Dockerfile
           platforms: linux/arm64
+          load: true
           push: false
           build-args: |
             ANYBOT_RELEASE_CHANNEL=${{ needs.guard.outputs.channel }}
             ANYBOT_GIT_DESCRIBE=${{ needs.guard.outputs.describe }}
             SOURCE_DATE_EPOCH=${{ needs.guard.outputs.built_at }}
-          tags: ${{ env.IMAGE }}:verify-arm64
+          tags: ${{ needs.guard.outputs.image }}:verify-arm64
+
+      - name: confirm the arm64 image contains the server binary
+        env:
+          IMAGE: ${{ needs.guard.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker image inspect "${IMAGE}:verify-arm64" >/dev/null
+          cid="$(docker create --platform linux/arm64 --entrypoint /bin/true "${IMAGE}:verify-arm64")"
+          docker cp "$cid:/usr/local/bin/anybot-server" target/anybot-server-arm64
+          docker rm "$cid" >/dev/null
+          test -s target/anybot-server-arm64
+          file target/anybot-server-arm64 | grep -q 'ARM aarch64'
+
+      - name: run --version inside the arm64 image
+        env:
+          IMAGE: ${{ needs.guard.outputs.image }}
+        run: |
+          set -euo pipefail
+          got="$(docker run --rm --platform linux/arm64 --entrypoint /usr/local/bin/anybot-server "${IMAGE}:verify-arm64" --version)"
+          want="$(tr -d '\r' < target/expected-version.txt)"
+          got="$(printf '%s' "$got" | tr -d '\r')"
+          echo "arm64 image version: [$got]"
+          echo "expected: [$want]"
+          if [ "$got" != "$want" ]; then
+            echo "arm64 image --version does not match the release version line" >&2
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -268,9 +257,9 @@ jobs:
 
   publish:
     needs: [guard, desktop, image]
-    if: needs.guard.outputs.mode == 'publish'
+    if: github.event_name != 'release' && needs.guard.outputs.mode == 'publish' && needs.desktop.result == 'success' && needs.image.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: write
       packages: write
@@ -293,6 +282,11 @@ jobs:
           set -euo pipefail
           mkdir -p target/release-page
           find target/downloaded -type f ! -name SHA256SUMS -exec cp {} target/release-page/ \;
+          count="$(find target/release-page -type f | wc -l | tr -d ' ')"
+          if [ "$count" = 0 ]; then
+            echo "no desktop artifacts downloaded" >&2
+            exit 1
+          fi
           (cd target/release-page && sha256sum -- * > SHA256SUMS)
 
       - name: release notes
@@ -309,36 +303,7 @@ jobs:
           TAG: ${{ needs.guard.outputs.tag }}
           SHA: ${{ needs.guard.outputs.commit }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          prerelease="false"
-          draft="true"
-          if [ "$CHANNEL" = "dev" ]; then
-            prerelease="true"
-            draft="false"
-          elif printf '%s' "$TAG" | grep -Eq -- '-rc[.][0-9]+$'; then
-            prerelease="true"
-          fi
-          if [ "$CHANNEL" = "dev" ]; then
-            git tag -f "$TAG" "$SHA"
-            git push origin "refs/tags/${TAG}" --force
-            gh release delete "$TAG" --yes || true
-            git tag -f "$TAG" "$SHA"
-            git push origin "refs/tags/${TAG}" --force
-          fi
-          flags=""
-          if [ "$draft" = "true" ]; then
-            flags="--draft"
-          fi
-          if [ "$prerelease" = "true" ]; then
-            flags="$flags --prerelease"
-          fi
-          # shellcheck disable=SC2086
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --notes-file target/release-notes.md \
-            $flags \
-            target/release-page/*
+        run: sh deploy/release/publish-release.sh
 
       - name: log in to ghcr.io
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -346,6 +311,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
@@ -360,7 +327,7 @@ jobs:
           CHANNEL: ${{ needs.guard.outputs.channel }}
           VERSION: ${{ needs.guard.outputs.version }}
           COMMIT: ${{ needs.guard.outputs.commit }}
-          IMAGE: ${{ env.IMAGE }}
+          IMAGE: ${{ needs.guard.outputs.image }}
         run: |
           set -euo pipefail
           short="$(printf '%s' "$COMMIT" | cut -c1-12)"
@@ -392,6 +359,7 @@ jobs:
 
   latest:
     # spec/09 K111: move `latest` only after a non-rc Release is published. A draft does not.
+    # This is the only job a `release` event runs.
     if: github.event_name == 'release' && github.event.action == 'released' && github.event.release.prerelease == false && github.event.release.draft == false && startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -411,12 +379,5 @@ jobs:
       - name: move the latest tag
         env:
           TAG_NAME: ${{ github.event.release.tag_name }}
-          IMAGE: ${{ env.IMAGE }}
-        run: |
-          set -euo pipefail
-          version="${TAG_NAME#v}"
-          case "$version" in
-            *-*) echo "pre-release $TAG_NAME does not move latest" >&2; exit 1 ;;
-          esac
-          src="${IMAGE}:${version}"
-          docker buildx imagetools create --tag "${IMAGE}:latest" "$src"
+          REPOSITORY: ${{ github.repository }}
+        run: sh deploy/release/move-latest.sh

@@ -1,4 +1,5 @@
 # CI-1 (spec/09 K110, K111): pushes to every branch and pull requests targeting dev run `make check` on Linux.
+# A push to `dev` calls the release workflow only after Linux, Windows, and macOS are green.
 name: CI
 on:
   push:
@@ -202,10 +203,11 @@ jobs:
             !target/pg-install
           key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
-  # K111 ②: Windows and macOS compile plus the basic tests. Only dev and main, to keep
-  # work-branch and pull-request runs on the Linux `check` job (the name main's rules require).
+  # K111 ②: Windows and macOS compile plus the basic tests.
+  # dev and main, plus ws/rel-* so a rehearsal sees them before merge.
+  # Other work branches and pull requests stay on the Linux `check` job.
   build-windows:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/rel-'))
     runs-on: windows-2025
     timeout-minutes: 45
     steps:
@@ -260,7 +262,7 @@ jobs:
           make test-basic
 
   build-macos:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/rel-'))
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -322,3 +324,18 @@ jobs:
 
       - name: basic tests
         run: make test-basic
+
+  # Visible sequence, not a poll: this job starts only after the three checks succeed.
+  # The called workflow packages and publishes the dev channel. It does not run in parallel.
+  release-dev:
+    needs: [check, build-windows, build-macos]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.check.result == 'success' && needs.build-windows.result == 'success' && needs.build-macos.result == 'success'
+    timeout-minutes: 180
+    uses: ./.github/workflows/release.yml
+    with:
+      mode: dev
+      commit: ${{ github.sha }}
+    permissions:
+      contents: write
+      packages: write
+    secrets: inherit

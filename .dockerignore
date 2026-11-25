@@ -1,4 +1,6 @@
 .git
+.github
+.gitea
 target
 **/target
 node_modules
@@ -8,4 +10,13 @@ apps/web/dist
 .DS_Store
 *.log
 .idea
+.vscode
 .local
+docs
+spec
+adapters
+deploy
+**/__pycache__
+**/*.pyc
+*.swp
+*~

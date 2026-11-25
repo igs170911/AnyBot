@@ -99,6 +99,7 @@ fn job_violations(doc: &serde_json::Value, rel: &str) -> Vec<String> {
         if let Some(permissions) = job.get("permissions")
             && triggers_pr
             && permissions_grant_write(permissions)
+            && job_runs_on_pull_request(job)
         {
             out.push(format!(
                 "{rel}: job \"{name}\" grants a write permission and the workflow triggers on pull_request or pull_request_target (spec/09 K111)"
@@ -156,6 +157,20 @@ fn is_pull_request_event(text: &str) -> bool {
     text == "pull_request" || text == "pull_request_target"
 }
 
+fn job_runs_on_pull_request(job: &serde_json::Value) -> bool {
+    let Some(cond) = job.get("if").and_then(|value| value.as_str()) else {
+        return true;
+    };
+    !if_requires_non_pull_request(cond)
+}
+
+fn if_requires_non_pull_request(cond: &str) -> bool {
+    let compact = cond.split_whitespace().collect::<String>();
+    let requires_push = compact.contains("github.event_name=='push'")
+        || compact.contains("github.event_name==\"push\"");
+    requires_push && !compact.contains("pull_request") && !compact.contains("||")
+}
+
 fn runner_violations(
     runs_on: Option<&serde_json::Value>,
     rel: &str,
@@ -177,10 +192,17 @@ fn runner_violations(
 
 fn runner_labels(runs_on: Option<&serde_json::Value>) -> Vec<String> {
     match runs_on {
-        Some(serde_json::Value::String(text)) => vec![text.clone()],
+        Some(serde_json::Value::String(text)) => {
+            if text.contains("${{") {
+                Vec::new()
+            } else {
+                vec![text.clone()]
+            }
+        }
         Some(serde_json::Value::Array(items)) => items
             .iter()
             .filter_map(|item| item.as_str().map(str::to_owned))
+            .filter(|label| !label.contains("${{"))
             .collect(),
         _ => Vec::new(),
     }
