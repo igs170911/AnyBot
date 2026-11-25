@@ -1,3 +1,6 @@
+use trybuild as _;
+#[path = "../test_support/permit.rs"]
+mod permit_support;
 use anybot_foundation as _;
 use bytes as _;
 use futures_util as _;
@@ -49,7 +52,12 @@ async fn t_models_errors_2() -> Result<(), String> {
         let endpoint = support::endpoint(kind, world.port, model, "k");
         let Err(err) = world
             .gateway
-            .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
+            .complete(
+                &endpoint,
+                &support::hi(ThinkingMode::Auto),
+                false,
+                &permit_support::permit_for(&endpoint)?,
+            )
             .await
         else {
             return Err("too long still succeeded".to_owned());

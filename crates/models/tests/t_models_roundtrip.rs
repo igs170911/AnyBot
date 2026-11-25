@@ -1,3 +1,6 @@
+use trybuild as _;
+#[path = "../test_support/permit.rs"]
+mod permit_support;
 use anybot_foundation as _;
 use anybot_models::{ProviderKind, Role, StopKind, ThinkingMode};
 use bytes as _;
@@ -13,6 +16,22 @@ use url as _;
 #[path = "../test_support/mod.rs"]
 mod support;
 
+async fn ask_gateway(
+    world: &support::World,
+    endpoint: &anybot_models::ProviderEndpoint,
+) -> Result<anybot_models::TurnResult, String> {
+    world
+        .gateway
+        .complete(
+            endpoint,
+            &support::hi(ThinkingMode::Auto),
+            false,
+            &permit_support::permit_for(endpoint)?,
+        )
+        .await
+        .map_err(|err| format!("{err:?}"))
+}
+
 #[tokio::test]
 async fn t_models_normalize_9() -> Result<(), String> {
     let world = support::world(ModelFormat::Anthropic).await?;
@@ -21,11 +40,7 @@ async fn t_models_normalize_9() -> Result<(), String> {
         vec![model_thinking_block("plan", "sig-keep", "ok", false)],
     );
     let endpoint = support::endpoint(ProviderKind::Anthropic, world.port, "claude-opus-5-5", "k");
-    let first = world
-        .gateway
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
-        .await
-        .unwrap();
+    let first = ask_gateway(&world, &endpoint).await?;
     let attachment = first.attachment.expect("native");
     let raw = attachment.bytes.clone();
     let mut again = support::hi(ThinkingMode::Auto);
@@ -51,7 +66,12 @@ async fn t_models_normalize_9() -> Result<(), String> {
     support::script(&world.model, vec![model_replies_text("next", false)]);
     world
         .gateway
-        .complete(&endpoint, &again, false)
+        .complete(
+            &endpoint,
+            &again,
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     let same = world.model.recorded();
@@ -79,7 +99,12 @@ async fn reject_elsewhere(again: &anybot_models::TurnRequest) -> Result<(), Stri
         support::endpoint(ProviderKind::Anthropic, other.port, "claude-haiku-5-5", "k");
     other
         .gateway
-        .complete(&other_endpoint, again, false)
+        .complete(
+            &other_endpoint,
+            again,
+            false,
+            &permit_support::permit_for(&other_endpoint)?,
+        )
         .await
         .map_err(|err| format!("{err:?}"))?;
     let other_body = other
@@ -95,7 +120,12 @@ async fn reject_elsewhere(again: &anybot_models::TurnRequest) -> Result<(), Stri
     let openai_endpoint = support::endpoint(ProviderKind::OpenAi, openai.port, "gpt-5", "k");
     openai
         .gateway
-        .complete(&openai_endpoint, again, false)
+        .complete(
+            &openai_endpoint,
+            again,
+            false,
+            &permit_support::permit_for(&openai_endpoint)?,
+        )
         .await
         .map_err(|err| format!("{err:?}"))?;
     let openai_body = openai
@@ -125,7 +155,12 @@ async fn gateway_keeps_tool_stop_when_stream_and_json_agree() -> Result<(), Stri
     for (expect_tool, stream) in expect {
         let result = world
             .gateway
-            .complete(&endpoint, &support::hi(ThinkingMode::Auto), stream)
+            .complete(
+                &endpoint,
+                &support::hi(ThinkingMode::Auto),
+                stream,
+                &permit_support::permit_for(&endpoint)?,
+            )
             .await
             .unwrap();
         if expect_tool {

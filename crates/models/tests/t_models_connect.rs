@@ -3,6 +3,7 @@ use serde as _;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use trybuild as _;
 
 use anybot_foundation::clock::Clock;
 use anybot_models::{ProviderKind, ThinkingMode};
@@ -41,7 +42,19 @@ async fn gateway_connect_timeout_uses_clock() {
     );
     let task = tokio::spawn(async move {
         gateway
-            .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
+            .complete(
+                &endpoint,
+                &support::hi(ThinkingMode::Auto),
+                false,
+                &anybot_models::SendPermit::for_endpoint(
+                    &anybot_models::DataPolicy::Cloud {
+                        allowed: vec![ProviderKind::OpenAi],
+                    },
+                    &endpoint,
+                    anybot_models::ModelUse::Bot,
+                )
+                .expect("permit"),
+            )
             .await
     });
     let ready = timeout_real(wait_clock(&clock, &task, 16), Duration::from_secs(5)).await;

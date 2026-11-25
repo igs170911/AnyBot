@@ -1,0 +1,89 @@
+use proptest::prelude::*;
+
+use crate::prop_body::{ReplyCase, events_of, sse, whole_body};
+use crate::prop_cut::{
+    assert_column, cut_body, endpoint_for, plain_decode, same_answer, send_body, stream_decode,
+};
+
+fn reply_strategy() -> impl Strategy<Value = ReplyCase> {
+    (
+        0_u8..3,
+        prop_oneof![Just(String::new()), Just("ok".to_owned())],
+        prop_oneof![Just(String::new()), Just("plan".to_owned())],
+        prop_oneof![Just(String::new()), Just("read_file".to_owned())],
+        prop_oneof![Just("{}".to_owned()), Just(r#"{"path":"a"}"#.to_owned())],
+        prop_oneof![
+            Just("stop".to_owned()),
+            Just("tool_calls".to_owned()),
+            Just("length".to_owned()),
+            Just("refusal".to_owned()),
+            Just("other".to_owned())
+        ],
+        prop_oneof![
+            Just(String::new()),
+            Just("kv_transfer_params".to_owned()),
+            Just("token_ids".to_owned()),
+            Just("metrics".to_owned()),
+            Just("vendor_extra".to_owned())
+        ],
+        prop_oneof![
+            Just(String::new()),
+            Just("kept".to_owned()),
+            Just("1".to_owned())
+        ],
+        any::<bool>(),
+        0_usize..4_096,
+    )
+        .prop_map(
+            |(format, text, thinking, tool, args, finish, extra_key, extra_value, stream, cut)| {
+                ReplyCase {
+                    format,
+                    text,
+                    thinking,
+                    tool,
+                    args,
+                    finish,
+                    extra_key,
+                    extra_value,
+                    stream,
+                    cut,
+                }
+            },
+        )
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1000))]
+
+    #[test]
+    fn t_models_normalize_14(case in reply_strategy()) {
+        let endpoint = endpoint_for(&case);
+        let plain = whole_body(&case);
+        let stream = sse(&events_of(&case), true);
+        let bare = without_extra(&case);
+        let sent = if case.stream { &stream } else { &plain };
+        let (cut, _closed) = cut_body(sent, case.cut);
+        let cut_result = send_body(&endpoint, &cut, case.stream).expect("cut send");
+        assert_column(&cut_result)?;
+        let whole_stream = send_body(&endpoint, &stream, true).expect("stream send");
+        let whole_plain = send_body(&endpoint, &plain, false).expect("plain send");
+        prop_assert!(same_answer(&whole_stream, &whole_plain));
+        let extra_free = if case.stream {
+            send_body(&endpoint, &sse(&events_of(&bare), true), true)
+        } else {
+            send_body(&endpoint, &whole_body(&bare), false)
+        }
+        .expect("bare send");
+        let with_extra = if case.stream { &whole_stream } else { &whole_plain };
+        prop_assert!(same_answer(with_extra, &extra_free));
+        prop_assert!(same_answer(&whole_plain, &plain_decode(&endpoint, &plain)));
+        prop_assert!(same_answer(&whole_stream, &stream_decode(&endpoint, &stream)));
+    }
+}
+
+fn without_extra(case: &ReplyCase) -> ReplyCase {
+    let mut bare = case.clone();
+    bare.extra_key.clear();
+    bare.extra_value.clear();
+    bare
+}

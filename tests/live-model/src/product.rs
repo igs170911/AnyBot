@@ -36,12 +36,14 @@ pub async fn compare_product(
     let live = resolve_endpoint(ProviderKind::Custom, live_base, live_key, model, None);
     let mut lines = vec!["product client:".to_owned()];
     for (name, request, stream) in product_cases() {
+        let fake_permit = permit_for(&fake)?;
+        let live_permit = permit_for(&live)?;
         let left = gateway
-            .complete(&fake, &request, stream)
+            .complete(&fake, &request, stream, &fake_permit)
             .await
             .map_err(|err| format!("fake {name} failed: {err:?}"))?;
         let right = gateway
-            .complete(&live, &request, stream)
+            .complete(&live, &request, stream, &live_permit)
             .await
             .map_err(|err| format!("live {name} failed: {err:?}"))?;
         let fake_shape = shape_of(&left);
@@ -121,14 +123,28 @@ async fn shapes_from(format: ModelFormat) -> Result<Vec<NeutralShape>, String> {
     let request = hi();
     let mut shapes = Vec::new();
     for stream in [false, true, false, true] {
+        let permit = permit_for(&endpoint)?;
         let result = gateway
-            .complete(&endpoint, &request, stream)
+            .complete(&endpoint, &request, stream, &permit)
             .await
             .map_err(|err| format!("{err:?}"))?;
         shapes.push(shape_of(&result));
     }
     let _held = model;
     Ok(shapes)
+}
+
+fn permit_for(
+    endpoint: &anybot_models::ProviderEndpoint,
+) -> Result<anybot_models::SendPermit, String> {
+    anybot_models::SendPermit::for_endpoint(
+        &anybot_models::DataPolicy::Cloud {
+            allowed: vec![endpoint.kind],
+        },
+        endpoint,
+        anybot_models::ModelUse::Bot,
+    )
+    .ok_or_else(|| "permit".to_owned())
 }
 
 fn hi() -> TurnRequest {

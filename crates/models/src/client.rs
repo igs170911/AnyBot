@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anybot_foundation::clock::Clock;
 use serde_json::Value;
 
+use crate::egress::{ModelUse, SendPermit};
 use crate::providers::{OPENROUTER_APP, key_allowed};
 use crate::thinking::apply_thinking;
 use crate::transport::TimedTransport;
@@ -28,9 +29,10 @@ impl NameResolver for IdentityResolver {
 }
 
 impl Gateway {
-    pub fn new(client: reqwest::Client, clock: Arc<dyn Clock>) -> Self {
+    #[must_use]
+    pub fn new(clock: Arc<dyn Clock>) -> Self {
         Self {
-            transport: TimedTransport::new(client, clock),
+            transport: TimedTransport::new(crate::client_http::product_client(), clock),
             name_map: Arc::new(IdentityResolver),
         }
     }
@@ -57,20 +59,42 @@ impl Gateway {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn post_script(
+        &self,
+        posted: &crate::transport::Posted,
+    ) -> Option<crate::transport::PostedOutcome> {
+        self.transport.post_recorded(posted)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_poster(mut self, poster: Arc<dyn crate::transport::Poster>) -> Self {
+        self.transport = TimedTransport::new(self.transport.client.clone(), self.transport.clock())
+            .with_poster(poster);
+        self
+    }
+
     pub async fn complete(
         &self,
         endpoint: &ProviderEndpoint,
         request: &TurnRequest,
         stream: bool,
+        permit: &SendPermit,
     ) -> Result<TurnResult, GatewayFail> {
-        if endpoint.api_key.is_none() && needs_key(endpoint.kind) {
+        if endpoint.api_key.is_none() && crate::client_http::needs_key(endpoint.kind) {
             return Err(GatewayFail::MissingKey);
         }
-        let url = Self::chat_url(endpoint);
+        let url = crate::client_http::chat_url(endpoint);
+        if !permit.matches(&url, ModelUse::Bot) {
+            return Err(policy_blocked());
+        }
         if endpoint.api_key.is_some() && !key_allowed(endpoint, &url) {
             return Err(GatewayFail::KeyDestination);
         }
         let body = encode_body(endpoint, request, stream);
+        if let Some(done) = take_recorded(self, endpoint, &url, &body, stream) {
+            return done;
+        }
         let builder = authorized(self.client_request(&url, &body, endpoint), endpoint);
         let first_wait = first_token_wait(0);
         if stream {
@@ -161,18 +185,47 @@ impl Gateway {
     ) -> Result<crate::transport::HttpBytes, crate::transport::TransportFail> {
         self.transport.send(builder, first_wait).await
     }
-
-    fn chat_url(endpoint: &ProviderEndpoint) -> String {
-        let path = match endpoint.format {
-            WireFormat::Anthropic => wire_claude::MESSAGES_PATH,
-            WireFormat::OpenAiCompatible => wire_openai::CHAT_PATH,
-        };
-        format!("{}{path}", endpoint.base_url)
-    }
 }
 
-fn needs_key(kind: ProviderKind) -> bool {
-    !matches!(kind, ProviderKind::Ollama | ProviderKind::Custom)
+pub(crate) fn chat_url_of(endpoint: &ProviderEndpoint) -> String {
+    crate::client_http::chat_url(endpoint)
+}
+
+#[cfg(test)]
+fn take_recorded(
+    gateway: &Gateway,
+    endpoint: &ProviderEndpoint,
+    url: &str,
+    body: &Value,
+    stream: bool,
+) -> Option<Result<TurnResult, GatewayFail>> {
+    crate::client_recorded::recorded_now(gateway, endpoint, url, body, stream)
+}
+
+#[cfg(not(test))]
+fn take_recorded(
+    _gateway: &Gateway,
+    _endpoint: &ProviderEndpoint,
+    _url: &str,
+    _body: &Value,
+    _stream: bool,
+) -> Option<Result<TurnResult, GatewayFail>> {
+    None
+}
+
+#[cfg(test)]
+pub(crate) fn status_fail(
+    endpoint: &ProviderEndpoint,
+    bytes: &crate::transport::HttpBytes,
+) -> GatewayFail {
+    classified_status(endpoint, bytes)
+}
+
+fn policy_blocked() -> GatewayFail {
+    crate::ask::classified_fail(
+        crate::errors::classify(&crate::errors::FailInput::PolicyBlocked),
+        Vec::new(),
+    )
 }
 
 fn encode_body(endpoint: &ProviderEndpoint, request: &TurnRequest, stream: bool) -> Value {

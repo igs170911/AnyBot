@@ -1,5 +1,6 @@
 use proptest as _;
 use std::sync::Arc;
+use trybuild as _;
 
 use anybot_foundation as _;
 use anybot_foundation::clock::Clock;
@@ -100,8 +101,47 @@ async fn redirect_is_not_followed() -> Result<(), String> {
         None,
     );
     let request = empty_hi();
-    let err = gateway.complete(&endpoint, &request, false).await;
+    let permit =
+        anybot_models::SendPermit::for_endpoint(&DataPolicy::LocalOnly, &endpoint, ModelUse::Bot)
+            .expect("permit");
+    let err = gateway.complete(&endpoint, &request, false, &permit).await;
     assert!(err.is_err());
+    assert!(cloud.recorded().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn local_permit_rejects_cloud_destination() -> Result<(), String> {
+    let (cloud, _cloud_port) = model_start_with_format(ModelFormat::OpenAi).await?;
+    let clock = FakeClock::new(0);
+    let shared: Arc<FakeClock> = Arc::clone(&clock);
+    let gateway = anybot_models::gateway(shared);
+    let local = anybot_models::resolve_endpoint(
+        ProviderKind::Custom,
+        "http://127.0.0.1:9/v1",
+        "",
+        "local",
+        None,
+    );
+    let cloud_endpoint = anybot_models::resolve_endpoint(
+        ProviderKind::OpenAi,
+        "http://api.cloud.test/v1",
+        "k",
+        "m2",
+        None,
+    );
+    let permit =
+        anybot_models::SendPermit::for_endpoint(&DataPolicy::LocalOnly, &local, ModelUse::Bot)
+            .expect("permit");
+    let err = gateway
+        .complete(&cloud_endpoint, &empty_hi(), false, &permit)
+        .await
+        .err()
+        .ok_or("cloud send accepted")?;
+    let anybot_models::GatewayFail::Classified { classified, .. } = err else {
+        return Err("expected classified".to_owned());
+    };
+    assert_eq!(classified.kind, anybot_models::FailKind::PolicyBlocked);
     assert!(cloud.recorded().is_empty());
     Ok(())
 }

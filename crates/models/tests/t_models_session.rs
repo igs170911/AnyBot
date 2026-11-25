@@ -1,5 +1,6 @@
 use proptest as _;
 use std::time::Duration;
+use trybuild as _;
 
 use anybot_foundation as _;
 use anybot_models::{

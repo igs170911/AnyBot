@@ -295,6 +295,7 @@ dependencies = [
  "serde_json",
  "test-harness",
  "tokio",
+ "trybuild",
  "url",
 ]
 

@@ -64,15 +64,29 @@ pub(crate) fn note_too_long(rows: &mut Vec<Learned>, endpoint: &ProviderEndpoint
     rows.push(row);
 }
 
+pub(crate) struct TrySend<'a> {
+    pub model: &'a crate::session::ModelRef,
+    pub request: &'a TurnRequest,
+    pub stream: bool,
+    pub audience: crate::types::Audience,
+    pub calibration: &'a crate::estimate::Calibration,
+    pub thinking: bool,
+    pub permit: &'a crate::egress::SendPermit,
+}
+
 pub(crate) async fn send_tries(
     session: &mut Session,
-    model: &crate::session::ModelRef,
-    request: &TurnRequest,
-    stream: bool,
-    audience: crate::types::Audience,
-    calibration: &crate::estimate::Calibration,
-    thinking: bool,
+    attempt: TrySend<'_>,
 ) -> Result<TurnResult, GatewayFail> {
+    let TrySend {
+        model,
+        request,
+        stream,
+        audience,
+        calibration,
+        thinking,
+        permit,
+    } = attempt;
     let mut sent = 0_u32;
     let mut current = request.clone();
     if !thinking {
@@ -82,7 +96,7 @@ pub(crate) async fn send_tries(
         sent = sent.saturating_add(1);
         let outcome = session
             .gateway()
-            .complete(&model.endpoint, &current, stream)
+            .complete(&model.endpoint, &current, stream, permit)
             .await;
         match crate::session_step::decide(outcome, sent) {
             crate::session_step::Step::Done(result) => {

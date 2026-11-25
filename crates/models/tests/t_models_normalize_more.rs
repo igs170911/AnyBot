@@ -1,3 +1,6 @@
+use trybuild as _;
+#[path = "../test_support/permit.rs"]
+mod permit_support;
 use anybot_foundation as _;
 use bytes as _;
 use futures_util as _;
@@ -21,7 +24,12 @@ async fn t_models_normalize_12() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let result = world
         .gateway
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), true)
+        .complete(
+            &endpoint,
+            &support::hi(ThinkingMode::Auto),
+            true,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     let recorded = world.model.recorded();
@@ -74,7 +82,12 @@ async fn t_models_normalize_13() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::OpenAi, openai.port, "gpt-5", "k");
     openai
         .gateway
-        .complete(&endpoint, &request, false)
+        .complete(
+            &endpoint,
+            &request,
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     let recorded = openai.model.recorded();
@@ -90,7 +103,12 @@ async fn claude_roundtrip(request: &anybot_models::TurnRequest) -> Result<(), St
     let endpoint = support::endpoint(ProviderKind::Anthropic, claude.port, "claude-opus-5-5", "k");
     claude
         .gateway
-        .complete(&endpoint, request, false)
+        .complete(
+            &endpoint,
+            request,
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .map_err(|err| format!("{err:?}"))?;
     let recorded = claude.model.recorded();
@@ -100,6 +118,24 @@ async fn claude_roundtrip(request: &anybot_models::TurnRequest) -> Result<(), St
     assert!(body.contains("functions_read_0"));
     assert!(!body.contains("functions.read:0"));
     Ok(())
+}
+
+async fn send_native(
+    world: &support::World,
+    endpoint: &anybot_models::ProviderEndpoint,
+    request: &anybot_models::TurnRequest,
+) -> Result<(), String> {
+    world
+        .gateway
+        .complete(
+            endpoint,
+            request,
+            false,
+            &permit_support::permit_for(endpoint)?,
+        )
+        .await
+        .map(|_| ())
+        .map_err(|err| format!("{err:?}"))
 }
 
 #[tokio::test]
@@ -134,20 +170,13 @@ async fn gateway_sends_native_block_only_to_same_model() -> Result<(), String> {
     let same = support::world(ModelFormat::Anthropic).await?;
     support::script(&same.model, vec![model_replies_text("ok", false)]);
     let endpoint = support::endpoint(ProviderKind::Anthropic, same.port, "claude-opus-5-5", "k");
-    same.gateway
-        .complete(&endpoint, &request, false)
-        .await
-        .unwrap();
+    send_native(&same, &endpoint, &request).await?;
     let recorded = same.model.recorded();
     assert!(recorded.first().unwrap().body.contains("sig-1"));
     let other = support::world(ModelFormat::Anthropic).await?;
     support::script(&other.model, vec![model_replies_text("ok", false)]);
     let endpoint = support::endpoint(ProviderKind::Anthropic, other.port, "claude-haiku-5-5", "k");
-    other
-        .gateway
-        .complete(&endpoint, &request, false)
-        .await
-        .unwrap();
+    send_native(&other, &endpoint, &request).await?;
     let recorded = other.model.recorded();
     assert!(!recorded.first().unwrap().body.contains("sig-1"));
     let openai = support::world(ModelFormat::OpenAi).await?;
@@ -155,7 +184,12 @@ async fn gateway_sends_native_block_only_to_same_model() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::OpenAi, openai.port, "gpt-5", "k");
     openai
         .gateway
-        .complete(&endpoint, &request, false)
+        .complete(
+            &endpoint,
+            &request,
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     let recorded = openai.model.recorded();

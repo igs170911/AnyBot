@@ -21,7 +21,14 @@ pub(crate) fn chain_of(
     {
         chain.insert(0, crate::model_copy::copy_model(next));
     }
-    prefer_pending(chain, pending.map(kind_model))
+    prefer_pending(chain, picked(pending, adopted))
+}
+
+fn picked<'a>(
+    pending: Option<&'a ModelRef>,
+    adopted: Option<&'a ModelRef>,
+) -> Option<(ProviderKind, &'a str)> {
+    pending.or(adopted).map(kind_model)
 }
 
 fn kind_model(model: &ModelRef) -> (ProviderKind, &str) {

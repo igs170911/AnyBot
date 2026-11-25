@@ -18,9 +18,13 @@ futures-util = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 test-harness = { workspace = true }
+trybuild = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 serde_json = { workspace = true }
 
+[[test]]
+name = "t_models_permit_fail"
+path = "tests/t_models_permit_fail.rs"
 [[test]]
 name = "t_models_capabilities"
 path = "tests/t_models_capabilities.rs"
@@ -58,11 +62,11 @@ path = "tests/t_models_handoff_prop.rs"
 name = "t_models_normalize"
 path = "tests/t_models_normalize.rs"
 [[test]]
+name = "t_models_normalize_cut"
+path = "tests/t_models_normalize_cut.rs"
+[[test]]
 name = "t_models_normalize_more"
 path = "tests/t_models_normalize_more.rs"
-[[test]]
-name = "t_models_normalize_prop"
-path = "tests/t_models_normalize_prop.rs"
 [[test]]
 name = "t_models_providers"
 path = "tests/t_models_providers.rs"

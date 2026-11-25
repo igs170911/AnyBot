@@ -1,3 +1,6 @@
+use trybuild as _;
+#[path = "../test_support/permit.rs"]
+mod permit_support;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -166,7 +169,12 @@ async fn t_models_egress_4() -> Result<(), String> {
     let gateway = cloud_gateway(&clock, cloud_port);
     let endpoint = support::endpoint(ProviderKind::Custom, local_port, "m1", "");
     let err = gateway
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
+        .complete(
+            &endpoint,
+            &support::hi(ThinkingMode::Auto),
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .err()
         .ok_or("redirect followed")?;

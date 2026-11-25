@@ -11,15 +11,6 @@ pub(crate) fn pending_reason(session: &Session) -> Option<SwitchReason> {
     session.pending_reason.lock().ok().and_then(|slot| *slot)
 }
 
-pub(crate) fn clear_pending(session: &Session) {
-    if let Ok(mut slot) = session.pending.lock() {
-        *slot = None;
-    }
-    if let Ok(mut slot) = session.pending_reason.lock() {
-        *slot = None;
-    }
-}
-
 pub(crate) fn exhausted(
     last: Option<crate::GatewayFail>,
     skips: Vec<crate::notice::Notice>,

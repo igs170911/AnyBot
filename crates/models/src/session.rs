@@ -175,8 +175,8 @@ impl Session {
     }
 
     pub async fn ask(&mut self, plan: &mut AskPlan<'_>) -> Result<AskOutcome, GatewayFail> {
-        if let Some(next) = self.adopted.take() {
-            self.primary_override = Some(next);
+        if let Some(next) = self.adopted.as_ref() {
+            self.primary_override = Some(crate::model_copy::copy_model(next));
         }
         let pending = crate::session_io::peek_pending(self);
         let chain = crate::session_chain::chain_of(
@@ -200,15 +200,12 @@ impl Session {
             ) {
                 continue;
             }
-            if !egress::allowed(
-                policy,
-                &model.endpoint.base_url,
-                model.endpoint.kind,
-                ModelUse::Bot,
-            ) {
+            let Some(permit) =
+                egress::SendPermit::for_endpoint(policy, &model.endpoint, ModelUse::Bot)
+            else {
                 skips.push(skip_notice(model.endpoint.kind, bot));
                 continue;
-            }
+            };
             if model.endpoint.api_key.is_none() && needs_key(model.endpoint.kind) {
                 skips.push(crate::notice::missing_key_notice(model.endpoint.kind));
                 continue;
@@ -220,9 +217,8 @@ impl Session {
                 request,
                 &mut plan.request_for,
             );
-            match crate::session_ask::one(self, &model, &built, stream, audience).await {
+            match crate::session_ask::one(self, &model, &built, stream, audience, &permit).await {
                 Ok(result) => {
-                    crate::session_switch::note_pending_after(self, &model.endpoint);
                     return Ok(crate::session_switch::finish_ask(self, result, skips));
                 }
                 Err(err) => match crate::session_switch::keep_or_stop(self, &model, err) {

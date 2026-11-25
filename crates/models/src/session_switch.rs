@@ -99,13 +99,17 @@ pub(crate) fn note_active(session: &mut Session, endpoint: &ProviderEndpoint) {
     adopt_outside(session, endpoint, pending.as_ref());
     record_failed(session, endpoint);
     record_pending(session, endpoint, pending.as_ref());
-    crate::session_io::clear_pending(session);
+    clear_switch(session);
     session.active = Some((endpoint.kind, endpoint.model.clone()));
 }
 
-pub(crate) fn note_pending_after(session: &mut Session, endpoint: &ProviderEndpoint) {
-    let pending = crate::session_io::peek_pending(session);
-    record_pending(session, endpoint, pending.as_ref());
+fn clear_switch(session: &Session) {
+    if let Ok(mut slot) = session.pending.lock() {
+        *slot = None;
+    }
+    if let Ok(mut slot) = session.pending_reason.lock() {
+        *slot = None;
+    }
 }
 
 pub(crate) fn mark_failed(

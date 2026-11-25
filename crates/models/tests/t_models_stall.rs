@@ -1,3 +1,6 @@
+use trybuild as _;
+#[path = "../test_support/permit.rs"]
+mod permit_support;
 use proptest as _;
 use serde as _;
 use std::sync::Arc;
@@ -22,10 +25,11 @@ async fn gateway_keeps_partial_text_after_stall() -> Result<(), String> {
     support::script(&world.model, vec![model_stall("Hello", true)]);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let clock = Arc::clone(&world.clock);
+    let permit = permit_support::permit_for(&endpoint)?;
     let task = tokio::spawn(async move {
         world
             .gateway
-            .complete(&endpoint, &support::hi(ThinkingMode::Auto), true)
+            .complete(&endpoint, &support::hi(ThinkingMode::Auto), true, &permit)
             .await
     });
     let ready = timeout_real(wait_finished(&clock, &task, 36), Duration::from_secs(5)).await;
@@ -60,10 +64,11 @@ async fn gateway_times_out_before_first_token() -> Result<(), String> {
     support::script(&world.model, vec![model_no_response(true)]);
     let endpoint = support::endpoint(ProviderKind::Custom, world.port, "local", "k");
     let clock = Arc::clone(&world.clock);
+    let permit = permit_support::permit_for(&endpoint)?;
     let task = tokio::spawn(async move {
         world
             .gateway
-            .complete(&endpoint, &support::hi(ThinkingMode::Auto), true)
+            .complete(&endpoint, &support::hi(ThinkingMode::Auto), true, &permit)
             .await
     });
     let ready = timeout_real(wait_finished(&clock, &task, 121), Duration::from_secs(5)).await;

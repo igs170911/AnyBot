@@ -1,6 +1,7 @@
 use proptest as _;
 use std::sync::Arc;
 use std::time::Duration;
+use trybuild as _;
 
 use anybot_foundation as _;
 use anybot_foundation::clock::Clock;

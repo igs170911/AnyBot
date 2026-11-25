@@ -1,4 +1,5 @@
 use std::time::Duration;
+use trybuild as _;
 
 use anybot_foundation as _;
 use anybot_models::{
@@ -184,8 +185,16 @@ async fn t_models_handoff_6() -> Result<(), String> {
         ],
     );
     let endpoint = support::endpoint(ProviderKind::Anthropic, claude.port, "claude-opus-5-5", "k");
+    let permit = anybot_models::SendPermit::for_endpoint(
+        &DataPolicy::Cloud {
+            allowed: vec![ProviderKind::Anthropic],
+        },
+        &endpoint,
+        anybot_models::ModelUse::Bot,
+    )
+    .ok_or("permit")?;
     let first = anybot_models::gateway(support::share(&claude.clock))
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
+        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false, &permit)
         .await
         .map_err(|err| format!("{err:?}"))?;
     let attachment = first.attachment.ok_or("missing attachment")?;

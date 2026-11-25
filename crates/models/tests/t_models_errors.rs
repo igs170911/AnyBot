@@ -8,6 +8,7 @@ use serde as _;
 use serde_json as _;
 use test_harness as _;
 use tokio as _;
+use trybuild as _;
 use url as _;
 
 fn sample(input: &FailInput) -> (FailKind, RetryPlan, FallbackPlan) {

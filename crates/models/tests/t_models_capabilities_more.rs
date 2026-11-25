@@ -15,6 +15,7 @@ use test_harness::{
     model_start_with_format, model_usage,
 };
 use tokio as _;
+use trybuild as _;
 use url as _;
 
 #[path = "../test_support/session.rs"]
@@ -84,6 +85,22 @@ async fn ask_once(
         .await
 }
 
+async fn ask_m1_again(
+    session: &mut anybot_models::Session,
+    primary: &anybot_models::ModelRef,
+) -> Result<anybot_models::AskOutcome, String> {
+    support::ask_watching(session, primary, &[], ThinkingMode::Deep).await
+}
+
+fn recorded_body(world: &support::World, index: usize) -> Result<String, String> {
+    world
+        .model
+        .recorded()
+        .get(index)
+        .ok_or_else(|| "missing later ask".to_owned())
+        .map(|row| row.body.clone())
+}
+
 fn world_gateway(world: &support::World) -> anybot_models::Gateway {
     anybot_models::gateway(support::share(&world.clock))
 }
@@ -100,6 +117,7 @@ async fn t_models_capabilities_4() -> Result<(), String> {
                 test_harness::ErrorBodyKind::OpenAi,
             ),
             model_replies_text("ok", false),
+            model_replies_text("again", false),
         ],
     );
     support::script(&pair.other, vec![model_replies_text("m2", false)]);
@@ -115,6 +133,10 @@ async fn t_models_capabilities_4() -> Result<(), String> {
         .body
         .clone();
     assert!(!dropped.contains("reasoning_effort"));
+    let again = ask_m1_again(&mut session, &pair.primary).await?;
+    assert_eq!(again.result.text, "again");
+    let later = recorded_body(&world, 2)?;
+    assert!(!later.contains("reasoning_effort"));
     let second =
         support::ask_watching(&mut session, &pair.fallback, &[], ThinkingMode::Deep).await?;
     assert_eq!(second.result.text, "m2");

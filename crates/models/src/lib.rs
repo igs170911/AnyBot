@@ -3,6 +3,9 @@ pub mod capabilities;
 pub mod catalog;
 pub(crate) mod catalog_fetch;
 pub mod client;
+pub(crate) mod client_http;
+#[cfg(test)]
+pub(crate) mod client_recorded;
 pub mod egress;
 pub mod errors;
 pub(crate) mod errors_text;
@@ -11,10 +14,11 @@ pub mod failure_log;
 pub mod handoff;
 pub(crate) mod jsonutil;
 pub(crate) mod model_copy;
-pub(crate) mod normalize_prop;
 pub mod notice;
 pub mod providers;
 pub mod retry;
+#[cfg(test)]
+pub(crate) mod scripted;
 pub mod session;
 pub(crate) mod session_ask;
 pub(crate) mod session_chain;
@@ -33,6 +37,7 @@ pub(crate) mod wire_claude_finish;
 pub(crate) mod wire_claude_usage;
 pub(crate) mod wire_openai;
 pub(crate) mod wire_openai_calls;
+pub(crate) mod wire_openai_text;
 pub(crate) mod wire_openai_usage;
 
 pub use capabilities::{
@@ -41,7 +46,9 @@ pub use capabilities::{
 pub use catalog::{LIST_WAIT_SECS, empty_list_code, list_timeout_code, normalize_ids};
 pub use catalog_fetch::{ListOutcome, fetch_models};
 pub use client::{Gateway, GatewayFail, IdentityResolver, NameResolver};
-pub use egress::{DataPolicy, JudgeCandidate, ModelUse, allowed, default_policy, pick_judge};
+pub use egress::{
+    DataPolicy, JudgeCandidate, ModelUse, SendPermit, allowed, default_policy, pick_judge,
+};
 pub use errors::{
     Classified, FailInput, FailKind, FallbackPlan, RetryPlan, classify, clip_detail,
     context_limit_of as context_limit, redact,
@@ -51,7 +58,6 @@ pub use estimate::{
 };
 pub use failure_log::{FailureLog, failure_log};
 pub use handoff::{HandoffRecord, SwitchReason, handoff_code, record};
-pub use normalize_prop::{Fixture, closed_tool_matches, cut_has_no_tools, normalize_pair};
 pub use notice::{
     Notice, busy_notice, failure_notice, missing_key_notice, retry_notice, skip_notice, stop_note,
 };
@@ -70,15 +76,28 @@ use anybot_foundation::clock::Clock;
 use std::sync::Arc;
 
 #[cfg(test)]
+mod prop_body;
+#[cfg(test)]
+mod prop_cut;
+#[cfg(test)]
+mod prop_egress;
+#[cfg(test)]
+mod prop_errors;
+#[cfg(test)]
+mod prop_handoff;
+#[cfg(test)]
+mod prop_normalize;
+#[cfg(test)]
+mod prop_run;
+
+#[cfg(test)]
 use proptest as _;
 #[cfg(test)]
 use test_harness as _;
+#[cfg(test)]
+use trybuild as _;
 
 #[must_use]
 pub fn gateway(clock: Arc<dyn Clock>) -> Gateway {
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new());
-    Gateway::new(client, clock)
+    Gateway::new(clock)
 }

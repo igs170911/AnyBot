@@ -76,6 +76,56 @@ pub fn pick_judge<'a>(
         .find(|item| item.provider == bot && item.has_key)
 }
 
+pub struct SendPermit {
+    destination: String,
+    use_kind: ModelUse,
+}
+
+impl std::fmt::Debug for SendPermit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SendPermit")
+            .field("destination", &self.destination)
+            .field("use_kind", &self.use_kind)
+            .finish()
+    }
+}
+
+impl SendPermit {
+    #[must_use]
+    pub fn for_endpoint(
+        policy: &DataPolicy,
+        endpoint: &crate::types::ProviderEndpoint,
+        use_kind: ModelUse,
+    ) -> Option<Self> {
+        Self::issue(
+            policy,
+            &crate::client::chat_url_of(endpoint),
+            endpoint.kind,
+            use_kind,
+        )
+    }
+
+    pub(crate) fn issue(
+        policy: &DataPolicy,
+        destination: &str,
+        provider: ProviderKind,
+        use_kind: ModelUse,
+    ) -> Option<Self> {
+        if !allowed(policy, destination, provider, use_kind) {
+            return None;
+        }
+        Some(Self {
+            destination: destination.to_owned(),
+            use_kind,
+        })
+    }
+
+    pub(crate) fn matches(&self, destination: &str, use_kind: ModelUse) -> bool {
+        self.destination == destination && self.use_kind == use_kind
+    }
+}
+
 fn judge_place_ok(policy: &DataPolicy, item: &JudgeCandidate) -> bool {
     match policy {
         DataPolicy::LocalOnly => !matches!(item.place, RunPlace::Cloud),

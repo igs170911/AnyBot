@@ -8,6 +8,23 @@ use tokio::sync::mpsc;
 
 use crate::where_run::{CONNECT_TIMEOUT, STALL_AFTER_TEXT};
 
+#[cfg(test)]
+pub(crate) struct Posted {
+    pub url: String,
+    pub body: String,
+}
+
+#[cfg(test)]
+pub(crate) enum PostedOutcome {
+    Http(HttpBytes),
+    Fail(TransportFail),
+}
+
+#[cfg(test)]
+pub(crate) trait Poster: Send + Sync {
+    fn post(&self, posted: &Posted) -> PostedOutcome;
+}
+
 pub(crate) struct HttpBytes {
     pub status: u16,
     pub body: Bytes,
@@ -24,6 +41,8 @@ pub struct PartialBody {
 pub(crate) struct TimedTransport {
     pub client: reqwest::Client,
     clock: Arc<dyn Clock>,
+    #[cfg(test)]
+    poster: Option<Arc<dyn Poster>>,
 }
 
 impl TimedTransport {
@@ -32,7 +51,23 @@ impl TimedTransport {
     }
 
     pub(crate) fn new(client: reqwest::Client, clock: Arc<dyn Clock>) -> Self {
-        Self { client, clock }
+        Self {
+            client,
+            clock,
+            #[cfg(test)]
+            poster: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_poster(mut self, poster: Arc<dyn Poster>) -> Self {
+        self.poster = Some(poster);
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn post_recorded(&self, posted: &Posted) -> Option<PostedOutcome> {
+        self.poster.as_ref().map(|poster| poster.post(posted))
     }
 
     pub(crate) async fn send(

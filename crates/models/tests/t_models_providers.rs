@@ -1,3 +1,6 @@
+use trybuild as _;
+#[path = "../test_support/permit.rs"]
+mod permit_support;
 use anybot_foundation as _;
 use bytes as _;
 use futures_util as _;
@@ -28,7 +31,12 @@ async fn t_models_providers_2() -> Result<(), String> {
     );
     let result = world
         .gateway
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
+        .complete(
+            &endpoint,
+            &support::hi(ThinkingMode::Auto),
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     assert_eq!(result.text, "ok");
@@ -47,7 +55,12 @@ async fn t_models_providers_3() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::Anthropic, claude.port, "claude-opus-5-5", "k");
     claude
         .gateway
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
+        .complete(
+            &endpoint,
+            &support::hi(ThinkingMode::Auto),
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     let recorded = claude.model.recorded();
@@ -63,7 +76,12 @@ async fn t_models_providers_3() -> Result<(), String> {
     );
     router
         .gateway
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
+        .complete(
+            &endpoint,
+            &support::hi(ThinkingMode::Auto),
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     let recorded = router.model.recorded();
@@ -84,7 +102,12 @@ async fn custom_endpoint_without_key_sends_no_key() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::Custom, world.port, "local-model", "");
     world
         .gateway
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
+        .complete(
+            &endpoint,
+            &support::hi(ThinkingMode::Auto),
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -101,7 +124,12 @@ async fn t_models_thinking_1() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     world
         .gateway
-        .complete(&endpoint, &support::hi(ThinkingMode::Deep), false)
+        .complete(
+            &endpoint,
+            &support::hi(ThinkingMode::Deep),
+            false,
+            &permit_support::permit_for(&endpoint)?,
+        )
         .await
         .unwrap();
     let recorded = world.model.recorded();

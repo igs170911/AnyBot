@@ -7,6 +7,7 @@ use serde as _;
 use serde_json as _;
 use test_harness::{ModelFormat, model_replies_text};
 use tokio as _;
+use trybuild as _;
 use url as _;
 
 use anybot_models::{SwitchReason, ThinkingMode};
