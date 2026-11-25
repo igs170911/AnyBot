@@ -15,7 +15,7 @@
    - API 文件的 lint 全綠。
    - 產生出來的 HTML 文件和 TypeScript 客戶端一起更新。
    - 執行事件協定有變更的，寫進 AsyncAPI。
-4. **四條鐵律**（`AGENTS.md` 第二節），加上 `make check` 全綠。
+4. **五條鐵律**（`AGENTS.md` 第二節），加上 `make check` 全綠。
 5. **回報**：覆蓋數字前後的變化、新的 API 文件在哪。
 
 Claude 每個里程碑都獨立檢查：
@@ -34,6 +34,7 @@ Claude 每個里程碑都獨立檢查：
 | M2 | TypeScript 畫面骨架、桌面殼、基準檔只准變短 | `06`、`07` |
 | M2.5 | 四條鐵律的關卡、lint 加強 | `05` §2a、`09` K75–K79 |
 | **M3** | **foundation、protocol，和 API 文件的產生流程**：ID、時間、錯誤、金鑰型別、啟動設定；執行事件協定和 API 型別；OpenAPI 產生、API 文件 lint、HTML 文件、TypeScript 客戶端、相容性檢查（6 個月）；AsyncAPI | `02` §8、§11.1，`06` S3 |
+| **M3.5** | **程式碼和測試裡不准有中文**（`09` K91、K92）：翻譯檔、messages 套件、後端回代碼、全部改英文、擋中文的關卡 | `09` K91、K92 |
 | **M4** | **整體測試的地基**：沒被編譯到的檔案要擋、時間只能從 Clock 拿；測試驅動程式（`10-behavior/README.md` 的動作詞彙）、假時鐘、假模型（OpenAI 相容、Anthropic）、網路控制（斷網、變慢、中間的代理）、測試用的 PostgreSQL（不用 Docker，`09` K90）；測試環境程式和控制 API、Playwright 和手機情境、假推播 | `10-behavior/README.md` |
 | M5 | **核心邏輯**（純邏輯、單元和性質測試）：任務物件和狀態、核准的權限順序和規則、同步的合併規則 | `10` 第 1、2、5 組的 `task-*`、`approval-*`、`trust-*`、`sync-*` |
 | M6 | **伺服器**：資料庫結構和遷移、帳號和登入、裝置和配對、紀錄和同步（SSE、Idempotency-Key）、信箱；`T-conn-*`；要聽的位址從資料庫讀，測試改用臨時埠 | 第 5 組 |

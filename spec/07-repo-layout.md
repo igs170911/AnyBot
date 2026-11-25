@@ -33,6 +33,7 @@ anybot/
 │
 ├── crates/                    # Rust 函式庫
 │   ├── foundation/            # 最底層：ID、時間、錯誤、Secret 型別、啟動設定（唯一可以讀「資料庫在哪」的地方）
+│   ├── messages/              # 照訊息代碼和語言，把翻譯檔排成字（命令列、伺服器印的訊息；`09` K91、K92）
 │   ├── protocol/              # 執行事件協定、API 的請求和回應型別（伺服器、執行端、畫面共用）
 │   ├── domain/                # 任務、Bot、對話紀錄、核准規則、證據、同步合併規則。純邏輯，不碰網路和檔案
 │   ├── trust/                 # 信任層：把關、留證據、驗收、產生交付報告
@@ -59,6 +60,7 @@ anybot/
 │   ├── desktop/               # Tauri 2：src-tauri/（Rust 殼）＋載入共用畫面
 │   └── web/                   # 手機和瀏覽器用的 PWA
 │
+├── locales/                   # 翻譯檔：en（基準）、zh-TW；Rust 和 TypeScript 共用，建置時打包（`09` K91）
 ├── web/                       # 共用的 TypeScript 套件
 │   ├── ui/                    # 共用畫面元件與頁面（桌面、手機都用）
 │   └── api-client/            # 由 api/openapi.yaml 產生的客戶端
@@ -88,6 +90,7 @@ anybot/
 | 套件 | 准許依賴的內部套件 | 特別禁止 |
 |---|---|---|
 | `foundation` | 無 | |
+| `messages` | 無 | 只做「代碼＋參數＋語言 → 字」；翻譯檔在建置時打包，執行時不讀檔 |
 | `protocol` | foundation | |
 | `domain` | foundation、protocol | **不准碰網路、檔案、資料庫、非同步執行環境**：純邏輯才好測 |
 | `trust` | foundation、protocol、domain | |
