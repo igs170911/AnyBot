@@ -99,7 +99,7 @@ fn three_too_long_bodies_share_limit() {
 }
 
 #[test]
-fn t_models_errors_3_redacts_key() {
+fn redacts_key_from_classified_message() {
     let secret = "sk-live-secret";
     let shown = redact(&format!("bad key {secret}"), Some(secret));
     assert!(!shown.contains(secret));
