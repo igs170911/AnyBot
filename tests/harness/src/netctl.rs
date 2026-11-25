@@ -21,6 +21,7 @@ pub enum NetMode {
         idle: Duration,
     },
     Down,
+    HangConnect,
 }
 
 pub async fn net_start() -> Result<(Arc<NetCtl>, u16), String> {
@@ -204,6 +205,16 @@ pub async fn net_source_addr(
     source: IpAddr,
 ) -> Result<(), String> {
     ctl.set_source(proxy_port, Some(source)).await
+}
+
+pub async fn net_hang_connect(ctl: &Arc<NetCtl>, proxy_port: u16) -> Result<(), String> {
+    ctl.set_mode(proxy_port, NetMode::HangConnect).await?;
+    ctl.kill_live().await;
+    Ok(())
+}
+
+pub async fn net_alias(ctl: &Arc<NetCtl>, proxy_port: u16, name: &str) -> Result<(), String> {
+    ctl.set_alias(proxy_port, name).await
 }
 
 pub async fn net_down(ctl: &Arc<NetCtl>, proxy_port: u16) -> Result<(), String> {

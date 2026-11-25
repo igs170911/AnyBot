@@ -286,10 +286,14 @@ dependencies = [
 name = "anybot-models"
 version = "0.1.0"
 dependencies = [
- "anybot-domain",
  "anybot-foundation",
- "anybot-protocol",
+ "bytes",
+ "futures-util",
  "reqwest 0.12.28",
+ "serde_json",
+ "test-harness",
+ "tokio",
+ "url",
 ]
 
 [[package]]

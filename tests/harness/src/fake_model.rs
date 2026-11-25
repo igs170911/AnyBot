@@ -9,13 +9,17 @@ use axum::routing::post;
 use tokio::net::TcpListener;
 
 use crate::model_plan;
-use crate::model_script::{CODE_MODEL_SCRIPT_EMPTY, RecordedRequest, Script, Step, record_headers};
+use crate::model_script::{
+    CODE_MODEL_SCRIPT_EMPTY, RecordedRequest, Script, Step, classify_key, presented_key,
+    record_headers,
+};
 
 #[derive(Default)]
 struct ModelInner {
     script: Script,
     recorded: Vec<RecordedRequest>,
     format: ModelFormat,
+    expected_key: Option<String>,
 }
 
 #[derive(Default)]
@@ -55,6 +59,13 @@ impl FakeModel {
         inner.format = format;
     }
 
+    pub fn expect_key(&self, key: &str) {
+        let Ok(mut inner) = self.inner.lock() else {
+            return;
+        };
+        inner.expected_key = Some(key.to_owned());
+    }
+
     #[must_use]
     pub fn format(&self) -> ModelFormat {
         let Ok(inner) = self.inner.lock() else {
@@ -71,20 +82,28 @@ impl FakeModel {
     }
 
     fn record(&self, path: &str, body: String, headers: &axum::http::HeaderMap) {
-        let entries = headers.iter().map(|(name, value)| {
-            (
-                name.as_str().to_owned(),
-                value.to_str().unwrap_or_default().to_owned(),
-            )
-        });
-        let recorded = record_headers(entries);
+        let pairs: Vec<(String, String)> = headers
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.as_str().to_owned(),
+                    value.to_str().unwrap_or_default().to_owned(),
+                )
+            })
+            .collect();
+        let presented = pairs
+            .iter()
+            .find_map(|(name, value)| presented_key(name, value));
+        let recorded = record_headers(pairs.into_iter());
         let Ok(mut inner) = self.inner.lock() else {
             return;
         };
+        let key_match = classify_key(inner.expected_key.as_deref(), presented.as_deref());
         inner.recorded.push(RecordedRequest {
             path: path.to_owned(),
             body,
             headers: recorded,
+            key_match,
         });
     }
 
@@ -120,6 +139,8 @@ pub fn model_router(model: Arc<FakeModel>) -> Router {
     Router::new()
         .route("/v1/chat/completions", post(handle_openai))
         .route("/v1/messages", post(handle_anthropic))
+        .route("/v1/models", axum::routing::get(handle_models))
+        .route("/models", axum::routing::get(handle_models))
         .with_state(model)
 }
 
@@ -143,6 +164,17 @@ async fn handle_anthropic(
 ) -> Response {
     model.record("/v1/messages", body.clone(), &headers);
     respond(&model, &body, ModelFormat::Anthropic)
+}
+
+async fn handle_models(
+    State(model): State<Arc<FakeModel>>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    model.record("/v1/models", String::new(), &headers);
+    let Some(step) = model.take_step() else {
+        return empty_script_response();
+    };
+    model_plan::list_response(&step)
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]

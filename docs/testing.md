@@ -26,7 +26,7 @@
 | 格式 | 內容 | 什麼時候用 |
 |---|---|---|
 | `openai`（預設） | 照 OpenAI 官方文件：工具呼叫的 `finish_reason` 是 `tool_calls`；沒有本機模型伺服器特有的欄位（`kv_transfer_params`、`routed_experts`、`weight_versions`、`prompt_logprobs`、`reasoning` 這類都不出現）。 | 產品測試（假模型就是標準 OpenAI 供應商的樣子）。 |
-| `vllm` | 照那台本機模型伺服器的樣子：思考內容放在非標準的 `reasoning` 欄位；特有欄位都有（`kv_transfer_params`、`routed_experts`、`weight_versions`、`prompt_logprobs`、`stop_reason`、`token_ids`、`prompt_text`、`prompt_token_ids`、`ec_transfer_params`、`metrics`、`system_fingerprint`）；呼叫工具時 `finish_reason` 是 `stop`。 | 只有 `make live-model-check`：拿它跟真的本機模型比對回應格式，三種請求都要 identical。 |
+| `vllm` | 照那台本機模型伺服器的樣子：思考內容放在非標準的 `reasoning` 欄位；特有欄位都有（`kv_transfer_params`、`routed_experts`、`weight_versions`、`prompt_logprobs`、`stop_reason`、`token_ids`、`prompt_text`、`prompt_token_ids`、`ec_transfer_params`、`metrics`、`system_fingerprint`）；呼叫工具時 `finish_reason` 是 `stop`。 | `make live-model-check` 拿它跟真的本機模型比對回應格式，三種請求都要 identical。產品測試也用它測「整理怪格式」（`models-normalize`）：閘道要讀 `reasoning`，工具呼叫即使 `finish_reason` 是 `stop` 也算要用工具。 |
 
 ## harness 提供什麼（`tests/harness/src/`）
 
@@ -35,9 +35,10 @@
 | `scratch.rs` | 所有測試檔案都放在 `target/`（repo 內、已 gitignore） | 不准寫到 `target/` 以外 |
 | `process.rs` / `launch.rs` / `running.rs` | 啟動程式、等輸出、用 PID 收掉自己啟動的程式 | 每個等待都有期限；逾時就收 PID 並回錯誤 |
 | `ports.rs` | 保留空閒 port，占用時排除 | 不准在正式程式加 `SO_REUSEPORT` 之类 |
-| `netctl.rs` / `netproxy.rs` / `origin.rs` | 網路控制：allow / cut / slow / down / buffer / idle-cut / source-addr；所有測試流量走代理 | 自我測試在 `tests/netctl_real.rs`：真的連線穿過代理驗每種行為（延遲、頻寬可量測），不准直接連外 |
+| `netctl.rs` / `netproxy.rs` / `origin.rs` | 網路控制：allow / cut / slow / down / buffer / idle-cut / source-addr / hang-connect；所有測試流量走代理 | 自我測試在 `tests/netctl_real.rs` 和 `tests/netctl_hang.rs`。hang-connect 接受連線後不往上游送，客戶端卡在建立連線，不是被拒絕。不准直接連外 |
 | `fake_clock.rs` | 假時鐘：實現在 `anybot_foundation::clock::Clock`；`advance()` 依到期順序喚醒 | 正式程式只准透過 `Clock` 介面等時間；`tokio::time::sleep/timeout` 在產品程式被 clippy 禁用，foundation 與 harness 豁免 |
-| `model_script.rs` / `model_openai.rs` / `model_vllm.rs` / `model_anthropic.rs` / `model_plan.rs` / `fake_model.rs` | 假模型伺服器：照腳本回 responses（串流、JSON、tool、中斷、卡死、無回應、錯誤狀態），並記錄收到的請求 | 腳本依序回應；空腳本回錯誤；OpenAI 相容端點有兩種格式（見下面「假模型的兩種格式」） |
+| `model_script.rs` / `model_openai.rs` / `model_vllm.rs` / `model_anthropic.rs` / `model_plan.rs` / `fake_model.rs` | 假模型伺服器：照腳本回 responses（串流、JSON、tool、中斷、卡死、無回應、錯誤狀態、用量、模型清單、空白、轉址），並記錄收到的請求 | 腳本依序回應；空腳本回錯誤；金鑰只記 Match / Mismatch / Missing，不記值。OpenAI 相容端點有兩種格式（見上面「假模型的兩種格式」）。自我測試在 `tests/harness/tests/fake_model*.rs` |
+| `cloud_map.rs` | 測試用的名稱對照：把 `http://api.cloud.test/...` 改寫成假模型的位址 | 從閘道建構函式傳進去（`Gateway::with_names`）。產品不讀環境變數、不加旗標 |
 | `http.rs` / `realtime.rs` | 測試用的 HTTP/SSE/WebSocket helper；`timeout_real` 给非同步等待包上真時間期限 | 等待外部的東西一律要有期限 |
 | `postgres.rs` | 測試用 PostgreSQL（K90：不用 Docker）：`pg_start` 把程式下載到 `target/pg-install`（共用快取），資料夾在 `target/`，`unix_socket_directories`（`socket_dir`）設在 `target/` 裡那個資料庫自己的資料夾（macOS socket 路徑上限約 104 字元，base dir 要短），帳密為套件內建的 superuser；`pg_create_database` / `pg_drop_database` 走 admin pool；`pg_migrations_dir()` 指向 `tests/harness/fixtures/migrations/server` | 每個測試用獨立 base dir 與獨立 database；stop 會釋放 port 並清掉資料夾；不准讓 socket 檔寫到 `/tmp` |
 | `fake_push.rs` / `push_crypto.rs` | 假推播（RFC 8030 的推播服務）：訂閱註冊、PUT `/push/{id}`，用測試自己產生的金鑰（RFC 8291 aes128gcm，金鑰在 body 的前 86 字节裡）解開內容，記錄 `subscription_id`、明文、`ttl`、`topic`、`urgency` | 加解密用 `sad-web-push`（純 Rust，不用 OpenSSL），不手寫；自我測試見 `tests/harness/tests/fake_push.rs` |

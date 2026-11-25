@@ -7,8 +7,16 @@ license.workspace = true
 description = "AnyBot models skeleton crate (spec/07 section 2)"
 [dependencies]
 anybot-foundation = { workspace = true }
-anybot-protocol = { workspace = true }
-anybot-domain = { workspace = true }
 reqwest = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "macros"] }
+url = { workspace = true }
+futures-util = { workspace = true }
+
+[dev-dependencies]
+test-harness = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+serde_json = { workspace = true }
 [lints]
 workspace = true

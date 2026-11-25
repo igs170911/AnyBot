@@ -113,7 +113,7 @@ async fn fake_model_openai_stream_has_no_server_fields() {
     assert!(lines.iter().any(|l| l.contains("answer")));
     assert!(lines.iter().any(|l| l.contains(STOP_MS)));
     assert!(!lines.iter().any(|l| l.contains("\"reasoning\"")));
-    assert!(!lines.iter().any(|l| l.contains("ponder")));
+    assert!(lines.iter().any(|l| l.contains("reasoning_content")));
     assert!(!lines.iter().any(|l| l.contains("token_ids")));
     assert!(!lines.iter().any(|l| l.contains("kv_transfer_params")));
 }

@@ -14,6 +14,7 @@ pub struct TargetSpec {
     pub real: SocketAddr,
     pub mode: NetMode,
     pub source: Option<IpAddr>,
+    pub alias: Option<String>,
     pub open: bool,
     pub wake: Arc<Notify>,
 }
@@ -32,7 +33,8 @@ pub async fn serve_target(client: TcpStream, spec: TargetSpec, kill: Arc<Notify>
         let Ok(authority) = parse_connect_authority(&head) else {
             return;
         };
-        let Ok(mut upstream) = connect_real_addr(&spec, authority).await else {
+        let target = aliased_connect(&spec, authority);
+        let Ok(mut upstream) = connect_real_addr(&spec, target).await else {
             return;
         };
         let Ok(_written) = buffered
@@ -54,7 +56,8 @@ pub async fn serve_target(client: TcpStream, spec: TargetSpec, kill: Arc<Notify>
     let Ok(mut upstream) = connect_real(&spec).await else {
         return;
     };
-    let Ok(_sent) = upstream.write_all(head.as_bytes()).await else {
+    let rewritten = rewrite_host(&head, spec.alias.as_deref(), spec.real);
+    let Ok(_sent) = upstream.write_all(rewritten.as_bytes()).await else {
         return;
     };
     let Ok(_flushed) = upstream.flush().await else {
@@ -74,7 +77,8 @@ fn connect_delay(mode: &NetMode) -> Duration {
         | NetMode::Cut
         | NetMode::Buffer
         | NetMode::IdleCut { .. }
-        | NetMode::Down => Duration::ZERO,
+        | NetMode::Down
+        | NetMode::HangConnect => Duration::ZERO,
     }
 }
 
@@ -97,6 +101,27 @@ async fn read_head(buffered: &mut BufStream<TcpStream>) -> Result<String, String
             return Err("head too large".to_owned());
         }
     }
+}
+
+fn aliased_connect(spec: &TargetSpec, authority: SocketAddr) -> SocketAddr {
+    let Some(name) = spec.alias.as_deref() else {
+        return authority;
+    };
+    let host = authority.ip().to_string();
+    if host == name || authority.to_string().starts_with(name) {
+        return spec.real;
+    }
+    authority
+}
+
+#[must_use]
+pub fn rewrite_host(head: &str, alias: Option<&str>, real: SocketAddr) -> String {
+    let Some(name) = alias else {
+        return head.to_owned();
+    };
+    let needle = format!("Host: {name}");
+    let replacement = format!("Host: {real}");
+    head.replace(&needle, &replacement)
 }
 
 fn parse_connect_authority(head: &str) -> Result<SocketAddr, String> {
@@ -132,6 +157,10 @@ async fn connect_real(spec: &TargetSpec) -> Result<TcpStream, String> {
 async fn connect_real_addr(spec: &TargetSpec, addr: SocketAddr) -> Result<TcpStream, String> {
     if matches!(spec.mode, NetMode::Cut | NetMode::Down) {
         return Err("network cut".to_owned());
+    }
+    if matches!(spec.mode, NetMode::HangConnect) {
+        std::future::pending::<()>().await;
+        return Err("connect hung".to_owned());
     }
     let Some(source) = spec.source else {
         return TcpStream::connect(addr)
