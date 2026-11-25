@@ -14,5 +14,6 @@ pub(crate) fn hi(thinking: ThinkingMode) -> TurnRequest {
         max_output_tokens: None,
         attachments: Vec::new(),
         cache_prefix: false,
+        estimate_override: None,
     }
 }

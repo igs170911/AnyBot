@@ -1,0 +1,151 @@
+use crate::handoff::{self, SwitchReason};
+use crate::session::Session;
+use crate::types::ProviderEndpoint;
+
+pub(crate) enum ChainStep {
+    Next(crate::GatewayFail),
+    Stop(crate::GatewayFail),
+}
+
+pub(crate) fn keep_or_stop(
+    session: &mut Session,
+    model: &crate::session::ModelRef,
+    err: crate::GatewayFail,
+) -> ChainStep {
+    let crate::GatewayFail::Classified {
+        classified,
+        notices,
+    } = err
+    else {
+        return ChainStep::Stop(err);
+    };
+    session.notices.extend(notices);
+    if classified.code == "model-budget" {
+        return ChainStep::Stop(crate::ask::classified_fail(
+            classified,
+            std::mem::take(&mut session.notices),
+        ));
+    }
+    if !matches!(classified.fallback, crate::errors::FallbackPlan::Switch) {
+        remember(session, &model.endpoint, &classified);
+        return ChainStep::Stop(crate::ask::classified_fail(
+            classified,
+            std::mem::take(&mut session.notices),
+        ));
+    }
+    let now = session.clock_now();
+    crate::session_rest::rest(&mut session.resting, &model.endpoint, now);
+    mark_failed(
+        session,
+        &model.endpoint,
+        crate::session_step::switch_reason(&classified),
+    );
+    ChainStep::Next(crate::ask::classified_fail(
+        classified,
+        session.notices.clone(),
+    ))
+}
+
+pub(crate) fn finish_ask(
+    session: &mut Session,
+    result: crate::types::TurnResult,
+    skips: Vec<crate::notice::Notice>,
+) -> crate::session::AskOutcome {
+    let notices = finish_notices(session, result.stop);
+    crate::session::AskOutcome {
+        result,
+        notices,
+        handoffs: session.handoffs.clone(),
+        skips,
+    }
+}
+
+fn finish_notices(
+    session: &mut Session,
+    stop: crate::types::StopKind,
+) -> Vec<crate::notice::Notice> {
+    let mut notices = std::mem::take(&mut session.notices);
+    if let Some(code) = crate::notice::stop_note(stop) {
+        notices.push(crate::notice::Notice {
+            code,
+            params: Vec::new(),
+        });
+    }
+    notices
+}
+
+pub(crate) fn note_active(session: &mut Session, endpoint: &ProviderEndpoint) {
+    record_failed(session, endpoint);
+    record_pending(session, endpoint);
+    let next = match session.pending.clone() {
+        Some(pair) => pair,
+        None => (endpoint.kind, endpoint.model.clone()),
+    };
+    session.pending = None;
+    session.pending_reason = None;
+    session.active = Some(next);
+}
+
+pub(crate) fn mark_failed(
+    session: &mut Session,
+    endpoint: &ProviderEndpoint,
+    reason: SwitchReason,
+) {
+    session.failed = Some((endpoint.kind, endpoint.model.clone()));
+    session.failed_reason = Some(reason);
+}
+
+pub(crate) fn remember(
+    session: &mut Session,
+    endpoint: &ProviderEndpoint,
+    classified: &crate::errors::Classified,
+) {
+    if let Some(limit) = classified.limit {
+        crate::session_rest::note_too_long(session.learned_rows(), endpoint, limit);
+    }
+}
+
+fn record_failed(session: &mut Session, endpoint: &ProviderEndpoint) {
+    let Some((kind, model)) = session.failed.take() else {
+        return;
+    };
+    let reason = match session.failed_reason.take() {
+        Some(reason) => reason,
+        None => SwitchReason::Fallback,
+    };
+    if kind == endpoint.kind && model == endpoint.model {
+        return;
+    }
+    session.handoffs.push(handoff::record(
+        kind,
+        &model,
+        endpoint.kind,
+        &endpoint.model,
+        reason,
+        "",
+    ));
+}
+
+fn record_pending(session: &mut Session, _endpoint: &ProviderEndpoint) {
+    let Some((next_kind, next_model)) = session.pending.clone() else {
+        return;
+    };
+    let Some((kind, model)) = session.active.clone() else {
+        return;
+    };
+    if kind == next_kind && model == next_model {
+        return;
+    }
+    let reason = match session.pending_reason {
+        Some(reason) => reason,
+        None => SwitchReason::User,
+    };
+    session.handoffs.push(handoff::record(
+        kind,
+        &model,
+        next_kind,
+        &next_model,
+        reason,
+        "",
+    ));
+}

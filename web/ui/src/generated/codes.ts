@@ -30,6 +30,33 @@ export type MessageCode =
   "run-error-unsupported-event" |
   "fake-clock-no-future" |
   "model-script-empty" |
+  "model-missing-key" |
+  "model-policy-blocked" |
+  "model-policy-skip" |
+  "model-auth" |
+  "model-quota" |
+  "model-rate-limit" |
+  "model-server" |
+  "model-unreachable" |
+  "model-ollama-down" |
+  "model-first-token" |
+  "model-stalled" |
+  "model-stream-cut" |
+  "model-too-long" |
+  "model-no-tools" |
+  "model-rejected-param" |
+  "model-not-found" |
+  "model-stream-error" |
+  "model-other" |
+  "model-redirect" |
+  "model-retry-wait" |
+  "model-busy" |
+  "model-busy-wait" |
+  "model-list-empty" |
+  "model-list-timeout" |
+  "model-budget" |
+  "model-refusal" |
+  "model-length-note" |
   "push-payload-short" |
   "push-key-base64";
 
@@ -63,6 +90,33 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "run-error-unsupported-event",
   "fake-clock-no-future",
   "model-script-empty",
+  "model-missing-key",
+  "model-policy-blocked",
+  "model-policy-skip",
+  "model-auth",
+  "model-quota",
+  "model-rate-limit",
+  "model-server",
+  "model-unreachable",
+  "model-ollama-down",
+  "model-first-token",
+  "model-stalled",
+  "model-stream-cut",
+  "model-too-long",
+  "model-no-tools",
+  "model-rejected-param",
+  "model-not-found",
+  "model-stream-error",
+  "model-other",
+  "model-redirect",
+  "model-retry-wait",
+  "model-busy",
+  "model-busy-wait",
+  "model-list-empty",
+  "model-list-timeout",
+  "model-budget",
+  "model-refusal",
+  "model-length-note",
   "push-payload-short",
   "push-key-base64",
 ];

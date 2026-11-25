@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anybot_foundation as _;
+use anybot_models as _;
 use live_model::compare::{Shapes, diff_tokens_public, report_lines};
 use live_model::profile::{PROFILE_REL, load_profile};
 use live_model::shape::{json_shape, stream_shape};
@@ -21,7 +22,7 @@ fn scratch_repo(name: &str) -> PathBuf {
 #[test]
 fn live_profile_missing_file_names_every_field() {
     let repo = scratch_repo("live-missing-profile");
-    let model_dir = repo.join("target").join("live-model");
+    let model_dir = repo.join(".local").join("live-model");
     std::fs::create_dir_all(&model_dir).unwrap();
     std::fs::remove_dir_all(&model_dir).unwrap();
     let result = load_profile(&repo);

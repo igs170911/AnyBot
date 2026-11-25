@@ -5,7 +5,7 @@
 ## 跑測試
 
 - Rust 一律用 `cargo nextest run`（不要用 `cargo test`）。make 目標：`make check` 裡有 `test` 關卡；`make check-fast` 跑 `make test-fast`（`--profile quick`：跳過 PostgreSQL 群組的測試，e2e 是分開的目標）。`make test`、`make test-fast`、`make e2e` 都會先拿跨工作區的測試鎖（見「並行工作」節）。
-- `make live-model-check`（`tests/live-model`）：跟真的本機模型比對**請求與回應格式**（一般／串流／工具呼叫），設定只讀 `target/live-model/profile.toml`，只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印、**絕不放進命令列參數**（`ps` 會看到）；要打真的模型一律走這個程式，真的要手動 `curl` 時把標頭寫進 `target/` 裡權限 600 的檔案、用 `curl -H @檔案`，用完刪掉。假模型用 `vllm` 格式跟真的比，三種請求都要 identical；差異報告寫在 `target/live-model/format-report.txt`。不在 `make check`、`make check-fast`、CI 裡。
+- `make live-model-check`（`tests/live-model`）：跟真的本機模型比對**請求與回應格式**（一般／串流／工具呼叫，另外一組用產品客戶端比中立結果的結構）。設定只讀 `.local/live-model/profile.toml`（`cargo clean` 不會刪），只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印、**絕不放進命令列參數**（`ps` 會看到）；要打真的模型一律走這個程式，真的要手動 `curl` 時把標頭寫進 `target/` 裡權限 600 的檔案、用 `curl -H @檔案`，用完刪掉。假模型用 `vllm` 格式跟真的比，三種請求都要 identical；差異報告寫在 `.local/live-model/format-report.txt`。檔案不在時，程式會列出要建的 `profile.toml`、`ca_file`、`key_file`。不在 `make check`、`make check-fast`、CI 裡。
 - TypeScript 用 `pnpm vitest run`；端對端用 Playwright（見第二節）。
 - 逾時設定在 `.config/nextest.toml`：每個測試 30 秒慢速警戒，第 4 次逾時就終止。PostgreSQL 相關的測試另有 90 秒寬限，並在同一群組裡序列化執行（平行度 1）。
 

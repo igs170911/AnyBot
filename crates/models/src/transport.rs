@@ -11,6 +11,7 @@ use crate::where_run::{CONNECT_TIMEOUT, STALL_AFTER_TEXT};
 pub(crate) struct HttpBytes {
     pub status: u16,
     pub body: Bytes,
+    pub retry_after: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -26,6 +27,10 @@ pub(crate) struct TimedTransport {
 }
 
 impl TimedTransport {
+    pub(crate) fn clock(&self) -> Arc<dyn Clock> {
+        Arc::clone(&self.clock)
+    }
+
     pub(crate) fn new(client: reqwest::Client, clock: Arc<dyn Clock>) -> Self {
         Self { client, clock }
     }
@@ -62,6 +67,7 @@ impl TimedTransport {
         first_wait: Duration,
     ) -> Result<HttpBytes, TransportFail> {
         let status = response.status().as_u16();
+        let retry_secs = retry_after_header(&response);
         let mut stream = response.bytes_stream();
         let mut body = Vec::new();
         let mut saw_byte = false;
@@ -109,6 +115,7 @@ impl TimedTransport {
         Ok(HttpBytes {
             status,
             body: Bytes::from(body),
+            retry_after: retry_secs,
         })
     }
 
@@ -132,6 +139,14 @@ impl TimedTransport {
 pub(crate) struct StreamOpen {
     pub status: u16,
     pub rx: mpsc::Receiver<Result<Bytes, TransportFail>>,
+}
+
+fn retry_after_header(response: &reqwest::Response) -> Option<u64> {
+    response
+        .headers()
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|text| text.parse().ok())
 }
 
 async fn pump_stream(

@@ -1,6 +1,7 @@
 use std::process::Termination;
 
 use anybot_foundation as _;
+use anybot_models as _;
 use live_model::run;
 use reqwest as _;
 use rustls as _;

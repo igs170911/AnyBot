@@ -2,6 +2,7 @@ use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
+use tokio_stream::StreamExt;
 
 use crate::fake_model::ModelFormat;
 use crate::model_script::{ErrorBodyKind, Step, UsageScript};
@@ -123,9 +124,20 @@ fn redirect(location: &str) -> Response {
     response
 }
 
+fn silent_list() -> Response {
+    let (tx, rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(1);
+    tokio::spawn(async move {
+        let _held = tx;
+        std::future::pending::<()>().await;
+    });
+    let stream =
+        tokio_stream::wrappers::ReceiverStream::new(rx).map(Ok::<bytes::Bytes, std::io::Error>);
+    Body::from_stream(stream).into_response()
+}
+
 fn model_list(ids: &[String], silent: bool) -> Response {
     if silent {
-        return Response::default();
+        return silent_list();
     }
     let data: Vec<serde_json::Value> = ids
         .iter()

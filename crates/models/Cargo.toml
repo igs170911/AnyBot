@@ -8,6 +8,7 @@ description = "AnyBot models skeleton crate (spec/07 section 2)"
 [dependencies]
 anybot-foundation = { workspace = true }
 reqwest = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 bytes = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "macros"] }

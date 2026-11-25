@@ -2,6 +2,7 @@ use anybot_foundation as _;
 use bytes as _;
 use futures_util as _;
 use reqwest as _;
+use serde as _;
 use serde_json as _;
 use tokio as _;
 use url as _;
@@ -65,6 +66,7 @@ async fn t_models_normalize_13() -> Result<(), String> {
         max_output_tokens: None,
         attachments: Vec::new(),
         cache_prefix: true,
+        estimate_override: None,
     };
     let openai = support::world(ModelFormat::OpenAi).await?;
     support::script(&openai.model, vec![model_replies_text("ok", false)]);

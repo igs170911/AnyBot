@@ -2,6 +2,7 @@ use anybot_foundation as _;
 use bytes as _;
 use futures_util as _;
 use reqwest as _;
+use serde as _;
 use serde_json as _;
 use tokio as _;
 use url as _;

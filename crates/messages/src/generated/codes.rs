@@ -33,6 +33,33 @@ pub enum MessageCode {
     RunErrorUnsupportedEvent,
     FakeClockNoFuture,
     ModelScriptEmpty,
+    ModelMissingKey,
+    ModelPolicyBlocked,
+    ModelPolicySkip,
+    ModelAuth,
+    ModelQuota,
+    ModelRateLimit,
+    ModelServer,
+    ModelUnreachable,
+    ModelOllamaDown,
+    ModelFirstToken,
+    ModelStalled,
+    ModelStreamCut,
+    ModelTooLong,
+    ModelNoTools,
+    ModelRejectedParam,
+    ModelNotFound,
+    ModelStreamError,
+    ModelOther,
+    ModelRedirect,
+    ModelRetryWait,
+    ModelBusy,
+    ModelBusyWait,
+    ModelListEmpty,
+    ModelListTimeout,
+    ModelBudget,
+    ModelRefusal,
+    ModelLengthNote,
     PushPayloadShort,
     PushKeyBase64,
 }
@@ -45,88 +72,130 @@ impl std::str::FromStr for MessageCode {
     }
 }
 
+const TABLE: &[(MessageCode, &str)] = &[
+    (
+        MessageCode::ServerStartupListening,
+        "server-startup-listening",
+    ),
+    (MessageCode::ServerPortUnusable, "server-port-unusable"),
+    (
+        MessageCode::ServerArgumentsInvalid,
+        "server-arguments-invalid",
+    ),
+    (
+        MessageCode::ServerBootstrapMissing,
+        "server-bootstrap-missing",
+    ),
+    (
+        MessageCode::ServerBootstrapFileMissing,
+        "server-bootstrap-file-missing",
+    ),
+    (
+        MessageCode::ServerBootstrapPermissionsReadFailed,
+        "server-bootstrap-permissions-read-failed",
+    ),
+    (
+        MessageCode::ServerBootstrapReadFailed,
+        "server-bootstrap-read-failed",
+    ),
+    (
+        MessageCode::ServerBootstrapPermissionsTooOpen,
+        "server-bootstrap-permissions-too-open",
+    ),
+    (
+        MessageCode::ServerBootstrapUrlMalformed,
+        "server-bootstrap-url-malformed",
+    ),
+    (
+        MessageCode::ServerBootstrapUrlScheme,
+        "server-bootstrap-url-scheme",
+    ),
+    (
+        MessageCode::ServerBootstrapCredentialsMissing,
+        "server-bootstrap-credentials-missing",
+    ),
+    (
+        MessageCode::ServerBootstrapHostMissing,
+        "server-bootstrap-host-missing",
+    ),
+    (
+        MessageCode::ServerBootstrapDatabaseMissing,
+        "server-bootstrap-database-missing",
+    ),
+    (
+        MessageCode::ServerSubcommandUnimplemented,
+        "server-subcommand-unimplemented",
+    ),
+    (MessageCode::ServerStopNormal, "server-stop-normal"),
+    (MessageCode::ServerStopError, "server-stop-error"),
+    (MessageCode::ServerStopNoListener, "server-stop-no-listener"),
+    (MessageCode::ClientDataDirMissing, "client-data-dir-missing"),
+    (MessageCode::CliSkeletonBanner, "cli-skeleton-banner"),
+    (MessageCode::AgentSkeletonBanner, "agent-skeleton-banner"),
+    (
+        MessageCode::RunnerServiceSkeletonBanner,
+        "runner-service-skeleton-banner",
+    ),
+    (MessageCode::UiShellSkeleton, "ui-shell-skeleton"),
+    (MessageCode::AppRootMountMissing, "app-root-mount-missing"),
+    (MessageCode::ProblemBadRequest, "problem-bad-request"),
+    (MessageCode::ProblemInternal, "problem-internal"),
+    (
+        MessageCode::RunErrorProtocolVersion,
+        "run-error-protocol-version",
+    ),
+    (
+        MessageCode::RunErrorUnsupportedEvent,
+        "run-error-unsupported-event",
+    ),
+    (MessageCode::FakeClockNoFuture, "fake-clock-no-future"),
+    (MessageCode::ModelScriptEmpty, "model-script-empty"),
+    (MessageCode::ModelMissingKey, "model-missing-key"),
+    (MessageCode::ModelPolicyBlocked, "model-policy-blocked"),
+    (MessageCode::ModelPolicySkip, "model-policy-skip"),
+    (MessageCode::ModelAuth, "model-auth"),
+    (MessageCode::ModelQuota, "model-quota"),
+    (MessageCode::ModelRateLimit, "model-rate-limit"),
+    (MessageCode::ModelServer, "model-server"),
+    (MessageCode::ModelUnreachable, "model-unreachable"),
+    (MessageCode::ModelOllamaDown, "model-ollama-down"),
+    (MessageCode::ModelFirstToken, "model-first-token"),
+    (MessageCode::ModelStalled, "model-stalled"),
+    (MessageCode::ModelStreamCut, "model-stream-cut"),
+    (MessageCode::ModelTooLong, "model-too-long"),
+    (MessageCode::ModelNoTools, "model-no-tools"),
+    (MessageCode::ModelRejectedParam, "model-rejected-param"),
+    (MessageCode::ModelNotFound, "model-not-found"),
+    (MessageCode::ModelStreamError, "model-stream-error"),
+    (MessageCode::ModelOther, "model-other"),
+    (MessageCode::ModelRedirect, "model-redirect"),
+    (MessageCode::ModelRetryWait, "model-retry-wait"),
+    (MessageCode::ModelBusy, "model-busy"),
+    (MessageCode::ModelBusyWait, "model-busy-wait"),
+    (MessageCode::ModelListEmpty, "model-list-empty"),
+    (MessageCode::ModelListTimeout, "model-list-timeout"),
+    (MessageCode::ModelBudget, "model-budget"),
+    (MessageCode::ModelRefusal, "model-refusal"),
+    (MessageCode::ModelLengthNote, "model-length-note"),
+    (MessageCode::PushPayloadShort, "push-payload-short"),
+    (MessageCode::PushKeyBase64, "push-key-base64"),
+];
+
 impl MessageCode {
     #[must_use]
     pub fn as_str(self) -> &'static str {
-        match self {
-            Self::ServerStartupListening => "server-startup-listening",
-            Self::ServerPortUnusable => "server-port-unusable",
-            Self::ServerArgumentsInvalid => "server-arguments-invalid",
-            Self::ServerBootstrapMissing => "server-bootstrap-missing",
-            Self::ServerBootstrapFileMissing => "server-bootstrap-file-missing",
-            Self::ServerBootstrapPermissionsReadFailed => {
-                "server-bootstrap-permissions-read-failed"
-            }
-            Self::ServerBootstrapReadFailed => "server-bootstrap-read-failed",
-            Self::ServerBootstrapPermissionsTooOpen => "server-bootstrap-permissions-too-open",
-            Self::ServerBootstrapUrlMalformed => "server-bootstrap-url-malformed",
-            Self::ServerBootstrapUrlScheme => "server-bootstrap-url-scheme",
-            Self::ServerBootstrapCredentialsMissing => "server-bootstrap-credentials-missing",
-            Self::ServerBootstrapHostMissing => "server-bootstrap-host-missing",
-            Self::ServerBootstrapDatabaseMissing => "server-bootstrap-database-missing",
-            Self::ServerSubcommandUnimplemented => "server-subcommand-unimplemented",
-            Self::ServerStopNormal => "server-stop-normal",
-            Self::ServerStopError => "server-stop-error",
-            Self::ServerStopNoListener => "server-stop-no-listener",
-            Self::ClientDataDirMissing => "client-data-dir-missing",
-            Self::CliSkeletonBanner => "cli-skeleton-banner",
-            Self::AgentSkeletonBanner => "agent-skeleton-banner",
-            Self::RunnerServiceSkeletonBanner => "runner-service-skeleton-banner",
-            Self::UiShellSkeleton => "ui-shell-skeleton",
-            Self::AppRootMountMissing => "app-root-mount-missing",
-            Self::ProblemBadRequest => "problem-bad-request",
-            Self::ProblemInternal => "problem-internal",
-            Self::RunErrorProtocolVersion => "run-error-protocol-version",
-            Self::RunErrorUnsupportedEvent => "run-error-unsupported-event",
-            Self::FakeClockNoFuture => "fake-clock-no-future",
-            Self::ModelScriptEmpty => "model-script-empty",
-            Self::PushPayloadShort => "push-payload-short",
-            Self::PushKeyBase64 => "push-key-base64",
+        match TABLE.iter().find(|row| row.0 == self) {
+            Some(row) => row.1,
+            None => "unknown",
         }
     }
+}
 
+impl MessageCode {
     #[must_use]
     pub fn from_code(text: &str) -> Option<Self> {
-        match text {
-            "server-startup-listening" => Some(Self::ServerStartupListening),
-            "server-port-unusable" => Some(Self::ServerPortUnusable),
-            "server-arguments-invalid" => Some(Self::ServerArgumentsInvalid),
-            "server-bootstrap-missing" => Some(Self::ServerBootstrapMissing),
-            "server-bootstrap-file-missing" => Some(Self::ServerBootstrapFileMissing),
-            "server-bootstrap-permissions-read-failed" => {
-                Some(Self::ServerBootstrapPermissionsReadFailed)
-            }
-            "server-bootstrap-read-failed" => Some(Self::ServerBootstrapReadFailed),
-            "server-bootstrap-permissions-too-open" => {
-                Some(Self::ServerBootstrapPermissionsTooOpen)
-            }
-            "server-bootstrap-url-malformed" => Some(Self::ServerBootstrapUrlMalformed),
-            "server-bootstrap-url-scheme" => Some(Self::ServerBootstrapUrlScheme),
-            "server-bootstrap-credentials-missing" => Some(Self::ServerBootstrapCredentialsMissing),
-            "server-bootstrap-host-missing" => Some(Self::ServerBootstrapHostMissing),
-            "server-bootstrap-database-missing" => Some(Self::ServerBootstrapDatabaseMissing),
-            "server-subcommand-unimplemented" => Some(Self::ServerSubcommandUnimplemented),
-            "server-stop-normal" => Some(Self::ServerStopNormal),
-            "server-stop-error" => Some(Self::ServerStopError),
-            "server-stop-no-listener" => Some(Self::ServerStopNoListener),
-            "client-data-dir-missing" => Some(Self::ClientDataDirMissing),
-            "cli-skeleton-banner" => Some(Self::CliSkeletonBanner),
-            "agent-skeleton-banner" => Some(Self::AgentSkeletonBanner),
-            "runner-service-skeleton-banner" => Some(Self::RunnerServiceSkeletonBanner),
-            "ui-shell-skeleton" => Some(Self::UiShellSkeleton),
-            "app-root-mount-missing" => Some(Self::AppRootMountMissing),
-            "problem-bad-request" => Some(Self::ProblemBadRequest),
-            "problem-internal" => Some(Self::ProblemInternal),
-            "run-error-protocol-version" => Some(Self::RunErrorProtocolVersion),
-            "run-error-unsupported-event" => Some(Self::RunErrorUnsupportedEvent),
-            "fake-clock-no-future" => Some(Self::FakeClockNoFuture),
-            "model-script-empty" => Some(Self::ModelScriptEmpty),
-            "push-payload-short" => Some(Self::PushPayloadShort),
-            "push-key-base64" => Some(Self::PushKeyBase64),
-            _ => None,
-        }
+        TABLE.iter().find(|row| row.1 == text).map(|row| row.0)
     }
-
     #[must_use]
     pub fn all() -> Vec<Self> {
         vec![
@@ -159,6 +228,33 @@ impl MessageCode {
             Self::RunErrorUnsupportedEvent,
             Self::FakeClockNoFuture,
             Self::ModelScriptEmpty,
+            Self::ModelMissingKey,
+            Self::ModelPolicyBlocked,
+            Self::ModelPolicySkip,
+            Self::ModelAuth,
+            Self::ModelQuota,
+            Self::ModelRateLimit,
+            Self::ModelServer,
+            Self::ModelUnreachable,
+            Self::ModelOllamaDown,
+            Self::ModelFirstToken,
+            Self::ModelStalled,
+            Self::ModelStreamCut,
+            Self::ModelTooLong,
+            Self::ModelNoTools,
+            Self::ModelRejectedParam,
+            Self::ModelNotFound,
+            Self::ModelStreamError,
+            Self::ModelOther,
+            Self::ModelRedirect,
+            Self::ModelRetryWait,
+            Self::ModelBusy,
+            Self::ModelBusyWait,
+            Self::ModelListEmpty,
+            Self::ModelListTimeout,
+            Self::ModelBudget,
+            Self::ModelRefusal,
+            Self::ModelLengthNote,
             Self::PushPayloadShort,
             Self::PushKeyBase64,
         ]

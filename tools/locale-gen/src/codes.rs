@@ -63,39 +63,42 @@ fn rust_from_str_impl(out: &mut String) {
     w(out, "}\n");
 }
 
-fn rust_as_str(entries: &[FtlEntry], out: &mut String) {
+fn rust_as_str(_entries: &[FtlEntry], out: &mut String) {
     w(out, "    #[must_use]");
     w(out, "    pub fn as_str(self) -> &'static str {");
-    w(out, "        match self {");
+    w(
+        out,
+        "        match TABLE.iter().find(|row| row.0 == self) {",
+    );
+    w(out, "            Some(row) => row.1,");
+    w(out, "            None => \"unknown\",");
+    w(out, "        }");
+    w(out, "    }");
+}
+
+fn rust_helpers(entries: &[FtlEntry], out: &mut String) {
+    w(out, "const TABLE: &[(MessageCode, &str)] = &[");
     for entry in entries {
         w(
             out,
             &format!(
-                "            Self::{} => {:?},",
+                "    (MessageCode::{}, {:?}),",
                 camel_case(&entry.id),
                 entry.id
             ),
         );
     }
-    w(out, "        }\n    }\n");
+    w(out, "];\n");
 }
 
-fn rust_from_code(entries: &[FtlEntry], out: &mut String) {
+fn rust_from_code(_entries: &[FtlEntry], out: &mut String) {
     w(out, "    #[must_use]");
     w(out, "    pub fn from_code(text: &str) -> Option<Self> {");
-    w(out, "        match text {");
-    for entry in entries {
-        w(
-            out,
-            &format!(
-                "            {:?} => Some(Self::{}),",
-                entry.id,
-                camel_case(&entry.id)
-            ),
-        );
-    }
-    w(out, "            _ => None,");
-    w(out, "        }\n    }\n");
+    w(
+        out,
+        "        TABLE.iter().find(|row| row.1 == text).map(|row| row.0)",
+    );
+    w(out, "    }");
 }
 
 fn rust_all(entries: &[FtlEntry], out: &mut String) {
@@ -124,8 +127,11 @@ fn rust_codes_raw(entries: &[FtlEntry]) -> String {
     let mut out = String::from(RUST_GENERATED_HEADER);
     rust_enum_header(entries, &mut out);
     rust_from_str_impl(&mut out);
+    rust_helpers(entries, &mut out);
     w(&mut out, "impl MessageCode {");
     rust_as_str(entries, &mut out);
+    w(&mut out, "}\n");
+    w(&mut out, "impl MessageCode {");
     rust_from_code(entries, &mut out);
     rust_all(entries, &mut out);
     out

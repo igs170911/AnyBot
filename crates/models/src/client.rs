@@ -41,6 +41,14 @@ impl Gateway {
         self
     }
 
+    #[must_use]
+    pub fn clone_with_names(&self, name_map: Arc<dyn NameResolver>) -> Self {
+        Self {
+            transport: TimedTransport::new(self.transport.client.clone(), self.transport.clock()),
+            name_map,
+        }
+    }
+
     pub async fn complete(
         &self,
         endpoint: &ProviderEndpoint,
@@ -62,26 +70,37 @@ impl Gateway {
         }
         match self.transport.send(builder, first_wait).await {
             Ok(bytes) => {
-                if bytes.status >= 300 {
-                    return Err(GatewayFail::Status(bytes.status));
+                if bytes.status >= 300 && bytes.status < 400 {
+                    return Err(crate::ask::classified_fail(
+                        crate::errors::classify(&crate::errors::FailInput::Redirect),
+                        Vec::new(),
+                    ));
                 }
-                Ok(decode_body(endpoint, &String::from_utf8_lossy(&bytes.body)))
+                if bytes.status >= 400 {
+                    return Err(classified_status(endpoint, &bytes));
+                }
+                Ok(crate::stream_fail::decode_body(
+                    endpoint,
+                    &String::from_utf8_lossy(&bytes.body),
+                ))
             }
-            Err(crate::transport::TransportFail::Partial(partial)) => Ok(interrupted(
-                endpoint,
-                &String::from_utf8_lossy(&partial.bytes),
-            )),
+            Err(crate::transport::TransportFail::Partial(partial)) => {
+                crate::stream_fail::partial_outcome(endpoint, &partial.bytes)
+            }
             Err(other) => Err(GatewayFail::Transport(other)),
         }
     }
 
-    fn client_request(
+    pub(crate) fn client_request(
         &self,
         url: &str,
         body: &Value,
         _endpoint: &ProviderEndpoint,
     ) -> reqwest::RequestBuilder {
         let target = self.name_map.resolve(url).unwrap_or_else(|| url.to_owned());
+        if body.as_object().is_some_and(serde_json::Map::is_empty) {
+            return self.transport.client.get(target);
+        }
         self.transport.client.post(target).json(body)
     }
 
@@ -97,7 +116,13 @@ impl Gateway {
             .await
             .map_err(GatewayFail::Transport)?;
         if open.status >= 300 {
-            return Err(GatewayFail::Status(open.status));
+            return Err(crate::ask::classified_fail(
+                crate::errors::classify(&crate::errors::FailInput::Http {
+                    status: open.status,
+                    message: String::new(),
+                }),
+                Vec::new(),
+            ));
         }
         let mut raw = String::new();
         let mut rx = open.rx;
@@ -118,9 +143,15 @@ impl Gateway {
                 }
             }
         }
-        let closed = !saw_fail && stream_closed(&raw);
-        let events = sse_payloads(&raw);
-        Ok(decode_events(endpoint, &events, closed))
+        crate::stream_fail::finish_stream(endpoint, &raw, saw_fail)
+    }
+
+    pub(crate) async fn transport_send(
+        &self,
+        builder: reqwest::RequestBuilder,
+        first_wait: std::time::Duration,
+    ) -> Result<crate::transport::HttpBytes, crate::transport::TransportFail> {
+        self.transport.send(builder, first_wait).await
     }
 
     fn chat_url(endpoint: &ProviderEndpoint) -> String {
@@ -145,31 +176,22 @@ fn encode_body(endpoint: &ProviderEndpoint, request: &TurnRequest, stream: bool)
     body
 }
 
-fn interrupted(endpoint: &ProviderEndpoint, body: &str) -> TurnResult {
-    let events = sse_payloads(body);
-    if events.is_empty() {
-        let mut result = decode_body(endpoint, body);
-        result.stop = crate::types::StopKind::Interrupted;
-        result.tool_calls.clear();
-        return result;
-    }
-    decode_events(endpoint, &events, false)
-}
-
-fn decode_body(endpoint: &ProviderEndpoint, body: &str) -> TurnResult {
-    match endpoint.format {
-        WireFormat::Anthropic => wire_claude::decode(body, &endpoint.model),
-        WireFormat::OpenAiCompatible => wire_openai::decode(body, endpoint.kind, &endpoint.model),
-    }
-}
-
-fn decode_events(endpoint: &ProviderEndpoint, events: &[String], closed: bool) -> TurnResult {
-    match endpoint.format {
-        WireFormat::Anthropic => wire_claude::decode_stream(events, &endpoint.model, closed),
-        WireFormat::OpenAiCompatible => {
-            wire_openai::decode_stream(events, endpoint.kind, &endpoint.model, closed)
-        }
-    }
+fn classified_status(
+    endpoint: &ProviderEndpoint,
+    bytes: &crate::transport::HttpBytes,
+) -> GatewayFail {
+    let mut fail = crate::ask::from_status(
+        bytes.status,
+        &String::from_utf8_lossy(&bytes.body),
+        endpoint.kind,
+        endpoint
+            .api_key
+            .as_ref()
+            .map(anybot_foundation::Secret::expose),
+        bytes.retry_after,
+    );
+    fail.classified.retry_after = fail.retry_after;
+    crate::ask::classified_fail(fail.classified, fail.notices)
 }
 
 fn authorized(
@@ -193,27 +215,15 @@ fn authorized(
     builder
 }
 
-fn stream_closed(raw: &str) -> bool {
-    raw.contains("[DONE]") || raw.contains("message_stop")
-}
-
-fn sse_payloads(raw: &str) -> Vec<String> {
-    raw.split("\n\n")
-        .filter_map(|block| {
-            let data = block.lines().find_map(|line| line.strip_prefix("data:"))?;
-            let trimmed = data.trim();
-            if trimmed.is_empty() || trimmed == "[DONE]" {
-                return None;
-            }
-            Some(trimmed.to_owned())
-        })
-        .collect()
-}
-
 #[derive(Debug)]
 pub enum GatewayFail {
     MissingKey,
     KeyDestination,
     Status(u16),
     Transport(crate::transport::TransportFail),
+    Stopped,
+    Classified {
+        classified: crate::errors::Classified,
+        notices: Vec<crate::notice::Notice>,
+    },
 }

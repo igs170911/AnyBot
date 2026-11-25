@@ -92,9 +92,13 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     );
     m.insert(
         "live-model".to_owned(),
-        ["test-harness".to_owned(), "anybot-foundation".to_owned()]
-            .into_iter()
-            .collect(),
+        [
+            "test-harness".to_owned(),
+            "anybot-foundation".to_owned(),
+            "anybot-models".to_owned(),
+        ]
+        .into_iter()
+        .collect(),
     );
     m.insert(
         "api-docs".to_owned(),

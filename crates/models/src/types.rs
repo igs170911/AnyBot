@@ -1,6 +1,8 @@
 use anybot_foundation::Secret;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProviderKind {
     Xai,
     OpenAi,
@@ -12,7 +14,7 @@ pub enum ProviderKind {
     Custom,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WireFormat {
     OpenAiCompatible,
     Anthropic,
@@ -77,6 +79,7 @@ pub struct TurnRequest {
     pub max_output_tokens: Option<u64>,
     pub attachments: Vec<NativeAttachment>,
     pub cache_prefix: bool,
+    pub estimate_override: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
