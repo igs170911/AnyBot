@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
+import type { paths } from "./generated/schema.ts";
 import { apiClientGenerated, createApiClient } from "./index.ts";
 
-describe("api-client 骨架", () => {
-  it("還沒有產生：標記是 false，建立客戶端一律失敗", () => {
-    expect(apiClientGenerated).toBe(false);
-    expect(() => createApiClient({ baseUrl: "http://127.0.0.1:1" })).toThrow(/api\/openapi\.yaml/);
+describe("api-client 已產生", () => {
+  it("產生標記是 true，客戶端有健康檢查路徑的型別", () => {
+    expect(apiClientGenerated).toBe(true);
+    const client = createApiClient({ baseUrl: "http://127.0.0.1:8787" });
+    expect(client.GET).toBeTypeOf("function");
+    const pathKey: keyof paths = "/v1/health";
+    expect(pathKey).toBe("/v1/health");
   });
 });

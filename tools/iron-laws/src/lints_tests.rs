@@ -174,3 +174,34 @@ fn test_lints_real_repo_context_has_one_function() {
     let files = crate::collect::source_files(&repo);
     assert_eq!(ctx_function_count(&files), 1);
 }
+
+#[test]
+fn test_lints_edition_check_accepts_workspace_inheritance_and_flags_literals() {
+    let root = "[workspace.package]\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+    let good = "[package]\nedition.workspace = true\nversion.workspace = true\n";
+    let bad = "[package]\nedition = \"2021\"\n";
+    let missing = "[package]\nname = \"x\"\n";
+    let manifests = vec![
+        ("crates/a/Cargo.toml".to_owned(), good.to_owned()),
+        ("crates/b/Cargo.toml".to_owned(), bad.to_owned()),
+        ("crates/c/Cargo.toml".to_owned(), missing.to_owned()),
+    ];
+    let v = crate::editions::edition_violations(root, &manifests);
+    assert_eq!(v.len(), 2);
+    assert!(
+        v.iter()
+            .any(|s| s.contains("crates/b") && s.contains("2021") && s.contains("2024"))
+    );
+    assert!(
+        v.iter()
+            .any(|s| s.contains("crates/c") && s.contains("沒有寫"))
+    );
+}
+
+#[test]
+fn test_lints_edition_check_needs_workspace_base() {
+    let root = "[workspace.package]\nversion = \"0.1.0\"\n";
+    let v = crate::editions::edition_violations(root, &[]);
+    assert_eq!(v.len(), 1);
+    assert!(v.first().is_some_and(|s| s.contains("沒有寫")));
+}

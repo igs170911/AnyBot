@@ -13,5 +13,14 @@ anybot-store-server = { workspace = true }
 anybot-blob = { workspace = true }
 anybot-bus = { workspace = true }
 anybot-channels = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+utoipa = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 [lints]
 workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "net", "macros"] }
+serde_json = { workspace = true }

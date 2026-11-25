@@ -11,6 +11,12 @@ name = "anybot-server"
 path = "src/main.rs"
 
 [dependencies]
+anybot-foundation = { workspace = true }
+anybot-server = { workspace = true }
+axum = { workspace = true }
 clap = { workspace = true }
+tokio = { workspace = true }
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "net", "macros"] }
 [lints]
 workspace = true

@@ -116,6 +116,7 @@ pub fn clippy_exemptions() -> BTreeMap<String, BTreeMap<String, BTreeSet<String>
         &merge(&[&PROC_M, &FS_M]),
         &[CMD_T, FS_T[0], FS_T[1]],
     );
+    insert(&mut m, "api-docs", &FS_M, &FS_T);
     m
 }
 
@@ -175,6 +176,7 @@ mod tests {
         let e = clippy_exemptions();
         assert!(e.contains_key("anybot-computers"));
         assert!(e.contains_key("depcheck"));
+        assert!(e.contains_key("api-docs"));
         assert!(!e.contains_key("anybot-domain"));
         let want = ["std::fs::read_to_string".to_owned()]
             .into_iter()
@@ -182,6 +184,17 @@ mod tests {
         let got = e
             .get("anybot-foundation")
             .and_then(|m| m.get("disallowed-methods"));
+        assert_eq!(got, Some(&want));
+    }
+
+    #[test]
+    fn test_table_api_docs_exempts_only_file_writing() {
+        let e = clippy_exemptions();
+        let want = FS_M
+            .into_iter()
+            .map(String::from)
+            .collect::<BTreeSet<String>>();
+        let got = e.get("api-docs").and_then(|m| m.get("disallowed-methods"));
         assert_eq!(got, Some(&want));
     }
 

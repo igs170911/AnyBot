@@ -4,6 +4,7 @@ pub mod clippy_tomls;
 pub mod collect;
 pub mod comments;
 pub mod deny_limits;
+pub mod editions;
 pub mod lines;
 pub mod lints;
 pub mod suppressions;

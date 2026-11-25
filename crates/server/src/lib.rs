@@ -2,9 +2,23 @@ use anybot_blob::BlobRef;
 use anybot_bus::Notification;
 use anybot_channels::ChannelHttpClient;
 use anybot_domain::TaskStatus;
-use anybot_foundation::now_epoch_seconds;
-use anybot_protocol::EventEnvelope;
+use anybot_foundation::{Clock, TimestampMs};
+use anybot_protocol::RunEvent;
+
 use anybot_store_server::Pool;
+use serde_json as _;
+
+pub mod app;
+pub mod health;
+#[cfg(test)]
+mod health_tests;
+pub mod openapi;
+pub mod startup;
+
+pub use app::{AppState, build_router};
+pub use health::{HealthResponse, health};
+pub use openapi::ApiDoc;
+pub use startup::{DEFAULT_PORT, ServerStartup, bind_listeners, prepare, startup_line};
 
 #[derive(Debug)]
 pub struct AppStateRef {
@@ -26,18 +40,18 @@ pub type ServerChannelClient = ChannelHttpClient;
 
 #[derive(Debug)]
 pub struct ServerEventBundle {
-    pub event: EventEnvelope,
+    pub event: RunEvent,
     pub blob: Option<BlobRef>,
-    pub at_epoch_seconds: i64,
+    pub at: TimestampMs,
 }
 
 impl ServerEventBundle {
     #[must_use]
-    pub fn new(event: EventEnvelope) -> Self {
+    pub fn new(event: RunEvent, clock: &dyn Clock) -> Self {
         ServerEventBundle {
             event,
             blob: None,
-            at_epoch_seconds: now_epoch_seconds(),
+            at: clock.now_ms(),
         }
     }
 }

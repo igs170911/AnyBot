@@ -75,6 +75,12 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert("depcheck".to_owned(), BTreeSet::new());
     m.insert("spec-trace".to_owned(), BTreeSet::new());
     m.insert("iron-laws".to_owned(), BTreeSet::new());
+    m.insert(
+        "api-docs".to_owned(),
+        ["anybot-server".to_owned(), "anybot-protocol".to_owned()]
+            .into_iter()
+            .collect(),
+    );
 }
 
 #[must_use]
@@ -137,6 +143,7 @@ pub fn packages_allowed_exemptions() -> BTreeSet<String> {
         "depcheck",
         "spec-trace",
         "iron-laws",
+        "api-docs",
     ]
     .into_iter()
     .map(String::from)
@@ -161,8 +168,16 @@ mod tests {
         let p = packages_allowed_exemptions();
         assert!(p.contains("anybot-foundation"));
         assert!(p.contains("iron-laws"));
+        assert!(p.contains("api-docs"));
         assert!(!p.contains("anybot-domain"));
         assert!(!p.contains("anybot-bus"));
+    }
+
+    #[test]
+    fn test_depcheck_api_docs_may_depend_on_server_and_protocol_only() {
+        let allowed = allowed_internal_deps();
+        let want = BTreeSet::from(["anybot-server".to_owned(), "anybot-protocol".to_owned()]);
+        assert_eq!(allowed.get("api-docs"), Some(&want));
     }
 
     #[test]

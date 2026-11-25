@@ -10,13 +10,15 @@ NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 SPEC_TRACE_REF ?= HEAD
 
 .PHONY: check check-fast fmt clippy test deny machete depcheck spec-trace spec-baseline \
-	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build
+	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
+	api-docs api-lint api-client api-html api-compat
 
 check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks \
+	api-docs api-lint api-client api-html api-compat \
 	ts-install ts-biome ts-typecheck ts-test ts-build
 
 # 邊寫邊跑：最快的關卡＋四條鐵律的檢查（cargo fmt 檢查、clippy、depcheck、iron-laws、biome）。
-check-fast: fmt clippy depcheck ironlaws ts-biome
+check-fast: fmt clippy depcheck ironlaws api-docs api-lint ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -73,3 +75,36 @@ ts-test:
 
 ts-build:
 	$(PNPM) -r --no-bail build
+
+# API 文件關卡（spec/02 §8）：重新產生跟已提交的檔一比，有差異就擋（文件跟著程式碼走）。
+api-docs:
+	mkdir -p target/api
+	$(CARGO) run --locked -p api-docs -- openapi target/api/openapi.yaml
+	$(CARGO) run --locked -p api-docs -- asyncapi target/api/asyncapi.yaml
+	diff api/openapi.yaml target/api/openapi.yaml
+	diff api/asyncapi.yaml target/api/asyncapi.yaml
+
+api-lint:
+	$(PNPM) exec redocly lint --config redocly.yaml api/openapi.yaml
+	$(PNPM) exec redocly lint --config redocly-asyncapi.yaml api/asyncapi.yaml
+
+api-client:
+	mkdir -p target/api
+	$(PNPM) exec openapi-typescript api/openapi.yaml -o target/api/schema.ts
+	diff web/api-client/src/generated/schema.ts target/api/schema.ts
+
+api-html:
+	mkdir -p target/api/docs
+	$(PNPM) exec redocly build-docs api/openapi.yaml -o target/api/docs/index.html
+	diff api/docs/index.html target/api/docs/index.html
+	$(PNPM) exec redocly build-docs api/asyncapi.yaml -o target/api/docs/asyncapi.html
+	diff api/docs/asyncapi.html target/api/docs/asyncapi.html
+
+# 相容性檢查（spec/02 §8）：跟 git 上已提交的版本比，破壞性變更就擋。
+api-compat:
+	mkdir -p target/api
+	@if git cat-file -e HEAD:api/openapi.yaml 2>/dev/null; then \
+		git show HEAD:api/openapi.yaml > target/api/baseline.yaml; \
+		$(CARGO) run --locked -p api-docs -- openapi target/api/fresh.yaml; \
+		oasdiff breaking target/api/baseline.yaml target/api/fresh.yaml -o ERR; \
+	fi

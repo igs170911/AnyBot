@@ -39,7 +39,19 @@ anybot-server = { path = "crates/server", version = "0.1.0" }
 anybot-migrate-old = { path = "crates/migrate-old", version = "0.1.0" }
 # 外部套件（照 spec/06）
 anyhow = "1"
-time = "0.3"
+time = { version = "0.3", features = ["formatting", "macros"] }
+axum = "0.8"
+rand = "0.10"
+schemars = { version = "1", features = ["uuid1"] }
+noyalib = "0.0.64"
+tokio = { version = "1", features = ["macros", "rt", "net"] }
+trybuild = "1"
+utoipa = { version = "6", features = ["yaml", "uuid"] }
+uuid = { version = "1", features = ["std", "serde"] }
+zeroize = { version = "1", features = ["alloc"] }
+proptest = "1"
+tower = "0.5"
+http-body-util = "0.1"
 clap = { version = "4", features = ["derive"] }
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }

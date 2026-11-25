@@ -8,13 +8,13 @@ pub fn read_file_bytes(path: &str) -> std::io::Result<Vec<u8>> {
 }
 
 use anybot_domain::TaskStatus;
-use anybot_foundation::{Secret, now_epoch_seconds};
-use anybot_protocol::EventEnvelope;
+use anybot_foundation::{Clock, Secret, TimestampMs};
+use anybot_protocol::RunEvent;
 
 #[derive(Debug)]
 pub struct ComputerAction {
-    pub event: EventEnvelope,
-    pub at_epoch_seconds: i64,
+    pub event: RunEvent,
+    pub at: TimestampMs,
     pub secrets_used: Vec<Secret>,
     pub resulting_status: TaskStatus,
     pub http: Option<reqwest::Client>,
@@ -22,10 +22,10 @@ pub struct ComputerAction {
 
 impl ComputerAction {
     #[must_use]
-    pub fn at_now(event: EventEnvelope, status: TaskStatus) -> Self {
+    pub fn at_now(event: RunEvent, status: TaskStatus, clock: &dyn Clock) -> Self {
         ComputerAction {
             event,
-            at_epoch_seconds: now_epoch_seconds(),
+            at: clock.now_ms(),
             secrets_used: Vec::new(),
             resulting_status: status,
             http: None,

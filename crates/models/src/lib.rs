@@ -7,11 +7,11 @@ pub fn default_client() -> ModelHttpClient {
 
 use anybot_domain::TaskStatus;
 use anybot_foundation::Secret;
-use anybot_protocol::EventEnvelope;
+use anybot_protocol::RunEvent;
 
 #[derive(Debug)]
 pub struct ModelRequest {
     pub api_key: Secret,
-    pub event: EventEnvelope,
+    pub event: RunEvent,
     pub resulting_status: TaskStatus,
 }

@@ -1,20 +1,7 @@
-use anybot_foundation::now_epoch_seconds;
-use serde::{Deserialize, Serialize};
+pub mod api;
+pub mod events;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EventEnvelope {
-    pub seq: u64,
-    pub kind: String,
-    pub at_epoch_seconds: i64,
-}
-
-impl EventEnvelope {
-    #[must_use]
-    pub fn now(seq: u64, kind: &str) -> Self {
-        EventEnvelope {
-            seq,
-            kind: kind.to_owned(),
-            at_epoch_seconds: now_epoch_seconds(),
-        }
-    }
-}
+pub use api::{
+    IdempotencyKey, PROBLEM_JSON_CONTENT_TYPE, PageCursor, ProblemJson, SSE_CONTENT_TYPE,
+};
+pub use events::{EventKind, PROTOCOL_VERSION, RunEvent, TaskStatus};

@@ -1,7 +1,15 @@
+import createClient from "openapi-fetch";
+
+import type { paths } from "./generated/schema.ts";
+
 export interface ApiClientOptions {
   readonly baseUrl: string;
 }
-export const apiClientGenerated: boolean = false;
-export function createApiClient(_options: ApiClientOptions): never {
-  throw new Error("API 客戶端尚未產生：請先照 README.md 從 api/openapi.yaml 產生");
+
+export const apiClientGenerated: boolean = true;
+
+export function createApiClient(options: ApiClientOptions) {
+  return createClient<paths>({ baseUrl: options.baseUrl });
 }
+
+export type { paths };

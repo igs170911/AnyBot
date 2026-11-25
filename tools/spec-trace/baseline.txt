@@ -138,7 +138,6 @@ T-agent-ext-protocol-1
 T-agent-ext-protocol-2
 T-agent-ext-protocol-3
 T-agent-ext-protocol-4
-T-agent-ext-protocol-5
 T-agent-ext-protocol-6
 T-agent-ext-setup-1
 T-agent-ext-setup-2
@@ -1230,10 +1229,6 @@ T-install-n2-4
 T-install-n21-1
 T-install-n21-2
 T-install-n21-3
-T-install-n22-1
-T-install-n22-2
-T-install-n22-3
-T-install-n22-4
 T-install-n23-1
 T-install-n23-2
 T-install-n23-3
@@ -2077,7 +2072,6 @@ T-server-n13-2
 T-server-n13-3
 T-server-n13-4
 T-server-n14-1
-T-server-n14-2
 T-server-n14-3
 T-server-n14-4
 T-server-n15-1

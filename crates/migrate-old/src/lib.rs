@@ -1,22 +1,22 @@
 use anybot_domain::TaskStatus;
-use anybot_foundation::now_epoch_seconds;
-use anybot_protocol::EventEnvelope;
+use anybot_foundation::{Clock, TimestampMs};
+use anybot_protocol::RunEvent;
 use anybot_store_client::Pool;
 
 #[derive(Debug, Clone)]
 pub struct MigrationReport {
     pub notes: Vec<String>,
-    pub event: EventEnvelope,
-    pub at_epoch_seconds: i64,
+    pub event: RunEvent,
+    pub at: TimestampMs,
 }
 
 impl MigrationReport {
     #[must_use]
-    pub fn start(event: EventEnvelope) -> Self {
+    pub fn start(event: RunEvent, clock: &dyn Clock) -> Self {
         MigrationReport {
             notes: Vec::new(),
             event,
-            at_epoch_seconds: now_epoch_seconds(),
+            at: clock.now_ms(),
         }
     }
 }
@@ -25,5 +25,5 @@ pub type TargetPool = Pool;
 
 #[must_use]
 pub fn migrated_status_placeholder() -> TaskStatus {
-    TaskStatus::Done
+    TaskStatus::Completed
 }

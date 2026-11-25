@@ -1,0 +1,57 @@
+use crate::lints::split_pair;
+
+fn section_lines(text: &str, header: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut in_sec = false;
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.starts_with('[') {
+            in_sec = line == header;
+            continue;
+        }
+        if in_sec && !line.is_empty() && !line.starts_with('#') {
+            out.push(line.to_owned());
+        }
+    }
+    out
+}
+
+fn edition_state(lines: &[String]) -> Option<String> {
+    for line in lines {
+        let Some((k, v)) = split_pair(line) else {
+            continue;
+        };
+        if k == "edition" {
+            return Some(format!("literal:{}", v.trim_matches('"')));
+        }
+        if k == "edition.workspace" && v == "true" {
+            return Some("workspace".to_owned());
+        }
+    }
+    None
+}
+
+#[must_use]
+pub fn edition_violations(root_text: &str, manifests: &[(String, String)]) -> Vec<String> {
+    let mut out = Vec::new();
+    let base = edition_state(&section_lines(root_text, "[workspace.package]"));
+    let Some(base) = base.filter(|b| b.starts_with("literal:")) else {
+        out.push("根目錄 Cargo.toml 的 [workspace.package] 沒有寫 edition".to_owned());
+        return out;
+    };
+    for (rel, text) in manifests {
+        match edition_state(&section_lines(text, "[package]")) {
+            None => out.push(format!("{rel}：[package] 沒有寫 edition（K78）")),
+            Some(s) if s == "workspace" => {}
+            Some(s) if s != base => {
+                let shown = s.strip_prefix("literal:").unwrap_or("");
+                let want = base.strip_prefix("literal:").unwrap_or("");
+                out.push(format!(
+                    "{rel}：edition 跟 workspace 不一致（K78）：{shown} 應用 {want}"
+                ));
+            }
+            Some(_) => {}
+        }
+    }
+    out
+}

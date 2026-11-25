@@ -11,6 +11,8 @@
       "**",
       "!**/node_modules",
       "!**/dist",
+      "!**/api",
+      "!**/src/generated",
       "!**/src-tauri/target",
       "!**/src-tauri/gen",
       "!**/gen",

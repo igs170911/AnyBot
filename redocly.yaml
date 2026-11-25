@@ -1,0 +1,9 @@
+extends: []
+rules:
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-summary: error
+  operation-description: error
+  operation-tag-defined: error
+  no-empty-servers: error
+  security-defined: error

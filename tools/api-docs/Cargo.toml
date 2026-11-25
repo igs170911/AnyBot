@@ -1,0 +1,25 @@
+[package]
+publish = false
+name = "api-docs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "API 文件產生器：openapi.yaml、asyncapi.yaml（spec/02 §8）"
+
+[[bin]]
+name = "api-docs"
+path = "src/main.rs"
+
+[dependencies]
+anybot-protocol = { workspace = true }
+anybot-server = { workspace = true }
+clap = { workspace = true }
+schemars = { workspace = true }
+serde_json = { workspace = true }
+noyalib = { workspace = true }
+utoipa = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]

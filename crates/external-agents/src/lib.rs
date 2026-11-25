@@ -1,23 +1,23 @@
-use anybot_foundation::now_epoch_seconds;
+use anybot_foundation::{Clock, TimestampMs};
 use anybot_mcp::McpHttpClient;
-use anybot_protocol::EventEnvelope;
+use anybot_protocol::RunEvent;
 use anybot_trust::Evidence;
 
 #[derive(Debug, Clone)]
 pub struct AgentEvent {
     pub evidence: Evidence,
-    pub inner_event: EventEnvelope,
-    pub at_epoch_seconds: i64,
+    pub inner_event: RunEvent,
+    pub at: TimestampMs,
     pub client: Option<McpHttpClient>,
 }
 
 impl AgentEvent {
     #[must_use]
-    pub fn at_now(evidence: Evidence, inner_event: EventEnvelope) -> Self {
+    pub fn at_now(evidence: Evidence, inner_event: RunEvent, clock: &dyn Clock) -> Self {
         AgentEvent {
             evidence,
             inner_event,
-            at_epoch_seconds: now_epoch_seconds(),
+            at: clock.now_ms(),
             client: None,
         }
     }

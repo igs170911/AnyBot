@@ -8,7 +8,7 @@ pub const CONTEXT_SRC_DIR: &str = "apps/desktop/context/src";
 fn norm(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
-fn split_pair(line: &str) -> Option<(String, String)> {
+pub(crate) fn split_pair(line: &str) -> Option<(String, String)> {
     let (k, v) = line.split_once('=')?;
     let k = k.trim();
     let v = v.trim();
@@ -284,6 +284,7 @@ pub fn violations(repo: &Path) -> Vec<String> {
         &ws,
         &crate::collect::source_files(repo),
     ));
+    out.extend(crate::editions::edition_violations(&root, &manifest_texts));
     out.extend(gitleaks_violations(repo));
     out
 }
