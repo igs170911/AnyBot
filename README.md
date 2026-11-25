@@ -75,9 +75,9 @@ pnpm --filter @anybot/desktop dev   # needs tauri-cli: cargo tauri dev
 
 CI (`.github/workflows/ci.yml`) runs the same `make check` on ubuntu-24.04; it first
 installs the system packages Tauri needs (WebKitGTK etc.) and sets
-`SPEC_TRACE_REF`: pushes to `main` compare against the commit before the push
+`SPEC_TRACE_REF`: pushes to `dev` or `main` compare against the commit before the push
 (`github.event.before`, falling back to `HEAD`), other branches and pull requests
-compare against the merge base of `origin/main`.
+compare against the merge base of `origin/dev` (K111).
 
 ## What each folder does
 

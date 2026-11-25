@@ -1,8 +1,13 @@
-# CI-1 (spec/09 K110): every push and every pull request runs `make check` on Linux.
+# CI-1 (spec/09 K110, K111): pushes to every branch and pull requests targeting dev run `make check` on Linux.
 name: CI
 on:
   push:
+    # tags are handled by the release workflow (K111 ④), not here.
+    tags-ignore:
+      - "**"
   pull_request:
+    branches:
+      - dev
 
 permissions:
   contents: read
@@ -14,6 +19,8 @@ concurrency:
 env:
   RUSTUP_HOME: /home/runner/.rustup
   CARGO_HOME: /home/runner/.cargo
+  # CI starts from a fresh checkout every time: incremental compilation data only bloats the cache.
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   check:
@@ -26,18 +33,19 @@ jobs:
           fetch-depth: 0
 
       - name: spec-trace baseline ref
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
-            BEFORE="${{ github.event.before }}"
-            if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-              echo "SPEC_TRACE_REF=$BEFORE" >> "$GITHUB_ENV"
+          if [ "$GITHUB_EVENT_NAME" = push ] && { [ "$GITHUB_REF" = refs/heads/main ] || [ "$GITHUB_REF" = refs/heads/dev ]; }; then
+            if git cat-file -e "$EVENT_BEFORE^{commit}" 2>/dev/null; then
+              echo "SPEC_TRACE_REF=$EVENT_BEFORE" >> "$GITHUB_ENV"
             else
               echo "SPEC_TRACE_REF=HEAD" >> "$GITHUB_ENV"
             fi
           else
-            git fetch --no-tags origin main
-            BASE=$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD)
+            git fetch --no-tags origin dev
+            BASE=$(git merge-base HEAD origin/dev 2>/dev/null || echo HEAD)
             echo "SPEC_TRACE_REF=$BASE" >> "$GITHUB_ENV"
           fi
 
@@ -53,16 +61,27 @@ jobs:
       - name: rust toolchain
         run: rustup component add rustfmt clippy
 
-      - name: cache compiled output
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - name: restore the compiled output cache
+        # GitHub keeps at most 10 GB of caches per repository; caches are scoped to a branch and
+        # only the default branch (main) is readable by every branch. The key has no commit hash:
+        # one entry per lockfile, saved on main only (K111).
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             target
             !target/pg-install
-          key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-
             target-${{ runner.os }}-
+
+      - name: save the compiled output cache on main only
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            target
+            !target/pg-install
+          key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
       - name: cache the test postgres download
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
