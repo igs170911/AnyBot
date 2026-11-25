@@ -115,11 +115,22 @@ jobs:
 
       - name: pnpm
         shell: bash
-        run: npm install -g pnpm@12.23.0
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@12.23.0
+          if ! command -v pnpm >/dev/null 2>&1 && command -v pnpm.cmd >/dev/null 2>&1; then
+            printf 'PNPM=pnpm.cmd\n' >> "$GITHUB_ENV"
+            pnpm.cmd --version
+          else
+            command -v pnpm
+            pnpm --version
+          fi
 
       - name: install the web workspace
         shell: bash
-        run: pnpm install --frozen-lockfile
+        run: |
+          set -euo pipefail
+          "${PNPM:-pnpm}" install --frozen-lockfile
 
       - name: export compile-time release values
         shell: bash
@@ -138,7 +149,7 @@ jobs:
         run: |
           set -euo pipefail
           cd apps/desktop
-          pnpm exec tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config ../../target/tauri-channel.json
+          "${PNPM:-pnpm}" exec tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config ../../target/tauri-channel.json
 
       - name: pack the linux archive
         if: runner.os == 'Linux'

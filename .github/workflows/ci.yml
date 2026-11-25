@@ -19,8 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUSTUP_HOME: /home/runner/.rustup
-  CARGO_HOME: /home/runner/.cargo
   # CI starts from a fresh checkout every time: incremental compilation data only bloats the cache.
   CARGO_INCREMENTAL: "0"
 
@@ -28,6 +26,10 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      # Linux runner homes only. Windows and macOS cannot create /home/runner.
+      RUSTUP_HOME: /home/runner/.rustup
+      CARGO_HOME: /home/runner/.cargo
     steps:
       # every pin below is the commit its tag points at, read from https://api.github.com/repos/<owner>/<action>/git/refs/tags/<tag>.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -236,32 +238,55 @@ jobs:
             Invoke-WebRequest -Uri $Url -OutFile $Archive
             $got = (Get-FileHash -Algorithm SHA256 $Archive).Hash.ToLower()
             if ($got -ne $Sha) { throw "$Name sha256 mismatch: $got" }
-            if ($Archive.EndsWith(".zip")) { Expand-Archive $Archive -DestinationPath "expand-$Name" }
-            else { tar -xzf $Archive }
-            Move-Item $Inner $dest
-            Remove-Item $Archive -Force
+            $extract = Join-Path $env:RUNNER_TEMP "expand-$Name"
+            if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
+            New-Item -ItemType Directory -Force -Path $extract | Out-Null
+            if ($Archive.EndsWith(".zip")) { Expand-Archive $Archive -DestinationPath $extract }
+            else { tar -xzf $Archive -C $extract }
+            $leaf = Split-Path $Inner -Leaf
+            $found = @(Get-ChildItem -Path $extract -Recurse -File -Filter $leaf)
+            if ($found.Count -ne 1) { throw "expected one $leaf under $extract, found $($found.Count)" }
+            Move-Item $found[0].FullName $dest
+            Remove-Item $Archive, $extract -Recurse -Force
           }
           Install-Pinned "cargo-nextest.exe" "https://get.nexte.st/0.9.152/windows" "cc6bf4b6a7ac18e462cd6c9bae67e26921b888249c2988c6acabf3df387ed9d6" "nextest.zip" "cargo-nextest.exe"
           Install-Pinned "cargo-deny.exe" "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-x86_64-pc-windows-msvc.tar.gz" "b8d7e473f54c328cc528ef8aea221c40b5ccac3d63844aa056f86ed0886800a2" "deny.tar.gz" "cargo-deny-0.22.1-x86_64-pc-windows-msvc/cargo-deny.exe"
           Install-Pinned "cargo-machete.exe" "https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-x86_64-pc-windows-msvc.tar.gz" "64bd4ceae7680af1d1468cc1edbe09c9bea6221f4f525231c8213666eb01fa5a" "machete.tar.gz" "cargo-machete-v0.10.1-x86_64-pc-windows-msvc/cargo-machete.exe"
 
       - name: compile the workspace
-        run: cargo build --workspace --locked --all-targets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+          cargo build --workspace --locked --all-targets
 
       - name: pnpm
-        run: npm install -g pnpm@12.23.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@12.23.0
+          if ! command -v pnpm >/dev/null 2>&1 && command -v pnpm.cmd >/dev/null 2>&1; then
+            printf 'PNPM=pnpm.cmd\n' >> "$GITHUB_ENV"
+            pnpm.cmd --version
+          else
+            command -v pnpm
+            pnpm --version
+          fi
 
       - name: install the web workspace
-        run: pnpm install --frozen-lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          "${PNPM:-pnpm}" install --frozen-lockfile
 
       - name: basic tests
         shell: bash
         run: |
           set -euo pipefail
-          # windows-2025 ships MinGW make and Git Bash. Cargo and the global npm
-          # prefix are not always on Git Bash's PATH after a PowerShell step.
+          # windows-2025's image readme lists Git, Rust, Node, and jq. It does not
+          # list GNU make, so this step runs the same commands as `make test-basic`
+          # without invoking make. Cargo and npm are not always on Git Bash PATH.
           export PATH="$HOME/.cargo/bin:${APPDATA:-}/npm:$PATH"
-          command -v make
           command -v bash
           command -v cargo
           command -v cargo-nextest
@@ -269,7 +294,9 @@ jobs:
             export PNPM=pnpm.cmd
           fi
           command -v "${PNPM:-pnpm}"
-          make test-basic
+          mkdir -p target
+          bash tools/test-gate.sh run target/nextest-basic.log cargo nextest run --workspace --profile quick
+          "${PNPM:-pnpm}" -r --no-bail test
 
   build-macos:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/rel-'))
@@ -333,7 +360,14 @@ jobs:
         run: cargo build --workspace --locked --all-targets
 
       - name: basic tests
-        run: make test-basic
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          command -v make
+          command -v cargo
+          command -v cargo-nextest
+          command -v pnpm
+          make test-basic
 
   # Visible sequence, not a poll: this job starts only after the three checks succeed.
   # A job that calls another workflow cannot set timeout-minutes (GitHub docs:

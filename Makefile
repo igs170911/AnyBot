@@ -5,11 +5,6 @@
 CARGO ?= cargo
 PNPM ?= pnpm
 SHELL := /bin/bash -o pipefail
-# windows-2025's make is MinGW and cannot execute /bin/bash. Git Bash is on PATH as bash.exe.
-ifeq ($(OS),Windows_NT)
-SHELL := bash.exe
-.SHELLFLAGS := -o pipefail -c
-endif
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 
 # cross-worktree test lock (docs/testing.md, parallel work): tools/testlock.sh takes the lock
