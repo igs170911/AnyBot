@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { installFakeClock, syncBrowserClock } from "./src/act.ts";
+import { installFakeClock, registerScenarioScreenshots, syncBrowserClock } from "./src/act.ts";
 import { readEnvPorts } from "./src/env.ts";
 
 const SCRIPT_TEXT = "hello from the control script";
+
+registerScenarioScreenshots();
 
 function nowMs(iso: string): number {
   const parsed = new Date(iso);

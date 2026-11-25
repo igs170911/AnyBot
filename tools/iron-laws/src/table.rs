@@ -65,6 +65,7 @@ pub fn package_of_path(path: &str) -> Option<String> {
         ("apps", Some(_) | None) => Some(format!("anybot-app-{dir}")),
         ("tools", Some(_) | None) => Some(dir.to_owned()),
         ("tests", Some(_)) if dir == "harness" => Some("test-harness".to_owned()),
+        ("tests", Some(_)) if dir == "live-model" => Some("live-model".to_owned()),
         _ => None,
     }
 }
@@ -83,6 +84,7 @@ mod tests {
         assert!(e.contains_key("depcheck"));
         assert!(e.contains_key("api-docs"));
         assert!(e.contains_key("test-harness"));
+        assert!(e.contains_key("live-model"));
         assert!(!e.contains_key("anybot-domain"));
         let want = [
             "std::fs::read_to_string".to_owned(),
@@ -185,6 +187,10 @@ mod tests {
         assert_eq!(
             package_of_path("tools/iron-laws/src/main.rs").as_deref(),
             Some("iron-laws")
+        );
+        assert_eq!(
+            package_of_path("tests/live-model/src/main.rs").as_deref(),
+            Some("live-model")
         );
         assert_eq!(package_of_path("web/ui/src/shell.tsx"), None);
     }

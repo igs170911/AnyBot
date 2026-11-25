@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PHONE_VIEWPORT = { width: 393, height: 852 };
+const PHONE_VIEWPORT = { width: 375, height: 667 };
 const LARGE_VIEWPORT = { width: 1600, height: 1000 };
 const RTL_VIEWPORT = { width: 1280, height: 800 };
 
@@ -18,7 +18,7 @@ export default defineConfig({
   reporter: [["list"], ["html", { outputFolder: "../target/playwright-html", open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:4173",
-    screenshot: "only-on-failure",
+    screenshot: "on",
     trace: "retain-on-failure",
   },
   webServer: {
@@ -32,10 +32,9 @@ export default defineConfig({
     {
       name: "phone-max-font",
       use: {
-        ...devices["iPhone 15 Pro"],
+        ...devices["iPhone SE (3rd gen)"],
         viewport: PHONE_VIEWPORT,
-        deviceScaleFactor: 3,
-        maxTextZoom: "1.7",
+        maxTextZoom: "3.1",
       },
     },
     {

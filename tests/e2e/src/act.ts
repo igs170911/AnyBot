@@ -1,4 +1,7 @@
-import { type APIRequestContext, expect, type Locator, type Page } from "@playwright/test";
+import { mkdir } from "node:fs/promises";
+import nodePath from "node:path";
+
+import { type APIRequestContext, expect, type Locator, type Page, test } from "@playwright/test";
 import { readEnvPorts } from "./env.ts";
 import type { Lang } from "./ftl.ts";
 import { textFor } from "./ftl.ts";
@@ -58,4 +61,14 @@ export async function expectNoHorizontalScroll(page: Page): Promise<void> {
     return document.documentElement.scrollWidth - window.innerWidth;
   });
   expect(overflow, "page must not overflow its viewport width").toBeLessThanOrEqual(1);
+}
+
+export function registerScenarioScreenshots(): void {
+  test.afterEach(async ({ page }, testInfo) => {
+    const safeTitle = testInfo.title.replaceAll(/[^A-Za-z0-9-]/g, "_");
+    const dir = nodePath.resolve(import.meta.dirname, "../../../target/e2e-screens");
+    await mkdir(dir, { recursive: true });
+    const target = nodePath.join(dir, `${testInfo.project.name}--${safeTitle}.png`);
+    await page.screenshot({ path: target, fullPage: true });
+  });
 }

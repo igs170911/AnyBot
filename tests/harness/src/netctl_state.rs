@@ -20,6 +20,11 @@ pub(crate) struct NetState {
     pub(crate) entries: BTreeMap<u16, TargetEntry>,
 }
 
+#[must_use]
+fn serving(mode: &NetMode) -> bool {
+    !matches!(mode, NetMode::Cut | NetMode::Down)
+}
+
 pub(crate) struct TargetEntry {
     pub(crate) real: SocketAddr,
     pub(crate) mode: NetMode,
@@ -108,12 +113,42 @@ impl NetCtl {
     }
 
     pub async fn set_mode(&self, proxy_port: u16, mode: NetMode) -> Result<(), String> {
+        let open = self
+            .with_entry(proxy_port, |entry| {
+                entry.mode = mode;
+                entry.open = serving(&mode);
+                Ok(entry.open)
+            })
+            .await?;
+        {
+            let state = self.state.read().await;
+            if let Some(entry) = state.entries.get(&proxy_port)
+                && !entry.open
+            {
+                let waker = Arc::clone(&entry.wake);
+                waker.notify_waiters();
+            }
+        }
+        if !open {
+            self.kill_live().await;
+        }
+        Ok(())
+    }
+
+    pub async fn set_source(&self, proxy_port: u16, source: Option<IpAddr>) -> Result<(), String> {
         self.with_entry(proxy_port, |entry| {
-            entry.mode = mode;
-            entry.open = matches!(mode, NetMode::Open);
+            entry.source = source;
             Ok(())
         })
         .await
+    }
+
+    pub(crate) async fn is_closed(&self, proxy_port: u16) -> bool {
+        let state = self.state.read().await;
+        state
+            .entries
+            .get(&proxy_port)
+            .is_some_and(|entry| !entry.open)
     }
 
     pub(crate) async fn kill_live(&self) {

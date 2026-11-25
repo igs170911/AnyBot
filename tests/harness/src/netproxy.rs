@@ -51,13 +51,13 @@ pub async fn serve_target(client: TcpStream, spec: TargetSpec, kill: Arc<Notify>
                 .is_ok();
         return;
     }
-    let Ok(_sent) = buffered.write_all(head.as_bytes()).await else {
-        return;
-    };
-    let Ok(_flushed) = buffered.flush().await else {
-        return;
-    };
     let Ok(mut upstream) = connect_real(&spec).await else {
+        return;
+    };
+    let Ok(_sent) = upstream.write_all(head.as_bytes()).await else {
+        return;
+    };
+    let Ok(_flushed) = upstream.flush().await else {
         return;
     };
     let mut client_stream = buffered.into_inner();
@@ -70,7 +70,11 @@ pub async fn serve_target(client: TcpStream, spec: TargetSpec, kill: Arc<Notify>
 fn connect_delay(mode: &NetMode) -> Duration {
     match mode {
         NetMode::Slow { connect, .. } => *connect,
-        NetMode::Open | NetMode::Cut | NetMode::Buffer | NetMode::IdleCut { .. } => Duration::ZERO,
+        NetMode::Open
+        | NetMode::Cut
+        | NetMode::Buffer
+        | NetMode::IdleCut { .. }
+        | NetMode::Down => Duration::ZERO,
     }
 }
 
@@ -126,7 +130,7 @@ async fn connect_real(spec: &TargetSpec) -> Result<TcpStream, String> {
 }
 
 async fn connect_real_addr(spec: &TargetSpec, addr: SocketAddr) -> Result<TcpStream, String> {
-    if spec.mode == NetMode::Cut {
+    if matches!(spec.mode, NetMode::Cut | NetMode::Down) {
         return Err("network cut".to_owned());
     }
     let Some(source) = spec.source else {

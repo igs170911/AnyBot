@@ -20,6 +20,7 @@ pub enum NetMode {
     IdleCut {
         idle: Duration,
     },
+    Down,
 }
 
 pub async fn net_start() -> Result<(Arc<NetCtl>, u16), String> {
@@ -38,7 +39,7 @@ pub async fn net_start() -> Result<(Arc<NetCtl>, u16), String> {
 }
 
 async fn watch_target(watched: Arc<NetCtl>, port: u16, initial: TcpListener) {
-    let _initial = initial;
+    accept_loop_for(&watched, port, initial).await;
     loop {
         let spec = match watched.target(port).await {
             Ok(spec) => spec,
@@ -53,32 +54,30 @@ async fn watch_target(watched: Arc<NetCtl>, port: u16, initial: TcpListener) {
         let Ok(proxy_listener) = rebind else {
             return;
         };
-        let wake = watched.wake_for(port).await;
-        accept_loop(&watched, port, proxy_listener, wake).await;
+        accept_loop_for(&watched, port, proxy_listener).await;
     }
 }
 
+async fn accept_loop_for(watched: &Arc<NetCtl>, port: u16, proxy_listener: TcpListener) {
+    let wake = watched.wake_for(port).await;
+    accept_loop(watched, port, proxy_listener, wake).await;
+}
+
 async fn close_listener(watched: &NetCtl, port: u16) {
-    let mut state = watched.state.write().await;
-    let Some(entry) = state.entries.get_mut(&port) else {
-        return;
+    let waker = {
+        let mut state = watched.state.write().await;
+        let Some(entry) = state.entries.get_mut(&port) else {
+            return;
+        };
+        entry.live.clear();
+        Arc::clone(&entry.wake)
     };
-    entry.live.clear();
-    let waker = Arc::clone(&entry.wake);
     waker.notify_waiters();
 }
 
 async fn accept_loop(watched: &NetCtl, port: u16, proxy_listener: TcpListener, wake: Arc<Notify>) {
     loop {
-        let accept = tokio::select! {
-            () = wake.notified() => None,
-            pair = proxy_listener.accept() => Some(pair),
-        };
-        let Some(Ok((stream, _peer))) = accept else {
-            return;
-        };
-        let kill = Arc::new(Notify::new());
-        {
+        let registered: Result<Arc<Notify>, String> = {
             let mut state = watched.state.write().await;
             let Some(entry) = state.entries.get_mut(&port) else {
                 return;
@@ -86,8 +85,22 @@ async fn accept_loop(watched: &NetCtl, port: u16, proxy_listener: TcpListener, w
             if !entry.open {
                 return;
             }
-            entry.live.push(Arc::clone(&kill));
-        }
+            Ok(Arc::new(Notify::new()))
+        };
+        let Ok(kill) = registered else {
+            return;
+        };
+        let accept = tokio::select! {
+            () = wake.notified() => None,
+            pair = proxy_listener.accept() => Some(pair),
+            () = tokio::time::sleep(Duration::from_millis(100)) => None,
+        };
+        let Some(Ok((stream, _peer))) = accept else {
+            if watched.is_closed(port).await {
+                return;
+            }
+            continue;
+        };
         watched.register_kill(Arc::clone(&kill)).await;
         let Ok(spec) = watched.target(port).await else {
             return;
@@ -190,10 +203,11 @@ pub async fn net_source_addr(
     proxy_port: u16,
     source: IpAddr,
 ) -> Result<(), String> {
-    ctl.register(
-        proxy_port,
-        SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, 0)),
-        Some(source),
-    )
-    .await
+    ctl.set_source(proxy_port, Some(source)).await
+}
+
+pub async fn net_down(ctl: &Arc<NetCtl>, proxy_port: u16) -> Result<(), String> {
+    ctl.set_mode(proxy_port, NetMode::Down).await?;
+    ctl.kill_live().await;
+    Ok(())
 }

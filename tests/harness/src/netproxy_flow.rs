@@ -24,7 +24,7 @@ pub(crate) async fn copy_bidirectional_with_kill(
     kill: &Arc<Notify>,
 ) -> Result<usize, String> {
     match mode {
-        NetMode::Cut => Err("cut mid stream".to_owned()),
+        NetMode::Cut | NetMode::Down => Err("cut mid stream".to_owned()),
         NetMode::Buffer => buffer_until_close(client, upstream, kill).await,
         NetMode::Slow {
             first_byte,
@@ -129,9 +129,13 @@ pub(crate) async fn pace(
         let Some(piece) = chunk.get(..count) else {
             break;
         };
-        let _sent = client.write_all(piece).await.is_ok();
-        total = total.saturating_add(count);
-        sleep_with_kill(byte_gap, kill).await;
+        for byte in piece {
+            let single = [*byte];
+            let _sent = client.write_all(&single).await.is_ok();
+            let _flushed = client.flush().await.is_ok();
+            total = total.saturating_add(1);
+            sleep_with_kill(byte_gap, kill).await;
+        }
     }
     Ok(total)
 }

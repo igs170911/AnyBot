@@ -4,13 +4,13 @@
 
 CARGO ?= cargo
 PNPM ?= pnpm
-SHELL := /bin/bash
+SHELL := /bin/bash -o pipefail
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 
 # spec-trace baseline compare ref: locally compares against HEAD; CI compares against the merge-base of the main branch (CI sets this variable).
 SPEC_TRACE_REF ?= HEAD
 
-.PHONY: check check-fast fmt clippy test deny machete depcheck spec-trace spec-baseline \
+.PHONY: check check-fast fmt clippy test test-fast live-model-check deny machete depcheck spec-trace spec-baseline \
 	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
@@ -21,7 +21,7 @@ check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks locale
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
 # fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
-check-fast: fmt clippy depcheck ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
+check-fast: fmt clippy test-fast depcheck ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -35,10 +35,24 @@ clippy:
 
 test:
 ifdef NEXTTEST
-	$(CARGO) nextest run --workspace --test-threads 1
+	@mkdir -p target
+	$(CARGO) nextest run --workspace --test-threads 1 2>&1 | tee target/nextest.log; \
+		! grep -q "ignoring unknown configuration keys" target/nextest.log
 else
 	$(CARGO) test --workspace
 endif
+
+# check-fast Rust tests: everything except the postgres group (spec/09 K90 real DB, slow) and e2e (separate target).
+test-fast:
+ifdef NEXTTEST
+	$(CARGO) nextest run --workspace --profile quick
+else
+	$(CARGO) test --workspace
+endif
+
+# M4 Section A addendum: compare request formats with the real local model. Not part of check, check-fast, or CI.
+live-model-check:
+	$(CARGO) run --locked -p live-model
 
 deny:
 	$(CARGO) deny check

@@ -11,6 +11,7 @@ members = [
     "apps/desktop/context",
     "tools/*",
     "tests/harness",
+    "tests/live-model",
     "tests/testenv",
 ]
 
@@ -41,6 +42,7 @@ anybot-server = { path = "crates/server", version = "0.1.0" }
 anybot-migrate-old = { path = "crates/migrate-old", version = "0.1.0" }
 anybot-messages = { path = "crates/messages", version = "0.1.0" }
 test-harness = { path = "tests/harness", version = "0.1.0" }
+live-model = { path = "tests/live-model", version = "0.1.0" }
 # external crates (spec/06)
 anyhow = "1"
 time = { version = "0.3", features = ["formatting", "macros", "parsing"] }
@@ -83,6 +85,8 @@ aes-gcm = { version = "0.11", features = ["zeroize"] }
 base64 = "0.22"
 postgresql_embedded = { version = "0.22", default-features = false, features = ["tokio", "tls-rustls-ring", "theseus"] }
 toml = "1"
+rustls = "0.23"
+rustls-pki-types = "1"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -22,6 +22,7 @@ pub mod netctl;
 pub(crate) mod netctl_state;
 pub mod netproxy;
 pub(crate) mod netproxy_flow;
+pub mod origin;
 pub mod ports;
 pub mod postgres;
 pub mod process;
@@ -36,8 +37,8 @@ pub use fake_clock::{
 pub use fake_model::{FakeModel, model_start};
 pub use fake_push::{FakePush, PushRecord, push_start};
 pub use http::{
-    http_get, http_get_addr, http_wait, sse_lines, sse_post, sse_wait_for_line, test_delete,
-    test_get_async, test_post, test_put,
+    http_get, http_get_addr, http_send_get, http_wait, plain_client, request, sse_lines, sse_post,
+    sse_post_client, sse_send, sse_wait_for_line, test_delete, test_get_async, test_post, test_put,
 };
 pub use launch::{
     Outcome, Program, child_is_dead, run_program, run_program_clocked, run_program_with,
@@ -48,9 +49,14 @@ pub use model_script::{
 };
 pub use netctl_state::NetCtl;
 
+pub use origin::{
+    collect_delay, collect_stream, first_data_delay, get_via_proxy, origin_url, start_origin,
+    start_origin_v6,
+};
+
 pub use netctl::{
-    NetMode, net_attach, net_buffer, net_connect_tunnel, net_cut, net_cut_target, net_idle_cut,
-    net_mode, net_restore, net_restore_target, net_slow, net_source_addr, net_start,
+    NetMode, net_attach, net_buffer, net_connect_tunnel, net_cut, net_cut_target, net_down,
+    net_idle_cut, net_mode, net_restore, net_restore_target, net_slow, net_source_addr, net_start,
 };
 pub use ports::{bind_pair, bind_v4, bind_v6, port_is_free};
 pub use postgres::{
@@ -60,4 +66,4 @@ pub use push_crypto::{SubscriptionKeys, subscription_endpoint};
 pub use realtime::{sleep_real, timeout_real};
 pub use running::Running;
 
-pub use scratch::{test_dir, write_file_with_mode};
+pub use scratch::{repo_root, test_dir, write_file_with_mode};

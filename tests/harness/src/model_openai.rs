@@ -40,8 +40,10 @@ async fn send(tx: &mpsc::Sender<String>, value: serde_json::Value) {
 
 async fn reply(tx: &mpsc::Sender<String>, model: &str, text: &str) {
     send(tx, role_chunk(model)).await;
+    send(tx, delta_chunk(model, &json!({ "reasoning": "" }))).await;
     send(tx, content_chunk(model, text)).await;
     send(tx, finish_chunk(model, "stop")).await;
+    send(tx, usage_chunk(model)).await;
 }
 
 async fn think_reply(tx: &mpsc::Sender<String>, model: &str, thinking: &str, text: &str) {
@@ -49,11 +51,13 @@ async fn think_reply(tx: &mpsc::Sender<String>, model: &str, thinking: &str, tex
     send(tx, delta_chunk(model, &json!({ "reasoning": thinking }))).await;
     send(tx, content_chunk(model, text)).await;
     send(tx, finish_chunk(model, "stop")).await;
+    send(tx, usage_chunk(model)).await;
 }
 
 async fn tool_call(tx: &mpsc::Sender<String>, model: &str, name: &str, args: &serde_json::Value) {
     let arguments = args.to_string();
     send(tx, role_chunk(model)).await;
+    send(tx, delta_chunk(model, &json!({ "reasoning": "" }))).await;
     send(
         tx,
         delta_chunk(
@@ -64,6 +68,7 @@ async fn tool_call(tx: &mpsc::Sender<String>, model: &str, name: &str, args: &se
     )
     .await;
     send(tx, finish_chunk(model, "tool_calls")).await;
+    send(tx, usage_chunk(model)).await;
 }
 
 async fn silence(_tx: &mpsc::Sender<String>) -> bool {
@@ -97,10 +102,6 @@ fn split_head(text: &str) -> String {
     String::from_utf8_lossy(bytes.get(..end).unwrap_or(bytes)).into_owned()
 }
 
-fn role_chunk(model: &str) -> serde_json::Value {
-    delta_chunk(model, &json!({ "role": "assistant" }))
-}
-
 fn content_chunk(model: &str, text: &str) -> serde_json::Value {
     delta_chunk(model, &json!({ "content": text }))
 }
@@ -111,17 +112,45 @@ fn delta_chunk(model: &str, delta: &serde_json::Value) -> serde_json::Value {
         "object": "chat.completion.chunk",
         "created": FAKE_CREATED,
         "model": model,
-        "choices": [{ "index": 0, "delta": delta, "finish_reason": null }],
+        "choices": [{
+            "index": 0,
+            "delta": delta,
+            "logprobs": null,
+            "token_ids": null,
+            "finish_reason": null,
+        }],
+        "kv_transfer_params": null,
     })
 }
 
+fn role_chunk(model: &str) -> serde_json::Value {
+    let mut chunk = delta_chunk(model, &json!({ "role": "assistant", "content": "" }));
+    let Some(top) = chunk.as_object_mut() else {
+        return chunk;
+    };
+    top.insert("prompt_text".to_owned(), json!(null));
+    top.insert("prompt_token_ids".to_owned(), json!(null));
+    top.remove("kv_transfer_params");
+    chunk
+}
+
 fn finish_chunk(model: &str, reason: &str) -> serde_json::Value {
+    let mut chunk = delta_chunk(model, &json!({}));
+    if let Some(choice) = chunk.get_mut("choices").and_then(|c| c.get_mut(0)) {
+        choice["finish_reason"] = json!(reason);
+    }
+    chunk
+}
+
+fn usage_chunk(model: &str) -> serde_json::Value {
     json!({
         "id": "chatcmpl-fake",
         "object": "chat.completion.chunk",
         "created": FAKE_CREATED,
         "model": model,
-        "choices": [{ "index": 0, "delta": {}, "finish_reason": reason }],
+        "choices": [],
+        "usage": { "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2 },
+        "system_fingerprint": "fake-fingerprint",
     })
 }
 
@@ -133,28 +162,61 @@ pub fn json_body(step: &Step, model: &str) -> String {
         "object": "chat.completion",
         "created": FAKE_CREATED,
         "model": model,
-        "choices": [{ "index": 0, "message": message, "finish_reason": reason }],
+        "choices": [{
+            "index": 0,
+            "message": message,
+            "logprobs": null,
+            "finish_reason": reason,
+            "stop_reason": null,
+            "token_ids": null,
+            "routed_experts": null,
+            "weight_versions": null,
+        }],
         "usage": { "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2 },
+        "service_tier": null,
+        "system_fingerprint": "fake-fingerprint",
+        "prompt_logprobs": null,
+        "prompt_text": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null,
+        "ec_transfer_params": null,
+        "metrics": null,
     });
     body.to_string()
 }
 
 fn completion_message(step: &Step) -> (serde_json::Value, &'static str) {
     match step {
-        Step::ReplyText { text, .. } => (json!({ "role": "assistant", "content": text }), "stop"),
-        Step::ThinkThenReply { thinking, text, .. } => (
-            json!({ "role": "assistant", "content": text, "reasoning_content": thinking }),
-            "stop",
-        ),
+        Step::ReplyText { text, .. } => (plain_message(text, ""), "stop"),
+        Step::ThinkThenReply { thinking, text, .. } => (plain_message(text, thinking), "stop"),
         Step::CallTool { name, args, .. } => (
-            json!({ "role": "assistant", "content": null, "tool_calls": [{
-                "id": "call_fake", "type": "function",
-                "function": { "name": name, "arguments": args.to_string() } }] }),
+            json!({
+                "role": "assistant",
+                "content": "",
+                "refusal": null,
+                "audio": null,
+                "function_call": null,
+                "reasoning": "",
+                "tool_calls": [{
+                    "id": "call_fake", "type": "function",
+                    "function": { "name": name, "arguments": args.to_string() } }]
+            }),
             "tool_calls",
         ),
         Step::NoResponse { .. }
         | Step::CutOffAfter { .. }
         | Step::StallAfter { .. }
-        | Step::ReplyStatus { .. } => (json!({ "role": "assistant", "content": "" }), "stop"),
+        | Step::ReplyStatus { .. } => (plain_message("", ""), "stop"),
     }
+}
+
+fn plain_message(text: &str, thinking: &str) -> serde_json::Value {
+    json!({
+        "role": "assistant",
+        "content": text,
+        "refusal": null,
+        "audio": null,
+        "function_call": null,
+        "reasoning": thinking,
+    })
 }

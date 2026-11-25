@@ -120,13 +120,14 @@ const TOKIO_FS_ALLOWED: [&str; 5] = [
     "anybot-foundation",
     "test-harness",
 ];
-const HTTP_CLIENT_ALLOWED: [&str; 6] = [
+const HTTP_CLIENT_ALLOWED: [&str; 7] = [
     "anybot-models",
     "anybot-mcp",
     "anybot-sync",
     "anybot-channels",
     "anybot-computers",
     "test-harness",
+    "live-model",
 ];
 
 #[must_use]

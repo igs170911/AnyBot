@@ -4,7 +4,8 @@
 
 ## 跑測試
 
-- Rust 一律用 `cargo nextest run`（不要用 `cargo test`）。.make 目標：`make check` 裡有 `test` 關卡。
+- Rust 一律用 `cargo nextest run`（不要用 `cargo test`）。make 目標：`make check` 裡有 `test` 關卡；`make check-fast` 跑 `make test-fast`（`--profile quick`：跳過 PostgreSQL 群組的測試，e2e 是分開的目標）。
+- `make live-model-check`（`tests/live-model`）：跟真的本機模型比對請求格式（一般／串流／工具呼叫），設定只讀 `target/live-model/profile.toml`，只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印；差異報告寫在 `target/live-model/format-report.txt`。不在 `make check`、`make check-fast`、CI 裡。
 - TypeScript 用 `pnpm vitest run`；端對端用 Playwright（見第二節）。
 - 逾時設定在 `.config/nextest.toml`：每個測試 30 秒慢速警戒，第 4 次逾時就終止。PostgreSQL 相關的測試另有 90 秒寬限，並在同一群組裡序列化執行（平行度 1）。
 
@@ -15,7 +16,7 @@
 | `scratch.rs` | 所有測試檔案都放在 `target/`（repo 內、已 gitignore） | 不准寫到 `target/` 以外 |
 | `process.rs` / `launch.rs` / `running.rs` | 啟動程式、等輸出、用 PID 收掉自己啟動的程式 | 每個等待都有期限；逾時就收 PID 並回錯誤 |
 | `ports.rs` | 保留空閒 port，占用時排除 | 不准在正式程式加 `SO_REUSEPORT` 之类 |
-| `netctl.rs` / `netproxy.rs` | 網路控制：allow / cut / 代理模式；所有測試流量走代理 | 測試要用代理出口，不准直接連外 |
+| `netctl.rs` / `netproxy.rs` / `origin.rs` | 網路控制：allow / cut / slow / down / buffer / idle-cut / source-addr；所有測試流量走代理 | 自我測試在 `tests/netctl_real.rs`：真的連線穿過代理驗每種行為（延遲、頻寬可量測），不准直接連外 |
 | `fake_clock.rs` | 假時鐘：實現在 `anybot_foundation::clock::Clock`；`advance()` 依到期順序喚醒 | 正式程式只准透過 `Clock` 介面等時間；`tokio::time::sleep/timeout` 在產品程式被 clippy 禁用，foundation 與 harness 豁免 |
 | `model_script.rs` / `model_openai.rs` / `model_anthropic.rs` / `model_plan.rs` / `fake_model.rs` | 假模型伺服器：照腳本回 OpenAI / Anthropic responses（串流、JSON、tool、reasoning、中斷、卡死、無回應、錯誤狀態），並記錄收到的請求 | 腳本依序回應；空腳本回錯誤 |
 | `http.rs` / `realtime.rs` | 測試用的 HTTP/SSE/WebSocket helper；`timeout_real` 给非同步等待包上真時間期限 | 等待外部的東西一律要有期限 |
@@ -39,7 +40,8 @@
 - 測試環境程式 `tests/testenv`（執行檔 `testenv`）：啟動假網路代理、假模型、假推播、假時鐘、真正的伺服器（`AppState::with_clock`），再啟動控制 API；啟動完成後在 stdout 印一行 `testenv ready {port 報告}`，測試由 `globalSetup` 啟動它、解析這行、把 port 寫進 `target/scratch/testenv-ports.json`，收工時用 PID 收掉。
 - 控制 API（只給測試環境用，不在產品裡）：`/control/status`、`/control/model/script`（POST 寫腳本）、`/control/model/requests`（GET 讀記錄）、`/control/clock/advance`（POST 快轉假時鐘）、`/control/net/cut`、`/control/net/restore`、`/control/push/records`（GET 讀推播記錄）。
 - Playwright 設定在 `tests/e2e/playwright.config.ts`，情境專案：
-  - `phone-max-font`：WebKit + iPhone 15 Pro 視口（393×852，deviceScaleFactor 3）。最大字級模擬方式：Playwright 沒有字級縮放選項，測試在頁面注入 `html { font-size: 170%; }`，等於 iOS Safari 最大 Dynamic Type 的放大效果，專案用自訂屬性 `maxTextZoom: "1.7"` 標明倍率。
+  - `phone-max-font`：WebKit + `iPhone SE (3rd gen)` 裝置描述（375×667、deviceScaleFactor 2，是最小的現役 iPhone 尺寸）。最大字級模擬方式：iOS 最大輔助字級是內文 53pt、預設 17pt，53/17 ≈ 3.1；Playwright 沒有字級縮放選項，測試在頁面注入 `html { font-size: 310%; }`（專案自訂屬性 `maxTextZoom: "3.1"`），比例與 iOS Dynamic Type 最大值一致。
+  - 每個情境每個測試都留截圖（`screenshot: "on"`），路徑在 `target/e2e-screens/<專案>--<測試標題>.png`（`src/act.ts` 的 `registerScenarioScreenshots` 用 `test.afterEach` 存檔，不只失敗時）。
   - `desktop-large`：Chromium 1600×1000。
   - `rtl-arabic`：locale `ar`（RTL 版面規則要等 M8 的 UI，現在只做煙霧測試）。
   - `dark-mode`：colorScheme dark。

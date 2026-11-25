@@ -1,9 +1,16 @@
 import { expect, test } from "@playwright/test";
 
-import { collectConsoleErrors, expectNoHorizontalScroll, screenShowsCode } from "./src/act.ts";
+import {
+  collectConsoleErrors,
+  expectNoHorizontalScroll,
+  registerScenarioScreenshots,
+  screenShowsCode,
+} from "./src/act.ts";
 import { scenarioLang } from "./src/ftl.ts";
 
 const SHELL_BRAND = "AnyBot";
+
+registerScenarioScreenshots();
 
 test("smoke: shell renders, no horizontal overflow, console clean", async ({ page }) => {
   const lang = scenarioLang(test.info().project.use.locale);

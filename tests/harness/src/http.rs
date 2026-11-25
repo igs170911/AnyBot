@@ -71,6 +71,10 @@ pub async fn request(
     Ok((code, text))
 }
 
+pub async fn http_send_get(client: &reqwest::Client, url: &str) -> Result<(u16, String), String> {
+    request(client, Method::GET, url, None).await
+}
+
 pub fn plain_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
@@ -83,9 +87,39 @@ pub fn client_via_proxy(proxy_addr: &str) -> Result<reqwest::Client, String> {
         .map_err(|e| format!("build proxy {proxy_addr} failed: {e}"))?;
     reqwest::Client::builder()
         .proxy(proxy)
-        .timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(60))
         .build()
         .map_err(|e| format!("build proxied client failed: {e}"))
+}
+
+pub async fn sse_post_client(
+    client: &reqwest::Client,
+    url: &str,
+    body: &str,
+) -> Result<Vec<String>, String> {
+    let response = client
+        .post(url)
+        .body(body.to_owned())
+        .send()
+        .await
+        .map_err(|e| format!("POST {url} failed: {e}"))?;
+    let code = response.status().as_u16();
+    if code != 200 {
+        return Err(format!("SSE POST {url} returned status {code}"));
+    }
+    collect_sse_lines(response).await
+}
+
+pub async fn sse_send(builder: reqwest::RequestBuilder) -> Result<Vec<String>, String> {
+    let response = builder
+        .send()
+        .await
+        .map_err(|e| format!("SSE request failed: {e}"))?;
+    let code = response.status().as_u16();
+    if code != 200 {
+        return Err(format!("SSE request returned status {code}"));
+    }
+    collect_sse_lines(response).await
 }
 
 pub async fn sse_lines(url: &str) -> Result<Vec<String>, String> {
