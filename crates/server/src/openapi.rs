@@ -30,8 +30,13 @@ impl Modify for BearerAuth {
         ),
         contact(name = "AnyBot dev team"),
     ),
-    paths(crate::health::health),
-    components(schemas(crate::health::HealthResponse, anybot_protocol::ProblemJson)),
+    paths(crate::health::health, crate::status::status, crate::status::stop),
+    components(schemas(
+        crate::health::HealthResponse,
+        crate::status::StatusResponse,
+        crate::status::StopAck,
+        anybot_protocol::ProblemJson,
+    )),
     servers(
         (url = "http://127.0.0.1:8787", description = "loopback development server (M3 listens on loopback only)"),
         (url = "http://[::1]:8787", description = "loopback IPv6 development server"),
@@ -39,7 +44,7 @@ impl Modify for BearerAuth {
     security(("bearer" = [])),
     modifiers(&BearerAuth),
     tags(
-        (name = "system", description = "the server itself: health check and startup state")
+        (name = "system", description = "the server itself: health, status, stop")
     )
 )]
 pub struct ApiDoc;

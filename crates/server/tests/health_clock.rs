@@ -5,6 +5,7 @@ use anybot_domain as _;
 use anybot_foundation as _;
 use anybot_protocol as _;
 use anybot_store_server as _;
+use getrandom as _;
 use serde as _;
 use socket2 as _;
 use utoipa as _;

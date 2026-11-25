@@ -5,6 +5,12 @@ use serde;
 #[serde(rename_all = "kebab-case")]
 pub enum MessageCode {
     ServerStartupListening,
+    ServerDbForeignData,
+    ServerDbConnectRetry,
+    ServerMigrationFailed,
+    ServerListenAddressInvalid,
+    ServerStartupNoAccounts,
+    ServerStartupInviteGenerated,
     ServerPortUnusable,
     ServerArgumentsInvalid,
     ServerBootstrapMissing,
@@ -50,6 +56,12 @@ impl MessageCode {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::ServerStartupListening => "server-startup-listening",
+            Self::ServerDbForeignData => "server-db-foreign-data",
+            Self::ServerDbConnectRetry => "server-db-connect-retry",
+            Self::ServerMigrationFailed => "server-migration-failed",
+            Self::ServerListenAddressInvalid => "server-listen-address-invalid",
+            Self::ServerStartupNoAccounts => "server-startup-no-accounts",
+            Self::ServerStartupInviteGenerated => "server-startup-invite-generated",
             Self::ServerPortUnusable => "server-port-unusable",
             Self::ServerArgumentsInvalid => "server-arguments-invalid",
             Self::ServerBootstrapMissing => "server-bootstrap-missing",
@@ -89,6 +101,12 @@ impl MessageCode {
     pub fn from_code(text: &str) -> Option<Self> {
         match text {
             "server-startup-listening" => Some(Self::ServerStartupListening),
+            "server-db-foreign-data" => Some(Self::ServerDbForeignData),
+            "server-db-connect-retry" => Some(Self::ServerDbConnectRetry),
+            "server-migration-failed" => Some(Self::ServerMigrationFailed),
+            "server-listen-address-invalid" => Some(Self::ServerListenAddressInvalid),
+            "server-startup-no-accounts" => Some(Self::ServerStartupNoAccounts),
+            "server-startup-invite-generated" => Some(Self::ServerStartupInviteGenerated),
             "server-port-unusable" => Some(Self::ServerPortUnusable),
             "server-arguments-invalid" => Some(Self::ServerArgumentsInvalid),
             "server-bootstrap-missing" => Some(Self::ServerBootstrapMissing),
@@ -131,6 +149,12 @@ impl MessageCode {
     pub fn all() -> Vec<Self> {
         vec![
             Self::ServerStartupListening,
+            Self::ServerDbForeignData,
+            Self::ServerDbConnectRetry,
+            Self::ServerMigrationFailed,
+            Self::ServerListenAddressInvalid,
+            Self::ServerStartupNoAccounts,
+            Self::ServerStartupInviteGenerated,
             Self::ServerPortUnusable,
             Self::ServerArgumentsInvalid,
             Self::ServerBootstrapMissing,

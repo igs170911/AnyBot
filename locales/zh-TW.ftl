@@ -1,4 +1,10 @@
-server-startup-listening = AnyBot 伺服務器 v{ $version }：聽 127.0.0.1:{ $port }、[::1]:{ $port }（資料庫 { $db_host }/{ $db_name }）
+server-startup-listening = AnyBot 伺服務器 v{ $version }：聽 { $addresses }（資料庫 { $db_host }/{ $db_name }）
+server-db-foreign-data = 資料庫 { $db_host }/{ $db_name } 裡有不是 AnyBot 的資料：為了不弄壞它，停止啟動。
+server-db-connect-retry = 連不到資料庫 { $db_host }：{ $reason }；{ $seconds } 秒後重試
+server-migration-failed = 資料庫遷移失敗：{ $reason }
+server-listen-address-invalid = 傾聽地址 { $address } 不是合法地址：{ $reason }
+server-startup-no-accounts = 還沒有任何帳號：第一個註冊的人會成為這台伺服器的管理者。
+server-startup-invite-generated = 已產生邀請碼 { $code }；只分享给你信任的人。
 server-port-unusable = 無法使用連接埠 { $port }：{ $reason }
 server-arguments-invalid = 命令列參數無效：{ $reason }
 server-bootstrap-missing = 找不到啟動檔（用 --bootstrap 指定）

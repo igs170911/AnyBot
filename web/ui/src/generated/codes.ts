@@ -2,6 +2,12 @@
 // Source: locales/en.ftl
 export type MessageCode =
   "server-startup-listening" |
+  "server-db-foreign-data" |
+  "server-db-connect-retry" |
+  "server-migration-failed" |
+  "server-listen-address-invalid" |
+  "server-startup-no-accounts" |
+  "server-startup-invite-generated" |
   "server-port-unusable" |
   "server-arguments-invalid" |
   "server-bootstrap-missing" |
@@ -35,6 +41,12 @@ export type MessageCode =
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
+  "server-db-foreign-data",
+  "server-db-connect-retry",
+  "server-migration-failed",
+  "server-listen-address-invalid",
+  "server-startup-no-accounts",
+  "server-startup-invite-generated",
   "server-port-unusable",
   "server-arguments-invalid",
   "server-bootstrap-missing",

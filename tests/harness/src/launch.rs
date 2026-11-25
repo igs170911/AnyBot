@@ -15,6 +15,7 @@ pub struct Program {
     pub path: PathBuf,
     pub args: Vec<String>,
     pub timeout: Duration,
+    pub env: Vec<(String, String)>,
 }
 
 impl Program {
@@ -24,6 +25,7 @@ impl Program {
             path: PathBuf::from(path),
             args,
             timeout: DEFAULT_TIMEOUT,
+            env: Vec::new(),
         }
     }
 
@@ -33,10 +35,19 @@ impl Program {
         self
     }
 
+    #[must_use]
+    pub fn with_env(mut self, key: &str, value: &str) -> Self {
+        self.env.push((key.to_owned(), value.to_owned()));
+        self
+    }
+
     fn build_command(&self, dir: &Path) -> Command {
         let mut cmd = Command::new(&self.path);
         cmd.args(&self.args);
         cmd.current_dir(dir);
+        for (key, value) in &self.env {
+            cmd.env(key, value);
+        }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
         cmd

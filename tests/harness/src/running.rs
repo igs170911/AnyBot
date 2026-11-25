@@ -109,7 +109,7 @@ impl Running {
             .unwrap_or_else(|err| format!("stderr unreadable: {err}"))
     }
 
-    fn stderr_note(&mut self) -> String {
+    pub fn stderr_note(&mut self) -> String {
         match self.stderr.try_recv() {
             Ok(buf) => String::from_utf8_lossy(&buf).into_owned(),
             Err(_) => "(nothing collected yet)".to_owned(),

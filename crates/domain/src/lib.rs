@@ -4,6 +4,7 @@ use serde_json as _;
 use serde_json as _;
 pub mod goal_brake;
 pub mod goal_followup;
+pub mod invite;
 pub mod task_attention;
 pub mod task_budget;
 pub mod task_effects;
@@ -19,6 +20,7 @@ pub mod task_stall;
 pub mod task_view;
 
 pub use anybot_protocol::TaskStatus;
+pub use invite::{INVITE_ALPHABET, alphabet_len, format_invite, is_valid_invite};
 pub use task_attention::{counts_as_failure, counts_in_task_badge};
 pub use task_effects::{ResumeAction, resume_action};
 pub use task_engine::advance;

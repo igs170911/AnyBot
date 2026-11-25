@@ -125,11 +125,14 @@ fn parse_connect_authority(head: &str) -> Result<SocketAddr, String> {
     Ok(addr)
 }
 
-async fn connect_real(spec: &TargetSpec) -> Result<TcpStream, String> {
+pub(crate) async fn connect_real(spec: &TargetSpec) -> Result<TcpStream, String> {
     connect_real_addr(spec, spec.real).await
 }
 
-async fn connect_real_addr(spec: &TargetSpec, addr: SocketAddr) -> Result<TcpStream, String> {
+pub(crate) async fn connect_real_addr(
+    spec: &TargetSpec,
+    addr: SocketAddr,
+) -> Result<TcpStream, String> {
     if matches!(spec.mode, NetMode::Cut | NetMode::Down) {
         return Err("network cut".to_owned());
     }

@@ -27,6 +27,13 @@ pub fn bind_pair() -> Result<(StdTcpListener, StdTcpListener, u16), String> {
     Ok((v4, v6, port))
 }
 
+pub fn free_dual_port() -> Result<u16, String> {
+    let (v4, v6, port) = bind_pair()?;
+    drop(v4);
+    drop(v6);
+    Ok(port)
+}
+
 #[must_use]
 pub fn port_is_free(port: u16) -> bool {
     StdTcpListener::bind(("127.0.0.1", port)).is_ok()

@@ -86,7 +86,15 @@ impl Line for FailureLine {
 }
 
 pub fn line_text<L: Line>(catalog: &mut Catalog, line: &L) -> Result<String, MessagesError> {
-    catalog.format(Lang::default_lang(), &line.code(), line.params())
+    line_text_in(catalog, Lang::default_lang(), line)
+}
+
+pub fn line_text_in<L: Line>(
+    catalog: &mut Catalog,
+    lang: Lang,
+    line: &L,
+) -> Result<String, MessagesError> {
+    catalog.format(lang, &line.code(), line.params())
 }
 
 pub fn emit(text: &str, out: &mut impl Write) -> std::io::Result<()> {
@@ -100,7 +108,7 @@ mod tests {
     fn startup_params() -> Params {
         Params::new()
             .with_text("version", "9.9.9")
-            .with_int("port", 8787)
+            .with_text("addresses", "127.0.0.1:32_411, [::1]:32_411")
             .with_text("db_host", "127.0.0.1")
             .with_text("db_name", "anybot_next_test")
     }
@@ -110,7 +118,7 @@ mod tests {
         let mut catalog = Catalog::new();
         let text = line_text(&mut catalog, &StartupLine::new(startup_params())).unwrap();
         assert!(text.contains("AnyBot server v9.9.9"), "{text}");
-        assert!(text.contains("127.0.0.1:8787"), "{text}");
+        assert!(text.contains("127.0.0.1:32_411"), "{text}");
     }
 
     #[test]

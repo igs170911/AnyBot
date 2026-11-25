@@ -6,6 +6,7 @@ use anybot_foundation as _;
 use anybot_protocol as _;
 use anybot_store_server as _;
 use axum as _;
+use getrandom as _;
 use serde as _;
 use serde_json as _;
 use socket2 as _;

@@ -78,7 +78,10 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert("iron-laws".to_owned(), BTreeSet::new());
     m.insert(
         "test-harness".to_owned(),
-        BTreeSet::from(["anybot-foundation".to_owned()]),
+        BTreeSet::from([
+            "anybot-foundation".to_owned(),
+            "anybot-store-server".to_owned(),
+        ]),
     );
     m.insert(
         "testenv".to_owned(),

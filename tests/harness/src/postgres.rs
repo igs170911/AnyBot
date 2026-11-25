@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tokio::net::TcpStream;
 
 use postgresql_embedded::{PostgreSQL, Settings, VersionReq};
 
@@ -8,6 +9,7 @@ pub const PG_VERSION_EXACT: &str = "=17.6.0";
 pub struct PgInstance {
     server: PostgreSQL,
     base_dir: PathBuf,
+    bound_port: u16,
 }
 
 impl PgInstance {
@@ -18,7 +20,17 @@ impl PgInstance {
 
     #[must_use]
     pub fn port(&self) -> u16 {
-        self.server.settings().port
+        self.bound_port
+    }
+
+    #[must_use]
+    pub fn user(&self) -> String {
+        self.server.settings().username.clone()
+    }
+
+    #[must_use]
+    pub fn password(&self) -> anybot_foundation::Secret {
+        anybot_foundation::Secret::from_untrusted(self.server.settings().password.clone())
     }
 
     #[must_use]
@@ -26,7 +38,11 @@ impl PgInstance {
         let settings = self.server.settings();
         format!(
             "postgres://{}:{}@{}:{}/{}",
-            settings.username, settings.password, settings.host, settings.port, database
+            settings.username,
+            settings.password,
+            settings.host,
+            self.port(),
+            database
         )
     }
 
@@ -90,7 +106,8 @@ pub async fn pg_start(base_dir: &Path) -> Result<PgInstance, String> {
         host: "127.0.0.1".to_owned(),
         username: "postgres".to_owned(),
         password: pg_generated_password(),
-        data_dir,
+        port: 0,
+        data_dir: data_dir.clone(),
         socket_dir: Some(base_dir.to_path_buf()),
         password_file: base_dir.join("pw"),
         installation_dir,
@@ -108,10 +125,29 @@ pub async fn pg_start(base_dir: &Path) -> Result<PgInstance, String> {
         .start()
         .await
         .map_err(|e| format!("postgres start failed: {e}"))?;
+    let bound_port = resolve_bound_port(&data_dir, server.settings().port).await?;
     Ok(PgInstance {
         server,
         base_dir: base_dir.to_path_buf(),
+        bound_port,
     })
+}
+
+async fn resolve_bound_port(data_dir: &Path, wanted: u16) -> Result<u16, String> {
+    for _tick in 0..150 {
+        let probe = pid_file_port(data_dir).unwrap_or(wanted);
+        if TcpStream::connect(("127.0.0.1", probe)).await.is_ok() {
+            return Ok(probe);
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    Err(format!("postgres port {wanted} never answered"))
+}
+
+fn pid_file_port(data_dir: &Path) -> Option<u16> {
+    let text = std::fs::read_to_string(data_dir.join("postmaster.pid")).ok()?;
+    let line = text.lines().nth(3)?;
+    line.trim().parse::<u16>().ok()
 }
 
 pub async fn pg_stop(instance: &PgInstance) -> Result<(), String> {

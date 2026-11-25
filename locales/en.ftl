@@ -1,4 +1,10 @@
-server-startup-listening = AnyBot server v{ $version }: listening on 127.0.0.1:{ $port } and [::1]:{ $port } (database { $db_host }/{ $db_name })
+server-startup-listening = AnyBot server v{ $version }: listening on { $addresses } (database { $db_host }/{ $db_name })
+server-db-foreign-data = The database { $db_host }/{ $db_name } contains data that is not AnyBot's: stopping to avoid breaking it.
+server-db-connect-retry = Cannot connect to the database { $db_host }: { $reason }; retrying in { $seconds } seconds
+server-migration-failed = Database migration failed: { $reason }
+server-listen-address-invalid = Listen address { $address } is not a valid address: { $reason }
+server-startup-no-accounts = No accounts yet: the first person to register will become this server's admin.
+server-startup-invite-generated = Generated invite code { $code }; share it only with people you trust.
 server-port-unusable = Cannot use port { $port }: { $reason }
 server-arguments-invalid = Command line arguments are invalid: { $reason }
 server-bootstrap-missing = Bootstrap file not found (specify it with --bootstrap)

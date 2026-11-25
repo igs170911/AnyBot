@@ -9,6 +9,16 @@ use sqlx as _;
 use toml as _;
 use url as _;
 
+pub fn test_tracing() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        let _set = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .try_init();
+    });
+}
+
 pub mod fake_clock;
 pub mod fake_model;
 pub mod fake_push;
@@ -23,6 +33,7 @@ pub mod netctl;
 pub(crate) mod netctl_state;
 pub mod netproxy;
 pub(crate) mod netproxy_flow;
+pub mod netproxy_raw;
 pub mod origin;
 pub mod ports;
 pub mod postgres;
@@ -31,6 +42,7 @@ pub mod push_crypto;
 pub mod realtime;
 pub mod running;
 pub mod scratch;
+pub mod serverdb;
 
 pub use fake_clock::{
     ClockGone, FakeClock, advance_clock, sleep_for, sleep_until, timeout as fake_clock_timeout,
@@ -57,7 +69,8 @@ pub use origin::{
 
 pub use netctl::{
     NetMode, net_attach, net_buffer, net_connect_tunnel, net_cut, net_cut_target, net_down,
-    net_idle_cut, net_mode, net_restore, net_restore_target, net_slow, net_source_addr, net_start,
+    net_idle_cut, net_mode, net_probe_open, net_restore, net_restore_target, net_slow,
+    net_source_addr, net_start, net_start_raw,
 };
 pub use ports::{bind_pair, bind_v4, bind_v6, port_is_free};
 pub use postgres::{
@@ -66,5 +79,6 @@ pub use postgres::{
 pub use push_crypto::{SubscriptionKeys, subscription_endpoint};
 pub use realtime::{sleep_real, timeout_real};
 pub use running::Running;
+pub use serverdb::{ServerDb, db_start, migration_fixture};
 
 pub use scratch::{repo_root, test_dir, write_file_with_mode};
