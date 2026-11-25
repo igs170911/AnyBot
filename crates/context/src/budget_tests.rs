@@ -38,7 +38,6 @@ fn with_turns(
         prior_chat,
         model: sup::plan(usable),
         compact_requested: false,
-        secrets: Vec::new(),
     }
 }
 

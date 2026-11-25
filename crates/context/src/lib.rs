@@ -1,4 +1,5 @@
 pub mod assemble;
+pub mod chat;
 pub mod collapse;
 pub mod compile;
 mod compile_must;
@@ -20,6 +21,7 @@ pub mod state_render;
 use anybot_domain as _;
 
 pub use assemble::block;
+pub use chat::{bot_block, bot_blocks, prior_blocks, user_block};
 pub use collapse::{StepView, recorded_collapsed};
 pub use compile::compile;
 pub use digest::content_digest;
@@ -68,6 +70,9 @@ mod mask_pair_tests;
 #[cfg(test)]
 #[path = "mask_tests.rs"]
 mod mask_tests;
+#[cfg(test)]
+#[path = "request_tests.rs"]
+mod request_tests;
 
 #[cfg(test)]
 #[path = "mask_prop_tests.rs"]

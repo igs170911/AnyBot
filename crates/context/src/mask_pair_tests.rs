@@ -32,7 +32,6 @@ fn step_input(
         prior_chat: Vec::new(),
         model: sup::plan(usable),
         compact_requested: false,
-        secrets: Vec::new(),
     }
 }
 

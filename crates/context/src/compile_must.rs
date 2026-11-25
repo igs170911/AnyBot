@@ -5,11 +5,19 @@ use crate::mask::result_summary;
 use crate::output::{Block, BlockForm, BlockKind};
 
 pub(crate) fn mandatory_raw(a: &Assembled) -> u64 {
-    a.core
+    let core = a
+        .prefix
         .iter()
+        .chain(a.core.iter())
+        .chain(a.tail.iter())
         .filter(|b| is_mandatory(b.kind))
         .map(|b| b.estimate_raw)
-        .sum()
+        .sum();
+    a.prefix
+        .iter()
+        .map(|b| b.estimate_raw)
+        .sum::<u64>()
+        .saturating_add(core)
 }
 
 pub(crate) fn is_mandatory(kind: BlockKind) -> bool {
@@ -26,14 +34,30 @@ pub(crate) fn is_mandatory(kind: BlockKind) -> bool {
     )
 }
 
-pub(crate) fn must_blocks(input: &BuildInput, state: &crate::state::StateBuilder) -> Vec<Block> {
+pub(crate) fn criteria_blocks(state: &crate::state::StateBuilder) -> Vec<Block> {
+    state
+        .criteria
+        .iter()
+        .enumerate()
+        .map(|(idx, c)| {
+            block(
+                BlockKind::Criterion,
+                BlockForm::Verbatim,
+                vec![format!("criterion-{idx}")],
+                c.text.clone(),
+            )
+        })
+        .collect()
+}
+
+pub(crate) fn tail_blocks(input: &BuildInput, state: &crate::state::StateBuilder) -> Vec<Block> {
     let mut out = Vec::new();
-    for (idx, c) in state.criteria.iter().enumerate() {
+    for (idx, q) in input.open_questions.iter().enumerate() {
         out.push(block(
-            BlockKind::Criterion,
+            BlockKind::OpenQuestion,
             BlockForm::Verbatim,
-            vec![format!("criterion-{idx}")],
-            c.text.clone(),
+            vec![format!("input-question-{idx}")],
+            q.clone(),
         ));
     }
     if let Some(step) = open_step(state) {
@@ -50,6 +74,14 @@ pub(crate) fn must_blocks(input: &BuildInput, state: &crate::state::StateBuilder
             BlockForm::Verbatim,
             vec![format!("question-{seq}")],
             format!("open question: {action}"),
+        ));
+    }
+    for (seq, answer) in &state.answers {
+        out.push(block(
+            BlockKind::OpenQuestion,
+            BlockForm::Verbatim,
+            vec![format!("answer-{seq}")],
+            format!("card answer: {answer}"),
         ));
     }
     for (id, seq) in state.pending.iter().chain(state.unknowns.iter()) {

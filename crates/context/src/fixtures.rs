@@ -38,6 +38,7 @@ pub(crate) fn long_chat_record(prefix: &'static str, index: usize) -> BoxedStrat
 pub(crate) fn chat_record(prefix: &'static str, index: usize) -> BoxedStrategy<ChatRecord> {
     mixed_text(400)
         .prop_map(move |text| ChatRecord {
+            seq: 1,
             record_id: format!("{prefix}-{index}"),
             text,
         })
@@ -86,6 +87,7 @@ pub(crate) fn step_record(index: usize) -> BoxedStrategy<StepRecord> {
                     .map(|d: &usize| width.checked_div(*d).unwrap_or(0))
                     .collect();
                 StepRecord {
+                    seq: u64::try_from(index).unwrap_or(0).saturating_add(1),
                     call_id: CallId::generate(&SystemClock),
                     tool: format!("tool{index}"),
                     args_summary: args,
@@ -276,7 +278,6 @@ pub(crate) fn build_input(
                     prior_chat: prior,
                     model,
                     compact_requested: compact,
-                    secrets: Vec::new(),
                 }
             },
         )

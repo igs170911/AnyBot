@@ -34,6 +34,7 @@ pub struct StateBuilder {
     pub steps: BTreeMap<String, StepState>,
     pub evidence: Vec<(u64, String)>,
     pub questions: Vec<(u64, String)>,
+    pub answers: Vec<(u64, String)>,
     pub pending: BTreeMap<String, u64>,
     pub unknowns: BTreeMap<String, u64>,
     pub budget: BTreeMap<BudgetItem, (u64, u64)>,
@@ -58,7 +59,7 @@ fn apply(b: &mut StateBuilder, seq: u64, kind: &TaskEventKind) {
 }
 
 pub(crate) fn criterion_text(criterion: &Criterion) -> String {
-    serde_json::to_string(criterion).unwrap_or_else(|_| format!("{criterion:?}"))
+    format!("{criterion:?}")
 }
 
 fn set_criteria(b: &mut StateBuilder, seq: u64, items: &[Criterion]) {
@@ -235,6 +236,9 @@ fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         KnownTaskEventKind::CardShown { action } => {
             b.questions.push((seq, action.clone()));
         }
+        KnownTaskEventKind::CardAnswered { answer } => {
+            b.answers.push((seq, format!("{answer:?}")));
+        }
         KnownTaskEventKind::ModelSwapped { from, to, .. } => {
             b.swaps.push((seq, from.clone(), to.clone()));
         }
@@ -260,7 +264,6 @@ fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::Reconciled { .. }
         | KnownTaskEventKind::ActionVerified { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
-        | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::ComputerOffline

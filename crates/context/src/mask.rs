@@ -68,6 +68,32 @@ fn take_chars(text: &str, skip: usize, count: usize) -> String {
     text.chars().skip(skip).take(count).collect()
 }
 
+fn clip(start: usize, end: usize, total: usize) -> (usize, usize) {
+    (start.min(total), end.min(total).max(start.min(total)))
+}
+
+fn merge_intervals(intervals: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    let mut sorted: Vec<(usize, usize)> = intervals.to_vec();
+    sorted.sort_unstable();
+    let mut out: Vec<(usize, usize)> = Vec::new();
+    for (start, end) in sorted {
+        if end <= start {
+            continue;
+        }
+        let hit = out.last_mut().and_then(|last| {
+            if start <= last.1 {
+                last.1 = end.max(last.1);
+                return Some(true);
+            }
+            None
+        });
+        if hit.is_none() {
+            out.push((start, end));
+        }
+    }
+    out
+}
+
 fn elision(elided: usize, source_ref: &str) -> String {
     format!("[elided {elided} chars, full text ref={source_ref}] ")
 }
@@ -80,29 +106,28 @@ pub fn render_view(step: &StepRecord, limit: usize) -> String {
     }
     let has_error = !step.error_at.is_empty();
     let w = windows(limit, has_error);
-    let mut out = take_chars(&step.content, 0, w.head);
-    out.push_str(&elision(
-        total.saturating_sub(w.head.saturating_add(w.tail)),
-        &step.source_ref,
-    ));
-    if has_error {
-        out.push_str(&error_window(&step.content, &step.error_at, w.middle));
+    let mut intervals: Vec<(usize, usize)> = vec![(0, w.head)];
+    if let Some(last) = step.error_at.iter().max() {
+        let half = w.middle.saturating_div(2);
+        intervals.push(clip(
+            last.saturating_sub(half),
+            last.saturating_add(half),
+            total,
+        ));
     }
-    out.push_str(&take_chars(
-        &step.content,
-        total.saturating_sub(w.tail),
-        w.tail,
-    ));
-    out
-}
-
-fn error_window(content: &str, error_at: &[usize], width: usize) -> String {
+    intervals.push(clip(total.saturating_sub(w.tail), total, total));
+    let merged = merge_intervals(&intervals);
     let mut out = String::new();
-    let half = width.saturating_div(2);
-    for pos in error_at.iter().take(4) {
-        let skip = pos.saturating_sub(half);
-        out.push_str(&take_chars(content, skip, width));
-        out.push_str(" [error@] ");
+    let mut cursor = 0usize;
+    for (start, end) in merged {
+        if start > cursor {
+            out.push_str(&elision(start.saturating_sub(cursor), &step.source_ref));
+        }
+        out.push_str(&take_chars(&step.content, start, end.saturating_sub(start)));
+        cursor = end;
+    }
+    if cursor < total {
+        out.push_str(&elision(total.saturating_sub(cursor), &step.source_ref));
     }
     out
 }

@@ -85,10 +85,17 @@ impl CompiledRequest {
     }
 }
 
+impl BlockKind {
+    #[must_use]
+    pub fn role(self) -> Role {
+        block_role(self)
+    }
+}
+
 #[must_use]
 fn block_message(block: &Block) -> anybot_models::Message {
     anybot_models::Message {
-        role: block_role(block.kind),
+        role: block.kind.role(),
         text: block.text.clone(),
         tool_calls: Vec::new(),
         tool_call_id: None,
@@ -174,11 +181,19 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    pub fn record_actual(&mut self, actual_input_tokens: u64) {
+    pub fn record_actual(
+        &mut self,
+        actual_input_tokens: u64,
+    ) -> Result<(), anybot_foundation::FoundationError> {
         self.actual_input_tokens = Some(actual_input_tokens);
-        let raw = i64::try_from(self.budget.estimate_calibrated).unwrap_or(i64::MAX);
-        let actual = i64::try_from(actual_input_tokens).unwrap_or(i64::MAX);
+        let raw = i64::try_from(self.budget.estimate_calibrated).map_err(|_| {
+            anybot_foundation::FoundationError::IdParse("estimate too large".to_owned())
+        })?;
+        let actual = i64::try_from(actual_input_tokens).map_err(|_| {
+            anybot_foundation::FoundationError::IdParse("actual too large".to_owned())
+        })?;
         self.estimate_delta = Some(actual.saturating_sub(raw));
+        Ok(())
     }
 }
 

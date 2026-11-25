@@ -29,6 +29,7 @@ fn long_output_head_tail_error() {
         .map(|(idx, _)| vec![idx])
         .unwrap_or_default();
     let step = StepRecord {
+        seq: 1,
         call_id: sup::step_len(0, 0, "r").call_id,
         tool: "cmd".to_owned(),
         args_summary: "run".to_owned(),

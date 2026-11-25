@@ -133,6 +133,9 @@ fn push_simple(b: &StateBuilder, items: &mut Vec<SummaryItem>) {
     for (seq, action) in &b.questions {
         items.push(item(format!("open question: {action} [seq {seq}]"), *seq));
     }
+    for (seq, answer) in &b.answers {
+        items.push(item(format!("card answer: {answer} [seq {seq}]"), *seq));
+    }
     for (id, seq) in &b.pending {
         items.push(item(format!("pending action {id} [seq {seq}]"), *seq));
     }

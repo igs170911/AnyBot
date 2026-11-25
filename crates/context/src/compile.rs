@@ -2,10 +2,8 @@ use std::collections::BTreeSet;
 
 use anybot_foundation::MessageRef;
 
-use crate::assemble::{
-    StepBlocks, bot_blocks, memory_blocks, prefix_blocks, prior_blocks, step_blocks, text_blocks,
-    user_block,
-};
+use crate::assemble::{StepBlocks, memory_blocks, prefix_blocks, step_blocks};
+use crate::chat::{bot_block, prior_blocks, user_block};
 use crate::collapse::{
     StepView, budget_collapse, model_swapped_after_last_built, plan_collapse, recorded_collapsed,
 };
@@ -17,9 +15,7 @@ use crate::numbers::{
     K114_1_RECENT_STEPS, K114_4_MIN_VERBATIM_STEPS, K114_4_WATERMARK_MILLI,
     K114_6_MEMORY_CAP_MILLI, milli_of,
 };
-use crate::output::{
-    Block, BlockKind, CollapseReason, Compiled, Insufficient, ManifestExcluded, NewEvent,
-};
+use crate::output::{Block, CollapseReason, Compiled, Insufficient, ManifestExcluded, NewEvent};
 use crate::state::build_state;
 use crate::state_render::fit_summary;
 
@@ -158,31 +154,45 @@ pub(crate) struct Assembled {
 fn assemble(input: &BuildInput, stage: &Stage) -> Assembled {
     let builder = build_state(&input.events);
     let summary = fit_summary(&builder);
-    let prefix = prefix_blocks(input);
-    let mut core = Vec::new();
-    core.extend(text_blocks(BlockKind::Constraint, &input.constraints));
-    core.extend(crate::compile_must::must_blocks(input, &builder));
-    core.extend(
-        input
-            .user_turns
-            .iter()
-            .map(|r| user_block(r, input.model.usable())),
-    );
-    core.extend(bot_blocks(&input.bot_turns));
+    let criteria = crate::compile_must::criteria_blocks(&builder);
+    let prefix = prefix_blocks(input, &criteria);
     let steps = step_blocks(&input.steps, &stage.collapsed, input.view_limit);
     let memories = memory_blocks(&input.memories, stage.memory_cap);
     let mut excluded = join_excluded(&steps, &memories);
     excluded.extend(prior_excluded(&input.prior_chat, stage.prior_keep));
-    core.extend(steps.blocks);
-    core.extend(prior_blocks(&input.prior_chat, stage.prior_keep));
+    let core = core_blocks(input, stage, &steps);
     let mut tail = vec![block_summary(&summary)];
-    tail.extend(memories.blocks);
+    tail.extend(crate::compile_must::tail_blocks(input, &builder));
+    tail.extend(memories.all().into_iter().cloned());
     Assembled {
         prefix,
         core,
         tail,
         excluded,
     }
+}
+
+fn core_blocks(input: &BuildInput, stage: &Stage, steps: &StepBlocks) -> Vec<Block> {
+    let mut timed: Vec<(u64, u8, Vec<Block>)> = Vec::new();
+    for (idx, step) in input.steps.iter().enumerate() {
+        if let Some(group) = steps.groups.get(idx) {
+            timed.push((step.seq, 1, group.clone()));
+        }
+    }
+    for r in &input.user_turns {
+        timed.push((r.seq, 2, vec![user_block(r, input.model.usable())]));
+    }
+    for r in &input.bot_turns {
+        timed.push((r.seq, 3, vec![bot_block(r)]));
+    }
+    for (seq, group) in prior_blocks(&input.prior_chat, stage.prior_keep) {
+        timed.push((seq, 4, group));
+    }
+    timed.sort_by_key(|(seq, group, _)| (*seq, *group));
+    timed
+        .into_iter()
+        .flat_map(|(_, _, blocks)| blocks)
+        .collect()
 }
 
 fn prior_excluded(

@@ -27,7 +27,6 @@ fn input_with(
         prior_chat: base.prior_chat.clone(),
         model: sup::plan(usable),
         compact_requested: false,
-        secrets: Vec::new(),
     }
 }
 

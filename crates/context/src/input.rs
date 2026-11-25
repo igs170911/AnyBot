@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use anybot_foundation::{CallId, Secret};
+use anybot_foundation::CallId;
 use anybot_models::{Calibration, Capability, ToolSpec};
 use anybot_protocol::{TaskEvent, ToolEffect};
 
@@ -8,6 +8,7 @@ use anybot_protocol::{TaskEvent, ToolEffect};
 pub struct ChatRecord {
     pub record_id: String,
     pub text: String,
+    pub seq: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,6 +22,7 @@ pub enum StepOutcomeKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StepRecord {
+    pub seq: u64,
     pub call_id: CallId,
     pub tool: String,
     pub args_summary: String,
@@ -107,5 +109,4 @@ pub struct BuildInput {
     pub prior_chat: Vec<ChatRecord>,
     pub model: ModelPlan,
     pub compact_requested: bool,
-    pub secrets: Vec<Secret>,
 }

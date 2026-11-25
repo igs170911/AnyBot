@@ -36,8 +36,6 @@ proptest! {
 fn manifest_excludes_raw_records_and_secrets() {
     let mut base = sup::base_input();
     base.model = sup::plan(50_000);
-    let hidden = sup::secret("hunter2");
-    base.secrets = vec![hidden];
     base.memories = vec![sup::memory("m0", 90, false)];
     base.steps = vec![sup::step_len(0, 800, "r0")];
     match compile(&base).unwrap() {

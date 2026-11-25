@@ -1,5 +1,5 @@
 use anybot_domain::{ContextCollapseReason, ContextCollapsed, collapsed_kind};
-use anybot_foundation::{CallId, EventId, Secret, SystemClock, TimestampMs};
+use anybot_foundation::{CallId, EventId, SystemClock, TimestampMs};
 use anybot_models::{Calibration, Capability, ProviderKind, TokenizerKind, ToolSpec, WireFormat};
 use anybot_protocol::{KnownTaskEventKind, TaskEvent, TaskEventKind, ToolEffect};
 
@@ -51,11 +51,25 @@ pub(crate) fn record(id: &str, text: &str) -> ChatRecord {
     ChatRecord {
         record_id: id.to_owned(),
         text: text.to_owned(),
+        seq: id_tail_number(id),
     }
+}
+
+pub(crate) fn id_tail_number(id: &str) -> u64 {
+    id.chars()
+        .rev()
+        .take_while(char::is_ascii_digit)
+        .collect::<Vec<char>>()
+        .iter()
+        .rev()
+        .collect::<String>()
+        .parse()
+        .unwrap_or(0)
 }
 
 pub(crate) fn step_len(idx: usize, len: usize, ref_id: &str) -> StepRecord {
     StepRecord {
+        seq: u64::try_from(idx).unwrap_or(0).saturating_add(1),
         call_id: CallId::generate(&SystemClock),
         tool: format!("tool{idx}"),
         args_summary: format!("args{idx}"),
@@ -92,12 +106,7 @@ pub(crate) fn base_input() -> BuildInput {
         prior_chat: Vec::new(),
         model: plan(100_000),
         compact_requested: false,
-        secrets: Vec::new(),
     }
-}
-
-pub(crate) fn secret(value: &str) -> Secret {
-    Secret::from_untrusted(value.to_owned())
 }
 
 pub(crate) fn tool_spec(name: &str) -> ToolSpec {

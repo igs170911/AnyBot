@@ -35,7 +35,6 @@ pub(crate) fn rebuilt(
         prior_chat: base.prior_chat.clone(),
         model: base.model.clone(),
         compact_requested: base.compact_requested,
-        secrets: Vec::new(),
     }
 }
 

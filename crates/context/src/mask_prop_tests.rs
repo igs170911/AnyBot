@@ -113,7 +113,6 @@ fn ladder_input(steps: &[StepRecord], constraints: &[String], usable: u64) -> Bu
             .collect(),
         model: sup::plan(usable),
         compact_requested: false,
-        secrets: Vec::new(),
     }
 }
 
@@ -204,9 +203,7 @@ proptest! {
             memories: Vec::new(),
             prior_chat: Vec::new(),
             model,
-            compact_requested: false,
-            secrets: Vec::new(),
-        };
+            compact_requested: false,        };
         match compile(&input).unwrap() {
             Compiled::Sent { request, .. } => {
                 let problems = mask_2_problems(&request, &users, &bots, &steps);
