@@ -57,13 +57,68 @@ export async function syncBrowserClock(request: APIRequestContext, page: Page): 
 }
 
 export async function expectNoHorizontalScroll(page: Page): Promise<void> {
+  const offenders = await page.evaluate(EDGE_OFFENDERS_JS);
+  expect(offenders, "every visible element must sit inside the viewport width").toEqual([]);
   const overflow = await page.evaluate(() => {
     return document.documentElement.scrollWidth - window.innerWidth;
   });
   expect(overflow, "page must not overflow its viewport width").toBeLessThanOrEqual(1);
 }
 
-const WIDE_FONT_CSS =
+export const EDGE_OFFENDERS_JS = `(() => {
+  const tolerance = 1;
+  const width = window.innerWidth;
+  const isClipRoot = (el) => {
+    const overflowX = getComputedStyle(el).overflowX;
+    return overflowX === "hidden" || overflowX === "clip";
+  };
+  const isScrollable = (el) => {
+    const overflowX = getComputedStyle(el).overflowX;
+    return overflowX === "auto" || overflowX === "scroll";
+  };
+  const hasVisibleBox = (el, rect) => {
+    if (rect.width <= 0 || rect.height <= 0) {
+      return false;
+    }
+    const style = getComputedStyle(el);
+    return style.display !== "none" && style.visibility !== "hidden";
+  };
+  const describeOffender = (el, rect) => {
+    const id = el.id === "" ? "no-id" : el.id;
+    const testId = el.getAttribute("data-testid") ?? "no-testid";
+    return el.tagName + "#" + id + "#" + testId + " " + String(rect.left) + ".." + String(rect.right);
+  };
+  const describeClip = (el) => {
+    const id = el.id === "" ? "no-id" : el.id;
+    const testId = el.getAttribute("data-testid") ?? "no-testid";
+    const box = String(el.offsetWidth);
+    const content = String(el.scrollWidth);
+    return el.tagName + "#" + id + "#" + testId + " clips " + String(content) + "px inside " + String(box) + "px";
+  };
+  const all = Array.from(document.querySelectorAll("*"));
+  const clipRoots = all.filter(isClipRoot);
+  const collectedInsideClip = (el) =>
+    clipRoots.some((root) => root !== el && root.contains(el));
+  const offenders = [];
+  for (const el of all) {
+    const rect = el.getBoundingClientRect();
+    if (!hasVisibleBox(el, rect)) {
+      continue;
+    }
+    if (el.scrollWidth > el.offsetWidth + tolerance && !isScrollable(el)) {
+      offenders.push(describeClip(el));
+    }
+    if (collectedInsideClip(el)) {
+      continue;
+    }
+    if (rect.left < -tolerance || rect.right > width + tolerance) {
+      offenders.push(describeOffender(el, rect));
+    }
+  }
+  return offenders;
+})();`;
+
+export const WIDE_FONT_CSS =
   "html { font-family: monospace; letter-spacing: 0.8em; word-spacing: 0.4em; }";
 
 export async function installWideFont(page: Page): Promise<void> {

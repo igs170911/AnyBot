@@ -34,7 +34,7 @@ test("smoke: shell renders, no horizontal overflow, console clean", async ({ pag
   expect(consoleErrors, "console must stay clean").toEqual([]);
 });
 
-test("t-phonefit-width-1: max text zoom with a very wide font stays inside the phone viewport", async ({
+test("T-phonefit-width-1: max text zoom with a very wide font stays inside the phone viewport", async ({
   page,
 }) => {
   const lang = scenarioLang(test.info().project.use.locale);

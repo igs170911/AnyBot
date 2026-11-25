@@ -73,6 +73,16 @@ pnpm install            # produces pnpm-lock.yaml (must be committed)
 pnpm --filter @anybot/desktop dev   # needs tauri-cli: cargo tauri dev
 ```
 
+## CI workflow
+
+`.github/workflows/ci.yml` runs `make check` on every push to any branch and
+every pull request targeting `dev`.
+Every `uses:` pin is the full commit SHA its tag points at (read from the
+GitHub refs API). Action versions follow the latest stable release of each
+action, and the release must run on a non-deprecated Node runtime
+(`runs.using:`); today that is `actions/checkout` v7.0.1, `actions/cache`
+v6.1.0, `actions/upload-artifact` v7.0.2, all `node24`.
+
 CI (`.github/workflows/ci.yml`) runs the same `make check` on ubuntu-24.04; it first
 installs the system packages Tauri needs (WebKitGTK etc.) and sets
 `SPEC_TRACE_REF`: pushes to `dev` or `main` compare against the commit before the push
