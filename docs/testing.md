@@ -78,21 +78,31 @@
 
 ## Windows 基本測試還沒跑的（WIN-1 之前）
 
-`tests/harness` 用了只有 Unix 才有的訊號和行程群組，Windows 編不過。在 WIN-1 做完之前，Windows 的自動檢查不編、不跑依賴測試工具的東西。產品套件一個都不跳過。
+`tests/harness` 用了只有 Unix 才有的訊號和行程群組，Windows 編不過。在 WIN-1 做完之前，Windows 的自動檢查分兩份清單。`ci.yml` 只呼叫 `tools/windows-skip.sh`，參數從這裡讀。
 
-| 跑 | 不跑 |
-|---|---|
-| `crates/` 全部、`apps/` 全部的函式庫和執行檔（`--lib --bins`）。本機套件的 lint 警告用 `CARGO_BUILD_WARNINGS=deny` 當錯誤（相依套件仍被 cargo 壓住） | 下面 `<!-- windows-skip -->` 清單裡的套件，以及會把它們拉進來的整合測試 |
-| 產品套件自己的單元測試（`cargo nextest --lib --bins`，套件原始碼裡的 `#[cfg(test)]`） | `apps/*/tests/`、`crates/*/tests/` 的整合測試（現在有 `apps/server/tests/`、`crates/server/tests/`、`crates/models` 裡用到 harness 的整合測試） |
-| `pnpm -r test` | Playwright、需要 PostgreSQL 的測試 |
-
-Windows 不編、不跑的套件只有這一份。`ci.yml` 的 Windows 工作呼叫 `tools/windows-skip.sh`，參數從這裡讀，不另外寫在工作流程的指令裡。
+**不編。** 這些套件自己就是測試工具，或只給測試用，不是產品。編譯那一步 `--exclude` 它們。
 
 <!-- windows-skip
 test-harness
 testenv
 live-model
 -->
+
+**編了，但不跑測試。** 產品套件，編譯那一步照樣編（`--lib --bins`，本機套件的 lint 警告用 `CARGO_BUILD_WARNINGS=deny` 當錯誤）。它們的測試相依有 `test-harness`，cargo 跑單元測試時一定會把測試工具編進來，所以 Windows 上不跑它們的測試。`--lib --bins` 也不跑 `apps/*/tests/`、`crates/*/tests/` 的整合測試。
+
+<!-- windows-no-test
+anybot-app-server
+anybot-models
+anybot-server
+-->
+
+iron-laws 對第二份清單：產品套件的 `[dev-dependencies]` 有 `test-harness` 卻不在清單裡 → 擋；清單裡的套件沒有那個相依 → 也擋。
+
+| 跑 | 不跑 |
+|---|---|
+| `crates/` 全部、`apps/` 全部的函式庫和執行檔 | `windows-skip` 裡的套件 |
+| 測試相依沒有測試工具的產品套件的單元測試 | `windows-no-test` 裡的套件的測試，以及整合測試 |
+| `pnpm -r test` | Playwright、需要 PostgreSQL 的測試 |
 
 macOS 和 Linux 的基本測試仍是 `make test-basic`：`quick` 設定（不含 `pg_` 開頭的測試）加 `pnpm -r test`。Linux 的 `make check` 跑全部，包括 PostgreSQL。
 

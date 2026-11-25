@@ -1,40 +1,37 @@
 #!/bin/sh
-# Read the Windows skip list from docs/testing.md (the windows-skip block).
-# Usage: windows-skip.sh [--cargo]
-#   default: one package name per line
-#   --cargo: one line of repeated --exclude <name>, for cargo build / nextest
+# Read a Windows list from docs/testing.md.
+# Usage: windows-skip.sh <compile|test>
+#   compile: packages that are not built (windows-skip)
+#   test:    product packages that are built but not tested (windows-no-test)
+# One package name per line.
 set -eu
-mode="${1:-list}"
+kind="${1:?usage: windows-skip.sh compile|test}"
 root="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 doc="$root/docs/testing.md"
+case "$kind" in
+  compile) marker="<!-- windows-skip" ;;
+  test) marker="<!-- windows-no-test" ;;
+  *)
+    echo "usage: windows-skip.sh compile|test" >&2
+    exit 2
+    ;;
+esac
 if [ ! -f "$doc" ]; then
-  echo "windows skip list missing: docs/testing.md" >&2
+  echo "windows list missing: docs/testing.md" >&2
   exit 1
 fi
-names="$(awk '
-  $0 == "<!-- windows-skip" { inside = 1; next }
+names="$(awk -v marker="$marker" '
+  $0 == marker { inside = 1; next }
   $0 == "-->" && inside { inside = 0; next }
   inside && $0 !~ /^[[:space:]]*$/ && $0 !~ /^#/ { print }
 ' "$doc")"
 if [ -z "$names" ]; then
-  echo "windows skip list is empty (docs/testing.md)" >&2
+  echo "windows $kind list is empty (docs/testing.md)" >&2
   exit 1
 fi
 bad="$(printf '%s\n' "$names" | grep -v -E '^[A-Za-z0-9_-]+$' || true)"
 if [ -n "$bad" ]; then
-  echo "windows skip list has an unexpected package name" >&2
+  echo "windows $kind list has an unexpected package name" >&2
   exit 1
 fi
-case "$mode" in
-  list)
-    printf '%s\n' "$names"
-    ;;
-  --cargo)
-    printf '%s\n' "$names" | awk '{ printf "--exclude %s ", $0 }'
-    printf '\n'
-    ;;
-  *)
-    echo "usage: windows-skip.sh [--cargo]" >&2
-    exit 2
-    ;;
-esac
+printf '%s\n' "$names"

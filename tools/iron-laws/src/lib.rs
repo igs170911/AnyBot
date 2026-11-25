@@ -19,6 +19,7 @@ pub mod nextest_config;
 pub mod redocly;
 pub mod suppressions;
 pub mod table;
+pub mod windows_lists;
 pub mod workflow_runners;
 pub mod workflows;
 
@@ -42,6 +43,7 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
     out.extend(compiled::violations_at_repo(repo));
     out.extend(licensing::violations(repo));
     out.extend(nextest_config::violations(repo));
+    out.extend(windows_lists::violations(repo));
     out.extend(redocly::violations(repo));
     out.extend(workflows::violations(repo));
     out.extend(makefile_recipes::violations(repo));

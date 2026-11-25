@@ -264,8 +264,8 @@ jobs:
           # Skip list is the windows-skip block in docs/testing.md (WIN-1).
           # --lib --bins skips apps/*/tests and crates/*/tests, which pull in the harness.
           # -D warnings: a Windows-only unused import failed the rehearsal as a warning.
-          bash tools/windows-skip.sh list
-          $skip = @(bash tools/windows-skip.sh list)
+          bash tools/windows-skip.sh compile
+          $skip = @(bash tools/windows-skip.sh compile)
           if ($skip.Count -lt 1) { throw "windows skip list is empty" }
           # cargo build does not take rustc flags after --. CARGO_BUILD_WARNINGS
           # denies lint warnings in local packages only (Cargo config, since 1.97).
@@ -308,10 +308,11 @@ jobs:
           fi
           command -v "${PNPM:-pnpm}"
           mkdir -p target
-          # Unit tests inside product packages. The skip list is docs/testing.md.
-          # One --exclude per name: a single quoted string is one cargo argument.
+          # Unit tests of product packages whose dev-dependencies do not pull in
+          # the harness. Both lists are docs/testing.md. One --exclude per name.
           set --
-          sh tools/windows-skip.sh list > target/windows-skip.txt
+          sh tools/windows-skip.sh compile > target/windows-skip.txt
+          sh tools/windows-skip.sh test >> target/windows-skip.txt
           while IFS= read -r name; do
             set -- "$@" --exclude "$name"
           done < target/windows-skip.txt
