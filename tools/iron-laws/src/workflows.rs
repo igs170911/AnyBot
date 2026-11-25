@@ -91,10 +91,21 @@ fn job_violations(doc: &serde_json::Value, rel: &str) -> Vec<String> {
     let triggers_pr = trigger_includes_pull_request(doc.get("on"));
     let jobs = doc.get("jobs");
     for (name, job) in jobs.and_then(|j| j.as_object()).into_iter().flatten() {
-        if job.get("timeout-minutes").is_none() {
-            out.push(format!(
-                "{rel}: job \"{name}\" has no timeout-minutes (spec/09 K110)"
-            ));
+        match caller_job_shape(job) {
+            CallerShape::Caller => {
+                if job.get("timeout-minutes").is_some() {
+                    out.push(format!(
+                        "{rel}: job \"{name}\" calls a workflow and sets timeout-minutes; a caller job cannot set it (spec/09 K110)"
+                    ));
+                }
+            }
+            CallerShape::Local => {
+                if job.get("timeout-minutes").is_none() {
+                    out.push(format!(
+                        "{rel}: job \"{name}\" has no timeout-minutes (spec/09 K110)"
+                    ));
+                }
+            }
         }
         if let Some(permissions) = job.get("permissions")
             && triggers_pr
@@ -105,7 +116,8 @@ fn job_violations(doc: &serde_json::Value, rel: &str) -> Vec<String> {
                 "{rel}: job \"{name}\" grants a write permission and the workflow triggers on pull_request or pull_request_target (spec/09 K111)"
             ));
         }
-        runner_violations(job.get("runs-on"), rel, name, &mut out);
+        crate::workflow_runners::runner_violations(job.get("runs-on"), rel, name, &mut out);
+        crate::workflow_runners::matrix_runner_violations(job, rel, name, &mut out);
         script_injection_violations(job, rel, name, &mut out);
     }
     out
@@ -171,40 +183,16 @@ fn if_requires_non_pull_request(cond: &str) -> bool {
     requires_push && !compact.contains("pull_request") && !compact.contains("||")
 }
 
-fn runner_violations(
-    runs_on: Option<&serde_json::Value>,
-    rel: &str,
-    job: &str,
-    out: &mut Vec<String>,
-) {
-    let labels = runner_labels(runs_on);
-    for label in labels {
-        if label
-            .split('-')
-            .any(|part| part.eq_ignore_ascii_case("latest"))
-        {
-            out.push(format!(
-                "{rel}: job \"{job}\" runs-on \"{label}\" uses latest; pin the runner image (spec/09 K110)"
-            ));
-        }
-    }
+enum CallerShape {
+    Caller,
+    Local,
 }
 
-fn runner_labels(runs_on: Option<&serde_json::Value>) -> Vec<String> {
-    match runs_on {
-        Some(serde_json::Value::String(text)) => {
-            if text.contains("${{") {
-                Vec::new()
-            } else {
-                vec![text.clone()]
-            }
-        }
-        Some(serde_json::Value::Array(items)) => items
-            .iter()
-            .filter_map(|item| item.as_str().map(str::to_owned))
-            .filter(|label| !label.contains("${{"))
-            .collect(),
-        _ => Vec::new(),
+fn caller_job_shape(job: &serde_json::Value) -> CallerShape {
+    if job.get("uses").and_then(|value| value.as_str()).is_some() {
+        CallerShape::Caller
+    } else {
+        CallerShape::Local
     }
 }
 

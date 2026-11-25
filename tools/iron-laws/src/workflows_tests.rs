@@ -147,15 +147,50 @@ fn test_workflows_gate_blocks_write_job_on_pull_request() {
 }
 
 #[test]
-fn test_workflows_gate_skips_expression_runner_labels() {
-    let repo = scratch_repo("iron-workflows-expression-runner");
-    let body = GOOD.replace(
-        "runs-on: ubuntu-24.04",
-        "runs-on: ${{ matrix.runner }} # pinned: ubuntu-24.04",
-    );
-    write_workflow(&repo, &body);
+fn test_workflows_gate_reads_pinned_matrix_runners() {
+    let repo = scratch_repo("iron-workflows-matrix-pinned");
+    let body = "name: CI\non:\n  push:\npermissions:\n  contents: read\njobs:\n  desktop:\n    strategy:\n      matrix:\n        include:\n          - runner: ubuntu-24.04\n    runs-on: ${{ matrix.runner }}\n    timeout-minutes: 30\n    steps:\n      - run: echo ok\n";
+    write_workflow(&repo, body);
     let v = violations(&repo);
     assert_eq!(v, Vec::<String>::new(), "{v:?}");
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
+fn test_workflows_gate_blocks_latest_in_matrix_include() {
+    let repo = scratch_repo("iron-workflows-matrix-latest");
+    let body = "name: CI\non:\n  push:\npermissions:\n  contents: read\njobs:\n  desktop:\n    strategy:\n      matrix:\n        include:\n          - runner: ubuntu-latest\n    runs-on: ${{ matrix.runner }}\n    timeout-minutes: 30\n    steps:\n      - run: echo ok\n";
+    write_workflow(&repo, body);
+    let v = violations(&repo);
+    assert!(
+        v.iter()
+            .any(|x| x.contains("ubuntu-latest") && x.contains("matrix")),
+        "{v:?}"
+    );
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
+fn test_workflows_gate_allows_caller_job_without_timeout() {
+    let repo = scratch_repo("iron-workflows-caller-ok");
+    let body = "name: CI\non:\n  push:\npermissions:\n  contents: read\njobs:\n  release-dev:\n    needs: [check]\n    if: github.event_name == 'push'\n    uses: ./.github/workflows/release.yml\n    permissions:\n      contents: write\n    secrets: inherit\n  check:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n      - run: echo ok\n";
+    write_workflow(&repo, body);
+    let v = violations(&repo);
+    assert_eq!(v, Vec::<String>::new(), "{v:?}");
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
+fn test_workflows_gate_blocks_timeout_on_caller_job() {
+    let repo = scratch_repo("iron-workflows-caller-timeout");
+    let body = "name: CI\non:\n  push:\npermissions:\n  contents: read\njobs:\n  release-dev:\n    uses: ./.github/workflows/release.yml\n    timeout-minutes: 180\n";
+    write_workflow(&repo, body);
+    let v = violations(&repo);
+    assert!(
+        v.iter()
+            .any(|x| x.contains("timeout-minutes") && x.contains("calls a workflow")),
+        "{v:?}"
+    );
     assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
 }
 

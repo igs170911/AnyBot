@@ -19,6 +19,7 @@ pub mod nextest_config;
 pub mod redocly;
 pub mod suppressions;
 pub mod table;
+pub mod workflow_runners;
 pub mod workflows;
 
 use std::path::Path;

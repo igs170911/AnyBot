@@ -82,8 +82,8 @@ https://github.com/igs170911/AnyBot/releases/tag/dev-build
 
 ## 目前有哪些平台
 
-桌面安裝檔：macOS arm64（`.dmg`）、macOS x86_64（`.dmg`）、Windows x64 NSIS、Linux x86_64 的 `.deb`、`.rpm`、AppImage。
+桌面安裝檔：macOS arm64（`.dmg`）、macOS x86_64（`.dmg`）、Windows x64 NSIS、Linux x86_64 的 `.deb`、`.rpm`、壓縮檔（`.tar.gz`，裡面是執行檔）。AppImage 規格沒要求，已從必備清單拿掉，避免它擋住其他格式。
 
 這次沒有：Windows arm64、Linux aarch64 的桌面安裝檔。
 
-伺服器映像：linux/amd64 和 linux/arm64。arm64 在 runner 上用 QEMU 載入映像、確認裡面有 `anybot-server`，並跑 `--version`。本機不跑 Docker。
+伺服器映像：linux/amd64 在 `ubuntu-24.04` 上編，linux/arm64 在 `ubuntu-24.04-arm` 上編。各自跑 `--version`。發佈時再合成一個兩種架構的標籤。預演只編、只驗，不推。本機不跑 Docker。

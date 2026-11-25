@@ -5,6 +5,11 @@
 CARGO ?= cargo
 PNPM ?= pnpm
 SHELL := /bin/bash -o pipefail
+# windows-2025's make is MinGW and cannot execute /bin/bash. Git Bash is on PATH as bash.exe.
+ifeq ($(OS),Windows_NT)
+SHELL := bash.exe
+.SHELLFLAGS := -o pipefail -c
+endif
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 
 # cross-worktree test lock (docs/testing.md, parallel work): tools/testlock.sh takes the lock
@@ -19,13 +24,13 @@ endef
 SPEC_TRACE_REF ?= HEAD
 
 .PHONY: check check-fast fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline \
-	ironlaws gitleaks versions ts-install ts-biome ts-typecheck ts-test ts-build \
+	ironlaws gitleaks versions actionlint ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
 	_test-body _test-fast-body _test-basic-body _e2e-body gate-selftest \
 	locale locale-refresh
 
-check: fmt clippy gate-selftest test deny machete depcheck spec-trace ironlaws gitleaks versions locale \
+check: fmt clippy gate-selftest test deny machete depcheck spec-trace ironlaws gitleaks versions actionlint locale \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
@@ -124,6 +129,13 @@ locale-refresh:
 # key scan: the whole repo including git history (spec/09 K79).
 gitleaks:
 	gitleaks detect --source . --no-banner --exit-code 1
+
+# Workflow syntax (spec/09 K110). actionlint 1.7.12, sha256 from the release checksums file.
+actionlint:
+	@mkdir -p target/tools
+	@test -x target/tools/actionlint || bash tools/install-actionlint.sh target/tools/actionlint
+	target/tools/actionlint -color .github/workflows/*.yml
+	bash tools/actionlint-selftest.sh target/tools/actionlint
 
 # explicit command: regenerate the spec-trace baseline (CI does not run it; only when a person regenerates).
 spec-baseline:

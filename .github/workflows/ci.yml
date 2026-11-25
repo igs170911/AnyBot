@@ -258,7 +258,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # windows-2025 ships MinGW make. Use the Makefile target (K111).
+          # windows-2025 ships MinGW make and Git Bash. Cargo and the global npm
+          # prefix are not always on Git Bash's PATH after a PowerShell step.
+          export PATH="$HOME/.cargo/bin:${APPDATA:-}/npm:$PATH"
+          command -v make
+          command -v bash
+          command -v cargo
+          command -v cargo-nextest
+          if ! command -v pnpm >/dev/null 2>&1 && command -v pnpm.cmd >/dev/null 2>&1; then
+            export PNPM=pnpm.cmd
+          fi
+          command -v "${PNPM:-pnpm}"
           make test-basic
 
   build-macos:
@@ -326,11 +336,13 @@ jobs:
         run: make test-basic
 
   # Visible sequence, not a poll: this job starts only after the three checks succeed.
-  # The called workflow packages and publishes the dev channel. It does not run in parallel.
+  # A job that calls another workflow cannot set timeout-minutes (GitHub docs:
+  # "Supported keywords for jobs that call a reusable workflow"). Timeouts stay
+  # on the jobs inside release.yml. secrets: inherit is omitted: the called
+  # workflow uses only the automatic GITHUB_TOKEN.
   release-dev:
     needs: [check, build-windows, build-macos]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.check.result == 'success' && needs.build-windows.result == 'success' && needs.build-macos.result == 'success'
-    timeout-minutes: 180
     uses: ./.github/workflows/release.yml
     with:
       mode: dev
@@ -338,4 +350,3 @@ jobs:
     permissions:
       contents: write
       packages: write
-    secrets: inherit

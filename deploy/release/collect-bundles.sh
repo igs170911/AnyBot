@@ -1,27 +1,41 @@
 #!/bin/sh
-# Copy desktop installers into target/release-assets and write SHA256SUMS.
-# A fresh checkout has neither the destination nor the Tauri output directory.
+# Copy desktop installers for one Rust target into dest and write SHA256SUMS.
+# Tauri writes to the repo-root target/<triple>/release/bundle, not under src-tauri.
+# Usage: collect-bundles.sh <dest> <target-triple>
 set -eu
-dest="${1:-target/release-assets}"
+dest="${1:?dest}"
+triple="${2:?target triple}"
+case "$triple" in
+  *[!A-Za-z0-9_-]*)
+    echo "target triple has unexpected characters: $triple" >&2
+    exit 1
+    ;;
+esac
+root="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
+bundle="$root/target/$triple/release/bundle"
+if [ ! -d "$bundle" ]; then
+  echo "no bundle directory at target/$triple/release/bundle" >&2
+  exit 1
+fi
 mkdir -p "$dest"
 found=0
-for dir in apps/desktop/src-tauri/target/*/release/bundle apps/desktop/src-tauri/target/release/bundle; do
-  [ -d "$dir" ] || continue
-  find "$dir" -type f \( \
-    -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.exe' -o -name '*.msi' -o \
-    -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \
-    \) -print | while IFS= read -r file; do
-    cp "$file" "$dest/$(basename "$file")"
-  done
-  found=1
+find "$bundle" -type f \( \
+  -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.exe' -o -name '*.msi' -o \
+  -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.tar.gz' \
+  \) -print | while IFS= read -r file; do
+  cp "$file" "$dest/$(basename "$file")"
 done
-if [ "$found" -eq 0 ]; then
-  echo "no bundle directory under apps/desktop/src-tauri/target" >&2
+found="$(find "$bundle" -type f \( \
+  -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.exe' -o -name '*.msi' -o \
+  -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.tar.gz' \
+  \) | wc -l | tr -d ' ')"
+if [ "$found" = 0 ]; then
+  echo "bundle directory exists but no installers were found in target/$triple/release/bundle" >&2
   exit 1
 fi
 count="$(find "$dest" -type f ! -name SHA256SUMS | wc -l | tr -d ' ')"
 if [ "$count" = 0 ]; then
-  echo "bundle directory exists but no installers were copied" >&2
+  echo "installers were listed but none were copied" >&2
   exit 1
 fi
 (
