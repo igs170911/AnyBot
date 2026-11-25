@@ -26,7 +26,7 @@ anybot/
 ├── pnpm-workspace.yaml
 ├── biome.json
 ├── README.md
-├── .gitea/workflows/          # CI：跑 05 §2 的全部關卡
+├── .github/workflows/         # CI 和發佈（GitHub Actions，`09` K110）：跑 05 §2 的全部關卡
 │
 ├── spec/                      # 規格（現在的 ClearRoom/spec 搬進來）＋功能追蹤表
 ├── api/                       # openapi.yaml（由程式產生、提交）、執行事件協定的 schema
