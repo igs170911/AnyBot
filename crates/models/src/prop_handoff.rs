@@ -52,28 +52,26 @@ fn reason_of(code: u8) -> SwitchReason {
     }
 }
 
-fn sse_body() -> String {
+fn sse_events() -> Vec<String> {
     let events = [
         r#"{"choices":[{"delta":{"content":"hel"},"finish_reason":null}]}"#,
         r#"{"choices":[{"delta":{"content":"lo"},"finish_reason":"stop"}]}"#,
     ];
-    let mut raw = String::new();
+    let mut chunks = Vec::new();
     for event in events {
-        raw.push_str("data: ");
-        raw.push_str(event);
-        raw.push_str("\n\n");
+        chunks.push(format!("data: {event}\n\n"));
     }
-    raw.push_str("data: [DONE]\n\n");
-    raw
+    chunks.push("data: [DONE]\n\n".to_owned());
+    chunks
+}
+
+fn sse_body() -> String {
+    sse_events().join("")
 }
 
 fn step_body(stream: bool) -> crate::scripted::ScriptStep {
     if stream {
-        return crate::scripted::ScriptStep {
-            status: 200,
-            body: sse_body(),
-            fail: false,
-        };
+        return crate::scripted::script_chunks(200, &sse_events());
     }
     ok_text("hello")
 }

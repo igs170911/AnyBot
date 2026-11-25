@@ -33,7 +33,7 @@ fn fill_server_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<Strin
         &merge(&[&PROC_M, &HTTP_M, &FS_M]),
         &[CMD_T[0], CMD_T[1], FS_T[0], FS_T[1], FS_T[2], FS_T[3]],
     );
-    insert(m, "anybot-models", &HTTP_M, &[]);
+    insert(m, "anybot-models", &merge(&[&HTTP_M, &PERMIT_M]), &[]);
     insert(m, "anybot-mcp", &HTTP_M, &[]);
     insert(m, "anybot-sync", &HTTP_M, &[]);
     insert(m, "anybot-channels", &HTTP_M, &[]);
@@ -45,10 +45,10 @@ fn fill_client_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<Strin
     insert(
         m,
         "test-harness",
-        &merge(&[&PROC_M, &HTTP_M, &FS_M, &TIME_M]),
+        &merge(&[&PROC_M, &HTTP_M, &FS_M, &TIME_M, &PERMIT_M]),
         &[CMD_T[0], CMD_T[1], FS_T[0], FS_T[1], FS_T[2], FS_T[3]],
     );
-    insert(m, "live-model", &merge(&[&HTTP_M, &FS_M]), &FS_T);
+    insert(m, "live-model", &merge(&[&HTTP_M, &FS_M, &PERMIT_M]), &FS_T);
 }
 
 fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>>>) {
@@ -60,6 +60,8 @@ fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>
     insert(m, "locale-gen", &tool_methods, tool_types);
     insert(m, "api-docs", &FS_STD_M, &[FS_T[0], FS_T[1], FS_T[2]]);
 }
+
+const PERMIT_M: [&str; 1] = ["anybot_models::SendPermit::for_endpoint"];
 
 const STD_PROC: [&str; 4] = [
     "std::process::Command::new",

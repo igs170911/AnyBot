@@ -67,6 +67,7 @@ disallowed-methods = [
     { path = "tokio::time::interval", allow-invalid = true, reason = "same (M4 A.2)" },
     { path = "tokio::time::Instant::now", reason = "same (M4 A.2); only foundation SystemClock owns real deadlines" },
     { path = "time::OffsetDateTime::now_utc", reason = "same (M4 A.2); only foundation SystemClock reads the wall clock" },
+    { path = "anybot_models::SendPermit::for_endpoint", allow-invalid = true, reason = "ask models only through Session; the policy is the bot policy given when the Session is built" },
 ]
 
 disallowed-types = [

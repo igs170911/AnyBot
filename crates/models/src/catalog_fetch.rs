@@ -27,9 +27,9 @@ pub async fn fetch_models(
     if endpoint.api_key.is_some() && !key_allowed(endpoint, &url) {
         return Err(GatewayFail::KeyDestination);
     }
-    let builder = gateway.client_request(&url, &serde_json::json!({}), endpoint);
+    let request = gateway.client_request(&url, &serde_json::json!({}), endpoint);
     let wait = Duration::from_secs(LIST_WAIT_SECS);
-    match gateway.transport_send(builder, wait).await {
+    match gateway.transport_send(&request, wait).await {
         Ok(bytes) if bytes.status >= 400 => Ok(ListOutcome::Failed {
             code: "model-list-status",
             detail: redact(

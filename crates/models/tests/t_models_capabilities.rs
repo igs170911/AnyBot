@@ -73,7 +73,7 @@ async fn over_budget_request_is_not_sent() -> Result<(), String> {
     let clock = FakeClock::new(0);
     let shared: Arc<FakeClock> = Arc::clone(&clock);
     let clock_dyn: Arc<dyn Clock> = shared;
-    let gateway = anybot_models::gateway(clock_dyn);
+    let gateway = anybot_models::gateway(clock_dyn)?;
     let mut session = anybot_models::Session::new(gateway, share(&clock), 0);
     let primary = anybot_models::ModelRef {
         endpoint: anybot_models::resolve_endpoint(

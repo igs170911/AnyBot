@@ -24,7 +24,7 @@ async fn switches_between_asks_keep_one_model() -> Result<(), String> {
     }
     support::script(&world.model, steps.clone());
     support::script(&pair.other, steps);
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let mut active = "m1";
     for index in 0..1_000 {
         let switching = index % 3 == 1 && active == "m1";

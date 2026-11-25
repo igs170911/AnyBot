@@ -1,12 +1,20 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use crate::transport::{HttpBytes, Posted, PostedOutcome, Poster, TransportFail};
+use bytes::Bytes;
+
+use crate::http_wire::{HttpWire, WireBody, WireOpen, WireRequest, WireResponse};
+use crate::transport::TransportFail;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ScriptStep {
     pub status: u16,
     pub body: String,
     pub fail: bool,
+    pub stall: bool,
+    pub chunks: Vec<String>,
+    pub cut_at: Option<usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -55,20 +63,71 @@ impl ScriptPoster {
     }
 }
 
-impl Poster for ScriptPoster {
-    fn post(&self, posted: &Posted) -> PostedOutcome {
-        fire_hook(&self.on_send);
-        push_sent(&self.sent, posted);
-        match take_step(&self.steps) {
-            Some(step) if step.fail => PostedOutcome::Fail(TransportFail::Unreachable),
-            Some(step) => PostedOutcome::Http(HttpBytes {
-                status: step.status,
-                body: bytes::Bytes::from(step.body),
-                retry_after: None,
-            }),
-            None => PostedOutcome::Fail(TransportFail::Unreachable),
-        }
+impl HttpWire for ScriptPoster {
+    fn send<'a>(
+        &'a self,
+        request: &'a WireRequest,
+    ) -> Pin<Box<dyn Future<Output = Result<WireResponse, TransportFail>> + Send + 'a>> {
+        Box::pin(async move { self.reply(request).await })
     }
+
+    fn open<'a>(
+        &'a self,
+        request: &'a WireRequest,
+    ) -> Pin<Box<dyn Future<Output = Result<WireOpen, TransportFail>> + Send + 'a>> {
+        Box::pin(async move { self.open_reply(request).await })
+    }
+}
+
+impl ScriptPoster {
+    async fn reply(&self, request: &WireRequest) -> Result<WireResponse, TransportFail> {
+        let Some(step) = self.taken(request) else {
+            return Err(TransportFail::Unreachable);
+        };
+        if step.fail {
+            return Err(TransportFail::Unreachable);
+        }
+        if step.stall {
+            return std::future::pending().await;
+        }
+        Ok(WireResponse {
+            status: step.status,
+            headers: Vec::new(),
+            body: Bytes::from(step.body),
+        })
+    }
+
+    async fn open_reply(&self, request: &WireRequest) -> Result<WireOpen, TransportFail> {
+        let Some(step) = self.taken(request) else {
+            return Err(TransportFail::Unreachable);
+        };
+        if step.fail {
+            return Err(TransportFail::Unreachable);
+        }
+        if step.stall {
+            return std::future::pending().await;
+        }
+        Ok(WireOpen {
+            status: step.status,
+            headers: Vec::new(),
+            body: body_of(step),
+        })
+    }
+
+    fn taken(&self, request: &WireRequest) -> Option<ScriptStep> {
+        fire_hook(&self.on_send);
+        push_sent(&self.sent, request);
+        take_step(&self.steps)
+    }
+}
+
+fn body_of(step: ScriptStep) -> WireBody {
+    let pieces = if step.chunks.is_empty() && step.cut_at.is_none() {
+        vec![Ok(Bytes::from(step.body))]
+    } else {
+        crate::scripted_body::chunk_pieces(&step)
+    };
+    WireBody::Stream(Box::pin(futures_util::stream::iter(pieces)))
 }
 
 fn fire_hook(slot: &Mutex<Option<Box<dyn Fn() + Send + Sync>>>) {
@@ -86,7 +145,7 @@ fn fire_hook(slot: &Mutex<Option<Box<dyn Fn() + Send + Sync>>>) {
     }
 }
 
-fn push_sent(sent: &Mutex<Vec<SentRow>>, posted: &Posted) {
+fn push_sent(sent: &Mutex<Vec<SentRow>>, posted: &WireRequest) {
     let row = SentRow {
         url: posted.url.clone(),
         body: posted.body.clone(),
@@ -104,39 +163,59 @@ fn take_step(steps: &Mutex<Vec<ScriptStep>>) -> Option<ScriptStep> {
     }
 }
 
-#[cfg(test)]
 pub(crate) fn ok_text(text: &str) -> ScriptStep {
-    ScriptStep {
-        status: 200,
-        body: format!(
+    script_step(
+        200,
+        format!(
             "{{\"choices\":[{{\"message\":{{\"role\":\"assistant\",\"content\":{text:?}}},\"finish_reason\":\"stop\"}}]}}"
         ),
-        fail: false,
-    }
+        false,
+    )
 }
 
-#[cfg(test)]
-pub(crate) fn http_fail(status: u16, message: &str) -> ScriptStep {
+pub(crate) fn script_http(status: u16, body: &str) -> ScriptStep {
+    script_step(status, body.to_owned(), false)
+}
+
+pub(crate) fn script_chunks(status: u16, chunks: &[String]) -> ScriptStep {
+    let mut step = script_step(status, chunks.join(""), false);
+    step.chunks = chunks.to_vec();
+    step
+}
+
+pub(crate) fn script_cut(status: u16, body: &str, at: usize) -> ScriptStep {
+    let mut step = script_step(status, body.to_owned(), false);
+    step.cut_at = Some(at);
+    step
+}
+
+fn script_step(status: u16, body: String, fail: bool) -> ScriptStep {
     ScriptStep {
         status,
-        body: format!("{{\"error\":{{\"message\":{message:?}}}}}"),
-        fail: false,
+        body,
+        fail,
+        stall: false,
+        chunks: Vec::new(),
+        cut_at: None,
     }
 }
 
-#[cfg(test)]
+pub(crate) fn http_fail(status: u16, message: &str) -> ScriptStep {
+    script_step(
+        status,
+        format!("{{\"error\":{{\"message\":{message:?}}}}}"),
+        false,
+    )
+}
+
 pub(crate) fn connect_fail() -> ScriptStep {
-    ScriptStep {
-        status: 0,
-        body: String::new(),
-        fail: true,
-    }
+    script_step(0, String::new(), true)
 }
 
 pub(crate) fn session_with(poster: Arc<ScriptPoster>) -> crate::session::Session {
     let clock: Arc<dyn anybot_foundation::clock::Clock> = Arc::new(QuietClock);
     crate::session::Session::new(
-        crate::client::Gateway::new(Arc::clone(&clock)).with_poster(poster),
+        crate::client::Gateway::from_wire(poster, Arc::clone(&clock)),
         clock,
         0,
     )

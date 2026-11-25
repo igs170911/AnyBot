@@ -75,6 +75,7 @@ disallowed-methods = [
     { path = "std::time::Instant::now", reason = "same (M4 A.2); timing helpers live in the test harness" },
     { path = "std::thread::sleep", reason = "same (M4 A.2); waiting goes through the Clock" },
     { path = "tokio::time::interval", allow-invalid = true, reason = "same (M4 A.2)" },
+    { path = "anybot_models::SendPermit::for_endpoint", allow-invalid = true, reason = "ask models only through Session; the policy is the bot policy given when the Session is built" },
 ]
 
 disallowed-types = [

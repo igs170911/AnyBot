@@ -43,7 +43,7 @@ async fn t_models_capabilities_3() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
         bot_context: None,
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let first = ask_once(&mut session, &primary).await;
     assert!(matches!(
         first,
@@ -58,7 +58,7 @@ async fn t_models_capabilities_3() -> Result<(), String> {
     );
     let snapshot = session.learned().to_vec();
     let mut reopened =
-        anybot_models::Session::new(world_gateway(&world), support::share(&world.clock), 0);
+        anybot_models::Session::new(world_gateway(&world)?, support::share(&world.clock), 0);
     reopened.load_learned(snapshot);
     assert_eq!(
         reopened
@@ -101,7 +101,7 @@ fn recorded_body(world: &support::World, index: usize) -> Result<String, String>
         .map(|row| row.body.clone())
 }
 
-fn world_gateway(world: &support::World) -> anybot_models::Gateway {
+fn world_gateway(world: &support::World) -> Result<anybot_models::Gateway, String> {
     anybot_models::gateway(support::share(&world.clock))
 }
 
@@ -121,7 +121,7 @@ async fn t_models_capabilities_4() -> Result<(), String> {
         ],
     );
     support::script(&pair.other, vec![model_replies_text("m2", false)]);
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let first = support::ask_watching(&mut session, &pair.primary, &[], ThinkingMode::Deep).await?;
     assert_eq!(first.result.text, "ok");
     assert_eq!(world.model.recorded().len(), 2);
@@ -173,7 +173,7 @@ async fn t_models_capabilities_8() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::Custom, world.port, "local-model", ""),
         bot_context: Some(32_000),
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let mut fifth = 0_u64;
     for index in 1..=6 {
         let outcome =
@@ -219,7 +219,7 @@ async fn t_models_capabilities_10() -> Result<(), String> {
     let shared: Arc<FakeClock> = Arc::clone(&clock);
     let clock_dyn: Arc<dyn Clock> = shared;
     let mut session =
-        anybot_models::Session::new(anybot_models::gateway(clock_dyn), share(&clock), 0);
+        anybot_models::Session::new(anybot_models::gateway(clock_dyn)?, share(&clock), 0);
     let primary = anybot_models::ModelRef {
         endpoint: anybot_models::resolve_endpoint(
             ProviderKind::Custom,

@@ -1,7 +1,25 @@
 use crate::prop_body::ReplyCase;
-use crate::scripted::ScriptStep;
+
 use crate::stream_fail::{decode_body, finish_stream};
 use crate::types::{ProviderEndpoint, StopKind, ToolArguments, TurnResult, WireFormat};
+
+pub(crate) fn send_cut(
+    endpoint: &ProviderEndpoint,
+    body: &str,
+    at: usize,
+    stream: bool,
+) -> Result<TurnResult, crate::GatewayFail> {
+    let step = crate::scripted::script_cut(200, body, at);
+    let poster = crate::scripted::ScriptPoster::new(vec![step]);
+    let gateway = crate::client::Gateway::from_wire(poster, std::sync::Arc::new(Quiet));
+    let permit = crate::egress::SendPermit::for_endpoint(
+        &crate::egress::DataPolicy::LocalOnly,
+        endpoint,
+        crate::egress::ModelUse::Bot,
+    )
+    .expect("permit");
+    crate::prop_run::drive(gateway.complete(endpoint, &crate::prop_run::hi(), stream, &permit))
+}
 
 pub(crate) fn cut_body(raw: &str, cut: usize) -> (String, bool) {
     if raw.is_empty() {
@@ -23,13 +41,13 @@ pub(crate) fn send_body(
     body: &str,
     stream: bool,
 ) -> Result<TurnResult, crate::GatewayFail> {
-    let step = ScriptStep {
-        status: 200,
-        body: body.to_owned(),
-        fail: false,
+    let step = if stream {
+        crate::scripted::script_chunks(200, &[body.to_owned()])
+    } else {
+        crate::scripted::script_http(200, body)
     };
     let poster = crate::scripted::ScriptPoster::new(vec![step]);
-    let gateway = crate::client::Gateway::new(std::sync::Arc::new(Quiet)).with_poster(poster);
+    let gateway = crate::client::Gateway::from_wire(poster, std::sync::Arc::new(Quiet));
     let permit = crate::egress::SendPermit::for_endpoint(
         &crate::egress::DataPolicy::LocalOnly,
         endpoint,
@@ -105,19 +123,9 @@ pub(crate) fn plain_decode(endpoint: &ProviderEndpoint, body: &str) -> TurnResul
     decode_body(endpoint, body)
 }
 
-pub(crate) fn stream_decode(endpoint: &ProviderEndpoint, body: &str) -> TurnResult {
-    finish_stream(endpoint, body, false).unwrap_or_else(|_| interrupted_empty(endpoint))
-}
-
-fn interrupted_empty(endpoint: &ProviderEndpoint) -> TurnResult {
-    TurnResult {
-        text: String::new(),
-        thinking: String::new(),
-        tool_calls: Vec::new(),
-        usage: crate::types::UsageReport::Absent,
-        stop: StopKind::Interrupted,
-        attachment: None,
-        model: endpoint.model.clone(),
-        provider: endpoint.kind,
-    }
+pub(crate) fn stream_decode(
+    endpoint: &ProviderEndpoint,
+    body: &str,
+) -> Result<TurnResult, crate::GatewayFail> {
+    finish_stream(endpoint, body, false)
 }

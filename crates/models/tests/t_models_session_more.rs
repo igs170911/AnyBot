@@ -35,7 +35,7 @@ async fn blank_reply_is_asked_again() -> Result<(), String> {
             model_replies_text("ok", false),
         ],
     );
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let primary = anybot_models::ModelRef {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
         bot_context: None,
@@ -59,8 +59,11 @@ async fn stream_busy_waits_then_retries() -> Result<(), String> {
     let clock = std::sync::Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
-        let mut session =
-            anybot_models::Session::new(gateway(support::share(&clock)), support::share(&clock), 0);
+        let mut session = anybot_models::Session::new(
+            gateway(support::share(&clock))?,
+            support::share(&clock),
+            0,
+        );
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
@@ -111,9 +114,12 @@ async fn stop_during_retry_ends_quietly() -> Result<(), String> {
     let clock = std::sync::Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
-        let mut session =
-            anybot_models::Session::new(gateway(support::share(&clock)), support::share(&clock), 0)
-                .with_stop(rx);
+        let mut session = anybot_models::Session::new(
+            gateway(support::share(&clock))?,
+            support::share(&clock),
+            0,
+        )
+        .with_stop(rx);
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
@@ -148,8 +154,11 @@ async fn policy_skip_does_not_call_cloud_fallback() -> Result<(), String> {
     let mut fallback = pair.fallback;
     fallback.endpoint.base_url = "http://api.cloud.test/v1".to_owned();
     let task = tokio::spawn(async move {
-        let mut session =
-            anybot_models::Session::new(gateway(support::share(&clock)), support::share(&clock), 0);
+        let mut session = anybot_models::Session::new(
+            gateway(support::share(&clock))?,
+            support::share(&clock),
+            0,
+        );
         support::ask_watching(
             &mut session,
             &primary,
@@ -183,7 +192,7 @@ async fn switch_request_applies_to_the_next_ask() -> Result<(), String> {
         ],
     );
     support::script(&pair.other, vec![model_replies_text("two", false)]);
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let first = support::ask_watching(
         &mut session,
         &pair.primary,
@@ -212,7 +221,7 @@ async fn unsupported_tools_are_not_sent() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
         bot_context: None,
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let key = anybot_models::model_key(ProviderKind::OpenAi, &primary.endpoint.base_url, "gpt-5");
     let mut learned = Learned::new(&key);
     learned.tools = Some(false);

@@ -2,7 +2,8 @@ use proptest::prelude::*;
 
 use crate::prop_body::{ReplyCase, events_of, sse, whole_body};
 use crate::prop_cut::{
-    assert_column, cut_body, endpoint_for, plain_decode, same_answer, send_body, stream_decode,
+    assert_column, cut_body, endpoint_for, plain_decode, same_answer, send_body, send_cut,
+    stream_decode,
 };
 
 fn reply_strategy() -> impl Strategy<Value = ReplyCase> {
@@ -62,8 +63,12 @@ proptest! {
         let stream = sse(&events_of(&case), true);
         let bare = without_extra(&case);
         let sent = if case.stream { &stream } else { &plain };
-        let (cut, _closed) = cut_body(sent, case.cut);
-        let cut_result = send_body(&endpoint, &cut, case.stream).expect("cut send");
+        let (cut, closed) = cut_body(sent, case.cut);
+        let cut_result = if closed {
+            send_body(&endpoint, &cut, case.stream).expect("cut send")
+        } else {
+            send_cut(&endpoint, sent, case.cut, case.stream).expect("cut send")
+        };
         assert_column(&cut_result)?;
         let whole_stream = send_body(&endpoint, &stream, true).expect("stream send");
         let whole_plain = send_body(&endpoint, &plain, false).expect("plain send");
@@ -77,7 +82,10 @@ proptest! {
         let with_extra = if case.stream { &whole_stream } else { &whole_plain };
         prop_assert!(same_answer(with_extra, &extra_free));
         prop_assert!(same_answer(&whole_plain, &plain_decode(&endpoint, &plain)));
-        prop_assert!(same_answer(&whole_stream, &stream_decode(&endpoint, &stream)));
+        prop_assert!(same_answer(
+            &whole_stream,
+            &stream_decode(&endpoint, &stream).expect("stream decode")
+        ));
     }
 }
 

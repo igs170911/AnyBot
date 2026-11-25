@@ -25,7 +25,7 @@ async fn outside_chain_becomes_primary() -> Result<(), String> {
             model_replies_text("again", false),
         ],
     );
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     session.request_switch(&pair.fallback, SwitchReason::User);
     let first = support::ask_watching(&mut session, &pair.primary, &[], ThinkingMode::Auto).await?;
     assert_eq!(first.result.model, "m2");

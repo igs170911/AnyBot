@@ -34,13 +34,16 @@ impl anybot_models::NameResolver for MapNames {
     }
 }
 
-fn cloud_gateway(clock: &Arc<FakeClock>, cloud_port: u16) -> anybot_models::Gateway {
+fn cloud_gateway(
+    clock: &Arc<FakeClock>,
+    cloud_port: u16,
+) -> Result<anybot_models::Gateway, String> {
     let mut map = NameMap::new();
     map.insert(
         "api.cloud.test",
         std::net::SocketAddr::from(([127, 0, 0, 1], cloud_port)),
     );
-    anybot_models::gateway(share(clock)).with_names(Arc::new(MapNames(map)))
+    Ok(anybot_models::gateway(share(clock))?.with_names(Arc::new(MapNames(map))))
 }
 
 fn share(clock: &Arc<FakeClock>) -> Arc<dyn Clock> {
@@ -72,7 +75,7 @@ async fn t_models_egress_2() -> Result<(), String> {
     };
     let fallback = cloud_ref();
     let mut session =
-        anybot_models::Session::new(cloud_gateway(&clock, cloud_port), share(&clock), 0);
+        anybot_models::Session::new(cloud_gateway(&clock, cloud_port)?, share(&clock), 0);
     let request = support::hi(ThinkingMode::Auto);
     let policy = DataPolicy::LocalOnly;
     let clock_drive = Arc::clone(&clock);
@@ -133,7 +136,7 @@ async fn t_models_egress_3() -> Result<(), String> {
     };
     let fallback = cloud_ref();
     let mut session =
-        anybot_models::Session::new(cloud_gateway(&clock, cloud_port), share(&clock), 0);
+        anybot_models::Session::new(cloud_gateway(&clock, cloud_port)?, share(&clock), 0);
     let request = support::hi(ThinkingMode::Auto);
     let policy = DataPolicy::Cloud {
         allowed: vec![ProviderKind::OpenAi],
@@ -166,7 +169,7 @@ async fn t_models_egress_4() -> Result<(), String> {
         "http://api.cloud.test/v1/chat/completions",
     )]);
     let clock = FakeClock::new(0);
-    let gateway = cloud_gateway(&clock, cloud_port);
+    let gateway = cloud_gateway(&clock, cloud_port)?;
     let endpoint = support::endpoint(ProviderKind::Custom, local_port, "m1", "");
     let err = gateway
         .complete(

@@ -93,11 +93,7 @@ fn place_model(local: bool, name: &str) -> ModelRef {
 
 fn fail_step(kind: u8, redirect: bool) -> ScriptStep {
     if redirect && kind.is_multiple_of(2) {
-        return ScriptStep {
-            status: 302,
-            body: "http://api.cloud.test/v1/chat/completions".to_owned(),
-            fail: false,
-        };
+        return crate::scripted::script_http(302, "http://api.cloud.test/v1/chat/completions");
     }
     match kind % 4 {
         0 => http_fail(500, "down"),

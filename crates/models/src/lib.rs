@@ -4,21 +4,23 @@ pub mod catalog;
 pub(crate) mod catalog_fetch;
 pub mod client;
 pub(crate) mod client_http;
-#[cfg(test)]
-pub(crate) mod client_recorded;
 pub mod egress;
 pub mod errors;
 pub(crate) mod errors_text;
 pub mod estimate;
 pub mod failure_log;
 pub mod handoff;
+pub(crate) mod http_wire;
 pub(crate) mod jsonutil;
 pub(crate) mod model_copy;
 pub mod notice;
 pub mod providers;
+pub(crate) mod reqwest_wire;
 pub mod retry;
 #[cfg(test)]
 pub(crate) mod scripted;
+#[cfg(test)]
+pub(crate) mod scripted_body;
 pub mod session;
 pub(crate) mod session_ask;
 pub(crate) mod session_chain;
@@ -97,7 +99,6 @@ use test_harness as _;
 #[cfg(test)]
 use trybuild as _;
 
-#[must_use]
-pub fn gateway(clock: Arc<dyn Clock>) -> Gateway {
+pub fn gateway(clock: Arc<dyn Clock>) -> Result<Gateway, String> {
     Gateway::new(clock)
 }

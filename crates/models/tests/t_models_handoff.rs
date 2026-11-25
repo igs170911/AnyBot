@@ -43,7 +43,7 @@ async fn t_models_handoff_1() -> Result<(), String> {
         ),
         bot_context: None,
     };
-    let handle_session = support::session(&world);
+    let handle_session = support::session(&world)?;
     let handle = handle_session.switch_handle();
     let other = std::sync::Arc::clone(&pair.other);
     let task = tokio::spawn(async move {
@@ -130,7 +130,7 @@ async fn ask_switched(
         bot_context: None,
     };
     let mut session = anybot_models::Session::new(
-        anybot_models::gateway(support::share(&claude.clock)),
+        anybot_models::gateway(support::share(&claude.clock))?,
         support::share(&claude.clock),
         0,
     );
@@ -193,7 +193,7 @@ async fn t_models_handoff_6() -> Result<(), String> {
         anybot_models::ModelUse::Bot,
     )
     .ok_or("permit")?;
-    let first = anybot_models::gateway(support::share(&claude.clock))
+    let first = anybot_models::gateway(support::share(&claude.clock))?
         .complete(&endpoint, &support::hi(ThinkingMode::Auto), false, &permit)
         .await
         .map_err(|err| format!("{err:?}"))?;
@@ -232,7 +232,7 @@ async fn t_models_handoff_10() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "m2", "k"),
         bot_context: None,
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let key = anybot_models::model_key(ProviderKind::OpenAi, &next.endpoint.base_url, "m2");
     let mut learned = anybot_models::Learned::new(&key);
     learned.tools = Some(false);

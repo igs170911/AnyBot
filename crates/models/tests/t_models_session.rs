@@ -47,8 +47,11 @@ async fn fallback_after_retries_uses_second_model() -> Result<(), String> {
     let primary = pair.primary;
     let fallback = pair.fallback;
     let task = tokio::spawn(async move {
-        let mut session =
-            anybot_models::Session::new(gateway(support::share(&clock)), support::share(&clock), 0);
+        let mut session = anybot_models::Session::new(
+            gateway(support::share(&clock))?,
+            support::share(&clock),
+            0,
+        );
         support::ask_watching(
             &mut session,
             &primary,
@@ -93,7 +96,7 @@ async fn resting_model_is_skipped_until_clock_passes() -> Result<(), String> {
             model_replies_text("later", false),
         ],
     );
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let first = support::ask_watching(
         &mut session,
         &pair.primary,
@@ -137,7 +140,7 @@ async fn missing_key_fallback_is_skipped() -> Result<(), String> {
         bot_context: None,
     };
     support::script(&world.model, vec![model_reply_status(401, "no")]);
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let outcome = support::ask_watching(
         &mut session,
         &pair.primary,
@@ -178,7 +181,7 @@ async fn too_long_does_not_switch_and_shrinks_limit() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
         bot_context: None,
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let first = session
         .ask(&mut ask_plan(
             &primary,
@@ -204,7 +207,7 @@ async fn too_long_does_not_switch_and_shrinks_limit() -> Result<(), String> {
     let learned = session.learned().first().ok_or("missing learned")?;
     assert_eq!(learned.context_tokens, Some(50_000));
     let snapshot = session.learned().to_vec();
-    let mut reopened = support::session(&world);
+    let mut reopened = support::session(&world)?;
     reopened.load_learned(snapshot);
     let reopened_limit = reopened
         .learned()
@@ -229,7 +232,7 @@ async fn rejected_thinking_is_dropped_on_the_next_send() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
         bot_context: None,
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let first = support::ask_watching(&mut session, &primary, &[], ThinkingMode::Deep).await?;
     assert_eq!(first.result.text, "ok");
     let second = support::ask_watching(&mut session, &primary, &[], ThinkingMode::Deep).await?;
@@ -263,8 +266,11 @@ async fn retry_after_is_capped_at_thirty_seconds() -> Result<(), String> {
     let clock = std::sync::Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
-        let mut session =
-            anybot_models::Session::new(gateway(support::share(&clock)), support::share(&clock), 0);
+        let mut session = anybot_models::Session::new(
+            gateway(support::share(&clock))?,
+            support::share(&clock),
+            0,
+        );
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,

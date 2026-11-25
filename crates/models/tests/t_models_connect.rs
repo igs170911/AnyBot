@@ -21,7 +21,7 @@ use url as _;
 mod support;
 
 #[tokio::test]
-async fn gateway_connect_timeout_uses_clock() {
+async fn gateway_connect_timeout_uses_clock() -> Result<(), String> {
     let (ctl, proxy_port) = net_start().await.unwrap();
     let real = SocketAddr::from(([127, 0, 0, 1], proxy_port));
     net_attach(&ctl, proxy_port, real).await.unwrap();
@@ -32,7 +32,7 @@ async fn gateway_connect_timeout_uses_clock() {
         "api.cloud.test",
         SocketAddr::from(([127, 0, 0, 1], proxy_port)),
     );
-    let gateway = anybot_models::gateway(as_clock(&clock)).with_names(Arc::new(MapNames(map)));
+    let gateway = anybot_models::gateway(as_clock(&clock))?.with_names(Arc::new(MapNames(map)));
     let endpoint = anybot_models::resolve_endpoint(
         ProviderKind::OpenAi,
         "http://api.cloud.test/v1",
@@ -64,6 +64,7 @@ async fn gateway_connect_timeout_uses_clock() {
         err,
         anybot_models::GatewayFail::Transport(anybot_models::TransportFail::ConnectTimeout)
     ));
+    Ok(())
 }
 
 async fn wait_clock(

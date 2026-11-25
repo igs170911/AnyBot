@@ -57,8 +57,12 @@ pub(crate) async fn pair(format: ModelFormat) -> Result<(World, Pair), String> {
     ))
 }
 
-pub(crate) fn session(world: &World) -> Session {
-    Session::new(gateway(share(&world.clock)), share(&world.clock), 0)
+pub(crate) fn session(world: &World) -> Result<Session, String> {
+    Ok(Session::new(
+        gateway(share(&world.clock))?,
+        share(&world.clock),
+        0,
+    ))
 }
 
 pub(crate) async fn ask_watching(

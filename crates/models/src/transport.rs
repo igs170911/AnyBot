@@ -6,24 +6,8 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 
+use crate::http_wire::{SharedWire, WireBody, WireRequest, WireResponse};
 use crate::where_run::{CONNECT_TIMEOUT, STALL_AFTER_TEXT};
-
-#[cfg(test)]
-pub(crate) struct Posted {
-    pub url: String,
-    pub body: String,
-}
-
-#[cfg(test)]
-pub(crate) enum PostedOutcome {
-    Http(HttpBytes),
-    Fail(TransportFail),
-}
-
-#[cfg(test)]
-pub(crate) trait Poster: Send + Sync {
-    fn post(&self, posted: &Posted) -> PostedOutcome;
-}
 
 pub(crate) struct HttpBytes {
     pub status: u16,
@@ -39,10 +23,8 @@ pub struct PartialBody {
 }
 
 pub(crate) struct TimedTransport {
-    pub client: reqwest::Client,
+    wire: SharedWire,
     clock: Arc<dyn Clock>,
-    #[cfg(test)]
-    poster: Option<Arc<dyn Poster>>,
 }
 
 impl TimedTransport {
@@ -50,147 +32,116 @@ impl TimedTransport {
         Arc::clone(&self.clock)
     }
 
-    pub(crate) fn new(client: reqwest::Client, clock: Arc<dyn Clock>) -> Self {
-        Self {
-            client,
-            clock,
-            #[cfg(test)]
-            poster: None,
-        }
+    pub(crate) fn new(wire: SharedWire, clock: Arc<dyn Clock>) -> Self {
+        Self { wire, clock }
     }
 
-    #[cfg(test)]
-    pub(crate) fn with_poster(mut self, poster: Arc<dyn Poster>) -> Self {
-        self.poster = Some(poster);
-        self
+    pub(crate) fn wire(&self) -> SharedWire {
+        Arc::clone(&self.wire)
     }
 
-    #[cfg(test)]
-    pub(crate) fn post_recorded(&self, posted: &Posted) -> Option<PostedOutcome> {
-        self.poster.as_ref().map(|poster| poster.post(posted))
-    }
-
-    pub(crate) async fn send(
+    pub(crate) async fn exchange(
         &self,
-        builder: reqwest::RequestBuilder,
+        request: &WireRequest,
         first_wait: Duration,
     ) -> Result<HttpBytes, TransportFail> {
         let started = self.clock.now_ms();
-        let response = self.connect(builder, started).await?;
-        self.read_body(response, started, first_wait).await
+        let response = self.connect(request, started).await?;
+        let _: Duration = first_wait;
+        Ok(HttpBytes {
+            status: response.status,
+            body: response.body,
+            retry_after: retry_after_of(&response.headers),
+        })
     }
 
     async fn connect(
         &self,
-        builder: reqwest::RequestBuilder,
+        request: &WireRequest,
         _started: TimestampMs,
-    ) -> Result<reqwest::Response, TransportFail> {
-        let send = builder.send();
+    ) -> Result<WireResponse, TransportFail> {
+        let send = self.wire.send(request);
         let wait = self.clock.sleep(CONNECT_TIMEOUT);
         tokio::pin!(send);
         tokio::select! {
             biased;
-            outcome = &mut send => outcome.map_err(|_| TransportFail::Unreachable),
+            outcome = &mut send => outcome,
             () = wait => Err(TransportFail::ConnectTimeout),
         }
     }
 
-    async fn read_body(
-        &self,
-        response: reqwest::Response,
-        started: TimestampMs,
-        first_wait: Duration,
-    ) -> Result<HttpBytes, TransportFail> {
-        let status = response.status().as_u16();
-        let retry_secs = retry_after_header(&response);
-        let mut stream = response.bytes_stream();
-        let mut body = Vec::new();
-        let mut saw_byte = false;
-        loop {
-            let wait = if saw_byte {
-                STALL_AFTER_TEXT
-            } else {
-                first_wait
-            };
-            let next = stream.next();
-            let timer = self.clock.sleep(wait);
-            tokio::pin!(next);
-            tokio::select! {
-                biased;
-                item = &mut next => {
-                    match item {
-                        Some(Ok(chunk)) => {
-                            saw_byte = true;
-                            body.extend_from_slice(&chunk);
-                        }
-                        Some(Err(_)) if saw_byte => {
-                            return Err(TransportFail::Partial(PartialBody {
-                                status,
-                                bytes: body,
-                                stalled: false,
-                            }));
-                        }
-                        Some(Err(_)) => return Err(TransportFail::Dropped),
-                        None => break,
-                    }
-                }
-                () = timer => {
-                    if saw_byte {
-                        return Err(TransportFail::Partial(PartialBody {
-                            status,
-                            bytes: body,
-                            stalled: true,
-                        }));
-                    }
-                    let _mark = started.millis();
-                    return Err(TransportFail::FirstToken);
-                }
-            }
-        }
-        Ok(HttpBytes {
-            status,
-            body: Bytes::from(body),
-            retry_after: retry_secs,
-        })
-    }
-
     pub(crate) async fn open_stream(
         &self,
-        builder: reqwest::RequestBuilder,
+        request: &WireRequest,
         first_wait: Duration,
     ) -> Result<StreamOpen, TransportFail> {
         let started = self.clock.now_ms();
-        let response = self.connect(builder, started).await?;
-        let status = response.status().as_u16();
+        let open = self.open_wire(request, started).await?;
+        let status = open.status;
+        let headers = open.headers;
         let (tx, rx) = mpsc::channel(32);
         let clock = Arc::clone(&self.clock);
         tokio::spawn(async move {
-            pump_stream(response, tx, clock, first_wait).await;
+            pump_body(open.body, tx, clock, first_wait).await;
         });
-        Ok(StreamOpen { status, rx })
+        Ok(StreamOpen {
+            status,
+            headers,
+            rx,
+        })
+    }
+
+    async fn open_wire(
+        &self,
+        request: &WireRequest,
+        _started: TimestampMs,
+    ) -> Result<crate::http_wire::WireOpen, TransportFail> {
+        let send = self.wire.open(request);
+        let wait = self.clock.sleep(CONNECT_TIMEOUT);
+        tokio::pin!(send);
+        tokio::select! {
+            biased;
+            outcome = &mut send => outcome,
+            () = wait => Err(TransportFail::ConnectTimeout),
+        }
     }
 }
 
 pub(crate) struct StreamOpen {
     pub status: u16,
+    pub headers: Vec<(String, String)>,
     pub rx: mpsc::Receiver<Result<Bytes, TransportFail>>,
 }
 
-fn retry_after_header(response: &reqwest::Response) -> Option<u64> {
-    response
-        .headers()
-        .get(reqwest::header::RETRY_AFTER)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|text| text.parse().ok())
+pub(crate) fn retry_after_of(headers: &[(String, String)]) -> Option<u64> {
+    headers.iter().find_map(|(name, value)| {
+        if name.eq_ignore_ascii_case("retry-after") {
+            value.parse().ok()
+        } else {
+            None
+        }
+    })
 }
 
-async fn pump_stream(
-    response: reqwest::Response,
+async fn pump_body(
+    body: WireBody,
     tx: mpsc::Sender<Result<Bytes, TransportFail>>,
     clock: Arc<dyn Clock>,
     first_wait: Duration,
 ) {
-    let mut stream = response.bytes_stream();
+    match body {
+        WireBody::Stream(stream) => pump_stream(stream, tx, clock, first_wait).await,
+    }
+}
+
+async fn pump_stream(
+    mut stream: std::pin::Pin<
+        Box<dyn futures_util::Stream<Item = Result<Bytes, TransportFail>> + Send>,
+    >,
+    tx: mpsc::Sender<Result<Bytes, TransportFail>>,
+    clock: Arc<dyn Clock>,
+    first_wait: Duration,
+) {
     let mut saw_byte = false;
     let mut held = Vec::new();
     loop {

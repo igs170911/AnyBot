@@ -4,6 +4,7 @@ use anybot_foundation::clock::Clock;
 use serde_json::Value;
 
 use crate::egress::{ModelUse, SendPermit};
+use crate::http_wire::{SharedWire, WireRequest};
 use crate::providers::{OPENROUTER_APP, key_allowed};
 use crate::thinking::apply_thinking;
 use crate::transport::TimedTransport;
@@ -29,10 +30,17 @@ impl NameResolver for IdentityResolver {
 }
 
 impl Gateway {
-    #[must_use]
-    pub fn new(clock: Arc<dyn Clock>) -> Self {
+    pub fn new(clock: Arc<dyn Clock>) -> Result<Self, String> {
+        let client = crate::client_http::product_client()?;
+        Ok(Self::from_wire(
+            crate::reqwest_wire::ReqwestWire::new(client),
+            clock,
+        ))
+    }
+
+    pub(crate) fn from_wire(wire: SharedWire, clock: Arc<dyn Clock>) -> Self {
         Self {
-            transport: TimedTransport::new(crate::client_http::product_client(), clock),
+            transport: TimedTransport::new(wire, clock),
             name_map: Arc::new(IdentityResolver),
         }
     }
@@ -46,7 +54,7 @@ impl Gateway {
     #[must_use]
     pub fn clone_gateway(&self) -> Self {
         Self {
-            transport: TimedTransport::new(self.transport.client.clone(), self.transport.clock()),
+            transport: TimedTransport::new(self.transport.wire(), self.transport.clock()),
             name_map: Arc::clone(&self.name_map),
         }
     }
@@ -54,24 +62,9 @@ impl Gateway {
     #[must_use]
     pub fn clone_with_names(&self, name_map: Arc<dyn NameResolver>) -> Self {
         Self {
-            transport: TimedTransport::new(self.transport.client.clone(), self.transport.clock()),
+            transport: TimedTransport::new(self.transport.wire(), self.transport.clock()),
             name_map,
         }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn post_script(
-        &self,
-        posted: &crate::transport::Posted,
-    ) -> Option<crate::transport::PostedOutcome> {
-        self.transport.post_recorded(posted)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn with_poster(mut self, poster: Arc<dyn crate::transport::Poster>) -> Self {
-        self.transport = TimedTransport::new(self.transport.client.clone(), self.transport.clock())
-            .with_poster(poster);
-        self
     }
 
     pub async fn complete(
@@ -92,15 +85,12 @@ impl Gateway {
             return Err(GatewayFail::KeyDestination);
         }
         let body = encode_body(endpoint, request, stream);
-        if let Some(done) = take_recorded(self, endpoint, &url, &body, stream) {
-            return done;
-        }
-        let builder = authorized(self.client_request(&url, &body, endpoint), endpoint);
+        let wire = self.client_request(&url, &body, endpoint);
         let first_wait = first_token_wait(0);
         if stream {
-            return self.complete_stream(endpoint, builder, first_wait).await;
+            return self.complete_stream(endpoint, &wire, first_wait).await;
         }
-        match self.transport.send(builder, first_wait).await {
+        match self.transport.exchange(&wire, first_wait).await {
             Ok(bytes) => {
                 if bytes.status >= 300 && bytes.status < 400 {
                     return Err(crate::ask::classified_fail(
@@ -127,33 +117,51 @@ impl Gateway {
         &self,
         url: &str,
         body: &Value,
-        _endpoint: &ProviderEndpoint,
-    ) -> reqwest::RequestBuilder {
+        endpoint: &ProviderEndpoint,
+    ) -> WireRequest {
         let target = self.name_map.resolve(url).unwrap_or_else(|| url.to_owned());
-        if body.as_object().is_some_and(serde_json::Map::is_empty) {
-            return self.transport.client.get(target);
+        let encoded = if body.as_object().is_some_and(serde_json::Map::is_empty) {
+            String::new()
+        } else {
+            body.to_string()
+        };
+        WireRequest {
+            method: if encoded.is_empty() {
+                crate::http_wire::WireMethod::Get
+            } else {
+                crate::http_wire::WireMethod::Post
+            },
+            url: target,
+            headers: auth_headers(endpoint),
+            body: encoded,
         }
-        self.transport.client.post(target).json(body)
     }
 
     async fn complete_stream(
         &self,
         endpoint: &ProviderEndpoint,
-        builder: reqwest::RequestBuilder,
+        request: &WireRequest,
         first_wait: std::time::Duration,
     ) -> Result<TurnResult, GatewayFail> {
         let open = self
             .transport
-            .open_stream(builder, first_wait)
+            .open_stream(request, first_wait)
             .await
             .map_err(GatewayFail::Transport)?;
-        if open.status >= 300 {
+        if open.status >= 300 && open.status < 400 {
             return Err(crate::ask::classified_fail(
-                crate::errors::classify(&crate::errors::FailInput::Http {
-                    status: open.status,
-                    message: String::new(),
-                }),
+                crate::errors::classify(&crate::errors::FailInput::Redirect),
                 Vec::new(),
+            ));
+        }
+        if open.status >= 400 {
+            return Err(classified_status(
+                endpoint,
+                &crate::transport::HttpBytes {
+                    status: open.status,
+                    body: bytes::Bytes::new(),
+                    retry_after: crate::transport::retry_after_of(&open.headers),
+                },
             ));
         }
         let mut raw = String::new();
@@ -180,45 +188,15 @@ impl Gateway {
 
     pub(crate) async fn transport_send(
         &self,
-        builder: reqwest::RequestBuilder,
+        request: &WireRequest,
         first_wait: std::time::Duration,
     ) -> Result<crate::transport::HttpBytes, crate::transport::TransportFail> {
-        self.transport.send(builder, first_wait).await
+        self.transport.exchange(request, first_wait).await
     }
 }
 
 pub(crate) fn chat_url_of(endpoint: &ProviderEndpoint) -> String {
     crate::client_http::chat_url(endpoint)
-}
-
-#[cfg(test)]
-fn take_recorded(
-    gateway: &Gateway,
-    endpoint: &ProviderEndpoint,
-    url: &str,
-    body: &Value,
-    stream: bool,
-) -> Option<Result<TurnResult, GatewayFail>> {
-    crate::client_recorded::recorded_now(gateway, endpoint, url, body, stream)
-}
-
-#[cfg(not(test))]
-fn take_recorded(
-    _gateway: &Gateway,
-    _endpoint: &ProviderEndpoint,
-    _url: &str,
-    _body: &Value,
-    _stream: bool,
-) -> Option<Result<TurnResult, GatewayFail>> {
-    None
-}
-
-#[cfg(test)]
-pub(crate) fn status_fail(
-    endpoint: &ProviderEndpoint,
-    bytes: &crate::transport::HttpBytes,
-) -> GatewayFail {
-    classified_status(endpoint, bytes)
 }
 
 fn policy_blocked() -> GatewayFail {
@@ -255,25 +233,30 @@ fn classified_status(
     crate::ask::classified_fail(fail.classified, fail.notices)
 }
 
-fn authorized(
-    builder: reqwest::RequestBuilder,
-    endpoint: &ProviderEndpoint,
-) -> reqwest::RequestBuilder {
-    let mut builder = builder;
+fn auth_headers(endpoint: &ProviderEndpoint) -> Vec<(String, String)> {
+    let mut headers = Vec::new();
     if let Some(key) = &endpoint.api_key {
-        builder = match endpoint.format {
-            WireFormat::Anthropic => builder
-                .header("x-api-key", key.expose())
-                .header("anthropic-version", wire_claude::ANTHROPIC_VERSION),
-            WireFormat::OpenAiCompatible => builder.bearer_auth(key.expose()),
-        };
+        match endpoint.format {
+            WireFormat::Anthropic => {
+                headers.push(("x-api-key".to_owned(), key.expose().to_owned()));
+                headers.push((
+                    "anthropic-version".to_owned(),
+                    wire_claude::ANTHROPIC_VERSION.to_owned(),
+                ));
+            }
+            WireFormat::OpenAiCompatible => {
+                headers.push((
+                    "authorization".to_owned(),
+                    format!("Bearer {}", key.expose()),
+                ));
+            }
+        }
     }
     if matches!(endpoint.kind, ProviderKind::OpenRouter) {
-        builder = builder
-            .header("HTTP-Referer", "https://anybot.local")
-            .header("X-Title", OPENROUTER_APP);
+        headers.push(("HTTP-Referer".to_owned(), "https://anybot.local".to_owned()));
+        headers.push(("X-Title".to_owned(), OPENROUTER_APP.to_owned()));
     }
-    builder
+    headers
 }
 
 #[derive(Debug)]

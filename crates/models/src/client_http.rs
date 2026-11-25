@@ -1,11 +1,11 @@
 use crate::types::{ProviderEndpoint, ProviderKind, WireFormat};
 use crate::{wire_claude, wire_openai};
 
-pub(crate) fn product_client() -> reqwest::Client {
+pub(crate) fn product_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .unwrap_or_else(|_| reqwest::Client::new())
+        .map_err(|err| err.to_string())
 }
 
 pub(crate) fn chat_url(endpoint: &ProviderEndpoint) -> String {

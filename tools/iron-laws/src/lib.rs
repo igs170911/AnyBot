@@ -3,6 +3,7 @@
 use serde as _;
 
 pub mod banlists;
+pub mod cfg_test;
 pub mod clippy_tomls;
 pub mod collect;
 pub mod comments;
@@ -26,6 +27,7 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
     let files = collect::source_files(repo);
     let mut out = suppressions::violations(&files);
     out.extend(comments::violations(&files));
+    out.extend(cfg_test::violations(&files));
     out.extend(lines::violations(&files));
     match collect::read_file_lossy(&repo.join("deny.toml")) {
         Ok(content) => out.extend(deny_limits::violations(&content)),
