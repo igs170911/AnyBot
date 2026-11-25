@@ -120,7 +120,7 @@ fn block_role(kind: BlockKind) -> Role {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExcludedReason {
     Budget,
@@ -194,7 +194,7 @@ pub fn manifest_model(plan: &ModelPlan) -> ManifestModel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CollapseReason {
     Accumulated,
@@ -212,7 +212,7 @@ pub enum NewEvent {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Insufficient {
     pub deficit_tokens: u64,
     pub usable: u64,

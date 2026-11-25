@@ -55,6 +55,7 @@ export type MessageCode =
   "model-list-empty" |
   "model-list-timeout" |
   "model-budget" |
+  "context-source-deleted" |
   "model-refusal" |
   "model-length-note" |
   "model-handoff-user" |
@@ -119,6 +120,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-list-empty",
   "model-list-timeout",
   "model-budget",
+  "context-source-deleted",
   "model-refusal",
   "model-length-note",
   "model-handoff-user",

@@ -6,6 +6,7 @@ pub mod goal_brake;
 pub mod goal_followup;
 pub mod task_attention;
 pub mod task_budget;
+pub mod task_context_events;
 pub mod task_effects;
 pub mod task_engine;
 pub mod task_engine_events;
@@ -20,6 +21,10 @@ pub mod task_view;
 
 pub use anybot_protocol::TaskStatus;
 pub use task_attention::{counts_as_failure, counts_in_task_badge};
+pub use task_context_events::{
+    CONTEXT_COLLAPSED_KIND, ContextCollapseReason, ContextCollapsed, collapsed_kind,
+    parse_collapsed,
+};
 pub use task_effects::{ResumeAction, resume_action};
 pub use task_engine::advance;
 pub use task_entry::{EntryInput, EntryTracker};

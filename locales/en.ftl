@@ -52,6 +52,7 @@ model-busy-wait = The provider is busy. Waiting, then trying again.
 model-list-empty = The provider returned no models.
 model-list-timeout = Timed out while fetching the model list.
 model-budget = The context budget is not large enough.
+context-source-deleted = The source of this record was permanently deleted.
 model-refusal = The model refused this request.
 model-length-note = The reply hit the length limit.
 model-handoff-user = You switched models.

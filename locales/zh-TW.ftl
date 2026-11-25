@@ -53,6 +53,7 @@ model-busy-wait = 模型供應商現在太忙，正在等一下再試。
 model-list-empty = 供應商沒有回傳任何模型
 model-list-timeout = 取得模型清單逾時。
 model-budget = 上下文預算不夠
+context-source-deleted = 來源已永久刪除
 model-refusal = （模型拒絕回答這個要求。）
 model-length-note = （回答太長，已達長度上限。）
 model-handoff-user = 你換的

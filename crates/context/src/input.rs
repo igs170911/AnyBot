@@ -93,6 +93,7 @@ impl ModelPlan {
 
 #[derive(Debug)]
 pub struct BuildInput {
+    pub view_limit: usize,
     pub events: Vec<TaskEvent>,
     pub user_turns: Vec<ChatRecord>,
     pub bot_turns: Vec<ChatRecord>,
