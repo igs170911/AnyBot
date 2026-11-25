@@ -107,7 +107,7 @@ anybot/
 
 | 寫法 | 只准在 |
 |---|---|
-| 讀環境變數 | **任何地方都不准**（2026-11-24 修正：`02` A10 和 §6 已定「資料庫在哪」用命令列 `--data-dir`、`--bootstrap`，不讀環境變數）。命令列參數可以讀 |
+| 讀環境變數 | **新版自己的設定：任何地方都不准**（2026-11-24 修正：`02` A10 和 §6 已定「資料庫在哪」用命令列 `--data-dir`、`--bootstrap`，不讀環境變數）。命令列參數可以讀。**唯一可以讀的是 `migrate-old`**：遷移時讀舊版用過的環境變數，轉進新版的設定、找舊資料夾和資料卷（`00` 決定 7、`migrate-env`、`install-n23` S3；`09` K89）；遷移完就不再讀 |
 | 執行外部程式 | `computers`（而且要經過 `trust` 給的通行證） |
 | 發 HTTP 請求 | `models`、`mcp`、`sync`、`channels`、`computers` |
 | 讀寫任意檔案 | `computers`、`blob`、`store-client`；`foundation` 只准讀 `--bootstrap` 指定的那個啟動檔 |
@@ -127,4 +127,5 @@ anybot/
 
 - **新版開一個新的 git repo**，不帶 OLD 的歷史。OLD 留在原本的 repo，當唯讀的參考。
 - `ClearRoom/spec/` 搬進新 repo 的 `spec/`。
+- **授權：`MIT OR Apache-2.0`**（`09` K88）。根目錄放 `LICENSE-MIT`、`LICENSE-APACHE`；第三方套件的授權由關卡檢查。
 - 「沒有混進舊程式」的黑名單（`05` §2）放在新 repo **外面**，由看過舊程式的一方執行。
