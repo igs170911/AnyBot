@@ -174,10 +174,6 @@ async fn disabled(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
         MessageCode::AccountLoginDisabled,
     ))
     .map_err(internal_text)?;
-    run.limiter
-        .cancel_login(run.attempt)
-        .await
-        .map_err(internal_sqlx)?;
     record_outcome(
         run.pool,
         run.state,

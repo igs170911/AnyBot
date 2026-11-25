@@ -73,6 +73,21 @@ pub async fn prune_auth_events_before(pool: &Pool, floor_ms: i64) -> Result<u64,
     Ok(result.rows_affected())
 }
 
+pub async fn lock_counter(
+    conn: &mut sqlx::PgConnection,
+    kind: &str,
+    address: &str,
+    account: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        format!("{kind}|{address}|{account}"),
+    )
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
 pub async fn begin_attempt<'q, E>(
     executor: E,
     kind: &str,

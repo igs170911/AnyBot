@@ -70,6 +70,17 @@ pub async fn touch_session(pool: &Pool, id: &str, now_ms: i64) -> Result<(), sql
     Ok(())
 }
 
+pub async fn sync_session_password(pool: &Pool, id: &str, now_ms: i64) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        "UPDATE sessions SET last_password_at_ms = $2 WHERE id = $1",
+        id,
+        now_ms,
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub async fn list_sessions(pool: &Pool, account: &str) -> Result<Vec<SessionRow>, sqlx::Error> {
     let rows = sqlx::query!(
         "SELECT id, account, last_active_ms, last_password_at_ms \

@@ -47,6 +47,7 @@ impl Drop for ClockWalker {
 }
 
 pub const WAVE_FAKE_STEP: Duration = Duration::from_millis(500);
+pub const WAVE_INSERT_STEP: Duration = Duration::from_millis(10);
 
 pub async fn settle_handles<T>(
     clock: &Arc<FakeClock>,

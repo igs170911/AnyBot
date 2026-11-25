@@ -118,13 +118,16 @@ pub async fn change_password(
             MessageCode::AccountPasswordOldWrong,
         ));
     }
-    apply_password(&state, pool, &caller, &body.new).await
+    apply_password(&state, pool, &caller, &raw, &key, &scope, &body.new).await
 }
 
 async fn apply_password(
     state: &AppState,
     pool: &anybot_store_server::Pool,
     caller: &Caller,
+    raw: &[u8],
+    key: &str,
+    scope: &str,
     new_password: &str,
 ) -> Result<Response, CallerDenied> {
     let hash = state
@@ -138,11 +141,14 @@ async fn apply_password(
     accounts::set_password(pool, &caller.account, &hash, at_ms)
         .await
         .map_err(internal_sqlx)?;
+    sessions::sync_session_password(pool, &caller.session_id, at_ms)
+        .await
+        .map_err(internal_sqlx)?;
     sessions::delete_sessions_for_account(pool, &caller.account, Some(&caller.session_id))
         .await
         .map_err(internal_sqlx)?;
     let ok = serde_json::to_value(ActionAck { ok: true }).map_err(internal_text)?;
-    Ok(json_response(StatusCode::OK, ok))
+    record(pool, state, key, raw, scope, StatusCode::OK, &ok).await
 }
 
 pub(crate) fn ack_value(body: &ActionAck) -> Result<serde_json::Value, CallerDenied> {
@@ -163,7 +169,7 @@ pub async fn guard_replay(
         Some(record) if record.request_hash == crate::idem::safe_digest(raw) => {
             let raw = u16::try_from(record.status_code).map_err(internal_text)?;
             let status = StatusCode::from_u16(raw).map_err(internal_text)?;
-            let value = serde_json::from_str(&record.body).map_err(internal_text)?;
+            let value = replay_value(&record.body)?;
             Ok(Some(json_response(status, value)))
         }
         Some(_) => Err(denied(
@@ -171,6 +177,13 @@ pub async fn guard_replay(
             MessageCode::AccountIdempotencyConflict,
         )),
     }
+}
+
+fn replay_value(body: &str) -> Result<serde_json::Value, CallerDenied> {
+    if body == crate::idem::DID_IT_BODY {
+        return Ok(serde_json::json!({}));
+    }
+    serde_json::from_str(body).map_err(internal_text)
 }
 
 pub async fn record(

@@ -8,7 +8,7 @@ use serde_json::Value;
 pub const IDEMPOTENCY_HEADER: &str = "idempotency-key";
 pub const PROXY_SECRET_HEADER: &str = "x-anybot-proxy-secret";
 pub const FORWARDED_HEADER: &str = "x-forwarded-for";
-pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 
 pub struct RequestSpec {
     pub key: Option<String>,
@@ -109,26 +109,64 @@ impl ResponseSpec {
 }
 
 pub async fn post(base: &str, path: &str, spec: &RequestSpec) -> Result<ResponseSpec, String> {
-    send(base, path, spec, "POST").await
+    let client = build_client(spec)?;
+    send(&client, base, path, spec, "POST").await
 }
 
 pub async fn get(base: &str, path: &str, spec: &RequestSpec) -> Result<ResponseSpec, String> {
-    send(base, path, spec, "GET").await
+    let client = build_client(spec)?;
+    send(&client, base, path, spec, "GET").await
+}
+
+pub struct ConnectionPool {
+    client: Client,
+}
+
+impl ConnectionPool {
+    pub fn new(pool: usize) -> Result<Self, String> {
+        let client = Client::builder()
+            .pool_max_idle_per_host(pool)
+            .build()
+            .map_err(|e| e.to_string())?;
+        Ok(ConnectionPool { client })
+    }
+
+    pub async fn get(
+        &self,
+        base: &str,
+        path: &str,
+        spec: &RequestSpec,
+    ) -> Result<ResponseSpec, String> {
+        send(&self.client, base, path, spec, "GET").await
+    }
+
+    pub async fn post(
+        &self,
+        base: &str,
+        path: &str,
+        spec: &RequestSpec,
+    ) -> Result<ResponseSpec, String> {
+        send(&self.client, base, path, spec, "POST").await
+    }
+}
+
+fn build_client(spec: &RequestSpec) -> Result<Client, String> {
+    match spec.local {
+        None => Ok(Client::new()),
+        Some(local) => Client::builder()
+            .local_address(local)
+            .build()
+            .map_err(|e| e.to_string()),
+    }
 }
 
 async fn send(
+    client: &Client,
     base: &str,
     path: &str,
     spec: &RequestSpec,
     method: &str,
 ) -> Result<ResponseSpec, String> {
-    let client = match spec.local {
-        None => Client::new(),
-        Some(local) => Client::builder()
-            .local_address(local)
-            .build()
-            .map_err(|e| e.to_string())?,
-    };
     let url = format!("{base}{path}");
     let mut request = match method {
         "POST" => client.post(url),

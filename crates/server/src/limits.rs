@@ -35,6 +35,7 @@ impl Limiter {
         let floor = self.floor()?;
         let at = self.now_i64()?;
         let mut tx = self.pool.begin().await?;
+        auth_events::lock_counter(&mut tx, KIND_LOGIN_FAIL, address, account).await?;
         let id =
             auth_events::begin_attempt(&mut *tx, KIND_LOGIN_FAIL, address, account, at).await?;
         let pair =
@@ -52,6 +53,7 @@ impl Limiter {
         let floor = self.floor()?;
         let at = self.now_i64()?;
         let mut tx = self.pool.begin().await?;
+        auth_events::lock_counter(&mut tx, KIND_REGISTER, address, "").await?;
         let id = auth_events::begin_attempt(&mut *tx, KIND_REGISTER, address, "", at).await?;
         let total = auth_events::count_address(&mut *tx, KIND_REGISTER, address, floor).await?;
         if total > REGISTER_LIMIT {

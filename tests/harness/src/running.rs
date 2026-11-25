@@ -124,6 +124,18 @@ impl Running {
     }
 }
 
+impl Drop for Running {
+    fn drop(&mut self) {
+        let pid = self.pid();
+        let label = self.label.clone();
+        kill_child(&mut self.child, pid, &label);
+        let Some(deadline) = Instant::now().checked_add(self.timeout) else {
+            return;
+        };
+        let _state = poll_exit(&mut self.child, pid, self.timeout, deadline);
+    }
+}
+
 fn boxed_read<R: std::io::Read + Send + 'static>(stream: R) -> Box<dyn std::io::Read + Send> {
     Box::new(stream)
 }
