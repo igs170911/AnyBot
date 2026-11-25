@@ -58,7 +58,10 @@ fn uses_violations(node: &serde_json::Value, rel: &str, out: &mut Vec<String>) {
                 uses_violations(item, rel, out);
             }
         }
-        serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) | serde_json::Value::String(_) => {}
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
     }
 }
 
