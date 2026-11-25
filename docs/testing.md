@@ -5,6 +5,7 @@
 ## 跑測試
 
 - Rust 一律用 `cargo nextest run`（不要用 `cargo test`）。make 目標：`make check` 裡有 `test` 關卡；`make check-fast` 跑 `make test-fast`（`--profile quick`：跳過 PostgreSQL 群組的測試，e2e 是分開的目標）。`make test`、`make test-fast`、`make e2e` 都會先拿跨工作區的測試鎖（見「並行工作」節）。
+- **`make test` 的結尾碼關卡（HOTFIX）**：`_test-body` 經 `tools/test-gate.sh`（`run` 模式）：nextest 結尾碼不是 0 → 擋；紀錄 `target/nextest.log` 出現 `ignoring unknown configuration keys` → 擋（缺一個都不行）。同一支腳本也是 `make gate-selftest` 的邏輯（在 `check` 和 `check-fast` 裡，幾秒跑完）：`expect-fail` 餵結尾碼非 0 的指令、餵結尾碼 0 但輸出帶那句警告的指令，都要擋；`expect-pass` 餵乾淨指令要過。iron-laws 另有一道 `makefile_recipes` 檢查：recipe 同一邏輯行裡 `;` 接兩個會失敗的指令、管線沒有 `pipefail`、`$(shell ...)` 裡有管線，都擋；要連寫指令一律用 `&&`、条件，或抽成 `tools/` 裡的腳本。
 - `make live-model-check`（`tests/live-model`）：跟真的本機模型比對。先比請求與回應格式（一般／串流／工具呼叫），再用產品客戶端把一般、串流、工具呼叫、思考各送一次給 vllm 假模型和真的模型，比兩邊閘道交出的中立結果結構（結束原因、有沒有文字、有沒有思考、工具呼叫數、用量有沒有）。設定只讀 `.local/live-model/profile.toml`（`cargo clean` 不會刪），只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印、**絕不放進命令列參數**（`ps` 會看到）；要打真的模型一律走這個程式，真的要手動 `curl` 時把標頭寫進 `target/` 裡權限 600 的檔案、用 `curl -H @檔案`，用完刪掉。假模型用 `vllm` 格式跟真的比，三種格式要比到 identical。終端機會印每一種格式差在哪，以及 `product client:` 底下四行結構比較（`identical structure` 或兩邊的結構）。報告寫在 `.local/live-model/format-report.txt`。檔案不在時，程式在連出去之前就列出要建的 `profile.toml`、`base_url`、`model`、`ca_file`、`key_file`。不在 `make check`、`make check-fast`、CI 裡。
 - TypeScript 用 `pnpm vitest run`；端對端用 Playwright（見第二節）。
 - 逾時設定在 `.config/nextest.toml`：每個測試 30 秒慢速警戒，第 4 次逾時就終止。PostgreSQL 相關的測試另有 90 秒寬限，並在同一群組裡序列化執行（平行度 1）。
@@ -15,7 +16,7 @@
 - **共用編譯輸出**：硬碟容量有限，最多兩條線共用一份編譯輸出。做法：在共用的上一層資料夾放 `.cargo/config.toml`，設 `[build] target-dir = "shared-build"`（位置是 config 檔的相對路徑，放在 worktree 的上一層就會被套用）。編譯輸出共用時出現「Blocking waiting for file lock」是在等別人編譯，屬正常；不准刪共用輸出、不准對它 `cargo clean`。
 - **測試暫存照舊在工作區自己的 `target/`**（`target/tests/`、`target/e2e-screens/`、`target/live-model/`、`target/pg-install`…），不放進共用的編譯輸出：兩個工作區的同名測試會互相蓋掉。
 - **找編譯輸出的地方一律問 `cargo metadata --format-version 1 --no-deps` 的 `target_directory`**：iron-laws 的「沒被編譯到的檔案」關卡、e2e 啟動 `testenv` 的路徑（`tests/e2e/src/env.ts`）都是這樣；Makefile 裡走 `cargo run`/`cargo build` 的目標由 cargo 自己解析。
-- **測試鎖**：`make test`、`make test-fast`、`make e2e` 會先拿一個跨工作區的鎖，鎖檔在 `git rev-parse --git-common-dir` 那個資料夾裡的 `anybot-tests.lock`（所有工作區共用同一個）。macOS 用 `lockf`、Linux 用 `flock`，兩個都沒有（CI 一次只跑一份）就不鎖。拿不到時印一行「waiting for test lock: {鎖檔}」然後等，不放棄。
+- **測試鎖**：`make test`、`make test-fast`、`make e2e` 會先拿一個跨工作區的鎖（`tools/testlock.sh`），鎖檔在 `git rev-parse --git-common-dir` 那個資料夾裡的 `anybot-tests.lock`（所有工作區共用同一個）。macOS 用 `lockf`、Linux 用 `flock`，兩個都沒有（CI 一次只跑一份）就不鎖。拿不到時印一行「waiting for test lock: {鎖檔}」然後等，不放棄。腳本全程用 `&&`／`set -e` 串接，任何一步失敗都會讓 make 目標失敗。
 - **自我測試 A（搬家後的 target-dir）**：在 `target/` 建一個暫時 worktree（`git worktree add --detach target/wt-td main`），把未 commit 的改動複製進去（自我測試要測當前的檔案），在它的上一層 `target/.cargo/config.toml` 寫 `[build] target-dir = "shared-build"`，在 worktree 裡跑 `make check` 要全綠（iron-laws、e2e 都要能找到共用輸出）。跑完 `git worktree remove --force target/wt-td`，刪 `target/.cargo` 與 `target/shared-build`。這不是每次 `make check` 的關卡，改動「找編譯輸出」的程式時手動跑一次。
 - **自我測試 B（測試鎖）**：在 `target/` 建兩個暫時 worktree（同上，複製未 commit 的改動），後台先跑 `make test-fast`（A），立刻在第二個跑 `make test-fast`（B）；B 的輸出第一行要出現「waiting for test lock」，而且 B 的完成時間晚於 A，兩個都要全綠。跑完收掉兩個 worktree，鎖檔留在 git common dir（下次照用）。
 
