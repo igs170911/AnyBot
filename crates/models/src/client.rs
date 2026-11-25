@@ -30,12 +30,30 @@ impl NameResolver for IdentityResolver {
 }
 
 impl Gateway {
-    pub fn new(clock: Arc<dyn Clock>) -> Result<Self, String> {
-        let client = crate::client_http::product_client()?;
-        Ok(Self::from_wire(
-            crate::reqwest_wire::ReqwestWire::new(client),
+    pub fn new(
+        clock: Arc<dyn Clock>,
+        trusted: &anybot_foundation::TrustedCerts,
+    ) -> Result<Self, String> {
+        Ok(Self::from_client(
             clock,
+            crate::client_http::product_client(trusted)?,
         ))
+    }
+
+    pub fn with_pinned_host(
+        clock: Arc<dyn Clock>,
+        trusted: &anybot_foundation::TrustedCerts,
+        host: &str,
+        addr: std::net::SocketAddr,
+    ) -> Result<Self, String> {
+        Ok(Self::from_client(
+            clock,
+            crate::client_http::client_for(trusted, Some((host, addr)))?,
+        ))
+    }
+
+    fn from_client(clock: Arc<dyn Clock>, client: reqwest::Client) -> Self {
+        Self::from_wire(crate::reqwest_wire::ReqwestWire::new(client), clock)
     }
 
     pub(crate) fn from_wire(wire: SharedWire, clock: Arc<dyn Clock>) -> Self {
@@ -109,7 +127,7 @@ impl Gateway {
             Err(crate::transport::TransportFail::Partial(partial)) => {
                 crate::stream_fail::partial_outcome(endpoint, &partial.bytes)
             }
-            Err(other) => Err(GatewayFail::Transport(other)),
+            Err(other) => Err(crate::ask::transport_fail(endpoint, &other, false)),
         }
     }
 
@@ -147,7 +165,7 @@ impl Gateway {
             .transport
             .open_stream(request, first_wait)
             .await
-            .map_err(GatewayFail::Transport)?;
+            .map_err(|fail| crate::ask::transport_fail(endpoint, &fail, false))?;
         if open.status >= 300 && open.status < 400 {
             return Err(crate::ask::classified_fail(
                 crate::errors::classify(&crate::errors::FailInput::Redirect),

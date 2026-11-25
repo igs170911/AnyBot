@@ -57,8 +57,10 @@ test:
 _test-body:
 ifdef NEXTTEST
 	@mkdir -p target
-	$(CARGO) nextest run --workspace --test-threads 1 2>&1 | tee target/nextest.log; \
-		! grep -q "ignoring unknown configuration keys" target/nextest.log
+	status=0; \
+	$(CARGO) nextest run --workspace --test-threads 1 2>&1 | tee target/nextest.log || status=$$?; \
+	! grep -q "ignoring unknown configuration keys" target/nextest.log; \
+	exit $$status
 else
 	$(CARGO) test --workspace
 endif

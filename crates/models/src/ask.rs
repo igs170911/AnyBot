@@ -5,7 +5,8 @@ use anybot_foundation::clock::Clock;
 use tokio::sync::watch;
 
 use crate::GatewayFail;
-use crate::errors::{Classified, FailInput, RetryPlan, classify, clip_detail, redact};
+use crate::errors::{Classified, FailInput, RetryPlan, classify};
+use crate::errors_text::{clip_detail, redact};
 use crate::notice::{Notice, busy_notice, failure_notice, retry_notice};
 use crate::retry::{self, apply_jitter, base_wait, retry_after};
 use crate::transport::TransportFail;
@@ -96,6 +97,15 @@ pub(crate) fn from_status(
     }
 }
 
+pub(crate) fn transport_fail(
+    endpoint: &crate::types::ProviderEndpoint,
+    fail: &TransportFail,
+    saw_text: bool,
+) -> GatewayFail {
+    let attempt = from_transport(fail, endpoint.kind, saw_text);
+    classified_fail(attempt.classified, attempt.notices)
+}
+
 pub(crate) fn from_transport(
     fail: &TransportFail,
     provider: ProviderKind,
@@ -104,6 +114,9 @@ pub(crate) fn from_transport(
     let input = match fail {
         TransportFail::ConnectTimeout | TransportFail::Unreachable => FailInput::Connect {
             ollama: matches!(provider, ProviderKind::Ollama),
+        },
+        TransportFail::Certificate(fault) => FailInput::Certificate {
+            fault: fault.clone(),
         },
         TransportFail::FirstToken => FailInput::FirstToken,
         TransportFail::Stalled { .. } => FailInput::Stalled,
@@ -125,6 +138,17 @@ fn fail_label(fail: &TransportFail) -> String {
     match fail {
         TransportFail::ConnectTimeout => "connect timeout".to_owned(),
         TransportFail::Unreachable => "unreachable".to_owned(),
+        TransportFail::Certificate(anybot_foundation::CertFault::NameMismatch) => {
+            "name mismatch".to_owned()
+        }
+        TransportFail::Certificate(anybot_foundation::CertFault::Expired) => "expired".to_owned(),
+        TransportFail::Certificate(anybot_foundation::CertFault::NotValidYet) => {
+            "not valid yet".to_owned()
+        }
+        TransportFail::Certificate(anybot_foundation::CertFault::Untrusted) => {
+            "untrusted".to_owned()
+        }
+        TransportFail::Certificate(anybot_foundation::CertFault::Other) => "certificate".to_owned(),
         TransportFail::FirstToken => "first token".to_owned(),
         TransportFail::Stalled { .. } => "stalled after text".to_owned(),
         TransportFail::Dropped => "dropped".to_owned(),

@@ -19,7 +19,10 @@ pub(crate) struct World {
 pub(crate) async fn world(format: ModelFormat) -> Result<World, String> {
     let (model, port) = model_start_with_format(format).await?;
     let clock = FakeClock::new(0);
-    let gateway = gateway(share_clock(&clock))?;
+    let gateway = gateway(
+        share_clock(&clock),
+        &anybot_foundation::TrustedCerts::empty(),
+    )?;
     Ok(World {
         gateway,
         model,

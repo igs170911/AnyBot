@@ -1,4 +1,6 @@
 pub mod bootstrap;
+pub mod certs;
+mod certs_check;
 pub mod clock;
 pub mod error;
 pub mod ids;
@@ -8,6 +10,7 @@ pub mod startup;
 mod startup_tests;
 
 pub use bootstrap::ServerBootstrap;
+pub use certs::{CertFault, TrustStore, TrustedCerts, classify_tls};
 pub use clock::{Clock, ClockExpired, PinBoxFuture, SystemClock, TimestampMs};
 pub use error::{
     CODE_BOOTSTRAP_CREDENTIALS_MISSING, CODE_BOOTSTRAP_DATABASE_MISSING,

@@ -29,7 +29,7 @@ async fn run_with_profile(repo: &Path, profile: &LiveProfile) -> Outcome {
         live: live.side.probe,
     };
     let product = crate::product::product_lines(&fake.side.product, &live.side.product);
-    let report = write_report(repo, &shapes);
+    let report = write_report(repo, &shapes, &product);
     let failures = collect_failures(fake.failed, live.failed, &report);
     Outcome {
         shapes,

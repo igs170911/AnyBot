@@ -3,9 +3,12 @@ use reqwest::Client;
 use crate::profile::LiveProfile;
 
 pub fn live_client(profile: &LiveProfile) -> Result<Client, String> {
-    let tls = crate::pin::pinned_client_config(&profile.ca_pem)?;
+    let trusted = anybot_foundation::TrustedCerts::parse_pem(&profile.ca_pem)?;
+    let store = anybot_foundation::TrustStore::new(&trusted)?;
+    let tls = store.client_config()?;
     Client::builder()
         .use_preconfigured_tls(tls)
+        .redirect(reqwest::redirect::Policy::none())
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|e| format!("build HTTPS client failed: {e}"))

@@ -7,6 +7,7 @@ use bytes as _;
 use futures_util as _;
 use proptest as _;
 use reqwest as _;
+use rustls as _;
 use serde as _;
 use serde_json as _;
 use std::sync::Arc;
@@ -102,7 +103,10 @@ fn recorded_body(world: &support::World, index: usize) -> Result<String, String>
 }
 
 fn world_gateway(world: &support::World) -> Result<anybot_models::Gateway, String> {
-    anybot_models::gateway(support::share(&world.clock))
+    anybot_models::gateway(
+        support::share(&world.clock),
+        &anybot_foundation::TrustedCerts::empty(),
+    )
 }
 
 #[tokio::test]
@@ -218,8 +222,11 @@ async fn t_models_capabilities_10() -> Result<(), String> {
     let clock = FakeClock::new(0);
     let shared: Arc<FakeClock> = Arc::clone(&clock);
     let clock_dyn: Arc<dyn Clock> = shared;
-    let mut session =
-        anybot_models::Session::new(anybot_models::gateway(clock_dyn)?, share(&clock), 0);
+    let mut session = anybot_models::Session::new(
+        anybot_models::gateway(clock_dyn, &anybot_foundation::TrustedCerts::empty())?,
+        share(&clock),
+        0,
+    );
     let primary = anybot_models::ModelRef {
         endpoint: anybot_models::resolve_endpoint(
             ProviderKind::Custom,

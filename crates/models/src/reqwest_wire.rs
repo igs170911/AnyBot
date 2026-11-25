@@ -43,7 +43,7 @@ impl HttpWire for ReqwestWire {
                 .builder(request)
                 .send()
                 .await
-                .map_err(|_| TransportFail::Unreachable)?;
+                .map_err(|err| crate::tls_fail::map_reqwest(&err))?;
             let status = response.status().as_u16();
             let headers = header_pairs(response.headers());
             let body = response.bytes().await.map_err(|_| TransportFail::Dropped)?;
@@ -64,7 +64,7 @@ impl HttpWire for ReqwestWire {
                 .builder(request)
                 .send()
                 .await
-                .map_err(|_| TransportFail::Unreachable)?;
+                .map_err(|err| crate::tls_fail::map_reqwest(&err))?;
             let status = response.status().as_u16();
             let headers = header_pairs(response.headers());
             let stream = response

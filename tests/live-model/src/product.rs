@@ -25,7 +25,7 @@ pub async fn fake_product_shapes(port: u16, model: &str) -> Outcome<Vec<NeutralS
         model,
         None,
     );
-    complete_product_cases(endpoint).await
+    complete_product_cases(endpoint, "fake", &anybot_foundation::TrustedCerts::empty()).await
 }
 
 pub async fn live_product_shapes(profile: &LiveProfile) -> Outcome<Vec<NeutralShape>> {
@@ -36,17 +36,60 @@ pub async fn live_product_shapes(profile: &LiveProfile) -> Outcome<Vec<NeutralSh
         &profile.model,
         None,
     );
-    complete_product_cases(endpoint).await
+    let trusted = match anybot_foundation::TrustedCerts::parse_pem(&profile.ca_pem) {
+        Ok(trusted) => trusted,
+        Err(message) => return Outcome::partial(Vec::new(), message),
+    };
+    complete_product_cases(endpoint, "live", &trusted).await
+}
+
+pub async fn https_product_shapes(
+    port: u16,
+    model: &str,
+    host: &str,
+    trusted: &anybot_foundation::TrustedCerts,
+) -> Outcome<Vec<NeutralShape>> {
+    let endpoint = resolve_endpoint(
+        ProviderKind::Custom,
+        &format!("https://{host}:{port}/v1"),
+        "k",
+        model,
+        None,
+    );
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+    let gateway = match anybot_models::gateway_pinned(clock, trusted, host, addr) {
+        Ok(gateway) => gateway,
+        Err(message) => return Outcome::partial(Vec::new(), message),
+    };
+    finish_cases(gateway, endpoint, "live").await
+}
+
+pub async fn complete_labeled(
+    endpoint: anybot_models::ProviderEndpoint,
+    side: &str,
+) -> Outcome<Vec<NeutralShape>> {
+    complete_product_cases(endpoint, side, &anybot_foundation::TrustedCerts::empty()).await
 }
 
 async fn complete_product_cases(
     endpoint: anybot_models::ProviderEndpoint,
+    side: &str,
+    trusted: &anybot_foundation::TrustedCerts,
 ) -> Outcome<Vec<NeutralShape>> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-    let gateway = match gateway(clock) {
+    let gateway = match gateway(clock, trusted) {
         Ok(gateway) => gateway,
         Err(message) => return Outcome::partial(Vec::new(), message),
     };
+    finish_cases(gateway, endpoint, side).await
+}
+
+async fn finish_cases(
+    gateway: anybot_models::Gateway,
+    endpoint: anybot_models::ProviderEndpoint,
+    side: &str,
+) -> Outcome<Vec<NeutralShape>> {
     let mut shapes = Vec::new();
     let permit = match permit_for(&endpoint) {
         Ok(permit) => permit,
@@ -57,7 +100,7 @@ async fn complete_product_cases(
         let result = gateway
             .complete(&endpoint, &request, case.stream, &permit)
             .await
-            .map_err(|err| format!("product {} failed: {err:?}", case.name));
+            .map_err(|err| format!("{side} product {} failed: {err:?}", case.name));
         match result {
             Ok(turn) => shapes.push(shape_of(&turn)),
             Err(message) => return Outcome::partial(shapes, message),
@@ -83,12 +126,18 @@ fn permit_for(
 pub fn product_lines(fake: &[NeutralShape], live: &[NeutralShape]) -> Vec<String> {
     let mut lines = vec!["product client:".to_owned()];
     for (index, case) in product_cases().into_iter().enumerate() {
-        let (Some(left), Some(right)) = (fake.get(index), live.get(index)) else {
-            break;
-        };
-        lines.push(pair_line(case.name, left, right));
+        lines.push(product_pair(case.name, fake.get(index), live.get(index)));
     }
     lines
+}
+
+fn product_pair(name: &str, left: Option<&NeutralShape>, right: Option<&NeutralShape>) -> String {
+    match (left, right) {
+        (Some(left), Some(right)) => pair_line(name, left, right),
+        (None, None) => format!("  {name}: missing fake and live"),
+        (None, Some(_)) => format!("  {name}: missing fake"),
+        (Some(_), None) => format!("  {name}: missing live"),
+    }
 }
 
 fn pair_line(name: &str, left: &NeutralShape, right: &NeutralShape) -> String {

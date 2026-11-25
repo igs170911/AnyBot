@@ -1,3 +1,4 @@
+use rustls as _;
 use std::time::Duration;
 use trybuild as _;
 
@@ -130,7 +131,10 @@ async fn ask_switched(
         bot_context: None,
     };
     let mut session = anybot_models::Session::new(
-        anybot_models::gateway(support::share(&claude.clock))?,
+        anybot_models::gateway(
+            support::share(&claude.clock),
+            &anybot_foundation::TrustedCerts::empty(),
+        )?,
         support::share(&claude.clock),
         0,
     );
@@ -193,10 +197,13 @@ async fn t_models_handoff_6() -> Result<(), String> {
         anybot_models::ModelUse::Bot,
     )
     .ok_or("permit")?;
-    let first = anybot_models::gateway(support::share(&claude.clock))?
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false, &permit)
-        .await
-        .map_err(|err| format!("{err:?}"))?;
+    let first = anybot_models::gateway(
+        support::share(&claude.clock),
+        &anybot_foundation::TrustedCerts::empty(),
+    )?
+    .complete(&endpoint, &support::hi(ThinkingMode::Auto), false, &permit)
+    .await
+    .map_err(|err| format!("{err:?}"))?;
     let attachment = first.attachment.ok_or("missing attachment")?;
     let openai = support::world(ModelFormat::OpenAi).await?;
     let outcome = ask_switched(&claude, &openai, attachment).await?;

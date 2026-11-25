@@ -1,4 +1,5 @@
 use proptest as _;
+use rustls as _;
 use std::sync::Arc;
 use std::time::Duration;
 use trybuild as _;
@@ -39,7 +40,7 @@ async fn t_models_n1_1() -> Result<(), String> {
     let _held = world.gateway;
     let clock = Arc::clone(&world.clock);
     let task = tokio::spawn(async move {
-        let Ok(built) = gateway(share(&clock)) else {
+        let Ok(built) = gateway(share(&clock), &anybot_foundation::TrustedCerts::empty()) else {
             return Err(anybot_models::GatewayFail::MissingKey);
         };
         let mut session = Session::new(built, share(&clock), 0);
@@ -93,7 +94,14 @@ async fn t_models_n1_4() -> Result<(), String> {
         let world = support::world(ModelFormat::OpenAi).await?;
         support::script(&world.model, vec![model_reply_status(status, "no")]);
         let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
-        let mut session = Session::new(gateway(share(&world.clock))?, share(&world.clock), 0);
+        let mut session = Session::new(
+            gateway(
+                share(&world.clock),
+                &anybot_foundation::TrustedCerts::empty(),
+            )?,
+            share(&world.clock),
+            0,
+        );
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
@@ -118,7 +126,7 @@ async fn unattended_sends_eight_times() -> Result<(), String> {
     let clock = Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
-        let Ok(built) = gateway(share(&clock)) else {
+        let Ok(built) = gateway(share(&clock), &anybot_foundation::TrustedCerts::empty()) else {
             return Err(anybot_models::GatewayFail::MissingKey);
         };
         let mut session = Session::new(built, share(&clock), 200);

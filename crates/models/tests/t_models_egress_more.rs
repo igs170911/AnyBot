@@ -1,3 +1,4 @@
+use rustls as _;
 use trybuild as _;
 #[path = "../test_support/permit.rs"]
 mod permit_support;
@@ -43,7 +44,10 @@ fn cloud_gateway(
         "api.cloud.test",
         std::net::SocketAddr::from(([127, 0, 0, 1], cloud_port)),
     );
-    Ok(anybot_models::gateway(share(clock))?.with_names(Arc::new(MapNames(map))))
+    Ok(
+        anybot_models::gateway(share(clock), &anybot_foundation::TrustedCerts::empty())?
+            .with_names(Arc::new(MapNames(map))),
+    )
 }
 
 fn share(clock: &Arc<FakeClock>) -> Arc<dyn Clock> {

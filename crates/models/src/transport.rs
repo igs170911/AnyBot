@@ -200,6 +200,7 @@ async fn pump_stream(
 pub enum TransportFail {
     ConnectTimeout,
     Unreachable,
+    Certificate(anybot_foundation::CertFault),
     FirstToken,
     Stalled { partial: Vec<u8> },
     Dropped,

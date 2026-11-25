@@ -59,7 +59,10 @@ pub(crate) async fn pair(format: ModelFormat) -> Result<(World, Pair), String> {
 
 pub(crate) fn session(world: &World) -> Result<Session, String> {
     Ok(Session::new(
-        gateway(share(&world.clock))?,
+        gateway(
+            share(&world.clock),
+            &anybot_foundation::TrustedCerts::empty(),
+        )?,
         share(&world.clock),
         0,
     ))

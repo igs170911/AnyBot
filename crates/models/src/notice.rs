@@ -14,7 +14,7 @@ pub fn failure_notice(classified: &Classified, provider: ProviderKind, detail: &
     let mut params = vec![
         (
             "provider".to_owned(),
-            crate::errors::provider_label(provider).to_owned(),
+            crate::errors_text::provider_label(provider).to_owned(),
         ),
         ("detail".to_owned(), detail.to_owned()),
     ];
@@ -57,7 +57,7 @@ pub fn skip_notice(provider: ProviderKind, bot: &str) -> Notice {
         params: vec![
             (
                 "provider".to_owned(),
-                crate::errors::provider_label(provider).to_owned(),
+                crate::errors_text::provider_label(provider).to_owned(),
             ),
             ("bot".to_owned(), bot.to_owned()),
         ],
@@ -81,7 +81,7 @@ pub fn missing_key_notice(provider: ProviderKind) -> Notice {
         code: "model-missing-key",
         params: vec![(
             "provider".to_owned(),
-            crate::errors::provider_label(provider).to_owned(),
+            crate::errors_text::provider_label(provider).to_owned(),
         )],
     }
 }

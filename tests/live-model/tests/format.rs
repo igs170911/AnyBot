@@ -1,13 +1,11 @@
 use std::path::PathBuf;
 
 use anybot_foundation as _;
-use anybot_models as _;
+use anybot_models::{ProviderKind, resolve_endpoint};
 use live_model::profile::{PROFILE_REL, load_profile};
 use live_model::shape::{json_shape, stream_shape};
 use live_model::side::{Shapes, diff_tokens_public, report_lines};
 use reqwest as _;
-use rustls as _;
-use rustls_pki_types as _;
 use serde_json as _;
 use test_harness as _;
 use tokio as _;
@@ -101,18 +99,83 @@ fn live_report_marks_differences_and_matching_scenarios() {
         live: vec![
             vec!["a".to_owned(), "c".to_owned()],
             vec!["a".to_owned()],
-            vec![],
+            vec!["same".to_owned()],
         ],
     };
     let lines = report_lines(&shapes);
     let text = lines.join("\n");
     assert!(text.contains("b: fake only"), "{text}");
     assert!(text.contains("c: live only"), "{text}");
-    assert_eq!(text.matches("identical format").count(), 2, "{text}");
+    assert_eq!(text.matches("identical format").count(), 1, "{text}");
+    assert!(text.contains("missing fake"), "{text}");
     assert!(
         !text.contains("key"),
         "report must not mention keys: {text}"
     );
+}
+
+#[test]
+fn live_product_lines_list_a_missing_side() {
+    let lines = live_model::product::product_lines(&[], &[]);
+    let text = lines.join("\n");
+    assert!(text.contains("product client:"), "{text}");
+    assert!(text.contains("missing fake and live"), "{text}");
+    assert!(!text.contains("identical"), "{text}");
+}
+
+#[test]
+fn live_report_file_includes_product_client() {
+    let repo = scratch_repo("live-report-product");
+    let shapes = Shapes {
+        fake: vec![vec!["a".to_owned()]],
+        live: vec![vec!["a".to_owned()]],
+    };
+    let product = vec![
+        "product client:".to_owned(),
+        "  normal: missing live".to_owned(),
+    ];
+    let path = live_model::side::write_report(&repo, &shapes, &product).unwrap();
+    let text = std::fs::read_to_string(path).unwrap();
+    assert!(text.contains("product client:"), "{text}");
+    assert!(text.contains("missing live"), "{text}");
+}
+
+#[tokio::test]
+async fn live_run_uses_https_fake_model() {
+    let started = test_harness::model_start_https("model.invalid")
+        .await
+        .unwrap();
+    started.model.script_set(live_model::cases::product_steps());
+    let trusted = anybot_foundation::TrustedCerts::parse_pem(&started.cert.pem).unwrap();
+    let outcome =
+        live_model::product::https_product_shapes(started.port, "local", "model.invalid", &trusted)
+            .await;
+    assert!(outcome.failed.is_none(), "{:?}", outcome.failed);
+    assert_eq!(outcome.side.len(), 4);
+}
+
+#[tokio::test]
+async fn live_side_label_names_the_failing_side() {
+    let endpoint = resolve_endpoint(
+        ProviderKind::Custom,
+        "https://127.0.0.1:9/v1",
+        "k",
+        "local",
+        None,
+    );
+    let outcome = live_model::product::complete_labeled(endpoint, "live").await;
+    let message = outcome.failed.unwrap_or_default();
+    assert!(message.contains("live product"), "{message}");
+    assert!(!message.contains("fake product"), "{message}");
+}
+
+#[test]
+fn live_diff_missing_side_is_not_identical() {
+    let missing = diff_tokens_public(&[], &["x".to_owned()]);
+    assert_eq!(missing, vec!["  missing fake".to_owned()]);
+    let both = diff_tokens_public(&[], &[]);
+    assert_eq!(both, vec!["  missing fake and live".to_owned()]);
+    assert!(!both.iter().any(|line| line.contains("identical")));
 }
 
 #[test]

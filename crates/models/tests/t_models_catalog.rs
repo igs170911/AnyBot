@@ -1,4 +1,5 @@
 use proptest as _;
+use rustls as _;
 use std::sync::Arc;
 use std::time::Duration;
 use trybuild as _;
@@ -38,7 +39,7 @@ async fn t_models_n3_3() -> Result<(), String> {
     let clock = FakeClock::new(0);
     let shared: Arc<FakeClock> = Arc::clone(&clock);
     let clock_dyn: Arc<dyn Clock> = shared;
-    let gateway = gateway(clock_dyn)?;
+    let gateway = gateway(clock_dyn, &anybot_foundation::TrustedCerts::empty())?;
     let endpoint = anybot_models::resolve_endpoint(
         ProviderKind::OpenAi,
         &format!("http://127.0.0.1:{port}/v1"),
@@ -60,7 +61,7 @@ async fn t_models_n3_4() -> Result<(), String> {
     model.script_set(vec![model_list_silent()]);
     let clock = FakeClock::new(0);
     let shared: Arc<FakeClock> = Arc::clone(&clock);
-    let gateway = gateway(shared)?;
+    let gateway = gateway(shared, &anybot_foundation::TrustedCerts::empty())?;
     let endpoint = anybot_models::resolve_endpoint(
         ProviderKind::OpenAi,
         &format!("http://127.0.0.1:{port}/v1"),

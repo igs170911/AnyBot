@@ -1,4 +1,5 @@
 use proptest as _;
+use rustls as _;
 use std::sync::Arc;
 use trybuild as _;
 
@@ -92,7 +93,7 @@ async fn redirect_is_not_followed() -> Result<(), String> {
     let clock = FakeClock::new(0);
     let shared: Arc<FakeClock> = Arc::clone(&clock);
     let clock_dyn: Arc<dyn Clock> = shared;
-    let gateway = anybot_models::gateway(clock_dyn)?;
+    let gateway = anybot_models::gateway(clock_dyn, &anybot_foundation::TrustedCerts::empty())?;
     let endpoint = anybot_models::resolve_endpoint(
         ProviderKind::Custom,
         &format!("http://127.0.0.1:{local_port}/v1"),
@@ -115,7 +116,7 @@ async fn local_permit_rejects_cloud_destination() -> Result<(), String> {
     let (cloud, _cloud_port) = model_start_with_format(ModelFormat::OpenAi).await?;
     let clock = FakeClock::new(0);
     let shared: Arc<FakeClock> = Arc::clone(&clock);
-    let gateway = anybot_models::gateway(shared)?;
+    let gateway = anybot_models::gateway(shared, &anybot_foundation::TrustedCerts::empty())?;
     let local = anybot_models::resolve_endpoint(
         ProviderKind::Custom,
         "http://127.0.0.1:9/v1",

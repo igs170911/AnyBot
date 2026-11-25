@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::GatewayFail;
 use crate::catalog::{self, LIST_WAIT_SECS};
-use crate::errors::{clip_detail, redact};
+use crate::errors_text::{clip_detail, redact};
 use crate::providers::key_allowed;
 use crate::types::ProviderEndpoint;
 
@@ -55,7 +55,7 @@ pub async fn fetch_models(
             code: catalog::list_timeout_code(),
             detail: "timeout".to_owned(),
         }),
-        Err(other) => Err(GatewayFail::Transport(other)),
+        Err(other) => Err(crate::ask::transport_fail(endpoint, &other, false)),
     }
 }
 

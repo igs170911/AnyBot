@@ -38,6 +38,9 @@ export type MessageCode =
   "model-rate-limit" |
   "model-server" |
   "model-unreachable" |
+  "model-cert-untrusted" |
+  "model-cert-name" |
+  "model-cert-expired" |
   "model-ollama-down" |
   "model-first-token" |
   "model-stalled" |
@@ -102,6 +105,9 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-rate-limit",
   "model-server",
   "model-unreachable",
+  "model-cert-untrusted",
+  "model-cert-name",
+  "model-cert-expired",
   "model-ollama-down",
   "model-first-token",
   "model-stalled",

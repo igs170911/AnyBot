@@ -3,7 +3,8 @@ use std::sync::Arc;
 fn main() {
     let clock: Arc<dyn anybot_foundation::clock::Clock> =
         Arc::new(anybot_foundation::clock::SystemClock);
-    let gateway = anybot_models::gateway(Arc::clone(&clock)).unwrap();
+    let trusted = anybot_foundation::TrustedCerts::empty();
+    let gateway = anybot_models::gateway(Arc::clone(&clock), &trusted).unwrap();
     let endpoint = anybot_models::resolve_endpoint(
         anybot_models::ProviderKind::Custom,
         "http://127.0.0.1:9/v1",
@@ -22,5 +23,5 @@ fn main() {
         estimate_override: None,
     };
     let _sent = gateway.complete(&endpoint, &request, false);
-    let _outside = anybot_models::Gateway::new(clock).unwrap();
+    let _outside = anybot_models::Gateway::new(clock, &trusted).unwrap();
 }

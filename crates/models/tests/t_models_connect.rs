@@ -1,4 +1,5 @@
 use proptest as _;
+use rustls as _;
 use serde as _;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -32,7 +33,9 @@ async fn gateway_connect_timeout_uses_clock() -> Result<(), String> {
         "api.cloud.test",
         SocketAddr::from(([127, 0, 0, 1], proxy_port)),
     );
-    let gateway = anybot_models::gateway(as_clock(&clock))?.with_names(Arc::new(MapNames(map)));
+    let gateway =
+        anybot_models::gateway(as_clock(&clock), &anybot_foundation::TrustedCerts::empty())?
+            .with_names(Arc::new(MapNames(map)));
     let endpoint = anybot_models::resolve_endpoint(
         ProviderKind::OpenAi,
         "http://api.cloud.test/v1",
@@ -62,7 +65,8 @@ async fn gateway_connect_timeout_uses_clock() -> Result<(), String> {
     let err = task.await.unwrap().unwrap_err();
     assert!(matches!(
         err,
-        anybot_models::GatewayFail::Transport(anybot_models::TransportFail::ConnectTimeout)
+        anybot_models::GatewayFail::Classified { classified, .. }
+            if classified.code == "model-unreachable"
     ));
     Ok(())
 }

@@ -61,6 +61,7 @@ pub enum FailInput {
     Redirect,
     Budget,
     Connect { ollama: bool },
+    Certificate { fault: anybot_foundation::CertFault },
 }
 
 #[must_use]
@@ -70,6 +71,7 @@ pub fn classify(input: &FailInput) -> Classified {
         FailInput::PolicyBlocked => skip_row(FailKind::PolicyBlocked, "model-policy-blocked"),
         FailInput::Unreachable => again_row(FailKind::Unreachable, "model-unreachable"),
         FailInput::Connect { ollama } => connect_row(*ollama),
+        FailInput::Certificate { fault } => crate::errors_cert::certificate_row(fault),
         FailInput::FirstToken => again_row(FailKind::FirstToken, "model-first-token"),
         FailInput::Stalled => none_row(FailKind::Stalled, "model-stalled"),
         FailInput::StreamCut { saw_text } => stream_cut(*saw_text),
@@ -235,7 +237,7 @@ fn skip_row(kind: FailKind, code: &'static str) -> Classified {
     plain(kind, RetryPlan::None, FallbackPlan::Skip, code)
 }
 
-fn again_row(kind: FailKind, code: &'static str) -> Classified {
+pub(crate) fn again_row(kind: FailKind, code: &'static str) -> Classified {
     plain(kind, RetryPlan::Again, FallbackPlan::Switch, code)
 }
 
@@ -293,7 +295,3 @@ fn row(
 }
 
 use crate::errors_text::{context_limit, no_tools, quota, rejected_param, too_long};
-
-pub use crate::errors_text::{
-    clip_detail, context_limit as context_limit_of, provider_label, redact,
-};

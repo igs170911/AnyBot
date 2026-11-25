@@ -112,8 +112,10 @@ pub async fn live_side(profile: &LiveProfile) -> Outcome<LiveSide> {
     }
 }
 
-pub fn write_report(repo: &Path, shapes: &Shapes) -> Result<PathBuf, String> {
+pub fn write_report(repo: &Path, shapes: &Shapes, product: &[String]) -> Result<PathBuf, String> {
     let mut lines = report_lines(shapes);
+    lines.push(String::new());
+    lines.extend(product.iter().cloned());
     lines.push(String::new());
     let text = lines.join("\n");
     let path = repo.join(REPORT_REL);
@@ -145,6 +147,9 @@ pub fn diff_tokens_public(fake: &[String], live: &[String]) -> Vec<String> {
 }
 
 fn diff_tokens(fake: &[String], live: &[String]) -> Vec<String> {
+    if fake.is_empty() || live.is_empty() {
+        return vec![missing_side(fake.is_empty(), live.is_empty())];
+    }
     let mut out = Vec::new();
     for token in unique_sorted(fake, live) {
         match (count_of(fake, &token) > 0, count_of(live, &token) > 0) {
@@ -157,6 +162,15 @@ fn diff_tokens(fake: &[String], live: &[String]) -> Vec<String> {
         out.push("  identical format".to_owned());
     }
     out
+}
+
+fn missing_side(fake_missing: bool, live_missing: bool) -> String {
+    match (fake_missing, live_missing) {
+        (true, true) => "  missing fake and live".to_owned(),
+        (true, false) => "  missing fake".to_owned(),
+        (false, true) => "  missing live".to_owned(),
+        (false, false) => "  identical format".to_owned(),
+    }
 }
 
 fn unique_sorted(fake: &[String], live: &[String]) -> Vec<String> {

@@ -18,6 +18,12 @@ percent-encoding = { workspace = true }
 uuid = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 zeroize = { workspace = true }
+rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+rustls-native-certs = { workspace = true }
+webpki-roots = { workspace = true }
+webpki = { workspace = true }
+x509-parser = { workspace = true }
 [lints]
 workspace = true
 

@@ -74,7 +74,7 @@ pub fn package_of_path(path: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::exemptions::clippy_exemptions;
-    use crate::exemptions::merge;
+    use crate::exemptions::{PERMIT_M, merge};
     use std::collections::BTreeSet;
 
     #[test]
@@ -118,10 +118,16 @@ mod tests {
     #[test]
     fn test_table_harness_exempts_process_http_files_but_not_env() {
         let e = clippy_exemptions();
-        let want = merge(&[&PROC_M[..], &HTTP_M[..], &FS_M[..], &TIME_M[..]])
-            .into_iter()
-            .map(String::from)
-            .collect::<BTreeSet<String>>();
+        let want = merge(&[
+            &PROC_M[..],
+            &HTTP_M[..],
+            &FS_M[..],
+            &TIME_M[..],
+            &PERMIT_M[..],
+        ])
+        .into_iter()
+        .map(String::from)
+        .collect::<BTreeSet<String>>();
         let got = e
             .get("test-harness")
             .and_then(|m| m.get("disallowed-methods"));

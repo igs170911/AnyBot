@@ -1,3 +1,4 @@
+use rustls as _;
 use trybuild as _;
 #[path = "../test_support/permit.rs"]
 mod permit_support;
@@ -74,14 +75,16 @@ async fn gateway_times_out_before_first_token() -> Result<(), String> {
     let ready = timeout_real(wait_finished(&clock, &task, 121), Duration::from_secs(5)).await;
     assert!(ready.is_ok());
     let outcome = task.await.unwrap();
-    assert!(matches!(
-        outcome,
-        Err(anybot_models::GatewayFail::Transport(
-            anybot_models::TransportFail::FirstToken
-        )) | Ok(anybot_models::TurnResult {
+    let timed_out = match outcome {
+        Err(anybot_models::GatewayFail::Classified { classified, .. }) => {
+            classified.code == "model-first-token"
+        }
+        Ok(anybot_models::TurnResult {
             stop: anybot_models::StopKind::Interrupted,
             ..
-        })
-    ));
+        }) => true,
+        _ => false,
+    };
+    assert!(timed_out);
     Ok(())
 }

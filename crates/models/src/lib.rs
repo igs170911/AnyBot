@@ -6,6 +6,7 @@ pub mod client;
 pub(crate) mod client_http;
 pub mod egress;
 pub mod errors;
+pub(crate) mod errors_cert;
 pub(crate) mod errors_text;
 pub mod estimate;
 pub mod failure_log;
@@ -30,6 +31,7 @@ pub(crate) mod session_step;
 pub(crate) mod session_switch;
 pub(crate) mod stream_fail;
 pub(crate) mod thinking;
+pub(crate) mod tls_fail;
 pub(crate) mod transport;
 pub mod types;
 pub mod where_run;
@@ -51,10 +53,8 @@ pub use client::{Gateway, GatewayFail, IdentityResolver, NameResolver};
 pub use egress::{
     DataPolicy, JudgeCandidate, ModelUse, SendPermit, allowed, default_policy, pick_judge,
 };
-pub use errors::{
-    Classified, FailInput, FailKind, FallbackPlan, RetryPlan, classify, clip_detail,
-    context_limit_of as context_limit, redact,
-};
+pub use errors::{Classified, FailInput, FailKind, FallbackPlan, RetryPlan, classify};
+pub use errors_text::{clip_detail, context_limit, provider_label, redact};
 pub use estimate::{
     Calibration, EstimateInput, apply_calibration, fits, formula_tokens, margin_milli,
 };
@@ -99,6 +99,18 @@ use test_harness as _;
 #[cfg(test)]
 use trybuild as _;
 
-pub fn gateway(clock: Arc<dyn Clock>) -> Result<Gateway, String> {
-    Gateway::new(clock)
+pub fn gateway(
+    clock: Arc<dyn Clock>,
+    trusted: &anybot_foundation::TrustedCerts,
+) -> Result<Gateway, String> {
+    Gateway::new(clock, trusted)
+}
+
+pub fn gateway_pinned(
+    clock: Arc<dyn Clock>,
+    trusted: &anybot_foundation::TrustedCerts,
+    host: &str,
+    addr: std::net::SocketAddr,
+) -> Result<Gateway, String> {
+    Gateway::with_pinned_host(clock, trusted, host, addr)
 }

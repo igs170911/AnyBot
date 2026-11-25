@@ -1,4 +1,5 @@
 use proptest as _;
+use rustls as _;
 use std::time::Duration;
 use trybuild as _;
 
@@ -47,8 +48,9 @@ async fn fallback_after_retries_uses_second_model() -> Result<(), String> {
     let primary = pair.primary;
     let fallback = pair.fallback;
     let task = tokio::spawn(async move {
+        let trusted = anybot_foundation::TrustedCerts::empty();
         let mut session = anybot_models::Session::new(
-            gateway(support::share(&clock))?,
+            gateway(support::share(&clock), &trusted)?,
             support::share(&clock),
             0,
         );
@@ -266,8 +268,9 @@ async fn retry_after_is_capped_at_thirty_seconds() -> Result<(), String> {
     let clock = std::sync::Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
+        let trusted = anybot_foundation::TrustedCerts::empty();
         let mut session = anybot_models::Session::new(
-            gateway(support::share(&clock))?,
+            gateway(support::share(&clock), &trusted)?,
             support::share(&clock),
             0,
         );

@@ -1,3 +1,4 @@
+use rustls as _;
 use std::time::Duration;
 use trybuild as _;
 
@@ -60,7 +61,10 @@ async fn stream_busy_waits_then_retries() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
         let mut session = anybot_models::Session::new(
-            gateway(support::share(&clock))?,
+            gateway(
+                support::share(&clock),
+                &anybot_foundation::TrustedCerts::empty(),
+            )?,
             support::share(&clock),
             0,
         );
@@ -115,7 +119,10 @@ async fn stop_during_retry_ends_quietly() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
         let mut session = anybot_models::Session::new(
-            gateway(support::share(&clock))?,
+            gateway(
+                support::share(&clock),
+                &anybot_foundation::TrustedCerts::empty(),
+            )?,
             support::share(&clock),
             0,
         )
@@ -155,7 +162,10 @@ async fn policy_skip_does_not_call_cloud_fallback() -> Result<(), String> {
     fallback.endpoint.base_url = "http://api.cloud.test/v1".to_owned();
     let task = tokio::spawn(async move {
         let mut session = anybot_models::Session::new(
-            gateway(support::share(&clock))?,
+            gateway(
+                support::share(&clock),
+                &anybot_foundation::TrustedCerts::empty(),
+            )?,
             support::share(&clock),
             0,
         );
