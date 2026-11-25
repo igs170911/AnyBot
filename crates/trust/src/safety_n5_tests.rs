@@ -1,0 +1,53 @@
+use crate::safety_n5::*;
+
+#[test]
+fn t_safety_n5_1() {
+    let delete_hits = [
+        classes_of_command("rm -rf build"),
+        classes_of_command("git rm notes.txt"),
+    ];
+    assert!(delete_hits[0].contains(&ActionClass::Delete));
+    assert!(delete_hits[1].contains(&ActionClass::Delete));
+    assert!(classes_of_connector_tool("linear_delete_issue", false).contains(&ActionClass::Delete));
+    assert!(classes_of_click_label("Delete").contains(&ActionClass::Delete));
+    let send_hits = [
+        classes_of_connector_tool("slack_send_message", false),
+        classes_of_command("mail bob@example.com"),
+    ];
+    assert!(send_hits[0].contains(&ActionClass::SendToOthers));
+    assert!(send_hits[1].contains(&ActionClass::SendToOthers));
+    let share_hits = [
+        classes_of_connector_tool("gdrive_share_file", false),
+        classes_of_click_label("Share"),
+    ];
+    assert!(share_hits[0].contains(&ActionClass::Share));
+    assert!(share_hits[1].contains(&ActionClass::Share));
+    let publish_hits = [
+        classes_of_command("git push origin main"),
+        classes_of_connector_tool("twitter_post", false),
+    ];
+    assert!(publish_hits[0].contains(&ActionClass::Publish));
+    assert!(publish_hits[1].contains(&ActionClass::Publish));
+    let pay_hits = [
+        classes_of_connector_tool("stripe_checkout", false),
+        classes_of_click_label("Checkout"),
+    ];
+    assert!(pay_hits[0].contains(&ActionClass::Payment));
+    assert!(pay_hits[1].contains(&ActionClass::Payment));
+    let pass_hits = [
+        classes_of_connector_tool("vault_get_password", false),
+        classes_of_command("passwd root"),
+    ];
+    assert!(pass_hits[0].contains(&ActionClass::PasswordChange));
+    assert!(pass_hits[1].contains(&ActionClass::PasswordChange));
+}
+
+#[test]
+fn test_six_class_negative_examples_stay_unclassified() {
+    assert_eq!(classes_of_connector_tool("stripe_paypal", false), vec![]);
+    assert_eq!(classes_of_click_label("reply"), vec![]);
+    assert_eq!(classes_of_command("git pull origin main"), vec![]);
+    assert_eq!(classes_of_command("echo \"rm old\""), vec![]);
+    assert_eq!(classes_of_connector_tool("github_sender", false), vec![]);
+    assert_eq!(classes_of_click_label("Search"), vec![]);
+}
