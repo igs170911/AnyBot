@@ -1,4 +1,6 @@
-use url::Url;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+use url::{Host, Url};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunPlace {
@@ -12,18 +14,40 @@ pub fn classify_url(raw: &str) -> RunPlace {
     let Ok(url) = Url::parse(raw) else {
         return RunPlace::Cloud;
     };
-    let Some(host) = url.host_str() else {
-        return RunPlace::Cloud;
-    };
-    classify_host(host)
+    match url.host() {
+        Some(Host::Ipv4(addr)) => classify_v4(addr),
+        Some(Host::Ipv6(addr)) => classify_v6(addr),
+        Some(Host::Domain(name)) => classify_name(&name.to_ascii_lowercase()),
+        None => RunPlace::Cloud,
+    }
 }
 
-fn classify_host(host: &str) -> RunPlace {
-    let lowered = host.to_ascii_lowercase();
-    if lowered == "localhost" || lowered == "::1" || lowered.starts_with("127.") {
+fn classify_v6(addr: Ipv6Addr) -> RunPlace {
+    match addr.to_ipv4_mapped() {
+        Some(v4) => classify_v4(v4),
+        None => classify_addr(IpAddr::V6(addr)),
+    }
+}
+
+fn classify_addr(addr: IpAddr) -> RunPlace {
+    if addr.is_loopback() {
         return RunPlace::Local;
     }
-    if lan_name(&lowered) || lan_ip(&lowered) {
+    if lan_addr(addr) {
+        return RunPlace::Lan;
+    }
+    RunPlace::Cloud
+}
+
+fn classify_v4(addr: Ipv4Addr) -> RunPlace {
+    classify_addr(IpAddr::V4(addr))
+}
+
+fn classify_name(host: &str) -> RunPlace {
+    if host == "localhost" {
+        return RunPlace::Local;
+    }
+    if lan_name(host) {
         return RunPlace::Lan;
     }
     RunPlace::Cloud
@@ -38,24 +62,25 @@ fn lan_name(host: &str) -> bool {
         ".home.arpa",
         ".ts.net",
     ];
+    if host.ends_with('.') {
+        return false;
+    }
     SUFFIXES.iter().any(|suffix| host.ends_with(suffix)) || !host.contains('.')
 }
 
-fn lan_ip(host: &str) -> bool {
-    let Ok(addr) = host.parse::<std::net::IpAddr>() else {
-        return false;
-    };
+fn lan_addr(addr: IpAddr) -> bool {
     match addr {
-        std::net::IpAddr::V4(v4) => v4.is_private() || v4.is_link_local() || shared_v4(v4),
-        std::net::IpAddr::V6(v6) => {
-            let segments = v6.segments();
-            let head = segments.first().copied().unwrap_or(0);
-            (head & 0xfe00) == 0xfc00 || (head & 0xffc0) == 0xfe80
-        }
+        IpAddr::V4(v4) => v4.is_private() || v4.is_link_local() || shared_v4(v4),
+        IpAddr::V6(v6) => unique_local(v6) || v6.is_unicast_link_local(),
     }
 }
 
-fn shared_v4(addr: std::net::Ipv4Addr) -> bool {
+fn unique_local(addr: Ipv6Addr) -> bool {
+    let head = addr.segments().first().copied().unwrap_or(0);
+    (head & 0xfe00) == 0xfc00
+}
+
+fn shared_v4(addr: Ipv4Addr) -> bool {
     let octets = addr.octets();
     octets.first() == Some(&100)
         && octets

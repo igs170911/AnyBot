@@ -25,19 +25,14 @@ pub(crate) fn chunk_pieces(step: &ScriptStep) -> Vec<Result<Bytes, TransportFail
     out
 }
 
-fn kept_piece(piece: &str, cut_at: Option<usize>, seen: usize) -> String {
+fn kept_piece(piece: &str, cut_at: Option<usize>, seen: usize) -> Vec<u8> {
+    let bytes = piece.as_bytes();
     let Some(at) = cut_at else {
-        return piece.to_owned();
+        return bytes.to_vec();
     };
     if seen >= at {
-        return String::new();
+        return Vec::new();
     }
-    let mut end = at.saturating_sub(seen).min(piece.len());
-    while end > 0 && !piece.is_char_boundary(end) {
-        end = end.saturating_sub(1);
-    }
-    match piece.get(..end) {
-        Some(text) => text.to_owned(),
-        None => String::new(),
-    }
+    let end = at.saturating_sub(seen).min(bytes.len());
+    bytes.get(..end).unwrap_or(bytes).to_vec()
 }

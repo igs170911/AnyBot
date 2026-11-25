@@ -50,11 +50,9 @@ async fn t_models_handoff_1() -> Result<(), String> {
     let task = tokio::spawn(async move {
         let mut session = handle_session;
         let request = support::hi(ThinkingMode::Auto);
-        let policy = DataPolicy::LocalOnly;
         let mut plan = ask_plan(
             &primary,
             std::slice::from_ref(&fallback),
-            &policy,
             &request,
             Audience::Watching,
         );
@@ -135,6 +133,7 @@ async fn ask_switched(
             support::share(&claude.clock),
             &anybot_foundation::TrustedCerts::empty(),
         )?,
+        DataPolicy::LocalOnly,
         support::share(&claude.clock),
         0,
     );
@@ -146,19 +145,12 @@ async fn ask_switched(
         support::ask_watching(&mut session, &primary_first, &[], ThinkingMode::Auto).await?;
     let request = kept_request(attachment);
     session.request_switch(&next, SwitchReason::User);
-    let policy = DataPolicy::LocalOnly;
     let primary = anybot_models::ModelRef {
         endpoint: support::endpoint(ProviderKind::Anthropic, claude.port, "claude-opus-5-5", "k"),
         bot_context: None,
     };
     session
-        .ask(&mut ask_plan(
-            &primary,
-            &[],
-            &policy,
-            &request,
-            Audience::Watching,
-        ))
+        .ask(&mut ask_plan(&primary, &[], &request, Audience::Watching))
         .await
         .map_err(|err| format!("{err:?}"))
 }
@@ -252,13 +244,7 @@ async fn t_models_handoff_10() -> Result<(), String> {
         parameters: serde_json::json!({}),
     });
     let err = session
-        .ask(&mut ask_plan(
-            &primary,
-            &[],
-            &DataPolicy::LocalOnly,
-            &request,
-            Audience::Watching,
-        ))
+        .ask(&mut ask_plan(&primary, &[], &request, Audience::Watching))
         .await
         .err()
         .ok_or("tools still sent")?;

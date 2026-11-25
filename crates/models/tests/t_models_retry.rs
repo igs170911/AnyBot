@@ -5,7 +5,7 @@ use std::time::Duration;
 use trybuild as _;
 
 use anybot_foundation::clock::Clock;
-use anybot_models::{Audience, ProviderKind, Session, ThinkingMode, ask_plan, gateway};
+use anybot_models::{Audience, DataPolicy, ProviderKind, Session, ThinkingMode, ask_plan, gateway};
 use bytes as _;
 use futures_util as _;
 use reqwest as _;
@@ -43,14 +43,13 @@ async fn t_models_n1_1() -> Result<(), String> {
         let Ok(built) = gateway(share(&clock), &anybot_foundation::TrustedCerts::empty()) else {
             return Err(anybot_models::GatewayFail::MissingKey);
         };
-        let mut session = Session::new(built, share(&clock), 0);
+        let mut session = Session::new(built, DataPolicy::LocalOnly, share(&clock), 0);
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
         };
         let request = support::hi(ThinkingMode::Auto);
-        let policy = anybot_models::DataPolicy::LocalOnly;
-        let mut plan = ask_plan(&primary, &[], &policy, &request, Audience::Watching);
+        let mut plan = ask_plan(&primary, &[], &request, Audience::Watching);
         session.ask(&mut plan).await
     });
     let ready = timeout_real(drive(&world.clock, &task), Duration::from_secs(5)).await;
@@ -99,6 +98,7 @@ async fn t_models_n1_4() -> Result<(), String> {
                 share(&world.clock),
                 &anybot_foundation::TrustedCerts::empty(),
             )?,
+            DataPolicy::LocalOnly,
             share(&world.clock),
             0,
         );
@@ -107,8 +107,7 @@ async fn t_models_n1_4() -> Result<(), String> {
             bot_context: None,
         };
         let request = support::hi(ThinkingMode::Auto);
-        let policy = anybot_models::DataPolicy::LocalOnly;
-        let mut plan = ask_plan(&primary, &[], &policy, &request, Audience::Watching);
+        let mut plan = ask_plan(&primary, &[], &request, Audience::Watching);
         let _outcome = session.ask(&mut plan).await;
         assert_eq!(world.model.recorded().len(), 1);
     }
@@ -129,14 +128,13 @@ async fn unattended_sends_eight_times() -> Result<(), String> {
         let Ok(built) = gateway(share(&clock), &anybot_foundation::TrustedCerts::empty()) else {
             return Err(anybot_models::GatewayFail::MissingKey);
         };
-        let mut session = Session::new(built, share(&clock), 200);
+        let mut session = Session::new(built, DataPolicy::LocalOnly, share(&clock), 200);
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
         };
         let request = support::hi(ThinkingMode::Auto);
-        let policy = anybot_models::DataPolicy::LocalOnly;
-        let mut plan = ask_plan(&primary, &[], &policy, &request, Audience::Unattended);
+        let mut plan = ask_plan(&primary, &[], &request, Audience::Unattended);
         session.ask(&mut plan).await
     });
     let ready = timeout_real(drive(&world.clock, &task), Duration::from_secs(8)).await;

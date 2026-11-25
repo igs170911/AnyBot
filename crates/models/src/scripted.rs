@@ -4,10 +4,10 @@ use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 
-use crate::http_wire::{HttpWire, WireBody, WireOpen, WireRequest, WireResponse};
+use crate::http_wire::{HttpWire, WireBody, WireOpen, WireRequest};
 use crate::transport::TransportFail;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(crate) struct ScriptStep {
     pub status: u16,
     pub body: String,
@@ -15,6 +15,7 @@ pub(crate) struct ScriptStep {
     pub stall: bool,
     pub chunks: Vec<String>,
     pub cut_at: Option<usize>,
+    pub hold: Option<Arc<tokio::sync::Notify>>,
 }
 
 #[derive(Clone, Debug)]
@@ -64,13 +65,6 @@ impl ScriptPoster {
 }
 
 impl HttpWire for ScriptPoster {
-    fn send<'a>(
-        &'a self,
-        request: &'a WireRequest,
-    ) -> Pin<Box<dyn Future<Output = Result<WireResponse, TransportFail>> + Send + 'a>> {
-        Box::pin(async move { self.reply(request).await })
-    }
-
     fn open<'a>(
         &'a self,
         request: &'a WireRequest,
@@ -80,23 +74,6 @@ impl HttpWire for ScriptPoster {
 }
 
 impl ScriptPoster {
-    async fn reply(&self, request: &WireRequest) -> Result<WireResponse, TransportFail> {
-        let Some(step) = self.taken(request) else {
-            return Err(TransportFail::Unreachable);
-        };
-        if step.fail {
-            return Err(TransportFail::Unreachable);
-        }
-        if step.stall {
-            return std::future::pending().await;
-        }
-        Ok(WireResponse {
-            status: step.status,
-            headers: Vec::new(),
-            body: Bytes::from(step.body),
-        })
-    }
-
     async fn open_reply(&self, request: &WireRequest) -> Result<WireOpen, TransportFail> {
         let Some(step) = self.taken(request) else {
             return Err(TransportFail::Unreachable);
@@ -122,12 +99,27 @@ impl ScriptPoster {
 }
 
 fn body_of(step: ScriptStep) -> WireBody {
+    let hold = step.hold.clone();
     let pieces = if step.chunks.is_empty() && step.cut_at.is_none() {
         vec![Ok(Bytes::from(step.body))]
     } else {
         crate::scripted_body::chunk_pieces(&step)
     };
-    WireBody::Stream(Box::pin(futures_util::stream::iter(pieces)))
+    WireBody::Stream(Box::pin(async_stream(hold, pieces)))
+}
+
+fn async_stream(
+    hold: Option<Arc<tokio::sync::Notify>>,
+    pieces: Vec<Result<Bytes, TransportFail>>,
+) -> impl futures_util::Stream<Item = Result<Bytes, TransportFail>> {
+    futures_util::stream::unfold((hold, pieces.into_iter()), |state| async move {
+        let (hold, mut pieces) = state;
+        if let Some(wait) = hold {
+            wait.notified().await;
+            return pieces.next().map(|item| (item, (None, pieces)));
+        }
+        pieces.next().map(|item| (item, (None, pieces)))
+    })
 }
 
 fn fire_hook(slot: &Mutex<Option<Box<dyn Fn() + Send + Sync>>>) {
@@ -197,7 +189,13 @@ fn script_step(status: u16, body: String, fail: bool) -> ScriptStep {
         stall: false,
         chunks: Vec::new(),
         cut_at: None,
+        hold: None,
     }
+}
+
+pub(crate) fn held(mut step: ScriptStep, hold: Arc<tokio::sync::Notify>) -> ScriptStep {
+    step.hold = Some(hold);
+    step
 }
 
 pub(crate) fn http_fail(status: u16, message: &str) -> ScriptStep {
@@ -213,12 +211,31 @@ pub(crate) fn connect_fail() -> ScriptStep {
 }
 
 pub(crate) fn session_with(poster: Arc<ScriptPoster>) -> crate::session::Session {
+    session_policy(poster, open_policy())
+}
+
+pub(crate) fn session_policy(
+    poster: Arc<ScriptPoster>,
+    policy: crate::egress::DataPolicy,
+) -> crate::session::Session {
     let clock: Arc<dyn anybot_foundation::clock::Clock> = Arc::new(QuietClock);
     crate::session::Session::new(
         crate::client::Gateway::from_wire(poster, Arc::clone(&clock)),
+        policy,
         clock,
         0,
     )
+}
+
+fn open_policy() -> crate::egress::DataPolicy {
+    crate::egress::DataPolicy::Cloud {
+        allowed: vec![
+            crate::types::ProviderKind::OpenAi,
+            crate::types::ProviderKind::Anthropic,
+            crate::types::ProviderKind::Custom,
+            crate::types::ProviderKind::Ollama,
+        ],
+    }
 }
 
 struct QuietClock;

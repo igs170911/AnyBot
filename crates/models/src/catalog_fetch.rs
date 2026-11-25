@@ -23,11 +23,12 @@ pub async fn fetch_models(
             detail: String::new(),
         });
     }
-    let url = format!("{}/models", endpoint.base_url);
-    if endpoint.api_key.is_some() && !key_allowed(endpoint, &url) {
+    let listed = format!("{}/models", endpoint.base_url);
+    let url = gateway.resolved_url_of(&listed);
+    if endpoint.api_key.is_some() && !key_allowed(endpoint, &listed) {
         return Err(GatewayFail::KeyDestination);
     }
-    let request = gateway.client_request(&url, &serde_json::json!({}), endpoint);
+    let request = crate::client_wire::wire_for(&url, &serde_json::json!({}), endpoint);
     let wait = Duration::from_secs(LIST_WAIT_SECS);
     match gateway.transport_send(&request, wait).await {
         Ok(bytes) if bytes.status >= 400 => Ok(ListOutcome::Failed {

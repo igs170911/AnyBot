@@ -88,6 +88,8 @@ pub(crate) async fn send_tries(
         permit,
     } = attempt;
     let mut sent = 0_u32;
+    let mut blanks = 0_u32;
+    let mut dropped = false;
     let mut current = request.clone();
     if !thinking {
         current.thinking = ThinkingMode::Auto;
@@ -98,7 +100,7 @@ pub(crate) async fn send_tries(
             .gateway()
             .complete(&model.endpoint, &current, stream, permit)
             .await;
-        match crate::session_step::decide(outcome, sent) {
+        match crate::session_step::decide(outcome, sent, blanks, dropped) {
             crate::session_step::Step::Done(result) => {
                 let estimated = crate::session_step::estimate_request(request, calibration);
                 session.remember_estimate(estimated);
@@ -107,10 +109,10 @@ pub(crate) async fn send_tries(
             crate::session_step::Step::DropParam => {
                 current.thinking = ThinkingMode::Auto;
                 note_no_thinking(session.learned_rows(), &model.endpoint);
-                sent = sent.saturating_sub(1);
+                dropped = true;
             }
             crate::session_step::Step::BlankAgain => {
-                sent = sent.saturating_sub(1);
+                blanks = blanks.saturating_add(1);
             }
             crate::session_step::Step::Wait(mut fail) => {
                 if !wait_try(session, model, &mut fail, sent, audience).await? {

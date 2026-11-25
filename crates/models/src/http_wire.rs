@@ -2,6 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use anybot_foundation::Secret;
 use bytes::Bytes;
 
 use crate::transport::TransportFail;
@@ -12,27 +13,19 @@ pub(crate) enum WireMethod {
     Post,
 }
 
-#[derive(Clone, Debug)]
+pub(crate) struct WireHeader {
+    pub name: String,
+    pub value: Secret,
+}
+
 pub(crate) struct WireRequest {
     pub method: WireMethod,
     pub url: String,
-    pub headers: Vec<(String, String)>,
+    pub headers: Vec<WireHeader>,
     pub body: String,
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct WireResponse {
-    pub status: u16,
-    pub headers: Vec<(String, String)>,
-    pub body: Bytes,
-}
-
 pub(crate) trait HttpWire: Send + Sync {
-    fn send<'a>(
-        &'a self,
-        request: &'a WireRequest,
-    ) -> Pin<Box<dyn Future<Output = Result<WireResponse, TransportFail>> + Send + 'a>>;
-
     fn open<'a>(
         &'a self,
         request: &'a WireRequest,

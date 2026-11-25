@@ -13,12 +13,17 @@ pub(crate) enum Step {
     Stop(GatewayFail),
 }
 
-pub(crate) fn decide(outcome: Result<TurnResult, GatewayFail>, sent: u32) -> Step {
+pub(crate) fn decide(
+    outcome: Result<TurnResult, GatewayFail>,
+    _sent: u32,
+    blanks: u32,
+    dropped: bool,
+) -> Step {
     match outcome {
-        Ok(result) if ask::blank_result(&result) && sent == 1 => Step::BlankAgain,
+        Ok(result) if ask::blank_result(&result) && blanks == 0 => Step::BlankAgain,
         Ok(result) => Step::Done(result),
         Err(GatewayFail::Classified { classified, .. })
-            if matches!(classified.kind, FailKind::RejectedParam) =>
+            if matches!(classified.kind, FailKind::RejectedParam) && !dropped =>
         {
             Step::DropParam
         }

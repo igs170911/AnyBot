@@ -75,7 +75,12 @@ async fn over_budget_request_is_not_sent() -> Result<(), String> {
     let shared: Arc<FakeClock> = Arc::clone(&clock);
     let clock_dyn: Arc<dyn Clock> = shared;
     let gateway = anybot_models::gateway(clock_dyn, &anybot_foundation::TrustedCerts::empty())?;
-    let mut session = anybot_models::Session::new(gateway, share(&clock), 0);
+    let mut session = anybot_models::Session::new(
+        gateway,
+        anybot_models::DataPolicy::LocalOnly,
+        share(&clock),
+        0,
+    );
     let primary = anybot_models::ModelRef {
         endpoint: anybot_models::resolve_endpoint(
             ProviderKind::Custom,
@@ -88,14 +93,8 @@ async fn over_budget_request_is_not_sent() -> Result<(), String> {
     };
     let mut request = short_hi();
     request.estimate_override = Some(11_000);
-    let policy = anybot_models::DataPolicy::LocalOnly;
-    let mut plan = anybot_models::ask_plan(
-        &primary,
-        &[],
-        &policy,
-        &request,
-        anybot_models::Audience::Watching,
-    );
+    let mut plan =
+        anybot_models::ask_plan(&primary, &[], &request, anybot_models::Audience::Watching);
     let outcome = session.ask(&mut plan).await;
     assert!(matches!(
         outcome,

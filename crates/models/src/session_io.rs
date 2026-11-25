@@ -1,14 +1,29 @@
-use std::sync::{Arc, Mutex};
-
 use crate::handoff::SwitchReason;
 use crate::session::{ModelRef, Session};
 
-pub(crate) fn peek_pending(session: &Session) -> Option<ModelRef> {
-    lock_model(&session.pending)
+pub(crate) fn peek_pending(session: &Session) -> Option<(ModelRef, SwitchReason)> {
+    match session.pending.lock() {
+        Ok(guard) => guard
+            .as_ref()
+            .map(|(model, reason)| (crate::model_copy::copy_model(model), *reason)),
+        Err(poisoned) => poisoned
+            .into_inner()
+            .as_ref()
+            .map(|(model, reason)| (crate::model_copy::copy_model(model), *reason)),
+    }
 }
 
-pub(crate) fn pending_reason(session: &Session) -> Option<SwitchReason> {
-    session.pending_reason.lock().ok().and_then(|slot| *slot)
+pub(crate) fn clear_pending(session: &Session) -> Result<(), ()> {
+    match session.pending.lock() {
+        Ok(mut slot) => {
+            *slot = None;
+            Ok(())
+        }
+        Err(poisoned) => {
+            *poisoned.into_inner() = None;
+            Err(())
+        }
+    }
 }
 
 pub(crate) fn exhausted(
@@ -37,10 +52,4 @@ fn attach_skips(err: crate::GatewayFail, skips: Vec<crate::notice::Notice>) -> c
         classified,
         notices,
     }
-}
-
-fn lock_model(slot: &Arc<Mutex<Option<ModelRef>>>) -> Option<ModelRef> {
-    slot.lock()
-        .ok()
-        .and_then(|guard| guard.as_ref().map(crate::model_copy::copy_model))
 }

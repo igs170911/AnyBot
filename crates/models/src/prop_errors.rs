@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use proptest::prelude::*;
 
-use crate::egress::DataPolicy;
 use crate::errors::{FailInput, RetryPlan, classify};
 use crate::prop_run::{ask_one, hi, model_ref, poster_of};
 use crate::scripted::{ScriptStep, connect_fail, http_fail, session_with};
@@ -76,8 +75,7 @@ proptest! {
         let mut session = session_with(poster);
         let primary = model_ref(crate::prop_run::custom("m", crate::types::WireFormat::OpenAiCompatible));
         let request = hi();
-        let policy = DataPolicy::LocalOnly;
-        let mut plan = crate::session::ask_plan(&primary, &[], &policy, &request, audience);
+        let mut plan = crate::session::ask_plan(&primary, &[], &request, audience);
         let _outcome = ask_one(&mut session, &mut plan);
         let sent = sent_poster.sent();
         let count = u32::try_from(sent.len()).unwrap_or(u32::MAX);

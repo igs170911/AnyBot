@@ -65,11 +65,14 @@ proptest! {
         let sent = if case.stream { &stream } else { &plain };
         let (cut, closed) = cut_body(sent, case.cut);
         let cut_result = if closed {
-            send_body(&endpoint, &cut, case.stream).expect("cut send")
+            send_body(&endpoint, &cut, case.stream)
         } else {
-            send_cut(&endpoint, sent, case.cut, case.stream).expect("cut send")
+            send_cut(&endpoint, sent, case.cut, case.stream)
         };
-        assert_column(&cut_result)?;
+        match cut_result {
+            Ok(result) => assert_column(&result)?,
+            Err(err) => prop_assert!(cut_failure(&err)),
+        }
         let whole_stream = send_body(&endpoint, &stream, true).expect("stream send");
         let whole_plain = send_body(&endpoint, &plain, false).expect("plain send");
         prop_assert!(same_answer(&whole_stream, &whole_plain));
@@ -87,6 +90,16 @@ proptest! {
             &stream_decode(&endpoint, &stream).expect("stream decode")
         ));
     }
+}
+
+fn cut_failure(err: &crate::GatewayFail) -> bool {
+    let crate::GatewayFail::Classified { classified, .. } = err else {
+        return false;
+    };
+    matches!(
+        classified.kind,
+        crate::errors::FailKind::FirstToken | crate::errors::FailKind::StreamCut
+    )
 }
 
 fn without_extra(case: &ReplyCase) -> ReplyCase {

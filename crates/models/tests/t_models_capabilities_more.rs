@@ -1,7 +1,7 @@
 use anybot_foundation as _;
 use anybot_foundation::clock::Clock;
 use anybot_models::{
-    Audience, DataPolicy, FailKind, ProviderKind, ThinkingMode, UsageReport, ask_plan, model_key,
+    Audience, FailKind, ProviderKind, ThinkingMode, UsageReport, ask_plan, model_key,
 };
 use bytes as _;
 use futures_util as _;
@@ -58,8 +58,12 @@ async fn t_models_capabilities_3() -> Result<(), String> {
         Some(50_000)
     );
     let snapshot = session.learned().to_vec();
-    let mut reopened =
-        anybot_models::Session::new(world_gateway(&world)?, support::share(&world.clock), 0);
+    let mut reopened = anybot_models::Session::new(
+        world_gateway(&world)?,
+        anybot_models::DataPolicy::LocalOnly,
+        support::share(&world.clock),
+        0,
+    );
     reopened.load_learned(snapshot);
     assert_eq!(
         reopened
@@ -79,7 +83,6 @@ async fn ask_once(
         .ask(&mut ask_plan(
             primary,
             &[],
-            &DataPolicy::LocalOnly,
             &support::hi(ThinkingMode::Auto),
             Audience::Watching,
         ))
@@ -224,6 +227,7 @@ async fn t_models_capabilities_10() -> Result<(), String> {
     let clock_dyn: Arc<dyn Clock> = shared;
     let mut session = anybot_models::Session::new(
         anybot_models::gateway(clock_dyn, &anybot_foundation::TrustedCerts::empty())?,
+        anybot_models::DataPolicy::LocalOnly,
         share(&clock),
         0,
     );
@@ -240,13 +244,7 @@ async fn t_models_capabilities_10() -> Result<(), String> {
     let mut request = support::hi(ThinkingMode::Auto);
     request.estimate_override = Some(11_000);
     let outcome = session
-        .ask(&mut ask_plan(
-            &primary,
-            &[],
-            &DataPolicy::LocalOnly,
-            &request,
-            Audience::Watching,
-        ))
+        .ask(&mut ask_plan(&primary, &[], &request, Audience::Watching))
         .await;
     let Err(err) = outcome else {
         return Err("budget still sent".to_owned());

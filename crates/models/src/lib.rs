@@ -4,6 +4,7 @@ pub mod catalog;
 pub(crate) mod catalog_fetch;
 pub mod client;
 pub(crate) mod client_http;
+pub(crate) mod client_wire;
 pub mod egress;
 pub mod errors;
 pub(crate) mod errors_cert;
@@ -63,7 +64,7 @@ pub use handoff::{HandoffRecord, SwitchReason, handoff_code, record};
 pub use notice::{
     Notice, busy_notice, failure_notice, missing_key_notice, retry_notice, skip_notice, stop_note,
 };
-pub use providers::{CLAUDE_MAX_OUTPUT, PROVIDERS, resolve_endpoint};
+pub use providers::{CLAUDE_MAX_OUTPUT, PROVIDERS, key_allowed, resolve_endpoint};
 pub use retry::{BUSY_WAIT, base_wait, retry_spans, try_limit};
 pub use session::{AskOutcome, AskPlan, MAX_FALLBACKS, ModelRef, RestMark, Session, ask_plan};
 pub use transport::TransportFail;
@@ -86,11 +87,15 @@ mod prop_egress;
 #[cfg(test)]
 mod prop_errors;
 #[cfg(test)]
+mod prop_errors_bound;
+#[cfg(test)]
 mod prop_handoff;
 #[cfg(test)]
 mod prop_normalize;
 #[cfg(test)]
 mod prop_run;
+#[cfg(test)]
+mod prop_wait;
 
 #[cfg(test)]
 use proptest as _;

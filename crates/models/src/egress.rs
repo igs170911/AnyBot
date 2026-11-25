@@ -106,7 +106,8 @@ impl SendPermit {
         )
     }
 
-    pub(crate) fn issue(
+    #[must_use]
+    pub fn issue(
         policy: &DataPolicy,
         destination: &str,
         provider: ProviderKind,
@@ -123,6 +124,11 @@ impl SendPermit {
 
     pub(crate) fn matches(&self, destination: &str, use_kind: ModelUse) -> bool {
         self.destination == destination && self.use_kind == use_kind
+    }
+
+    #[must_use]
+    pub(crate) fn use_kind(&self) -> ModelUse {
+        self.use_kind
     }
 }
 

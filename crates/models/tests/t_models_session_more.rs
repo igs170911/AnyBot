@@ -4,8 +4,8 @@ use trybuild as _;
 
 use anybot_foundation as _;
 use anybot_models::{
-    Audience, DataPolicy, FailKind, Learned, ProviderKind, SwitchReason, ThinkingMode, ToolSpec,
-    ask_plan, gateway,
+    Audience, FailKind, Learned, ProviderKind, SwitchReason, ThinkingMode, ToolSpec, ask_plan,
+    gateway,
 };
 use bytes as _;
 use futures_util as _;
@@ -65,6 +65,7 @@ async fn stream_busy_waits_then_retries() -> Result<(), String> {
                 support::share(&clock),
                 &anybot_foundation::TrustedCerts::empty(),
             )?,
+            anybot_models::DataPolicy::LocalOnly,
             support::share(&clock),
             0,
         );
@@ -73,13 +74,7 @@ async fn stream_busy_waits_then_retries() -> Result<(), String> {
             bot_context: None,
         };
         let request = support::hi(ThinkingMode::Auto);
-        let mut plan = ask_plan(
-            &primary,
-            &[],
-            &DataPolicy::LocalOnly,
-            &request,
-            Audience::Watching,
-        );
+        let mut plan = ask_plan(&primary, &[], &request, Audience::Watching);
         plan.stream = true;
         session
             .ask(&mut plan)
@@ -123,6 +118,7 @@ async fn stop_during_retry_ends_quietly() -> Result<(), String> {
                 support::share(&clock),
                 &anybot_foundation::TrustedCerts::empty(),
             )?,
+            anybot_models::DataPolicy::LocalOnly,
             support::share(&clock),
             0,
         )
@@ -166,6 +162,7 @@ async fn policy_skip_does_not_call_cloud_fallback() -> Result<(), String> {
                 support::share(&clock),
                 &anybot_foundation::TrustedCerts::empty(),
             )?,
+            anybot_models::DataPolicy::LocalOnly,
             support::share(&clock),
             0,
         );
@@ -242,13 +239,7 @@ async fn unsupported_tools_are_not_sent() -> Result<(), String> {
         description: "read".to_owned(),
         parameters: serde_json::json!({}),
     });
-    let mut plan = ask_plan(
-        &primary,
-        &[],
-        &DataPolicy::LocalOnly,
-        &request,
-        Audience::Watching,
-    );
+    let mut plan = ask_plan(&primary, &[], &request, Audience::Watching);
     let outcome = session.ask(&mut plan).await;
     assert!(matches!(
         outcome,

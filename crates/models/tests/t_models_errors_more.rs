@@ -88,6 +88,7 @@ async fn t_models_errors_3() -> Result<(), String> {
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", secret);
     let mut session = anybot_models::Session::new(
         world.gateway.clone_gateway(),
+        anybot_models::DataPolicy::LocalOnly,
         {
             let shared: std::sync::Arc<test_harness::FakeClock> =
                 std::sync::Arc::clone(&world.clock);
@@ -100,8 +101,7 @@ async fn t_models_errors_3() -> Result<(), String> {
         bot_context: None,
     };
     let request = support::hi(ThinkingMode::Auto);
-    let policy = anybot_models::DataPolicy::LocalOnly;
-    let mut plan = anybot_models::ask_plan(&primary, &[], &policy, &request, Audience::Watching);
+    let mut plan = anybot_models::ask_plan(&primary, &[], &request, Audience::Watching);
     let Err(err) = session.ask(&mut plan).await else {
         return Err("auth still succeeded".to_owned());
     };

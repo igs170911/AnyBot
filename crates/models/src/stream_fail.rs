@@ -7,11 +7,12 @@ pub(crate) fn finish_stream(
     raw: &str,
     saw_fail: bool,
 ) -> Result<TurnResult, crate::GatewayFail> {
-    if let Some(fail) = stream_error_fail(raw) {
+    let events = sse_payloads(raw);
+    if let Some(fail) = event_error(&events) {
         return Err(crate::ask::classified_fail(fail, Vec::new()));
     }
-    let closed = !saw_fail && stream_closed(raw);
-    Ok(decode_events(endpoint, &sse_payloads(raw), closed))
+    let closed = !saw_fail && stream_closed(raw, endpoint.format);
+    Ok(decode_events(endpoint, &events, closed))
 }
 
 pub(crate) fn partial_outcome(
@@ -19,14 +20,39 @@ pub(crate) fn partial_outcome(
     bytes: &[u8],
 ) -> Result<TurnResult, crate::GatewayFail> {
     let text = String::from_utf8_lossy(bytes);
-    if let Some(fail) = stream_error_fail(&text) {
+    let events = sse_payloads(&text);
+    if let Some(fail) = event_error(&events) {
         return Err(crate::ask::classified_fail(fail, Vec::new()));
     }
     Ok(interrupted(endpoint, &text))
 }
 
-pub(crate) fn stream_closed(raw: &str) -> bool {
-    raw.contains("[DONE]") || raw.contains("message_stop")
+pub(crate) fn stream_closed(raw: &str, format: WireFormat) -> bool {
+    match format {
+        WireFormat::OpenAiCompatible => sse_done(raw),
+        WireFormat::Anthropic => sse_payloads(raw).iter().any(|event| message_stop(event)),
+    }
+}
+
+fn sse_done(raw: &str) -> bool {
+    raw.split("\n\n").any(|block| {
+        block.lines().any(|line| {
+            line.strip_prefix("data:")
+                .is_some_and(|data| data.trim() == "[DONE]")
+        })
+    })
+}
+
+fn message_stop(event: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(event)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("type")
+                .and_then(|kind| kind.as_str())
+                .map(str::to_owned)
+        })
+        .is_some_and(|kind| kind == "message_stop")
 }
 
 pub(crate) fn sse_payloads(raw: &str) -> Vec<String> {
@@ -42,17 +68,25 @@ pub(crate) fn sse_payloads(raw: &str) -> Vec<String> {
         .collect()
 }
 
-fn stream_error_fail(raw: &str) -> Option<Classified> {
-    let lowered = raw.to_ascii_lowercase();
-    if !lowered.contains("\"error\"") {
-        return None;
-    }
+fn event_error(events: &[String]) -> Option<Classified> {
+    let error = events.iter().find_map(|event| {
+        let value = serde_json::from_str::<serde_json::Value>(event).ok()?;
+        error_value(&value)
+    })?;
+    let lowered = error.to_ascii_lowercase();
     let input = if busy_stream(&lowered) {
         FailInput::StreamBusy
     } else {
         FailInput::StreamOther
     };
     Some(classify(&input))
+}
+
+fn error_value(value: &serde_json::Value) -> Option<String> {
+    if value.get("type").and_then(|kind| kind.as_str()) == Some("error") {
+        return Some(value.to_string());
+    }
+    value.get("error").map(serde_json::Value::to_string)
 }
 
 fn busy_stream(lowered: &str) -> bool {

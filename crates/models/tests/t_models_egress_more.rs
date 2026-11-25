@@ -78,17 +78,19 @@ async fn t_models_egress_2() -> Result<(), String> {
         bot_context: None,
     };
     let fallback = cloud_ref();
-    let mut session =
-        anybot_models::Session::new(cloud_gateway(&clock, cloud_port)?, share(&clock), 0);
+    let mut session = anybot_models::Session::new(
+        cloud_gateway(&clock, cloud_port)?,
+        DataPolicy::LocalOnly,
+        share(&clock),
+        0,
+    );
     let request = support::hi(ThinkingMode::Auto);
-    let policy = DataPolicy::LocalOnly;
     let clock_drive = Arc::clone(&clock);
     let task = tokio::spawn(async move {
         let err = session
             .ask(&mut ask_plan(
                 &primary,
                 std::slice::from_ref(&fallback),
-                &policy,
                 &request,
                 Audience::Watching,
             ))
@@ -139,19 +141,21 @@ async fn t_models_egress_3() -> Result<(), String> {
         bot_context: None,
     };
     let fallback = cloud_ref();
-    let mut session =
-        anybot_models::Session::new(cloud_gateway(&clock, cloud_port)?, share(&clock), 0);
+    let mut session = anybot_models::Session::new(
+        cloud_gateway(&clock, cloud_port)?,
+        DataPolicy::Cloud {
+            allowed: vec![ProviderKind::OpenAi],
+        },
+        share(&clock),
+        0,
+    );
     let request = support::hi(ThinkingMode::Auto);
-    let policy = DataPolicy::Cloud {
-        allowed: vec![ProviderKind::OpenAi],
-    };
     let clock_drive = Arc::clone(&clock);
     let task = tokio::spawn(async move {
         session
             .ask(&mut ask_plan(
                 &primary,
                 std::slice::from_ref(&fallback),
-                &policy,
                 &request,
                 Audience::Watching,
             ))

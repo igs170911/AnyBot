@@ -4,9 +4,7 @@ use std::time::Duration;
 use trybuild as _;
 
 use anybot_foundation as _;
-use anybot_models::{
-    Audience, DataPolicy, FailKind, ProviderKind, ThinkingMode, ask_plan, gateway,
-};
+use anybot_models::{Audience, FailKind, ProviderKind, ThinkingMode, ask_plan, gateway};
 use bytes as _;
 use futures_util as _;
 use reqwest as _;
@@ -51,6 +49,7 @@ async fn fallback_after_retries_uses_second_model() -> Result<(), String> {
         let trusted = anybot_foundation::TrustedCerts::empty();
         let mut session = anybot_models::Session::new(
             gateway(support::share(&clock), &trusted)?,
+            anybot_models::DataPolicy::LocalOnly,
             support::share(&clock),
             0,
         );
@@ -188,7 +187,6 @@ async fn too_long_does_not_switch_and_shrinks_limit() -> Result<(), String> {
         .ask(&mut ask_plan(
             &primary,
             &[],
-            &DataPolicy::LocalOnly,
             &support::hi(ThinkingMode::Auto),
             Audience::Watching,
         ))
@@ -200,7 +198,6 @@ async fn too_long_does_not_switch_and_shrinks_limit() -> Result<(), String> {
         .ask(&mut ask_plan(
             &primary,
             &[],
-            &DataPolicy::LocalOnly,
             &support::hi(ThinkingMode::Auto),
             Audience::Watching,
         ))
@@ -271,6 +268,7 @@ async fn retry_after_is_capped_at_thirty_seconds() -> Result<(), String> {
         let trusted = anybot_foundation::TrustedCerts::empty();
         let mut session = anybot_models::Session::new(
             gateway(support::share(&clock), &trusted)?,
+            anybot_models::DataPolicy::LocalOnly,
             support::share(&clock),
             0,
         );

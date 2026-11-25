@@ -18,6 +18,29 @@ use test_harness::{ModelFormat, model_replies_text};
 #[path = "../test_support/mod.rs"]
 mod support;
 
+#[test]
+fn key_stays_on_its_own_host() {
+    let endpoint = resolve_endpoint(
+        ProviderKind::OpenAi,
+        "https://api.openai.com/v1",
+        "k",
+        "gpt-5",
+        None,
+    );
+    assert!(anybot_models::key_allowed(
+        &endpoint,
+        "https://api.openai.com/v1/chat/completions"
+    ));
+    assert!(!anybot_models::key_allowed(
+        &endpoint,
+        "https://api.openai.com.evil.test/v1/chat/completions"
+    ));
+    assert!(!anybot_models::key_allowed(
+        &endpoint,
+        "https://evil.test/v1/chat/completions"
+    ));
+}
+
 #[tokio::test]
 async fn t_models_providers_2() -> Result<(), String> {
     let world = support::world(ModelFormat::OpenAi).await?;

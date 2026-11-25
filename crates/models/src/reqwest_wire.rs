@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use futures_util::StreamExt;
 
-use crate::http_wire::{HttpWire, WireBody, WireOpen, WireRequest, WireResponse};
+use crate::http_wire::{HttpWire, WireBody, WireOpen, WireRequest};
 use crate::transport::TransportFail;
 
 pub(crate) struct ReqwestWire {
@@ -21,8 +21,8 @@ impl ReqwestWire {
             crate::http_wire::WireMethod::Get => self.client.get(&request.url),
             crate::http_wire::WireMethod::Post => self.client.post(&request.url),
         };
-        for (name, value) in &request.headers {
-            builder = builder.header(name, value);
+        for header in &request.headers {
+            builder = builder.header(&header.name, header.value.expose());
         }
         if request.body.is_empty() {
             return builder;
@@ -34,27 +34,6 @@ impl ReqwestWire {
 }
 
 impl HttpWire for ReqwestWire {
-    fn send<'a>(
-        &'a self,
-        request: &'a WireRequest,
-    ) -> Pin<Box<dyn Future<Output = Result<WireResponse, TransportFail>> + Send + 'a>> {
-        Box::pin(async move {
-            let response = self
-                .builder(request)
-                .send()
-                .await
-                .map_err(|err| crate::tls_fail::map_reqwest(&err))?;
-            let status = response.status().as_u16();
-            let headers = header_pairs(response.headers());
-            let body = response.bytes().await.map_err(|_| TransportFail::Dropped)?;
-            Ok(WireResponse {
-                status,
-                headers,
-                body,
-            })
-        })
-    }
-
     fn open<'a>(
         &'a self,
         request: &'a WireRequest,

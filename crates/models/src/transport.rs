@@ -1,12 +1,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use anybot_foundation::clock::{Clock, ClockExpired, TimestampMs};
+use anybot_foundation::clock::{Clock, ClockExpired};
 use bytes::Bytes;
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 
-use crate::http_wire::{SharedWire, WireBody, WireRequest, WireResponse};
+use crate::http_wire::{SharedWire, WireBody, WireRequest};
 use crate::where_run::{CONNECT_TIMEOUT, STALL_AFTER_TEXT};
 
 pub(crate) struct HttpBytes {
@@ -45,29 +45,15 @@ impl TimedTransport {
         request: &WireRequest,
         first_wait: Duration,
     ) -> Result<HttpBytes, TransportFail> {
-        let started = self.clock.now_ms();
-        let response = self.connect(request, started).await?;
-        let _: Duration = first_wait;
+        let open = self.open_wire(request).await?;
+        let status = open.status;
+        let headers = open.headers;
+        let body = read_body(open.body, Arc::clone(&self.clock), first_wait).await?;
         Ok(HttpBytes {
-            status: response.status,
-            body: response.body,
-            retry_after: retry_after_of(&response.headers),
+            status,
+            body: Bytes::from(body),
+            retry_after: retry_after_of(&headers),
         })
-    }
-
-    async fn connect(
-        &self,
-        request: &WireRequest,
-        _started: TimestampMs,
-    ) -> Result<WireResponse, TransportFail> {
-        let send = self.wire.send(request);
-        let wait = self.clock.sleep(CONNECT_TIMEOUT);
-        tokio::pin!(send);
-        tokio::select! {
-            biased;
-            outcome = &mut send => outcome,
-            () = wait => Err(TransportFail::ConnectTimeout),
-        }
     }
 
     pub(crate) async fn open_stream(
@@ -75,8 +61,7 @@ impl TimedTransport {
         request: &WireRequest,
         first_wait: Duration,
     ) -> Result<StreamOpen, TransportFail> {
-        let started = self.clock.now_ms();
-        let open = self.open_wire(request, started).await?;
+        let open = self.open_wire(request).await?;
         let status = open.status;
         let headers = open.headers;
         let (tx, rx) = mpsc::channel(32);
@@ -94,7 +79,6 @@ impl TimedTransport {
     async fn open_wire(
         &self,
         request: &WireRequest,
-        _started: TimestampMs,
     ) -> Result<crate::http_wire::WireOpen, TransportFail> {
         let send = self.wire.open(request);
         let wait = self.clock.sleep(CONNECT_TIMEOUT);
@@ -121,6 +105,59 @@ pub(crate) fn retry_after_of(headers: &[(String, String)]) -> Option<u64> {
             None
         }
     })
+}
+
+async fn read_body(
+    body: WireBody,
+    clock: Arc<dyn Clock>,
+    first_wait: Duration,
+) -> Result<Vec<u8>, TransportFail> {
+    match body {
+        WireBody::Stream(mut stream) => {
+            let mut held = Vec::new();
+            let mut saw_byte = false;
+            loop {
+                let wait = if saw_byte {
+                    STALL_AFTER_TEXT
+                } else {
+                    first_wait
+                };
+                let next = stream.next();
+                let timer = clock.sleep(wait);
+                tokio::pin!(next);
+                let item = tokio::select! {
+                    biased;
+                    item = &mut next => item,
+                    () = timer => {
+                        return if saw_byte {
+                            Err(TransportFail::Partial(PartialBody {
+                                status: 200,
+                                bytes: held,
+                                stalled: true,
+                            }))
+                        } else {
+                            Err(TransportFail::FirstToken)
+                        };
+                    }
+                };
+                match item {
+                    Some(Ok(chunk)) => {
+                        saw_byte = true;
+                        held.extend_from_slice(&chunk);
+                    }
+                    Some(Err(_)) if saw_byte => {
+                        return Err(TransportFail::Partial(PartialBody {
+                            status: 200,
+                            bytes: held,
+                            stalled: false,
+                        }));
+                    }
+                    Some(Err(_)) => return Err(TransportFail::Dropped),
+                    None => return Ok(held),
+                }
+            }
+        }
+    }
 }
 
 async fn pump_body(

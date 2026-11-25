@@ -4,10 +4,10 @@ use proptest::prelude::*;
 
 use crate::egress::{DataPolicy, JudgeCandidate, ModelUse, SendPermit, allowed, pick_judge};
 use crate::prop_run::{ask_one, hi, model_ref, poster_of};
-use crate::scripted::{ScriptStep, connect_fail, http_fail, ok_text, session_with};
+use crate::scripted::{ScriptStep, connect_fail, http_fail, ok_text};
 use crate::session::ModelRef;
 use crate::types::{Audience, ProviderKind, WireFormat};
-use crate::where_run::{RunPlace, classify_url};
+use crate::where_run::RunPlace;
 
 #[derive(Clone, Debug)]
 struct BotCase {
@@ -91,6 +91,10 @@ fn place_model(local: bool, name: &str) -> ModelRef {
     ))
 }
 
+fn known_cloud(model: &ModelRef) -> bool {
+    model.endpoint.base_url.contains("api.openai.com")
+}
+
 fn fail_step(kind: u8, redirect: bool) -> ScriptStep {
     if redirect && kind.is_multiple_of(2) {
         return crate::scripted::script_http(302, "http://api.cloud.test/v1/chat/completions");
@@ -111,8 +115,11 @@ fn script_for(case: &BotCase) -> Vec<ScriptStep> {
     steps
 }
 
-fn cloud_url(url: &str) -> bool {
-    matches!(classify_url(url), RunPlace::Cloud)
+fn expected_place(url: &str) -> RunPlace {
+    if url.contains("192.168.") || url.contains("127.0.0.1") {
+        return RunPlace::Lan;
+    }
+    RunPlace::Cloud
 }
 
 proptest! {
@@ -132,20 +139,20 @@ proptest! {
         let poster = poster_of(script_for(&case));
         let sent_poster = Arc::clone(&poster);
         if matches!(kind, ModelUse::Bot | ModelUse::Fallback | ModelUse::Judge) {
-            let mut session = session_with(poster);
+            let mut session = crate::scripted::session_policy(poster, policy.clone());
             let request = hi();
             let mut plan = crate::session::ask_plan(
                 &primary,
                 &fallbacks,
-                &policy,
                 &request,
                 Audience::Watching,
             );
+            plan.use_kind = kind;
             let _outcome = ask_one(&mut session, &mut plan);
         }
         for row in sent_poster.sent() {
             if case.local_only {
-                prop_assert!(!cloud_url(&row.url));
+                prop_assert!(!matches!(expected_place(&row.url), RunPlace::Cloud));
             }
             prop_assert!(!row.shows_destination().contains("api.cloud.test"));
         }
@@ -167,7 +174,7 @@ fn assert_local_uses(
     models.extend(fallbacks);
     for model in models {
         let issued = SendPermit::for_endpoint(policy, &model.endpoint, kind);
-        if cloud_url(&model.endpoint.base_url) {
+        if known_cloud(model) {
             prop_assert!(issued.is_none());
             prop_assert!(!allowed(
                 policy,
