@@ -98,6 +98,36 @@ impl FakeClock {
     }
 }
 
+impl anybot_foundation::clock::Clock for FakeClock {
+    fn now_ms(&self) -> anybot_foundation::clock::TimestampMs {
+        anybot_foundation::clock::TimestampMs::from_millis(self.now_ms())
+    }
+
+    fn sleep(&self, span: Duration) -> anybot_foundation::clock::PinBoxFuture<'static, ()> {
+        let span_ms = u64::try_from(span.as_millis()).unwrap_or(u64::MAX);
+        let deadline = self.now_ms().saturating_add(span_ms);
+        self.wake_at(deadline)
+    }
+
+    fn sleep_until(
+        &self,
+        deadline: anybot_foundation::clock::TimestampMs,
+    ) -> anybot_foundation::clock::PinBoxFuture<'static, ()> {
+        self.wake_at(deadline.millis())
+    }
+}
+
+impl FakeClock {
+    #[must_use]
+    pub fn wake_at(&self, deadline_ms: u64) -> anybot_foundation::clock::PinBoxFuture<'static, ()> {
+        let wake = Arc::new(Notify::new());
+        self.register(deadline_ms, Arc::clone(&wake));
+        Box::pin(async move {
+            wake.notified().await;
+        })
+    }
+}
+
 pub fn sleep_until(
     clock: &Arc<FakeClock>,
     deadline_ms: u64,

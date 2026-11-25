@@ -18,6 +18,10 @@ pub use app::{AppState, build_router};
 pub use health::{HealthResponse, health};
 pub use openapi::ApiDoc;
 pub use startup::{DEFAULT_PORT, ServerStartup, bind_listeners, prepare, startup_message};
+#[cfg(test)]
+use test_harness as _;
+#[cfg(test)]
+use time as _;
 
 #[derive(Debug)]
 pub struct AppStateRef {

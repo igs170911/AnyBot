@@ -31,6 +31,10 @@ pub enum MessageCode {
     ProblemInternal,
     RunErrorProtocolVersion,
     RunErrorUnsupportedEvent,
+    FakeClockNoFuture,
+    ModelScriptEmpty,
+    PushPayloadShort,
+    PushKeyBase64,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -74,6 +78,10 @@ impl MessageCode {
             Self::ProblemInternal => "problem-internal",
             Self::RunErrorProtocolVersion => "run-error-protocol-version",
             Self::RunErrorUnsupportedEvent => "run-error-unsupported-event",
+            Self::FakeClockNoFuture => "fake-clock-no-future",
+            Self::ModelScriptEmpty => "model-script-empty",
+            Self::PushPayloadShort => "push-payload-short",
+            Self::PushKeyBase64 => "push-key-base64",
         }
     }
 
@@ -111,6 +119,10 @@ impl MessageCode {
             "problem-internal" => Some(Self::ProblemInternal),
             "run-error-protocol-version" => Some(Self::RunErrorProtocolVersion),
             "run-error-unsupported-event" => Some(Self::RunErrorUnsupportedEvent),
+            "fake-clock-no-future" => Some(Self::FakeClockNoFuture),
+            "model-script-empty" => Some(Self::ModelScriptEmpty),
+            "push-payload-short" => Some(Self::PushPayloadShort),
+            "push-key-base64" => Some(Self::PushKeyBase64),
             _ => None,
         }
     }
@@ -145,6 +157,10 @@ impl MessageCode {
             Self::ProblemInternal,
             Self::RunErrorProtocolVersion,
             Self::RunErrorUnsupportedEvent,
+            Self::FakeClockNoFuture,
+            Self::ModelScriptEmpty,
+            Self::PushPayloadShort,
+            Self::PushKeyBase64,
         ]
     }
 }

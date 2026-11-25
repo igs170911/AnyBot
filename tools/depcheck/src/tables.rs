@@ -76,7 +76,10 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert("depcheck".to_owned(), BTreeSet::new());
     m.insert("spec-trace".to_owned(), BTreeSet::new());
     m.insert("iron-laws".to_owned(), BTreeSet::new());
-    m.insert("test-harness".to_owned(), BTreeSet::new());
+    m.insert(
+        "test-harness".to_owned(),
+        BTreeSet::from(["anybot-foundation".to_owned()]),
+    );
     m.insert(
         "api-docs".to_owned(),
         ["anybot-server".to_owned(), "anybot-protocol".to_owned()]

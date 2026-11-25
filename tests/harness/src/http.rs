@@ -124,6 +124,21 @@ async fn collect_sse_lines(response: reqwest::Response) -> Result<Vec<String>, S
     Ok(lines)
 }
 
+pub async fn sse_post(url: &str, body: &str) -> Result<Vec<String>, String> {
+    let client = plain_client()?;
+    let response = client
+        .post(url)
+        .body(body.to_owned())
+        .send()
+        .await
+        .map_err(|e| format!("POST {url} failed: {e}"))?;
+    let code = response.status().as_u16();
+    if code != 200 {
+        return Err(format!("SSE POST {url} returned status {code}"));
+    }
+    collect_sse_lines(response).await
+}
+
 pub async fn sse_wait_for_line(
     url: &str,
     needle: &str,
@@ -131,7 +146,11 @@ pub async fn sse_wait_for_line(
 ) -> Result<Vec<String>, String> {
     let client = plain_client()?;
     let response = client
-        .get(url)
+        .post(url)
+        .body(
+            serde_json::json!({ "model": "claude-test", "stream": true, "messages": [] })
+                .to_string(),
+        )
         .send()
         .await
         .map_err(|e| format!("GET {url} failed: {e}"))?;

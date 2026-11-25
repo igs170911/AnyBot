@@ -10,6 +10,8 @@ use serde as _;
 use serde_json as _;
 use socket2 as _;
 use std::net::SocketAddr;
+use test_harness as _;
+use time as _;
 use utoipa as _;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

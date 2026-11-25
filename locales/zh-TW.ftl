@@ -25,3 +25,7 @@ problem-bad-request = req 格式錯誤。
 problem-internal = server 內部錯誤。
 run-error-protocol-version = 不支援的協定版本 { $version }。
 run-error-unsupported-event = 不支援的事件種類 { $event }。
+fake-clock-no-future = 假時鐘的期限沒有到達
+model-script-empty = 假模型排定的回應已用完
+push-payload-short = web-push 載 payload 太短，缺少 salt 前段
+push-key-base64 = web-push 訂閱金鑰不是有效的 base64

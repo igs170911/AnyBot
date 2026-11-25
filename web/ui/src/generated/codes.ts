@@ -27,7 +27,11 @@ export type MessageCode =
   "problem-bad-request" |
   "problem-internal" |
   "run-error-protocol-version" |
-  "run-error-unsupported-event";
+  "run-error-unsupported-event" |
+  "fake-clock-no-future" |
+  "model-script-empty" |
+  "push-payload-short" |
+  "push-key-base64";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -57,4 +61,8 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "problem-internal",
   "run-error-protocol-version",
   "run-error-unsupported-event",
+  "fake-clock-no-future",
+  "model-script-empty",
+  "push-payload-short",
+  "push-key-base64",
 ];

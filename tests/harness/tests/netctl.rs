@@ -27,7 +27,7 @@ use test_harness::netctl::{
 };
 
 #[tokio::test]
-async fn t_netctl_basic() {
+async fn netctl_modes_round_trip() {
     let (ctl, port) = net_start().await.unwrap();
     assert_eq!(net_mode(&ctl, port).await, NetMode::Open);
     net_cut(&ctl, port).await.unwrap();
@@ -48,7 +48,7 @@ async fn t_netctl_basic() {
 }
 
 #[tokio::test]
-async fn t_netctl_target() {
+async fn netctl_global_cut_overrides_port() {
     let (ctl, port) = net_start().await.unwrap();
     net_cut(&ctl, port).await.unwrap();
     net_cut_target(&ctl, port).await.unwrap();

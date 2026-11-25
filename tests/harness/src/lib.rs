@@ -36,8 +36,8 @@ pub use fake_clock::{
 pub use fake_model::{FakeModel, model_start};
 pub use fake_push::{FakePush, PushRecord, push_start};
 pub use http::{
-    http_get, http_get_addr, http_wait, sse_lines, sse_wait_for_line, test_delete, test_get_async,
-    test_post, test_put,
+    http_get, http_get_addr, http_wait, sse_lines, sse_post, sse_wait_for_line, test_delete,
+    test_get_async, test_post, test_put,
 };
 pub use launch::{
     Outcome, Program, child_is_dead, run_program, run_program_clocked, run_program_with,
@@ -53,7 +53,9 @@ pub use netctl::{
     net_mode, net_restore, net_restore_target, net_slow, net_source_addr, net_start,
 };
 pub use ports::{bind_pair, bind_v4, bind_v6, port_is_free};
-pub use postgres::{PgInstance, pg_migrations_dir, pg_start, pg_stop};
+pub use postgres::{
+    PgInstance, pg_install_cache_dir, pg_migrations_dir, pg_ready, pg_start, pg_stop,
+};
 pub use push_crypto::{SubscriptionKeys, subscription_endpoint};
 pub use realtime::{sleep_real, timeout_real};
 pub use running::Running;

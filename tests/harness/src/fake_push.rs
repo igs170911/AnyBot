@@ -95,10 +95,7 @@ async fn handle_push(
     let Some(keys) = push.keys(&id) else {
         return StatusCode::GONE.into_response();
     };
-    let Some(dh) = crypto_dh(&headers) else {
-        return StatusCode::BAD_REQUEST.into_response();
-    };
-    let Ok(plaintext) = decrypt_aes128gcm(&keys, &dh, &body) else {
+    let Ok(plaintext) = decrypt_aes128gcm(&keys, &body) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
     push.store(PushRecord {
@@ -109,20 +106,6 @@ async fn handle_push(
         urgency: header_text(&headers, "urgency"),
     });
     StatusCode::ACCEPTED.into_response()
-}
-
-fn crypto_dh(headers: &HeaderMap) -> Option<String> {
-    let raw = headers
-        .get("crypto-key")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default();
-    for part in raw.split(';') {
-        let Some(dh) = part.strip_prefix("dh=") else {
-            continue;
-        };
-        return Some(dh.trim().to_owned());
-    }
-    None
 }
 
 fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {

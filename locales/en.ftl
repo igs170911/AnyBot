@@ -25,3 +25,7 @@ problem-bad-request = The request was malformed.
 problem-internal = The server hit an internal error.
 run-error-protocol-version = The protocol version { $version } is not supported.
 run-error-unsupported-event = The event kind { $event } is not supported.
+fake-clock-no-future = The fake clock deadline never arrived
+model-script-empty = The fake model has no queued responses left
+push-payload-short = The web-push payload is too short to contain its salt
+push-key-base64 = The web-push subscription key is not valid base64

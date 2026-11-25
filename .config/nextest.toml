@@ -1,6 +1,13 @@
 [profile.default]
 slow-timeout = { period = "30s", terminate-after = 4 }
 
+[profile.default.test-groups]
+pg = { parallelism = 1 }
+
+[[profile.default.overrides]]
+filter = 'test(^postgres_|^pg_)'
+group = "pg"
+
 [[profile.default.serial]]
 matcher = 'filter(r"^t_install_n22_1$|^t_install_n22_3$|^t_server_n14_2$|^health_endpoint_answers_on_the_started_server$|^bind_plan_says_port_unusable_when_port_is_taken$|^second_server_exits_with_one_while_first_keeps_serving_health$")'
 

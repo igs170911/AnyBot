@@ -60,11 +60,7 @@ pub fn subscription_endpoint(port: u16, subscription_id: &str) -> String {
     format!("http://127.0.0.1:{port}/push/{subscription_id}")
 }
 
-pub fn decrypt_aes128gcm(
-    keys: &SubscriptionKeys,
-    server_public_b64: &str,
-    body: &[u8],
-) -> Result<Vec<u8>, String> {
+pub fn decrypt_aes128gcm(keys: &SubscriptionKeys, body: &[u8]) -> Result<Vec<u8>, String> {
     if body.len() < HEADER_LEN {
         return Err(CODE_PUSH_PAYLOAD_SHORT.to_owned());
     }
@@ -78,7 +74,11 @@ pub fn decrypt_aes128gcm(
     if idlen != 65 {
         return Err(CODE_PUSH_PAYLOAD_SHORT.to_owned());
     }
-    let as_public = decode_point(server_public_b64)?;
+    let Some(key_bytes) = body.get(21..86) else {
+        return Err(CODE_PUSH_KEY_BASE64.to_owned());
+    };
+    let as_public =
+        PublicKey::from_sec1_bytes(key_bytes).map_err(|_e| CODE_PUSH_KEY_BASE64.to_owned())?;
     let Some(ciphertext) = body.get(HEADER_LEN..) else {
         return Err(CODE_PUSH_PAYLOAD_SHORT.to_owned());
     };
@@ -91,10 +91,7 @@ pub fn decrypt_aes128gcm(
         shared.raw_secret_bytes().as_slice(),
         &keys.auth,
         &keys.public_uncompressed,
-        as_affine
-            .as_slice()
-            .get(1..)
-            .unwrap_or(as_affine.as_slice()),
+        as_affine.as_slice(),
     )?;
     let (cek, nonce) = derive_cek_nonce(ikm.as_ref(), salt)?;
     let cipher = <Aes128Gcm as KeyInit>::new_from_slice(cek.as_slice())
@@ -106,13 +103,6 @@ pub fn decrypt_aes128gcm(
         )
         .map_err(|_e| "push record auth tag failed".to_owned())?;
     strip_pad(&record)
-}
-
-fn decode_point(encoded_b64: &str) -> Result<PublicKey, String> {
-    let bytes = URL_SAFE_NO_PAD
-        .decode(encoded_b64)
-        .map_err(|e| format!("{CODE_PUSH_KEY_BASE64}: {e}"))?;
-    PublicKey::from_sec1_bytes(&bytes).map_err(|e| format!("bad public key point: {e}"))
 }
 
 fn derive_ikm(
