@@ -71,5 +71,5 @@
 - 畫面文字一律用訊息代碼查 `locales/*.ftl`（`src/ftl.ts`），動作詞彙對應的輔助函式在 `src/act.ts`（按〔按鈕上的字〕、填欄位、出現在螢幕／不出現、版面量測、console 檢查）。
 - 時間快轉連瀏覽器一起轉：控制 API `/control/status` 回 `now_ms`，測試用 `src/act.ts` 的 `installFakeClock`／`syncBrowserClock`（Playwright 的 `page.clock`）把瀏覽器時鐘設成假時鐘的現在時間；自我測試快轉一小時後，瀏覽器 `Date.now()` 必須剛好等於 `/v1/health` 的新 `now`。
 - 端對端測試從外面打真程式：煙霧測試打 `vite preview` 的靜態站；自我測試（`selftest.spec.ts`）用控制 API 寫模型腳本、直接打假模型、讀請求記錄、快轉時鐘後驗證 `/v1/health` 的 `now` 位移 3,600,000 毫秒。
-- 執行：`make e2e`（先 `cargo build -p testenv`，再跑 Playwright；e2e 前有跨工作區測試鎖，見「並行工作」）；`make check` 含 e2e 閘。CI（`.github/workflows/ci.yml`）加裝 `pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit`；CI 失敗時把 `target/playwright` 和 `target/e2e-screens` 上傳成 artifact（`actions/upload-artifact`，保留 7 天）。
+- 執行：`make e2e`（先 `cargo build -p testenv`，再跑 Playwright；e2e 前有跨工作區測試鎖，見「並行工作」）；`make check` 含 e2e 閘。CI（`.github/workflows/ci.yml`）加裝 `pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit`；CI 失敗時把 `target/playwright` 和 `target/e2e-screens` 上傳成 artifact（`actions/upload-artifact`，保留 7 天）。推 `dev` 和 `main` 時，同一個檔案另有 Windows、macOS 工作，跑 `cargo build --workspace --locked --all-targets` 和 `make test-basic`（不需要 PostgreSQL、不需要瀏覽器）。
 - 輸出（截圖、trace、html 報告）一律在 `target/playwright`、`target/playwright-html`。

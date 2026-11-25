@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use axum as _;
 use serde_json as _;
 use std::process::ExitCode;
@@ -17,7 +19,11 @@ use clap as _;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
     let mut catalog = Catalog::new();
+    let version = anybot_foundation::version_string();
     let raw: Vec<String> = std::env::args().skip(1).collect();
+    if raw.iter().any(|arg| arg == "--version" || arg == "-V") {
+        return print_version(&version);
+    }
     let args = match parse_launch(&raw) {
         Ok(Parsed::Args(args)) => args,
         Ok(Parsed::Printed(text)) => {
@@ -31,8 +37,7 @@ async fn main() -> ExitCode {
     if let Some(failure) = subcommand_plan(&args) {
         return report_failure(&mut catalog, &failure, &mut std::io::stderr());
     }
-    let version = env!("CARGO_PKG_VERSION");
-    let startup = match startup_plan(&args, version) {
+    let startup = match startup_plan(&args, anybot_foundation::log_version(&version)) {
         Ok(Ok(startup)) => startup,
         Ok(Err(failure)) => return report_failure(&mut catalog, &failure, &mut std::io::stderr()),
         Err(err) => return bug_exit(&mut catalog, &err),
@@ -44,8 +49,15 @@ async fn main() -> ExitCode {
     if startup_text(&mut catalog, &startup).is_err() {
         return ExitCode::from(3);
     }
-    let app = build_router(AppState::new(version));
+    let app = build_router(AppState::new(&version));
     serve_exit(&mut catalog, listeners, app).await
+}
+
+fn print_version(version: &str) -> ExitCode {
+    match writeln!(std::io::stdout(), "{version}") {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(_) => ExitCode::FAILURE,
+    }
 }
 
 fn bug_exit(_catalog: &mut Catalog, err: &anybot_messages::MessagesError) -> ExitCode {

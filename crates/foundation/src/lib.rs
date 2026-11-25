@@ -2,6 +2,7 @@ pub mod bootstrap;
 pub mod clock;
 pub mod error;
 pub mod ids;
+pub mod release;
 pub mod secret;
 pub mod startup;
 #[cfg(test)]
@@ -21,8 +22,12 @@ pub use ids::{
     AccountId, BlobId, BotId, CallId, CardId, DeviceId, EventId, EvidenceId, RecordId, TaskId,
     TurnId,
 };
+pub use release::{
+    DEV_APP_IDENTIFIER, DEV_APP_NAME, DEV_CHANNEL, STABLE_APP_IDENTIFIER, STABLE_APP_NAME,
+    STABLE_CHANNEL, app_identifier, app_name, log_version, package_version, release_channel,
+    release_is_dev, version_string,
+};
 pub use secret::Secret;
 pub use startup::{
-    APP_IDENTIFIER, ClientLaunch, ClientLaunchArgs, ServerCommand, ServerLaunchArgs,
-    default_data_dir,
+    ClientLaunch, ClientLaunchArgs, ServerCommand, ServerLaunchArgs, default_data_dir,
 };

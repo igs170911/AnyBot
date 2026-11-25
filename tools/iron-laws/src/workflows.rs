@@ -82,11 +82,13 @@ pub fn use_ref_is_pinned(text: &str) -> bool {
 
 fn job_violations(doc: &serde_json::Value, rel: &str) -> Vec<String> {
     let mut out = Vec::new();
-    if doc.get("permissions").is_none() {
-        out.push(format!(
+    match doc.get("permissions") {
+        None => out.push(format!(
             "{rel}: the workflow has no top-level permissions block; grant least privilege (spec/09 K110)"
-        ));
+        )),
+        Some(permissions) => top_level_permission_violations(permissions, rel, &mut out),
     }
+    let triggers_pr = trigger_includes_pull_request(doc.get("on"));
     let jobs = doc.get("jobs");
     for (name, job) in jobs.and_then(|j| j.as_object()).into_iter().flatten() {
         if job.get("timeout-minutes").is_none() {
@@ -94,8 +96,137 @@ fn job_violations(doc: &serde_json::Value, rel: &str) -> Vec<String> {
                 "{rel}: job \"{name}\" has no timeout-minutes (spec/09 K110)"
             ));
         }
+        if let Some(permissions) = job.get("permissions")
+            && triggers_pr
+            && permissions_grant_write(permissions)
+        {
+            out.push(format!(
+                "{rel}: job \"{name}\" grants a write permission and the workflow triggers on pull_request or pull_request_target (spec/09 K111)"
+            ));
+        }
+        runner_violations(job.get("runs-on"), rel, name, &mut out);
+        script_injection_violations(job, rel, name, &mut out);
     }
     out
+}
+
+fn top_level_permission_violations(
+    permissions: &serde_json::Value,
+    rel: &str,
+    out: &mut Vec<String>,
+) {
+    let read_only = matches!(permissions, serde_json::Value::Object(map)
+        if map.len() == 1 && map.get("contents").and_then(|v| v.as_str()) == Some("read"));
+    if !read_only {
+        out.push(format!(
+            "{rel}: top-level permissions must be exactly contents: read; put write on the one job that needs it (spec/09 K110)"
+        ));
+    }
+}
+
+fn permission_is_write(text: &str) -> bool {
+    text == "write"
+}
+
+fn permissions_grant_write(permissions: &serde_json::Value) -> bool {
+    match permissions {
+        serde_json::Value::String(text) => permission_is_write(text),
+        serde_json::Value::Object(map) => map
+            .values()
+            .any(|value| value.as_str().is_some_and(permission_is_write)),
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::Array(_) => false,
+    }
+}
+
+fn trigger_includes_pull_request(on: Option<&serde_json::Value>) -> bool {
+    match on {
+        Some(serde_json::Value::String(text)) => is_pull_request_event(text),
+        Some(serde_json::Value::Array(items)) => items
+            .iter()
+            .any(|item| item.as_str().is_some_and(is_pull_request_event)),
+        Some(serde_json::Value::Object(map)) => map.keys().any(|key| is_pull_request_event(key)),
+        _ => false,
+    }
+}
+
+fn is_pull_request_event(text: &str) -> bool {
+    text == "pull_request" || text == "pull_request_target"
+}
+
+fn runner_violations(
+    runs_on: Option<&serde_json::Value>,
+    rel: &str,
+    job: &str,
+    out: &mut Vec<String>,
+) {
+    let labels = runner_labels(runs_on);
+    for label in labels {
+        if label
+            .split('-')
+            .any(|part| part.eq_ignore_ascii_case("latest"))
+        {
+            out.push(format!(
+                "{rel}: job \"{job}\" runs-on \"{label}\" uses latest; pin the runner image (spec/09 K110)"
+            ));
+        }
+    }
+}
+
+fn runner_labels(runs_on: Option<&serde_json::Value>) -> Vec<String> {
+    match runs_on {
+        Some(serde_json::Value::String(text)) => vec![text.clone()],
+        Some(serde_json::Value::Array(items)) => items
+            .iter()
+            .filter_map(|item| item.as_str().map(str::to_owned))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn script_injection_violations(
+    job: &serde_json::Value,
+    rel: &str,
+    job_name: &str,
+    out: &mut Vec<String>,
+) {
+    let Some(steps) = job.get("steps").and_then(|steps| steps.as_array()) else {
+        return;
+    };
+    for step in steps {
+        let Some(script) = step.get("run").and_then(|run| run.as_str()) else {
+            continue;
+        };
+        if script_embeds_event_text(script) {
+            out.push(format!(
+                "{rel}: job \"{job_name}\" puts a title, branch name, or comment straight into run:; assign it to env: first (spec/09 K110)"
+            ));
+        }
+    }
+}
+
+fn script_embeds_event_text(script: &str) -> bool {
+    const NEEDLES: [&str; 7] = [
+        "github.event.pull_request.title",
+        "github.event.pull_request.body",
+        "github.event.comment.body",
+        "github.event.issue.title",
+        "github.event.head_commit.message",
+        "github.head_ref",
+        "github.event.pull_request.head.ref",
+    ];
+    for chunk in script.split("${{") {
+        let Some(expr) = chunk.split("}}").next() else {
+            continue;
+        };
+        let compact = expr.split_whitespace().collect::<String>();
+        if NEEDLES.iter().any(|needle| compact.contains(needle)) {
+            return true;
+        }
+    }
+    false
 }
 
 #[must_use]

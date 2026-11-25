@@ -1,7 +1,8 @@
 use tokio::net::TcpListener;
 
 use anybot_app_server::parse_launch;
-use anybot_foundation as _;
+use anybot_foundation::log_version;
+use anybot_foundation::version_string;
 use anybot_server as _;
 use axum as _;
 use clap as _;
@@ -74,7 +75,7 @@ async fn t_install_n22_1() -> Result<(), String> {
     let expected = english(
         &mut Catalog::new(),
         MessageCode::ServerStartupListening,
-        &startup_params(env!("CARGO_PKG_VERSION")),
+        &startup_params(log_version(&version_string())),
     )?;
     if first_line.trim() != expected {
         return Err(format!("startup line {first_line} differs from {expected}"));
@@ -237,7 +238,7 @@ async fn start_healthy_server(
     let expected = english(
         &mut Catalog::new(),
         MessageCode::ServerStartupListening,
-        &startup_params(env!("CARGO_PKG_VERSION")),
+        &startup_params(log_version(&version_string())),
     )?;
     let mut running = Running::start(&server_program(bootstrap_args(path)), dir)?;
     let line = running.next_stdout_line()?;

@@ -123,6 +123,7 @@ dependencies = [
 name = "anybot-app-agent"
 version = "0.1.0"
 dependencies = [
+ "anybot-foundation",
  "anybot-messages",
  "clap",
 ]
@@ -131,6 +132,7 @@ dependencies = [
 name = "anybot-app-cli"
 version = "0.1.0"
 dependencies = [
+ "anybot-foundation",
  "anybot-messages",
  "clap",
 ]
@@ -156,6 +158,7 @@ dependencies = [
 name = "anybot-app-runner-service"
 version = "0.1.0"
 dependencies = [
+ "anybot-foundation",
  "anybot-messages",
  "clap",
 ]
@@ -390,6 +393,13 @@ dependencies = [
  "anybot-foundation",
  "anybot-protocol",
  "proptest",
+]
+
+[[package]]
+name = "anybot-versions"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

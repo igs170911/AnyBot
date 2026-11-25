@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - dev
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -200,3 +201,124 @@ jobs:
             target
             !target/pg-install
           key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+
+  # K111 ②: Windows and macOS compile plus the basic tests. Only dev and main, to keep
+  # work-branch and pull-request runs on the Linux `check` job (the name main's rules require).
+  build-windows:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: cache rust toolchains and cargo downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.cargo/registry
+            ~/.cargo/bin
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: rust toolchain
+        run: rustup component add rustfmt clippy
+
+      - name: install pinned cargo tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.cargo\bin" | Out-Null
+          function Install-Pinned($Name, $Url, $Sha, $Archive, $Inner) {
+            $dest = Join-Path "$env:USERPROFILE\.cargo\bin" $Name
+            if (Test-Path $dest) { return }
+            Invoke-WebRequest -Uri $Url -OutFile $Archive
+            $got = (Get-FileHash -Algorithm SHA256 $Archive).Hash.ToLower()
+            if ($got -ne $Sha) { throw "$Name sha256 mismatch: $got" }
+            if ($Archive.EndsWith(".zip")) { Expand-Archive $Archive -DestinationPath "expand-$Name" }
+            else { tar -xzf $Archive }
+            Move-Item $Inner $dest
+            Remove-Item $Archive -Force
+          }
+          Install-Pinned "cargo-nextest.exe" "https://get.nexte.st/0.9.152/windows" "cc6bf4b6a7ac18e462cd6c9bae67e26921b888249c2988c6acabf3df387ed9d6" "nextest.zip" "cargo-nextest.exe"
+          Install-Pinned "cargo-deny.exe" "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-x86_64-pc-windows-msvc.tar.gz" "b8d7e473f54c328cc528ef8aea221c40b5ccac3d63844aa056f86ed0886800a2" "deny.tar.gz" "cargo-deny-0.22.1-x86_64-pc-windows-msvc/cargo-deny.exe"
+          Install-Pinned "cargo-machete.exe" "https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-x86_64-pc-windows-msvc.tar.gz" "64bd4ceae7680af1d1468cc1edbe09c9bea6221f4f525231c8213666eb01fa5a" "machete.tar.gz" "cargo-machete-v0.10.1-x86_64-pc-windows-msvc/cargo-machete.exe"
+
+      - name: compile the workspace
+        run: cargo build --workspace --locked --all-targets
+
+      - name: pnpm
+        run: npm install -g pnpm@12.23.0
+
+      - name: install the web workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: basic tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          # windows-2025 ships MinGW make. Use the Makefile target (K111).
+          make test-basic
+
+  build-macos:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: cache rust toolchains and cargo downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.cargo/registry
+            ~/.cargo/bin
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: rust toolchain
+        run: rustup component add rustfmt clippy
+
+      - name: install pinned cargo tools
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.cargo/bin"
+          out="$HOME/.cargo/bin/cargo-nextest"
+          if [ ! -x "$out" ]; then
+            curl -sLf "https://get.nexte.st/0.9.152/mac" -o nextest.tar.gz
+            echo "2fadf57df4243e691f088ee3bff4f4ab9af16da0c95a1db84b5cb1685e098a76  nextest.tar.gz" | shasum -a 256 -c -
+            tar -xzf nextest.tar.gz
+            mv cargo-nextest "$out"
+            rm nextest.tar.gz
+          fi
+          if [ ! -x "$HOME/.cargo/bin/cargo-deny" ] && [ "$(uname -m)" = "arm64" ]; then
+            curl -sLf "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-aarch64-apple-darwin.tar.gz" -o deny.tar.gz
+            echo "2afa2d672d2b2ee012835528d0c2acb73693ee973a8dc377db0e09d7d8dee9a2  deny.tar.gz" | shasum -a 256 -c -
+            tar -xzf deny.tar.gz
+            mv cargo-deny-0.22.1-aarch64-apple-darwin/cargo-deny "$HOME/.cargo/bin/cargo-deny"
+            rm -r deny.tar.gz cargo-deny-0.22.1-aarch64-apple-darwin
+          fi
+          if [ ! -x "$HOME/.cargo/bin/cargo-machete" ]; then
+            url="https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-aarch64-apple-darwin.tar.gz"
+            sha="0659860970e26179d730d1a2e99fc6513e41fea122ad5451d7ae43234fc1ebab"
+            if [ "$(uname -m)" = "x86_64" ]; then
+              url="https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-x86_64-apple-darwin.tar.gz"
+              sha="19c7384d636a27032ff0b4695b67e79b75a366e5c0573b220bd12bc71b59b435"
+            fi
+            curl -sLf "$url" -o machete.tar.gz
+            echo "$sha  machete.tar.gz" | shasum -a 256 -c -
+            tar -xzf machete.tar.gz
+            find . -name cargo-machete -type f -exec mv {} "$HOME/.cargo/bin/cargo-machete" \;
+            rm -rf machete.tar.gz cargo-machete-v0.10.1-*
+          fi
+
+      - name: pnpm
+        run: npm install -g pnpm@12.23.0
+
+      - name: install the web workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: compile the workspace
+        run: cargo build --workspace --locked --all-targets
+
+      - name: basic tests
+        run: make test-basic

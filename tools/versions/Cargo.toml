@@ -1,0 +1,13 @@
+[package]
+publish = false
+name = "anybot-versions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "release-channel and version-string agreement checks (install-n10, K111)"
+
+[dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

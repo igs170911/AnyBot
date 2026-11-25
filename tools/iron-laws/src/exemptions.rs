@@ -59,6 +59,12 @@ fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>
     insert(m, "iron-laws", &tool_methods, tool_types);
     insert(m, "locale-gen", &tool_methods, tool_types);
     insert(m, "api-docs", &FS_STD_M, &[FS_T[0], FS_T[1], FS_T[2]]);
+    insert(
+        m,
+        "anybot-versions",
+        &FS_STD_M,
+        &[FS_T[0], FS_T[1], FS_T[2]],
+    );
 }
 
 const STD_PROC: [&str; 4] = [

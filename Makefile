@@ -27,19 +27,19 @@ endef
 # spec-trace baseline compare ref: locally compares against HEAD; CI compares against the commit pushed to before the push on dev and main, otherwise the merge base of origin/dev (K111; CI sets this variable).
 SPEC_TRACE_REF ?= HEAD
 
-.PHONY: check check-fast fmt clippy test test-fast live-model-check deny machete depcheck spec-trace spec-baseline \
-	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
+.PHONY: check check-fast fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline \
+	ironlaws gitleaks versions ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
-	_test-body _test-fast-body _e2e-body \
+	_test-body _test-fast-body _test-basic-body _e2e-body \
 	locale locale-refresh
 
-check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks locale \
+check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks versions locale \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
 # fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
-check-fast: fmt clippy test-fast depcheck ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
+check-fast: fmt clippy test-fast depcheck ironlaws versions locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -62,6 +62,19 @@ ifdef NEXTTEST
 else
 	$(CARGO) test --workspace
 endif
+
+# Windows and macOS CI (K111): compile is a separate workflow step. This target runs the
+# Rust and TypeScript tests that do not need PostgreSQL or a browser.
+test-basic:
+	$(call locked,$(MAKE) --no-print-directory _test-basic-body)
+
+_test-basic-body:
+ifdef NEXTTEST
+	$(CARGO) nextest run --workspace --profile quick
+else
+	$(CARGO) test --workspace
+endif
+	$(PNPM) -r --no-bail test
 
 # check-fast Rust tests: everything except the postgres group (spec/09 K90 real DB, slow) and e2e (separate target).
 test-fast:
@@ -92,6 +105,9 @@ spec-trace:
 
 ironlaws:
 	$(CARGO) run --locked -p iron-laws
+
+versions:
+	$(CARGO) run --locked -p anybot-versions
 
 # locale gates (spec/09 K91): CJK scan of source files plus translation consistency
 # plus generated-code freshness (locale-gen check).

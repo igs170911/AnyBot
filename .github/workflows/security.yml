@@ -1,0 +1,73 @@
+# Weekly dependency advisories and a full-history secret scan (spec/09 K111 ⑤).
+# A finding fails the run. GitHub notifies. This workflow opens no issue and edits no file.
+name: Security
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: rust toolchain
+        run: rustup component add rustfmt clippy
+
+      - name: install pinned cargo-audit and cargo-deny
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.cargo/bin"
+          curl -sLf "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.23.0/cargo-audit-x86_64-unknown-linux-musl-v0.23.0.tgz" -o audit.tgz
+          echo "4f01c74ed84b2dffd0b1d37012a62cdf2a92c96e25bdf8eec7fcc0d4d3eb7811  audit.tgz" | sha256sum -c -
+          tar -xzf audit.tgz
+          find . -name cargo-audit -type f -exec mv {} "$HOME/.cargo/bin/cargo-audit" \;
+          rm -rf audit.tgz cargo-audit-*
+          curl -sLf "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-x86_64-unknown-linux-musl.tar.gz" -o deny.tar.gz
+          echo "13f7e825e9cb811c2f8de63f29b0f45851dfb53004029f0f2501af524728364d  deny.tar.gz" | sha256sum -c -
+          tar -xzf deny.tar.gz
+          mv cargo-deny-0.22.1-x86_64-unknown-linux-musl/cargo-deny "$HOME/.cargo/bin/cargo-deny"
+          rm -r deny.tar.gz cargo-deny-0.22.1-x86_64-unknown-linux-musl
+
+      - name: rust advisories
+        run: |
+          set -euo pipefail
+          # RUSTSEC-2024-0370 is the one allowed exception (spec/09 K76, deny.toml).
+          # cargo audit does not read deny.toml, so the same id is passed here.
+          cargo audit --ignore RUSTSEC-2024-0370
+          cargo deny check advisories
+
+      - name: pnpm
+        run: sudo npm install -g pnpm@12.23.0
+
+      - name: install the web workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: frontend advisories
+        run: pnpm audit --audit-level high
+
+  secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: install pinned gitleaks
+        run: |
+          set -euo pipefail
+          curl -sLf "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" -o gitleaks.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          rm gitleaks gitleaks.tar.gz
+
+      - name: scan the whole git history
+        run: gitleaks detect --source . --log-opts="--all" --no-banner --exit-code 1
