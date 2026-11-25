@@ -26,7 +26,7 @@ pub fn code_ids_from_source(content: &str) -> Result<BTreeSet<String>, String> {
 
 pub fn code_ids_from_ts_source(content: &str) -> Result<BTreeSet<String>, String> {
     use regex::Regex;
-    let re = Regex::new(r#"(?m)\b(?:test|it)\(\s*["'`](T-[A-Za-z0-9_-]+)["'`]"#)
+    let re = Regex::new(r#"(?m)\b(?:test|it)\(\s*["'`](T-[A-Za-z0-9_-]+)(?:["'`]|:|\s)"#)
         .map_err(|e| format!("typescript test title pattern parse failed: {e}"))?;
     Ok(re
         .captures_iter(content)

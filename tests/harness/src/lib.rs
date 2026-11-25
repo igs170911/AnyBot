@@ -9,26 +9,22 @@ use sqlx as _;
 use toml as _;
 use url as _;
 
-pub fn test_tracing() {
-    use std::sync::Once;
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        let _set = tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::DEBUG)
-            .try_init();
-    });
-}
-
+pub mod cloud_map;
 pub mod fake_clock;
 pub mod fake_model;
 pub mod fake_push;
 pub mod http;
+pub(crate) mod json_edit;
 pub mod launch;
 pub mod model_anthropic;
+pub mod model_extra;
+pub(crate) mod model_hold;
 pub mod model_openai;
 pub mod model_plan;
 pub mod model_script;
 pub mod model_vllm;
+pub mod model_vllm_body;
+pub mod model_vllm_chunks;
 pub mod netctl;
 pub(crate) mod netctl_state;
 pub mod netproxy;
@@ -44,6 +40,7 @@ pub mod running;
 pub mod scratch;
 pub mod serverdb;
 
+pub use cloud_map::{NameMap, cloud_name_matches, mapped_origin};
 pub use fake_clock::{
     ClockGone, FakeClock, advance_clock, sleep_for, sleep_until, timeout as fake_clock_timeout,
 };
@@ -56,9 +53,15 @@ pub use http::{
 pub use launch::{
     Outcome, Program, child_is_dead, run_program, run_program_clocked, run_program_with,
 };
+pub use model_hold::arm as arm_model_hold;
 pub use model_script::{
-    HeaderValueKind, RecordedRequest, Step, model_calls_tool, model_cut_off, model_no_response,
-    model_replies_text, model_reply_status, model_stall, model_think_then_reply,
+    ErrorBodyKind, HeaderValueKind, KeyMatch, RecordedRequest, Step, ToolCallScript, UsageScript,
+    model_calls_tool, model_cut_off, model_empty_body, model_error_body, model_hold_then_finish,
+    model_list, model_list_silent, model_no_response, model_omit_usage, model_redacted_thinking,
+    model_redirect, model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
+    model_stop_reason, model_stream_error, model_think_then_reply, model_think_then_tool,
+    model_thinking_block, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,
+    model_usage, random_reply,
 };
 pub use netctl_state::NetCtl;
 
@@ -68,8 +71,8 @@ pub use origin::{
 };
 
 pub use netctl::{
-    NetMode, net_attach, net_buffer, net_connect_tunnel, net_cut, net_cut_target, net_down,
-    net_idle_cut, net_mode, net_probe_open, net_restore, net_restore_target, net_slow,
+    NetMode, net_alias, net_attach, net_buffer, net_connect_tunnel, net_cut, net_cut_target,
+    net_down, net_hang_connect, net_idle_cut, net_mode, net_restore, net_restore_target, net_slow,
     net_source_addr, net_start, net_start_raw,
 };
 pub use ports::{bind_pair, bind_v4, bind_v6, port_is_free};

@@ -24,7 +24,7 @@ define locked
 	fi
 endef
 
-# spec-trace baseline compare ref: locally compares against HEAD; CI compares against the merge-base of the main branch (CI sets this variable).
+# spec-trace baseline compare ref: locally compares against HEAD; CI compares against the commit pushed to before the push on dev and main, otherwise the merge base of origin/dev (K111; CI sets this variable).
 SPEC_TRACE_REF ?= HEAD
 
 .PHONY: check check-fast fmt clippy test test-fast live-model-check deny machete depcheck spec-trace spec-baseline \

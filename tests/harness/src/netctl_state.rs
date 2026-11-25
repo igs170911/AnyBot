@@ -29,6 +29,7 @@ pub(crate) struct TargetEntry {
     pub(crate) real: SocketAddr,
     pub(crate) mode: NetMode,
     pub(crate) source: Option<IpAddr>,
+    pub(crate) alias: Option<String>,
     pub(crate) open: bool,
     pub(crate) wake: Arc<Notify>,
     pub(crate) live: Vec<Arc<Notify>>,
@@ -53,6 +54,7 @@ impl NetCtl {
                 real,
                 mode: NetMode::Open,
                 source: None,
+                alias: None,
                 open: true,
                 wake: Arc::new(Notify::new()),
                 live: Vec::new(),
@@ -81,6 +83,7 @@ impl NetCtl {
                 entry.mode
             },
             source: entry.source,
+            alias: entry.alias.clone(),
             open: entry.open,
             wake: Arc::clone(&entry.wake),
         })
@@ -133,6 +136,14 @@ impl NetCtl {
             self.kill_live().await;
         }
         Ok(())
+    }
+
+    pub async fn set_alias(&self, proxy_port: u16, name: &str) -> Result<(), String> {
+        self.with_entry(proxy_port, |entry| {
+            entry.alias = Some(name.to_owned());
+            Ok(())
+        })
+        .await
     }
 
     pub async fn set_source(&self, proxy_port: u16, source: Option<IpAddr>) -> Result<(), String> {

@@ -3,6 +3,7 @@ import { APP_ROOT_MOUNT_MISSING } from "@anybot/ui";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import "./shell.css";
 
 void registerSW({ immediate: true });
 

@@ -7,8 +7,83 @@ license.workspace = true
 description = "AnyBot models skeleton crate (spec/07 section 2)"
 [dependencies]
 anybot-foundation = { workspace = true }
-anybot-protocol = { workspace = true }
-anybot-domain = { workspace = true }
 reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "macros"] }
+url = { workspace = true }
+futures-util = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+test-harness = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+serde_json = { workspace = true }
+
+[[test]]
+name = "t_models_capabilities"
+path = "tests/t_models_capabilities.rs"
+[[test]]
+name = "t_models_capabilities_more"
+path = "tests/t_models_capabilities_more.rs"
+[[test]]
+name = "t_models_catalog"
+path = "tests/t_models_catalog.rs"
+[[test]]
+name = "t_models_connect"
+path = "tests/t_models_connect.rs"
+[[test]]
+name = "t_models_egress"
+path = "tests/t_models_egress.rs"
+[[test]]
+name = "t_models_egress_more"
+path = "tests/t_models_egress_more.rs"
+[[test]]
+name = "t_models_errors"
+path = "tests/t_models_errors.rs"
+[[test]]
+name = "t_models_errors_more"
+path = "tests/t_models_errors_more.rs"
+[[test]]
+name = "t_models_handoff"
+path = "tests/t_models_handoff.rs"
+[[test]]
+name = "t_models_handoff_extra"
+path = "tests/t_models_handoff_extra.rs"
+[[test]]
+name = "t_models_handoff_prop"
+path = "tests/t_models_handoff_prop.rs"
+[[test]]
+name = "t_models_normalize"
+path = "tests/t_models_normalize.rs"
+[[test]]
+name = "t_models_normalize_more"
+path = "tests/t_models_normalize_more.rs"
+[[test]]
+name = "t_models_normalize_prop"
+path = "tests/t_models_normalize_prop.rs"
+[[test]]
+name = "t_models_providers"
+path = "tests/t_models_providers.rs"
+[[test]]
+name = "t_models_retry"
+path = "tests/t_models_retry.rs"
+[[test]]
+name = "t_models_roundtrip"
+path = "tests/t_models_roundtrip.rs"
+[[test]]
+name = "t_models_session"
+path = "tests/t_models_session.rs"
+[[test]]
+name = "t_models_session_more"
+path = "tests/t_models_session_more.rs"
+[[test]]
+name = "t_models_stall"
+path = "tests/t_models_stall.rs"
+[[test]]
+name = "t_models_where"
+path = "tests/t_models_where.rs"
+
 [lints]
 workspace = true

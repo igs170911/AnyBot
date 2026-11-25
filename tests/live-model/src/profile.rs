@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use anybot_foundation::secret::Secret;
 
-pub const PROFILE_REL: &str = "target/live-model/profile.toml";
-pub const REPORT_REL: &str = "target/live-model/format-report.txt";
+pub const PROFILE_REL: &str = ".local/live-model/profile.toml";
+pub const REPORT_REL: &str = ".local/live-model/format-report.txt";
 
 pub struct LiveProfile {
     pub base_url: String,
@@ -14,7 +14,7 @@ pub struct LiveProfile {
 
 #[must_use]
 pub fn profile_dir(repo: &Path) -> PathBuf {
-    repo.join("target").join("live-model")
+    repo.join(".local").join("live-model")
 }
 
 pub fn load_profile(repo: &Path) -> Result<LiveProfile, String> {
@@ -22,8 +22,8 @@ pub fn load_profile(repo: &Path) -> Result<LiveProfile, String> {
     if !path.is_file() {
         return Err(format!(
             "missing {PROFILE_REL}: create it with fields base_url (server address, e.g. https://host/v1), \
-             model (model name), ca_file (self-signed certificate path, relative to target/live-model/), \
-             key_file (API key file path, relative to target/live-model/)"
+             model (model name), ca_file (self-signed certificate path, relative to .local/live-model/), \
+             key_file (API key file path, relative to .local/live-model/)"
         ));
     }
     let raw =

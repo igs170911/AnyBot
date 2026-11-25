@@ -287,10 +287,16 @@ dependencies = [
 name = "anybot-models"
 version = "0.1.0"
 dependencies = [
- "anybot-domain",
  "anybot-foundation",
- "anybot-protocol",
+ "bytes",
+ "futures-util",
+ "proptest",
  "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "test-harness",
+ "tokio",
+ "url",
 ]
 
 [[package]]
@@ -2530,6 +2536,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "yaml_serde",
 ]
 
 [[package]]
@@ -2893,6 +2900,7 @@ name = "live-model"
 version = "0.1.0"
 dependencies = [
  "anybot-foundation",
+ "anybot-models",
  "reqwest 0.12.28",
  "rustls",
  "rustls-pki-types",

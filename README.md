@@ -27,7 +27,7 @@ Rust (M1):
    fails the gate, regeneration is an explicit command `make spec-baseline`;
    `--against <ref>` compares against that ref's baseline and **the baseline may
    only shrink** (extra ids must be spec ids added by this change; CI compares
-   against the merge base of the main branch, see `.gitea/workflows/ci.yml`)
+   against the merge base of the main branch, see `.github/workflows/ci.yml`)
 8. locale-gen (`cargo run -p locale-gen -- check`): CJK scan of all tracked
    files (locales/, spec/, docs/, AGENTS.md excluded) plus translation
    consistency and generated-code freshness (spec/09 K91, K92)
@@ -73,9 +73,21 @@ pnpm install            # produces pnpm-lock.yaml (must be committed)
 pnpm --filter @anybot/desktop dev   # needs tauri-cli: cargo tauri dev
 ```
 
-CI (`.gitea/workflows/ci.yml`) runs the same `make check`; on Linux it first
+## CI workflow
+
+`.github/workflows/ci.yml` runs `make check` on every push to any branch and
+every pull request targeting `dev`.
+Every `uses:` pin is the full commit SHA its tag points at (read from the
+GitHub refs API). Action versions follow the latest stable release of each
+action, and the release must run on a non-deprecated Node runtime
+(`runs.using:`); today that is `actions/checkout` v7.0.1, `actions/cache`
+v6.1.0, `actions/upload-artifact` v7.0.2, all `node24`.
+
+CI (`.github/workflows/ci.yml`) runs the same `make check` on ubuntu-24.04; it first
 installs the system packages Tauri needs (WebKitGTK etc.) and sets
-`SPEC_TRACE_REF` to the merge base of the main branch.
+`SPEC_TRACE_REF`: pushes to `dev` or `main` compare against the commit before the push
+(`github.event.before`, falling back to `HEAD`), other branches and pull requests
+compare against the merge base of `origin/dev` (K111).
 
 ## What each folder does
 
