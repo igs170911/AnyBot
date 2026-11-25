@@ -1,4 +1,3 @@
-use rustls as _;
 use trybuild as _;
 #[path = "../test_support/permit.rs"]
 mod permit_support;

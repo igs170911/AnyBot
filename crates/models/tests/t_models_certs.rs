@@ -4,7 +4,6 @@ use bytes as _;
 use futures_util as _;
 use proptest::prelude::*;
 use reqwest as _;
-use rustls as _;
 use serde as _;
 use serde_json as _;
 use trybuild as _;
@@ -14,8 +13,8 @@ use anybot_foundation::TrustedCerts;
 use anybot_foundation::clock::{Clock, SystemClock};
 use anybot_models::{ProviderKind, Role, ThinkingMode, TurnRequest, resolve_endpoint};
 use test_harness::{
-    IssuedLeaf, mint_issued, mint_self_signed, model_replies_text, model_start_https,
-    model_start_with_cert,
+    IssuedLeaf, mint_issued, mint_issued_not_yet, mint_issued_window, mint_not_yet,
+    mint_self_signed, model_replies_text, model_start_https, model_start_with_cert,
 };
 
 #[path = "../test_support/permit.rs"]
@@ -72,6 +71,84 @@ async fn name_mismatch_and_expiry_send_no_body() -> Result<(), String> {
     let old = ask(&trusted, HOST, late.port).await;
     assert_cert(&old, "model-cert-expired")?;
     assert!(late.model.recorded().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn exact_and_issuer_paths_cover_four_faults() -> Result<(), String> {
+    check_exact_faults().await?;
+    check_issuer_faults().await
+}
+
+async fn check_exact_faults() -> Result<(), String> {
+    let good = mint_self_signed(HOST, 2)?;
+    let started = model_start_with_cert(good).await?;
+    started
+        .model
+        .script_set(vec![model_replies_text("ok", false)]);
+    let trusted = TrustedCerts::parse_pem(&started.cert.pem)?;
+    ask(&trusted, HOST, started.port)
+        .await
+        .map_err(|err| format!("exact good: {err}"))?;
+    let mismatch = ask(&trusted, "other.invalid", started.port).await;
+    assert_cert(&mismatch, "model-cert-name")?;
+    let expired = mint_self_signed(HOST, -1)?;
+    let late = model_start_with_cert(expired).await?;
+    let late_trust = TrustedCerts::parse_pem(&late.cert.pem)?;
+    assert_cert(
+        &ask(&late_trust, HOST, late.port).await,
+        "model-cert-expired",
+    )?;
+    let early = mint_not_yet(HOST)?;
+    let soon = model_start_with_cert(early).await?;
+    let soon_trust = TrustedCerts::parse_pem(&soon.cert.pem)?;
+    assert_cert(
+        &ask(&soon_trust, HOST, soon.port).await,
+        "model-cert-expired",
+    )?;
+    let stranger = mint_self_signed(HOST, 2)?;
+    let other = model_start_with_cert(stranger).await?;
+    assert_cert(
+        &ask(&trusted, HOST, other.port).await,
+        "model-cert-untrusted",
+    )?;
+    Ok(())
+}
+
+async fn check_issuer_faults() -> Result<(), String> {
+    let issued = mint_issued(HOST, "ca.invalid")?;
+    let started = model_start_with_cert(issued.cert).await?;
+    started
+        .model
+        .script_set(vec![model_replies_text("ok", false)]);
+    let trusted = TrustedCerts::parse_pem(&issued.issuer_pem)?;
+    ask(&trusted, HOST, started.port)
+        .await
+        .map_err(|err| format!("issuer good: {err}"))?;
+    assert_cert(
+        &ask(&trusted, "other.invalid", started.port).await,
+        "model-cert-name",
+    )?;
+    let expired = mint_issued_window(HOST, "ca.invalid", -1)?;
+    let late = model_start_with_cert(expired.cert).await?;
+    let late_trust = TrustedCerts::parse_pem(&expired.issuer_pem)?;
+    assert_cert(
+        &ask(&late_trust, HOST, late.port).await,
+        "model-cert-expired",
+    )?;
+    let early = mint_issued_not_yet(HOST, "ca.invalid")?;
+    let soon = model_start_with_cert(early.cert).await?;
+    let soon_trust = TrustedCerts::parse_pem(&early.issuer_pem)?;
+    assert_cert(
+        &ask(&soon_trust, HOST, soon.port).await,
+        "model-cert-expired",
+    )?;
+    let stranger = mint_issued(HOST, "other-ca.invalid")?;
+    let other = model_start_with_cert(stranger.cert).await?;
+    assert_cert(
+        &ask(&trusted, HOST, other.port).await,
+        "model-cert-untrusted",
+    )?;
     Ok(())
 }
 

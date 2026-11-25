@@ -1,5 +1,4 @@
 use proptest as _;
-use rustls as _;
 use std::sync::Arc;
 use trybuild as _;
 
@@ -86,10 +85,10 @@ fn t_models_egress_5() {
 #[tokio::test]
 async fn redirect_is_not_followed() -> Result<(), String> {
     let (local, local_port) = model_start_with_format(ModelFormat::OpenAi).await?;
-    let (cloud, _cloud_port) = model_start_with_format(ModelFormat::OpenAi).await?;
-    local.script_set(vec![model_redirect(
-        "http://api.cloud.test/v1/chat/completions",
-    )]);
+    let (cloud, cloud_port) = model_start_with_format(ModelFormat::OpenAi).await?;
+    local.script_set(vec![model_redirect(&format!(
+        "http://127.0.0.1:{cloud_port}/v1/chat/completions"
+    ))]);
     let clock = FakeClock::new(0);
     let shared: Arc<FakeClock> = Arc::clone(&clock);
     let clock_dyn: Arc<dyn Clock> = shared;
@@ -105,8 +104,17 @@ async fn redirect_is_not_followed() -> Result<(), String> {
     let permit =
         anybot_models::SendPermit::for_endpoint(&DataPolicy::LocalOnly, &endpoint, ModelUse::Bot)
             .expect("permit");
-    let err = gateway.complete(&endpoint, &request, false, &permit).await;
-    assert!(err.is_err());
+    let err = gateway
+        .complete(&endpoint, &request, false, &permit)
+        .await
+        .err()
+        .ok_or("redirect was followed")?;
+    let anybot_models::GatewayFail::Classified { classified, .. } = err else {
+        return Err(format!("expected a classified redirect, got {err:?}"));
+    };
+    assert_eq!(classified.kind, anybot_models::FailKind::Redirect);
+    assert_eq!(classified.code, "model-redirect");
+    assert_eq!(local.recorded().len(), 1);
     assert!(cloud.recorded().is_empty());
     Ok(())
 }

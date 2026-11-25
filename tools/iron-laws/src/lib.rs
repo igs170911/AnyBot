@@ -17,6 +17,7 @@ pub mod lints;
 pub mod makefile_recipes;
 pub mod makefile_scan;
 pub mod nextest_config;
+pub mod permit_block;
 pub mod redocly;
 pub mod suppressions;
 pub mod table;

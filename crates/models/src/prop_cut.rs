@@ -11,7 +11,7 @@ pub(crate) fn send_cut(
 ) -> Result<TurnResult, crate::GatewayFail> {
     let step = crate::scripted::script_cut(200, body, at);
     let poster = crate::scripted::ScriptPoster::new(vec![step]);
-    let gateway = crate::client::Gateway::from_wire(poster, std::sync::Arc::new(Quiet));
+    let gateway = crate::client::Gateway::from_wire(poster, std::sync::Arc::new(Quiet), Vec::new());
     let permit = crate::egress::SendPermit::for_endpoint(
         &crate::egress::DataPolicy::LocalOnly,
         endpoint,
@@ -47,7 +47,7 @@ pub(crate) fn send_body(
         crate::scripted::script_http(200, body)
     };
     let poster = crate::scripted::ScriptPoster::new(vec![step]);
-    let gateway = crate::client::Gateway::from_wire(poster, std::sync::Arc::new(Quiet));
+    let gateway = crate::client::Gateway::from_wire(poster, std::sync::Arc::new(Quiet), Vec::new());
     let permit = crate::egress::SendPermit::for_endpoint(
         &crate::egress::DataPolicy::LocalOnly,
         endpoint,

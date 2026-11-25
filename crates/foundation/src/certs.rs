@@ -26,6 +26,7 @@ impl TrustedCerts {
     }
 
     pub fn parse_pem(pem: &str) -> Result<Self, String> {
+        reject_preamble(pem.as_bytes())?;
         let mut reader = std::io::Cursor::new(pem.as_bytes());
         let mut ders = Vec::new();
         let mut saw = false;
@@ -48,6 +49,21 @@ impl TrustedCerts {
         reject_trailing(pem.as_bytes(), reader.position())?;
         Ok(Self { ders })
     }
+}
+
+fn reject_preamble(pem: &[u8]) -> Result<(), String> {
+    let Some(start) = find_begin(pem) else {
+        return Ok(());
+    };
+    let head = pem.get(..start).ok_or("pem preamble offset")?;
+    if head.iter().any(|byte| !byte.is_ascii_whitespace()) {
+        return Err("pem contains non-certificate content".to_owned());
+    }
+    Ok(())
+}
+
+fn find_begin(pem: &[u8]) -> Option<usize> {
+    pem.windows(11).position(|window| window == b"-----BEGIN ")
 }
 
 fn reject_trailing(pem: &[u8], position: u64) -> Result<(), String> {
@@ -81,16 +97,16 @@ pub struct TrustStore {
 
 impl TrustStore {
     pub fn new(extra: &TrustedCerts) -> Result<Arc<Self>, String> {
-        let loaded = rustls_native_certs::load_native_certs();
-        if loaded.certs.is_empty() {
-            return Err(os_store_error(&loaded.errors));
+        let (certs, notes) = crate::certs_os::load_os_roots();
+        if certs.is_empty() && !notes.is_empty() {
+            return Err(os_store_error_text(&notes));
+        }
+        if certs.is_empty() {
+            return Err("os trust store returned no certificates".to_owned());
         }
         let mut roots = RootCertStore::empty();
-        let mut skipped = Vec::new();
-        for err in loaded.errors {
-            skipped.push(format!("os trust store: {err}"));
-        }
-        for cert in loaded.certs {
+        let mut skipped = notes;
+        for cert in certs {
             if let Err(err) = roots.add(cert) {
                 skipped.push(format!("os trust store: {err}"));
             }
@@ -117,6 +133,11 @@ impl TrustStore {
         &self.os_notes
     }
 
+    #[must_use]
+    pub fn root_count(&self) -> usize {
+        self.roots.len()
+    }
+
     pub fn client_config(self: &Arc<Self>) -> Result<rustls::ClientConfig, String> {
         let versions = rustls::ClientConfig::builder_with_provider(ring_provider())
             .with_protocol_versions(&[&rustls::version::TLS12, &rustls::version::TLS13])
@@ -127,14 +148,6 @@ impl TrustStore {
             .with_no_client_auth();
         Ok(built)
     }
-}
-
-fn os_store_error(errors: &[rustls_native_certs::Error]) -> String {
-    if errors.is_empty() {
-        return "os trust store returned no certificates".to_owned();
-    }
-    let notes: Vec<String> = errors.iter().map(ToString::to_string).collect();
-    os_store_error_text(&notes)
 }
 
 fn os_store_error_text(notes: &[String]) -> String {
@@ -204,6 +217,24 @@ pub fn classify_tls(err: &Error) -> CertFault {
         return CertFault::Other(err.to_string());
     };
     classify_certificate(kind)
+}
+
+#[must_use]
+pub fn classify_tls_error(err: &(dyn std::error::Error + 'static)) -> Option<CertFault> {
+    let mut current = Some(err);
+    while let Some(item) = current {
+        if let Some(tls) = item.downcast_ref::<Error>() {
+            return Some(classify_tls(tls));
+        }
+        if let Some(io) = item.downcast_ref::<std::io::Error>()
+            && let Some(inner) = std::io::Error::get_ref(io)
+            && let Some(fault) = classify_tls_error(inner)
+        {
+            return Some(fault);
+        }
+        current = std::error::Error::source(item);
+    }
+    None
 }
 
 fn classify_certificate(kind: &rustls::CertificateError) -> CertFault {

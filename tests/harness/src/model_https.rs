@@ -26,6 +26,7 @@ pub fn https_client(trusted_pem: &str, host: &str, port: u16) -> Result<reqwest:
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .use_preconfigured_tls(tls)
+        .no_proxy()
         .resolve(host, addr)
         .build()
         .map_err(|err| err.to_string())
@@ -50,7 +51,9 @@ pub async fn model_start_with_cert(cert: MintedCert) -> Result<HttpsModel, Strin
     let router = model_router(Arc::clone(&model));
     let incoming = TlsIncoming { listener, acceptor };
     tokio::spawn(async move {
-        let _served = axum::serve(incoming, router).await;
+        let _served = axum::serve(incoming, router)
+            .with_graceful_shutdown(accept_deadline())
+            .await;
     });
     Ok(HttpsModel { model, port, cert })
 }
@@ -60,21 +63,33 @@ struct TlsIncoming {
     acceptor: TlsAcceptor,
 }
 
+const ACCEPT_DEADLINE: std::time::Duration = std::time::Duration::from_secs(30);
+
+async fn accept_deadline() {
+    tokio::time::sleep(ACCEPT_DEADLINE).await;
+}
+
+async fn parked() -> (
+    tokio_rustls::server::TlsStream<tokio::net::TcpStream>,
+    std::net::SocketAddr,
+) {
+    std::future::pending().await
+}
+
 impl axum::serve::Listener for TlsIncoming {
     type Io = tokio_rustls::server::TlsStream<tokio::net::TcpStream>;
     type Addr = std::net::SocketAddr;
 
     async fn accept(&mut self) -> (Self::Io, Self::Addr) {
         loop {
-            let accepted = self.listener.accept().await;
-            let Ok((stream, addr)) = accepted else {
-                continue;
+            let Ok(Ok(accepted)) =
+                tokio::time::timeout(ACCEPT_DEADLINE, self.listener.accept()).await
+            else {
+                return parked().await;
             };
-            let handshake = self.acceptor.accept(stream).await;
-            let Ok(tls) = handshake else {
-                continue;
-            };
-            return (tls, addr);
+            if let Ok(tls) = self.acceptor.accept(accepted.0).await {
+                return (tls, accepted.1);
+            }
         }
     }
 

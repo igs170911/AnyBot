@@ -220,7 +220,7 @@ pub(crate) fn session_policy(
 ) -> crate::session::Session {
     let clock: Arc<dyn anybot_foundation::clock::Clock> = Arc::new(QuietClock);
     crate::session::Session::new(
-        crate::client::Gateway::from_wire(poster, Arc::clone(&clock)),
+        crate::client::Gateway::from_wire(poster, Arc::clone(&clock), Vec::new()),
         policy,
         clock,
         0,

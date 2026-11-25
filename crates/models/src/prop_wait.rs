@@ -110,6 +110,7 @@ fn session_of(poster: Arc<ScriptPoster>, clock: Arc<ManualClock>) -> Session {
         crate::client::Gateway::from_wire(
             poster,
             Arc::clone(&clock) as Arc<dyn anybot_foundation::clock::Clock>,
+            Vec::new(),
         ),
         crate::egress::DataPolicy::LocalOnly,
         clock,
@@ -155,6 +156,7 @@ fn model_list_waits_the_catalog_limit() -> Result<(), String> {
     let gateway = crate::client::Gateway::from_wire(
         poster,
         Arc::clone(&clock) as Arc<dyn anybot_foundation::clock::Clock>,
+        Vec::new(),
     );
     let built = runtime()?;
     let outcome = built.block_on(async {

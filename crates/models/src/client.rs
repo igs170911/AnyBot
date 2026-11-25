@@ -12,6 +12,7 @@ use crate::where_run::first_token_wait;
 pub struct Gateway {
     transport: TimedTransport,
     name_map: Arc<dyn NameResolver>,
+    os_notes: Vec<String>,
 }
 
 pub trait NameResolver: Send + Sync {
@@ -31,10 +32,16 @@ impl Gateway {
         clock: Arc<dyn Clock>,
         trusted: &anybot_foundation::TrustedCerts,
     ) -> Result<Self, String> {
-        Ok(Self::from_client(
-            clock,
-            crate::client_http::product_client(trusted)?,
-        ))
+        Self::with_proxy(clock, trusted, None)
+    }
+
+    pub fn with_proxy(
+        clock: Arc<dyn Clock>,
+        trusted: &anybot_foundation::TrustedCerts,
+        proxy: Option<&str>,
+    ) -> Result<Self, String> {
+        let built = crate::client_http::product_client(trusted, proxy)?;
+        Ok(Self::from_client(clock, built))
     }
 
     pub fn with_pinned_host(
@@ -43,21 +50,33 @@ impl Gateway {
         host: &str,
         addr: std::net::SocketAddr,
     ) -> Result<Self, String> {
-        Ok(Self::from_client(
+        let built = crate::client_http::client_for(trusted, Some((host, addr)), None)?;
+        Ok(Self::from_client(clock, built))
+    }
+
+    fn from_client(clock: Arc<dyn Clock>, built: crate::client_http::BuiltClient) -> Self {
+        Self::from_wire(
+            crate::reqwest_wire::ReqwestWire::new(built.client),
             clock,
-            crate::client_http::client_for(trusted, Some((host, addr)))?,
-        ))
+            built.os_notes,
+        )
     }
 
-    fn from_client(clock: Arc<dyn Clock>, client: reqwest::Client) -> Self {
-        Self::from_wire(crate::reqwest_wire::ReqwestWire::new(client), clock)
-    }
-
-    pub(crate) fn from_wire(wire: SharedWire, clock: Arc<dyn Clock>) -> Self {
+    pub(crate) fn from_wire(
+        wire: SharedWire,
+        clock: Arc<dyn Clock>,
+        os_notes: Vec<String>,
+    ) -> Self {
         Self {
             transport: TimedTransport::new(wire, clock),
             name_map: Arc::new(IdentityResolver),
+            os_notes,
         }
+    }
+
+    #[must_use]
+    pub fn os_notes(&self) -> &[String] {
+        &self.os_notes
     }
 
     #[must_use]
@@ -71,6 +90,7 @@ impl Gateway {
         Self {
             transport: TimedTransport::new(self.transport.wire(), self.transport.clock()),
             name_map: Arc::clone(&self.name_map),
+            os_notes: self.os_notes.clone(),
         }
     }
 
@@ -79,6 +99,7 @@ impl Gateway {
         Self {
             transport: TimedTransport::new(self.transport.wire(), self.transport.clock()),
             name_map,
+            os_notes: self.os_notes.clone(),
         }
     }
 

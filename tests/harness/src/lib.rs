@@ -65,7 +65,10 @@ pub use model_script::{
     model_thinking_block, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,
     model_usage, random_reply,
 };
-pub use model_tls::{IssuedLeaf, MintedCert, mint_issued, mint_self_signed};
+pub use model_tls::{
+    IssuedLeaf, MintedCert, mint_issued, mint_issued_not_yet, mint_issued_window, mint_not_yet,
+    mint_self_signed,
+};
 pub use netctl_state::NetCtl;
 
 pub use origin::{

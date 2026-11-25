@@ -22,20 +22,55 @@ pub struct IssuedLeaf {
 }
 
 pub fn mint_self_signed(dns: &str, not_after_days: i64) -> Result<MintedCert, String> {
+    mint_self_signed_window(dns, -1, not_after_days)
+}
+
+pub fn mint_not_yet(dns: &str) -> Result<MintedCert, String> {
+    mint_self_signed_window(dns, 2, 4)
+}
+
+fn mint_self_signed_window(
+    dns: &str,
+    not_before_days: i64,
+    not_after_days: i64,
+) -> Result<MintedCert, String> {
     let key = KeyPair::generate().map_err(|err| err.to_string())?;
-    let params = self_signed_params(dns, not_after_days)?;
+    let mut params = self_signed_params(dns, not_after_days)?;
+    apply_span(&mut params, not_before_days, not_after_days);
     let cert = params.self_signed(&key).map_err(|err| err.to_string())?;
     Ok(owned_cert(dns, &cert.pem(), cert.der(), &key))
 }
 
 pub fn mint_issued(dns: &str, issuer_dns: &str) -> Result<IssuedLeaf, String> {
+    mint_issued_window(dns, issuer_dns, 2)
+}
+
+pub fn mint_issued_not_yet(dns: &str, issuer_dns: &str) -> Result<IssuedLeaf, String> {
+    mint_issued_span(dns, issuer_dns, 2, 4)
+}
+
+pub fn mint_issued_window(
+    dns: &str,
+    issuer_dns: &str,
+    not_after_days: i64,
+) -> Result<IssuedLeaf, String> {
+    mint_issued_span(dns, issuer_dns, -1, not_after_days)
+}
+
+fn mint_issued_span(
+    dns: &str,
+    issuer_dns: &str,
+    not_before_days: i64,
+    not_after_days: i64,
+) -> Result<IssuedLeaf, String> {
     let issuer_key = KeyPair::generate().map_err(|err| err.to_string())?;
     let issuer_params = ca_params(issuer_dns)?;
     let issuer = issuer_params
         .self_signed(&issuer_key)
         .map_err(|err| err.to_string())?;
     let leaf_key = KeyPair::generate().map_err(|err| err.to_string())?;
-    let leaf_params = leaf_params(dns)?;
+    let mut leaf_params = leaf_params(dns)?;
+    apply_span(&mut leaf_params, not_before_days, not_after_days);
     let signer = Issuer::from_params(&issuer_params, &issuer_key);
     let leaf = leaf_params
         .signed_by(&leaf_key, &signer)
@@ -113,6 +148,12 @@ fn name_of(dns: &str) -> DistinguishedName {
     let mut name = DistinguishedName::new();
     name.push(DnType::CommonName, dns);
     name
+}
+
+fn apply_span(params: &mut CertificateParams, not_before_days: i64, not_after_days: i64) {
+    let now = time::OffsetDateTime::now_utc();
+    params.not_before = shift(now, time::Duration::days(not_before_days));
+    params.not_after = shift(now, time::Duration::days(not_after_days));
 }
 
 fn apply_window(params: &mut CertificateParams, not_after_days: i64) {

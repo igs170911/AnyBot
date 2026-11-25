@@ -1,4 +1,3 @@
-use rustls as _;
 use std::time::Duration;
 use trybuild as _;
 

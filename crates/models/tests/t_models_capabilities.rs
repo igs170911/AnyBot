@@ -1,5 +1,4 @@
 use proptest as _;
-use rustls as _;
 use std::sync::Arc;
 use trybuild as _;
 

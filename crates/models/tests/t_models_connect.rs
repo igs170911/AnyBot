@@ -1,5 +1,4 @@
 use proptest as _;
-use rustls as _;
 use serde as _;
 use std::net::SocketAddr;
 use std::sync::Arc;

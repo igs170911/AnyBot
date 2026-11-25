@@ -4,7 +4,6 @@ use bytes as _;
 use futures_util as _;
 use proptest::prelude::*;
 use reqwest as _;
-use rustls as _;
 use serde as _;
 use serde_json as _;
 use test_harness::{ModelFormat, model_replies_text};

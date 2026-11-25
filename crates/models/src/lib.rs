@@ -111,6 +111,14 @@ pub fn gateway(
     Gateway::new(clock, trusted)
 }
 
+pub fn gateway_with_proxy(
+    clock: Arc<dyn Clock>,
+    trusted: &anybot_foundation::TrustedCerts,
+    proxy: Option<&str>,
+) -> Result<Gateway, String> {
+    Gateway::with_proxy(clock, trusted, proxy)
+}
+
 pub fn gateway_pinned(
     clock: Arc<dyn Clock>,
     trusted: &anybot_foundation::TrustedCerts,

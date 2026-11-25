@@ -7,7 +7,6 @@ license.workspace = true
 description = "AnyBot models skeleton crate (spec/07 section 2)"
 [dependencies]
 anybot-foundation = { workspace = true }
-rustls = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -92,6 +91,9 @@ path = "tests/t_models_where.rs"
 [[test]]
 name = "t_models_certs"
 path = "tests/t_models_certs.rs"
+[[test]]
+name = "t_models_proxy"
+path = "tests/t_models_proxy.rs"
 
 [lints]
 workspace = true
