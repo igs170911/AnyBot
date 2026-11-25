@@ -7,7 +7,7 @@ use anybot_foundation::{Clock, SystemClock};
 use anybot_server::{
     AppState, Migrator, boot_database, build_router, open_url, product_migrations,
 };
-use test_harness::FakeClock;
+use test_harness::{Capture, FakeClock};
 
 use crate::ServerDb;
 use crate::serverdb::db_start;
@@ -19,6 +19,7 @@ pub struct Served {
     pub clock: Arc<FakeClock>,
     pub pool: anybot_server::Pool,
     pub started: anybot_server::Started,
+    pub startup: Arc<Capture>,
     server_shutdown: Arc<tokio::sync::Notify>,
     server_tasks: Vec<tokio::task::JoinHandle<()>>,
     v6_port: u16,
@@ -42,6 +43,7 @@ pub async fn serve_start(test: &str) -> Result<Served, String> {
     let started = boot_database(&pool, &*clock_dyn, &mut migrations, TEST_VERSION)
         .await
         .map_err(|e| format!("{e:?}"))?;
+    let startup = crate::startup::startup_capture(&started, db.listen_port)?;
     let clock_fast: Arc<FakeClock> = Arc::clone(&clock);
     let clock_arc: Arc<dyn Clock> = clock_fast;
     let config = anybot_server::ServerConfig::from_rows(started.config.rows())?;
@@ -52,6 +54,7 @@ pub async fn serve_start(test: &str) -> Result<Served, String> {
         clock,
         pool,
         started,
+        startup,
         server_shutdown,
         server_tasks,
         v6_port,
@@ -271,4 +274,18 @@ impl ServedReal {
         self.stop_server().await?;
         self.db.stop().await
     }
+}
+
+pub async fn boot_pair(served: &Served) -> Result<String, String> {
+    let invite = crate::n106::invite_of(&served.started)?;
+    crate::n106::register(
+        &served.base_url(),
+        "alice",
+        "alicepassword",
+        &invite,
+        "k-admin",
+    )
+    .await?;
+    crate::n106::register(&served.base_url(), "bob", "bobpassword", &invite, "k-bob").await?;
+    Ok(invite)
 }

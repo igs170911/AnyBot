@@ -64,7 +64,7 @@ async fn t_install_n22_1() -> Result<(), String> {
     let db = db_start("install_n22_1").await?;
     let mut running = start_running(&db)?;
     let result = running.kill();
-    let _checked = check_no_password(&result);
+    check_no_password(&result)?;
     let stopped = pg_stop(&db.pg).await;
     match result {
         Ok(_outcome) => stopped,

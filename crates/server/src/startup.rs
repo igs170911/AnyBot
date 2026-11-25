@@ -100,6 +100,9 @@ fn bind_one(addr: SocketAddr) -> std::io::Result<TcpListener> {
         socket2::Domain::IPV6
     };
     let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
+    if addr.is_ipv6() {
+        socket.set_only_v6(true)?;
+    }
     socket.set_reuse_address(true)?;
     socket.bind(&addr.into())?;
     socket.listen(128)?;

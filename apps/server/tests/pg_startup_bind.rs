@@ -13,7 +13,7 @@ use sqlx as _;
 use test_harness as _;
 use tracing as _;
 
-use test_harness::{Running, http_get_addr, pg_stop, sleep_real};
+use test_harness::{Running, http_get_addr, pg_stop, sleep_real, timeout_real};
 
 fn server_bin() -> ServerProgram {
     ServerProgram::new(env!("CARGO_BIN_EXE_anybot-server"))
@@ -98,9 +98,9 @@ async fn t_account_bind_1() -> Result<(), String> {
     let mut running = start_and_hold(&db)?;
     let v4 = health_twice(db.listen_port, "127.0.0.1").await;
     let v6 = health_twice(db.listen_port, "[::1]").await;
-    let third = http_get_addr(&format!("127.0.0.2:{}", db.listen_port), "/v1/health")
+    let third = lan_unreachable(db.listen_port)
         .await
-        .is_ok();
+        .map(|reachable| !reachable)?;
     let result = running.kill();
     let _stopped = pg_stop(&db.pg).await;
     match health_shapes(v4, v6, third, result) {
@@ -149,5 +149,26 @@ fn health_shapes(
     match result {
         Ok(_outcome) => Ok(()),
         Err(msg) => Err(msg),
+    }
+}
+
+fn lan_addr() -> Result<String, String> {
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
+    socket.connect(("8.8.8.8", 53)).map_err(|e| e.to_string())?;
+    let local = socket.local_addr().map_err(|e| e.to_string())?;
+    Ok(local.ip().to_string())
+}
+
+async fn lan_unreachable(port: u16) -> Result<bool, String> {
+    let addr = lan_addr()?;
+    let probe = timeout_real(
+        http_get_addr(&format!("{addr}:{port}"), "/v1/health"),
+        std::time::Duration::from_secs(3),
+    )
+    .await;
+    match probe {
+        Ok(Ok(_out)) => Ok(false),
+        Ok(Err(_e)) => Ok(true),
+        Err(_e) => Ok(true),
     }
 }

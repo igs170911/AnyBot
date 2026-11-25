@@ -12,6 +12,7 @@ pub mod http;
 pub mod n106;
 pub mod serve;
 pub mod serverdb;
+pub mod startup;
 
 pub use clockwalk::{ClockWalker, WAVE_FAKE_STEP, WAVE_INSERT_STEP, settle_handles};
 pub use serverdb::{ServerDb, db_start};

@@ -11,6 +11,7 @@ use clap as _;
 use rpassword as _;
 use serde_json as _;
 use sqlx as _;
+use sqlx::Row;
 use test_harness as _;
 use tokio as _;
 use tracing as _;
@@ -166,6 +167,18 @@ async fn t_account_login_4() -> Result<(), String> {
     )
     .await?;
     let pair = run_pairs(&served).await?;
+    let names: Vec<String> = sqlx::query("SELECT account FROM accounts ORDER BY account")
+        .fetch_all(&served.pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .iter()
+        .map(|row| row.try_get("account").map_err(|e| e.to_string()))
+        .collect::<Result<Vec<String>, _>>()?;
+    assert_eq!(
+        names,
+        vec!["alice".to_owned()],
+        "login failures must not create or disable accounts: {names:?}"
+    );
     let alice_mid = median(&pair.0)?;
     let ghost_mid = median(&pair.1)?;
     let gap = alice_mid.abs_diff(ghost_mid);
@@ -187,6 +200,11 @@ async fn run_pairs(
         )
         .await?;
         assert_eq!(fail.status, 401);
+        assert_eq!(
+            fail.code().as_deref(),
+            Some("account-login-credentials"),
+            "alice wrong password must answer the credentials code"
+        );
         assert!(fail.elapsed.as_millis() >= 500, "alice attempt too fast");
         alice_times.push(fail.elapsed.as_millis());
         let ghost = post(

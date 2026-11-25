@@ -47,6 +47,7 @@ async fn run_against_foreign_database() -> Result<(), String> {
     let bootstrap = dir.join("boot.conf");
     let _written =
         test_harness::scratch::write_file_with_mode(&bootstrap, &format!("{url}\n"), 0o600);
+    let before = anybot_app_test::public_table_names(&pool).await?;
     let outcome = run_program(
         &server_bin().program(vec![
             "--bootstrap".to_owned(),
@@ -60,8 +61,10 @@ async fn run_against_foreign_database() -> Result<(), String> {
     match check {
         Ok(()) => match tables {
             Ok(names) => {
-                if names.first().is_none_or(|n| n != "gadget") {
-                    return Err(format!("foreign table vanished: {names:?}"));
+                if names != before {
+                    return Err(format!(
+                        "foreign tables changed: before {before:?} after {names:?}"
+                    ));
                 }
                 result
             }

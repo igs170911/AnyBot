@@ -249,9 +249,16 @@ impl Drop for PgInstance {
             .store(true, std::sync::atomic::Ordering::SeqCst);
         let server = self.server.clone();
         let base_dir = self.base_dir.clone();
-        tokio::spawn(async move {
-            let _stopped = server.stop().await.is_ok();
+        let joiner = std::thread::spawn(move || {
+            let built = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build();
+            let Ok(runtime) = built else {
+                return;
+            };
+            let _stopped = runtime.block_on(server.stop()).is_ok();
             let _removed = std::fs::remove_dir_all(base_dir).is_ok();
         });
+        let _joined = joiner.join().is_ok();
     }
 }
