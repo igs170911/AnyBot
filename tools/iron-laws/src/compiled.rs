@@ -19,6 +19,16 @@ pub fn cargo_metadata(repo: &Path) -> Result<String, String> {
     String::from_utf8(output.stdout).map_err(|e| format!("cargo metadata is not utf8: {e}"))
 }
 
+fn target_directory(metadata_json: &str) -> Result<PathBuf, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(metadata_json).map_err(|e| format!("cargo metadata json: {e}"))?;
+    let dir = value
+        .get("target_directory")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("cargo metadata has no target_directory".to_owned())?;
+    Ok(PathBuf::from(dir))
+}
+
 fn package_roots(metadata_json: &str) -> Result<Vec<PathBuf>, String> {
     let value: serde_json::Value =
         serde_json::from_str(metadata_json).map_err(|e| format!("cargo metadata json: {e}"))?;
@@ -78,11 +88,10 @@ fn walk_rs(dir: &Path, repo: &Path, out: &mut Vec<String>) {
 }
 
 #[must_use]
-pub fn compiled_tokens(repo: &Path) -> BTreeSet<String> {
+pub fn compiled_tokens(deps: &Path, repo: &Path) -> BTreeSet<String> {
     let mut tokens = BTreeSet::new();
     let repo_text = repo.to_string_lossy().into_owned();
-    let deps = repo.join("target").join("debug").join("deps");
-    let Ok(entries) = std::fs::read_dir(&deps) else {
+    let Ok(entries) = std::fs::read_dir(deps) else {
         return tokens;
     };
     for entry in entries.flatten() {
@@ -121,7 +130,7 @@ fn strip_repo(token: &str, repo_text: &str) -> String {
 pub fn violations(repo: &Path, metadata_json: &str, compiled: &BTreeSet<String>) -> Vec<String> {
     if compiled.is_empty() {
         return vec![
-            "compile gate: no dep-info files under target/debug/deps; run cargo check --all-targets first"
+            "compile gate: no dep-info files under the cargo target directory; run cargo check --all-targets first"
                 .to_owned(),
         ];
     }
@@ -153,7 +162,11 @@ pub fn violations_at_repo(repo: &Path) -> Vec<String> {
         Ok(text) => text,
         Err(e) => return vec![e],
     };
-    violations(repo, &metadata, &compiled_tokens(repo))
+    let deps = match target_directory(&metadata) {
+        Ok(dir) => dir.join("debug").join("deps"),
+        Err(e) => return vec![e],
+    };
+    violations(repo, &metadata, &compiled_tokens(&deps, repo))
 }
 
 #[cfg(test)]
@@ -163,6 +176,7 @@ mod tests {
     fn fixture(name: &str) -> (PathBuf, String, BTreeSet<String>) {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/scratch");
         let repo = root.join(name);
+        let deps = repo.join("target").join("debug").join("deps");
         let pkg = repo.join("crates").join("widget");
         std::fs::create_dir_all(pkg.join("src")).unwrap();
         std::fs::create_dir_all(pkg.join("tests")).unwrap();
@@ -177,20 +191,18 @@ mod tests {
             "[package]\nname = \"widget\"\nversion = \"0.0.1\"\nedition = \"2024\"\n",
         )
         .unwrap();
-        std::fs::create_dir_all(repo.join("target").join("debug").join("deps")).unwrap();
+        std::fs::create_dir_all(&deps).unwrap();
         std::fs::write(
-            repo.join("target")
-                .join("debug")
-                .join("deps")
-                .join("widget-1.d"),
+            deps.join("widget-1.d"),
             "out.d: crates/widget/src/lib.rs crates/widget/tests/wired.rs\n",
         )
         .unwrap();
         let metadata = format!(
-            "{{\"packages\":[{{\"name\":\"widget\",\"manifest_path\":\"{}\"}}]}}",
-            manifest.display()
+            "{{\"packages\":[{{\"name\":\"widget\",\"manifest_path\":\"{}\"}}],\"target_directory\":\"{}\"}}",
+            manifest.display(),
+            repo.join("target").display()
         );
-        (repo.clone(), metadata, compiled_tokens(&repo))
+        (repo.clone(), metadata, compiled_tokens(&deps, &repo))
     }
 
     #[test]
@@ -221,7 +233,7 @@ mod tests {
     fn test_compiled_gate_needs_dep_info_files() {
         let (repo, metadata, _compiled) = fixture("iron-compiled-empty");
         std::fs::remove_dir_all(repo.join("target").join("debug").join("deps")).unwrap();
-        let compiled = compiled_tokens(&repo);
+        let compiled = compiled_tokens(&repo.join("target").join("debug").join("deps"), &repo);
         let v = violations(&repo, &metadata, &compiled);
         assert_eq!(v.len(), 1);
         assert!(

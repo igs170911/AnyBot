@@ -7,6 +7,23 @@ PNPM ?= pnpm
 SHELL := /bin/bash -o pipefail
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 
+# cross-worktree test lock (docs/testing.md, parallel work): the lock file lives in the git common
+# directory so every worktree of this repo shares it; macOS uses lockf, Linux uses flock,
+# neither present (CI runs one checkout at a time) means no lock.
+TESTLOCK := $(shell git rev-parse --git-common-dir)/anybot-tests.lock
+
+define locked
+	@LOCK="$(TESTLOCK)"; mkdir -p "$$(dirname "$$LOCK")"; \
+	if command -v flock >/dev/null 2>&1; then \
+		exec 9>"$$LOCK"; flock -n 9 || echo "waiting for test lock: $$LOCK"; flock -x 9; $1; \
+	elif command -v lockf >/dev/null 2>&1; then \
+		lockf -t 0 -s -w "$$LOCK" true || echo "waiting for test lock: $$LOCK"; \
+		lockf -k -w "$$LOCK" $1; \
+	else \
+		$1; \
+	fi
+endef
+
 # spec-trace baseline compare ref: locally compares against HEAD; CI compares against the merge-base of the main branch (CI sets this variable).
 SPEC_TRACE_REF ?= HEAD
 
@@ -14,6 +31,7 @@ SPEC_TRACE_REF ?= HEAD
 	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
+	_test-body _test-fast-body _e2e-body \
 	locale locale-refresh
 
 check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks locale \
@@ -34,6 +52,9 @@ clippy:
 	done
 
 test:
+	$(call locked,$(MAKE) --no-print-directory _test-body)
+
+_test-body:
 ifdef NEXTTEST
 	@mkdir -p target
 	$(CARGO) nextest run --workspace --test-threads 1 2>&1 | tee target/nextest.log; \
@@ -44,6 +65,9 @@ endif
 
 # check-fast Rust tests: everything except the postgres group (spec/09 K90 real DB, slow) and e2e (separate target).
 test-fast:
+	$(call locked,$(MAKE) --no-print-directory _test-fast-body)
+
+_test-fast-body:
 ifdef NEXTTEST
 	$(CARGO) nextest run --workspace --profile quick
 else
@@ -103,7 +127,10 @@ ts-build:
 	$(PNPM) -r --no-bail build
 
 # M4 section B: Playwright scenarios against apps/web, driven by the testenv executable.
-e2e: ts-install
+e2e:
+	$(call locked,$(MAKE) --no-print-directory _e2e-body)
+
+_e2e-body: ts-install
 	$(CARGO) build -p testenv
 	$(PNPM) --filter=@anybot/e2e exec playwright test
 

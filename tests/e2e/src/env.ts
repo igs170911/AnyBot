@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -55,8 +55,21 @@ function waitForReadyLine(child: ChildProcess): Promise<string> {
   });
 }
 
+function testenvBin(): string {
+  const repoRoot = path.resolve(import.meta.dirname, "../../..");
+  const run = spawnSync("cargo", ["metadata", "--format-version", "1", "--no-deps"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  if (run.status !== 0) {
+    throw new Error(`cargo metadata failed: ${String(run.stderr)}`);
+  }
+  const meta = JSON.parse(String(run.stdout)) as { target_directory: string };
+  return path.join(meta.target_directory, "debug", "testenv");
+}
+
 export default async function globalSetup(): Promise<() => void> {
-  const bin = path.resolve(import.meta.dirname, "../../../target/debug/testenv");
+  const bin = testenvBin();
   if (!existsSync(bin)) {
     throw new Error(`testenv binary missing: ${bin} (run cargo build -p testenv first)`);
   }

@@ -127,3 +127,9 @@ float_cmp_const = "deny"
 lossy_float_literal = "deny"
 cognitive_complexity = "deny"
 too_many_lines = "deny"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
