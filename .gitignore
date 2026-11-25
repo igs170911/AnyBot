@@ -8,3 +8,5 @@ coverage/
 *.log
 
 .idea/
+/proptest-regressions/
+**/proptest-regressions/
