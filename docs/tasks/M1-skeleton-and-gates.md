@@ -38,7 +38,7 @@
    6. depcheck
    7. spec-trace
 
-5. **CI**：`.gitea/workflows/ci.yml`，在 CI 上跑 `make check`。
+5. **CI**：`.github/workflows/ci.yml`，在 CI 上跑 `make check`。
 
 6. **`README.md`**：怎麼跑關卡、各資料夾在做什麼（指向 `spec/07`）。
 

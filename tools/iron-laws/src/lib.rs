@@ -17,6 +17,7 @@ pub mod nextest_config;
 pub mod redocly;
 pub mod suppressions;
 pub mod table;
+pub mod workflows;
 
 use std::path::Path;
 
@@ -39,6 +40,7 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
     out.extend(licensing::violations(repo));
     out.extend(nextest_config::violations(repo));
     out.extend(redocly::violations(repo));
+    out.extend(workflows::violations(repo));
     out.sort();
     out
 }

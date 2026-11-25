@@ -41,12 +41,26 @@ fn test_spec_trace_rust_dashes_underscore_mapping() {
 fn test_spec_trace_ts_test_titles_are_the_trace_source() {
     let ts = "test(\"T-chat-steer-1\", () => {});\n\
               it('T-chat-steer-2', () => {});\n\
-              test(\"T-no-prefix\", () => {});\n";
+              test(\"smoke: no id prefix\", () => {});\n";
     let ids = code_ids_from_ts_source(ts).unwrap();
     assert!(ids.contains("T-chat-steer-1"));
     assert!(ids.contains("T-chat-steer-2"));
-    assert_eq!(ids.len(), 3);
-    assert!(ids.contains("T-no-prefix"));
+    assert_eq!(ids.len(), 2);
+}
+
+#[test]
+fn test_spec_trace_ts_title_start_id_forms() {
+    let ts = "test(\"T-a-b-1\", () => {});\n\
+              test(\"T-a-b-1: description\", () => {});\n\
+              it(\"T-a-b-1 description\", () => {});\n\
+              it(\"T-a-b-1\n  spans lines\", () => {});\n\
+              test(\"T-a-b-10 longer id\", () => {});\n\
+              test(\"t-a-b-1 lowercase\", () => {});\n\
+              test(\"not an id\", () => {});\n";
+    let ids = code_ids_from_ts_source(ts).unwrap();
+    assert!(ids.contains("T-a-b-1"));
+    assert!(ids.contains("T-a-b-10"));
+    assert_eq!(ids.len(), 2);
 }
 
 #[test]

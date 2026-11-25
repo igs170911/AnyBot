@@ -33,7 +33,7 @@
 
 6. **`make check-fast`**：只跑 cargo fmt 檢查、cargo clippy、depcheck、biome。要快，給寫程式時邊寫邊跑。
 
-7. **CI**：`.gitea/workflows/ci.yml` 跟著更新。Linux 上的 Tauri 需要 WebKitGTK 等系統套件，在 CI 裡裝。
+7. **CI**：`.github/workflows/ci.yml` 跟著更新。Linux 上的 Tauri 需要 WebKitGTK 等系統套件，在 CI 裡裝。
 
 8. **README** 補上 TypeScript 和桌面的部分。
 

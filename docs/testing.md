@@ -60,13 +60,15 @@
 - 控制 API（只給測試環境用，不在產品裡）：`/control/status`、`/control/model/script`（POST 寫腳本）、`/control/model/requests`（GET 讀記錄）、`/control/clock/advance`（POST 快轉假時鐘）、`/control/net/cut`、`/control/net/restore`、`/control/push/records`（GET 讀推播記錄）。
 - Playwright 設定在 `tests/e2e/playwright.config.ts`，情境專案：
   - `phone-max-font`：WebKit + `iPhone SE (3rd gen)` 裝置描述（375×667、deviceScaleFactor 2，是最小的現役 iPhone 尺寸）。最大字級模擬方式：iOS 最大輔助字級是內文 53pt、預設 17pt，53/17 ≈ 3.1；Playwright 沒有字級縮放選項，測試在頁面注入 `html { font-size: 310%; }`（專案自訂屬性 `maxTextZoom: "3.1"`），比例與 iOS Dynamic Type 最大值一致。
+  - `phone-wide-font`：同樣的 WebKit 手機情境（`iPhone SE (3rd gen)`、375×667、`maxTextZoom: "3.1"`），再注入 `html { font-family: monospace; letter-spacing: 0.8em; word-spacing: 0.4em; }`（專案自訂屬性 `wideFont: "1"`），把字變成比平常寬很多；Linux 上 WebKit 的預設字型比 macOS 寬，本機跑這個情境就能抓到同一類橫向溢出（`T-phonefit-width-1`，驗 `spec/10-behavior` 的 `phonefit-width`）。
   - 每個情境每個測試都留截圖（`screenshot: "on"`），路徑在 `target/e2e-screens/<專案>--<測試標題>.png`（`src/act.ts` 的 `registerScenarioScreenshots` 用 `test.afterEach` 存檔，不只失敗時）。
   - `desktop-large`：Chromium 1600×1000。
   - `rtl-arabic`：locale `ar`（RTL 版面規則要等 M8 的 UI，現在只做煙霧測試）。
   - `dark-mode`：colorScheme dark。
   - `lang-en`、`lang-zh-TW`：語言情境。
+- 版面量測：`src/act.ts` 的 `expectNoHorizontalScroll` 先檢查每個看得到的元素的左右邊界都在畫面寬度以內、且元素沒有把內容裁掉（`scrollWidth` 大於 `offsetWidth` 就算，`phonefit-width` S5），再查頁面沒有橫向捲動。
 - 畫面文字一律用訊息代碼查 `locales/*.ftl`（`src/ftl.ts`），動作詞彙對應的輔助函式在 `src/act.ts`（按〔按鈕上的字〕、填欄位、出現在螢幕／不出現、版面量測、console 檢查）。
 - 時間快轉連瀏覽器一起轉：控制 API `/control/status` 回 `now_ms`，測試用 `src/act.ts` 的 `installFakeClock`／`syncBrowserClock`（Playwright 的 `page.clock`）把瀏覽器時鐘設成假時鐘的現在時間；自我測試快轉一小時後，瀏覽器 `Date.now()` 必須剛好等於 `/v1/health` 的新 `now`。
 - 端對端測試從外面打真程式：煙霧測試打 `vite preview` 的靜態站；自我測試（`selftest.spec.ts`）用控制 API 寫模型腳本、直接打假模型、讀請求記錄、快轉時鐘後驗證 `/v1/health` 的 `now` 位移 3,600,000 毫秒。
-- 執行：`make e2e`（先 `cargo build -p testenv`，再跑 Playwright；e2e 前有跨工作區測試鎖，見「並行工作」）；`make check` 含 e2e 閘。CI（`.gitea/workflows/ci.yml`）加裝 `pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit`。
+- 執行：`make e2e`（先 `cargo build -p testenv`，再跑 Playwright；e2e 前有跨工作區測試鎖，見「並行工作」）；`make check` 含 e2e 閘。CI（`.github/workflows/ci.yml`）加裝 `pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit`；CI 失敗時把 `target/playwright` 和 `target/e2e-screens` 上傳成 artifact（`actions/upload-artifact`，保留 7 天）。
 - 輸出（截圖、trace、html 報告）一律在 `target/playwright`、`target/playwright-html`。
