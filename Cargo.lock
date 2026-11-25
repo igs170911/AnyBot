@@ -209,6 +209,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "anybot-context"
+version = "0.1.0"
+dependencies = [
+ "anybot-domain",
+ "anybot-foundation",
+ "anybot-models",
+ "anybot-protocol",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+]
+
+[[package]]
 name = "anybot-domain"
 version = "0.1.0"
 dependencies = [

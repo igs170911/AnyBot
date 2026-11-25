@@ -1,0 +1,19 @@
+[package]
+publish = false
+name = "anybot-context"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Context compiler: pure functions building each model request (spec/07 section 2, spec/09 K95 K114)"
+[dependencies]
+anybot-foundation = { workspace = true }
+anybot-protocol = { workspace = true }
+anybot-domain = { workspace = true }
+anybot-models = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+[lints]
+workspace = true
+[dev-dependencies]
+proptest = { workspace = true }
