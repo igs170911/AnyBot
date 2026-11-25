@@ -264,26 +264,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/server/stop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Ask the server to stop
-         * @description Requests a graceful stop of the running server. The Idempotency-Key header is required for this write.
-         */
-        post: operations["post_server_stop"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -390,10 +370,6 @@ export interface components {
             uptime_ms: number;
             /** @example 0.1.0 */
             version: string;
-        };
-        StopAck: {
-            /** @example true */
-            stopping: boolean;
         };
     };
     responses: never;
@@ -1893,70 +1869,6 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["StatusResponse"];
-                };
-            };
-            /** @description The request was malformed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "problem-bad-request",
-                     *       "params": {},
-                     *       "status": 400,
-                     *       "title": "The request was malformed.",
-                     *       "type": "https://anybot.test/problems/bad-request"
-                     *     }
-                     */
-                    "application/problem+json": components["schemas"]["ProblemJson"];
-                };
-            };
-            /** @description The server hit an internal error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "problem-internal",
-                     *       "params": {},
-                     *       "status": 500,
-                     *       "title": "The server hit an internal error.",
-                     *       "type": "https://anybot.test/problems/internal"
-                     *     }
-                     */
-                    "application/problem+json": components["schemas"]["ProblemJson"];
-                };
-            };
-        };
-    };
-    post_server_stop: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Unique key for this write request */
-                "Idempotency-Key": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Stop requested */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "stopping": true
-                     *     }
-                     */
-                    "application/json": components["schemas"]["StopAck"];
                 };
             };
             /** @description The request was malformed */

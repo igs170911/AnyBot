@@ -37,7 +37,7 @@ async fn t_server_boot_3() -> Result<(), String> {
         let mut m = product_migrations();
         boot(&pool, clock.as_ref(), &mut m, "9.9.9").await
     };
-    let upgraded = fixture_migrator("0002_fixture_extra.sql").await;
+    let upgraded = fixture_migrator("0003_fixture_extra.sql").await;
     let outcome = match first {
         Ok(_started) => match upgraded {
             Ok(mut migrator) => boot_up_and_down(&pool, clock.as_ref(), &mut migrator).await,
@@ -88,7 +88,7 @@ async fn migration_failure_keeps_the_schema_and_the_old_set_boots() -> Result<()
     let pool = open_pool(&db).await?;
     let clock = Arc::new(SystemClock);
     let before = public_table_names(&pool).await?;
-    let broken = fixture_migrator("0002_fixture_broken.sql").await;
+    let broken = fixture_migrator("0003_fixture_broken.sql").await;
     let outcome = run_broken_migration(&pool, clock.as_ref(), broken, &before).await;
     let old = {
         let mut m = product_migrations();
@@ -160,7 +160,7 @@ async fn config_defaults_and_public_url_round_trip_through_the_database() -> Res
     let db = db_start("config_rows").await?;
     let pool = open_pool(&db).await?;
     let rows = read_config_rows(&pool).await.map_err(|e| e.to_string())?;
-    let config = ServerConfig::from_rows(rows.clone()).map_err(|e| e.to_string())?;
+    let config = ServerConfig::from_rows(rows.clone())?;
     let _written = write_config_row(&pool, "public_url", "https://round.example/")
         .await
         .map_err(|e| e.to_string());

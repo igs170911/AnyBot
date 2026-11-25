@@ -43,7 +43,7 @@ pub async fn serve_start(test: &str) -> Result<Served, String> {
         .map_err(|e| format!("{e:?}"))?;
     let clock_fast: Arc<FakeClock> = Arc::clone(&clock);
     let clock_arc: Arc<dyn Clock> = clock_fast;
-    let config = anybot_server::ServerConfig::from_rows(started.config.rows()).map_err(|e| e.to_string())?;
+    let config = anybot_server::ServerConfig::from_rows(started.config.rows())?;
     let (server_shutdown, server_tasks, v6_port) =
         bind_fake(&db, clock_arc, pool.clone(), config).await?;
     Ok(Served {
@@ -66,7 +66,7 @@ pub async fn serve_start_real(test: &str) -> Result<ServedReal, String> {
         .await
         .map_err(|e| format!("{e:?}"))?;
     let clock_arc: Arc<dyn Clock> = clock;
-    let config = anybot_server::ServerConfig::from_rows(started.config.rows()).map_err(|e| e.to_string())?;
+    let config = anybot_server::ServerConfig::from_rows(started.config.rows())?;
     let (server_shutdown, server_tasks, v6_port) =
         bind_fake(&db, clock_arc, pool.clone(), config).await?;
     Ok(ServedReal {
@@ -188,7 +188,7 @@ impl Served {
         let rows = anybot_server::read_config_rows(&self.pool)
             .await
             .map_err(|e| e.to_string())?;
-        let config = anybot_server::ServerConfig::from_rows(rows).map_err(|e| e.to_string())?;
+        let config = anybot_server::ServerConfig::from_rows(rows)?;
         let clock_fast: Arc<FakeClock> = Arc::clone(&self.clock);
         let clock_arc: Arc<dyn Clock> = clock_fast;
         let (shutdown, task, v6_port) =
@@ -247,7 +247,7 @@ impl ServedReal {
         let rows = anybot_server::read_config_rows(&self.pool)
             .await
             .map_err(|e| e.to_string())?;
-        let config = anybot_server::ServerConfig::from_rows(rows).map_err(|e| e.to_string())?;
+        let config = anybot_server::ServerConfig::from_rows(rows)?;
         let clock: Arc<dyn Clock> = Arc::new(SystemClock);
         let (shutdown, task, v6_port) =
             bind_fake(&self.db, clock, self.pool.clone(), config).await?;

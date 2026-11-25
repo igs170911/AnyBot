@@ -2,27 +2,24 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Response;
 
-use anybot_domain::session_term::{evict_indices, session_expired};
+use anybot_domain::account_name::normalize_account_name;
 use anybot_foundation::Secret;
 use anybot_messages::MessageCode;
-use anybot_domain::account_name::normalize_account_name;
 use anybot_protocol::{LoginRequest, LoginSession, ProblemJson};
-use anybot_store_server::{Pool, accounts, sessions};
+use anybot_store_server::{Pool, accounts};
 
+use crate::api_login_flow::{open_session, slow_fail, verify_password};
 use crate::api_register::status_from_i32;
 use crate::app::AppState;
 use crate::caller::CallerDenied;
 use crate::idem::{DID_IT_BODY, find_recorded, request_scope, safe_digest};
 use crate::limits::Limiter;
-use crate::pass_hash::key_digest;
 use crate::problems;
 use crate::req_write::{
-    denied, idempotency_key, internal_sqlx, internal_text, pool_of,
-    read_json, record_outcome, request_address, path_of, value_of,
+    Outcome, denied, idempotency_key, internal_detail, internal_sqlx, internal_text, path_of,
+    pool_of, read_json, record_outcome, request_address, value_of,
 };
 use axum::http::Method;
-
-const LOGIN_DELAY_MS: u64 = 500;
 
 #[utoipa::path(
     post,
@@ -77,7 +74,7 @@ pub async fn login(
     let (body, raw) = read_json::<LoginRequest>(request).await?;
     let pool = pool_of(&state)?;
     let scope = request_scope(&Method::POST, &path, &address);
-    let guard = guard_idem(pool, &key, &raw, &scope).await?;
+    let _guard = guard_idem(pool, &key, &raw, &scope).await?;
     let limiter = Limiter::new(pool, std::sync::Arc::clone(&state.clock));
     let attempt = limiter
         .begin_login(&address, &body.account)
@@ -90,68 +87,136 @@ pub async fn login(
             MessageCode::AccountLoginRate,
         ));
     };
-    if let Guard::Replay(..) = guard {
-        return run_login(&state, pool, &limiter, id, &body, &key, &raw, &scope).await;
-    }
-    run_login(&state, pool, &limiter, id, &body, &key, &raw, &scope).await
+    let run = LoginRun {
+        state: &state,
+        pool,
+        limiter: &limiter,
+        attempt: id,
+        body: &body,
+        key: &key,
+        raw: &raw,
+        scope: &scope,
+    };
+    run_login(&run).await
 }
 
-async fn run_login(
-    state: &AppState,
-    pool: &Pool,
-    limiter: &Limiter,
-    id: i64,
-    body: &LoginRequest,
-    key: &str,
-    raw: &[u8],
-    scope: &str,
-) -> Result<Response, CallerDenied> {
-    eprintln!("ENTER {}", key);
-    let account = normalize_account_name(&body.account)
-        .map_err(|_| denied(StatusCode::UNAUTHORIZED, MessageCode::AccountLoginCredentials))?;
-    let row = accounts::find_account(pool, &account)
+struct LoginRun<'a> {
+    state: &'a AppState,
+    pool: &'a Pool,
+    limiter: &'a Limiter,
+    attempt: i64,
+    body: &'a LoginRequest,
+    key: &'a str,
+    raw: &'a [u8],
+    scope: &'a str,
+}
+
+async fn run_login(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
+    let account = normalized_account(run.body)?;
+    let row = accounts::find_account(run.pool, &account)
         .await
         .map_err(internal_sqlx)?;
-    let checked = verify_password(
-        state,
+    let verified = verify_password(
+        run.state,
         row.as_ref(),
-        &Secret::from_untrusted(body.password.clone()),
+        &Secret::from_untrusted(run.body.password.clone()),
     )
     .await;
-    let ok = checked && row.is_some();
-    if !ok {
-        eprintln!("SLOW {}", key);
-        slow_fail(state).await;
-        eprintln!("SLEPT {}", key);
-        let value = serde_json::to_value(problems::auth_problem(
-            StatusCode::UNAUTHORIZED.as_u16(),
+    if !verified || row.is_none() {
+        return rejected(run).await;
+    }
+    let stored = row.ok_or(internal_detail("missing account row"))?;
+    if stored.disabled {
+        return disabled(run).await;
+    }
+    accepted(run, &stored.account).await
+}
+
+fn normalized_account(body: &LoginRequest) -> Result<String, CallerDenied> {
+    normalize_account_name(&body.account).map_err(|_| {
+        denied(
+            StatusCode::UNAUTHORIZED,
             MessageCode::AccountLoginCredentials,
-        ))
-        .map_err(internal_text)?;
-        let answer = record_outcome(pool, state, key, raw, scope, StatusCode::UNAUTHORIZED, &value, false).await?;
-        drop(answer);
-        return Err(denied(StatusCode::UNAUTHORIZED, MessageCode::AccountLoginCredentials));
-    }
-    if row.as_ref().is_some_and(|row| row.disabled) {
-        let value = serde_json::to_value(problems::auth_problem(
-            StatusCode::FORBIDDEN.as_u16(),
-            MessageCode::AccountLoginDisabled,
-        ))
-        .map_err(internal_text)?;
-        limiter
-            .cancel_login(id)
-            .await
-            .map_err(internal_sqlx)?;
-        record_outcome(pool, state, key, raw, scope, StatusCode::FORBIDDEN, &value, false).await?;
-        return Err(denied(StatusCode::FORBIDDEN, MessageCode::AccountLoginDisabled));
-    }
-    limiter
-        .cancel_login(id)
+        )
+    })
+}
+
+async fn rejected(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
+    slow_fail(run.state).await;
+    let value = serde_json::to_value(problems::auth_problem(
+        StatusCode::UNAUTHORIZED.as_u16(),
+        MessageCode::AccountLoginCredentials,
+    ))
+    .map_err(internal_text)?;
+    let answer = record_outcome(
+        run.pool,
+        run.state,
+        &Outcome {
+            key: run.key,
+            raw: run.raw,
+            scope: run.scope,
+            status: StatusCode::UNAUTHORIZED,
+            value: &value,
+            marker: false,
+        },
+    )
+    .await?;
+    drop(answer);
+    Err(denied(
+        StatusCode::UNAUTHORIZED,
+        MessageCode::AccountLoginCredentials,
+    ))
+}
+
+async fn disabled(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
+    let value = serde_json::to_value(problems::auth_problem(
+        StatusCode::FORBIDDEN.as_u16(),
+        MessageCode::AccountLoginDisabled,
+    ))
+    .map_err(internal_text)?;
+    run.limiter
+        .cancel_login(run.attempt)
         .await
         .map_err(internal_sqlx)?;
-    let session = open_session(state, pool, body, row.as_ref()).await?;
+    record_outcome(
+        run.pool,
+        run.state,
+        &Outcome {
+            key: run.key,
+            raw: run.raw,
+            scope: run.scope,
+            status: StatusCode::FORBIDDEN,
+            value: &value,
+            marker: false,
+        },
+    )
+    .await?;
+    Err(denied(
+        StatusCode::FORBIDDEN,
+        MessageCode::AccountLoginDisabled,
+    ))
+}
+
+async fn accepted(run: &LoginRun<'_>, account: &str) -> Result<Response, CallerDenied> {
+    run.limiter
+        .cancel_login(run.attempt)
+        .await
+        .map_err(internal_sqlx)?;
+    let session = open_session(run.state, run.pool, run.body, account).await?;
     let value = value_of(&session)?;
-    record_outcome(pool, state, key, raw, scope, StatusCode::OK, &value, true).await
+    record_outcome(
+        run.pool,
+        run.state,
+        &Outcome {
+            key: run.key,
+            raw: run.raw,
+            scope: run.scope,
+            status: StatusCode::OK,
+            value: &value,
+            marker: true,
+        },
+    )
+    .await
 }
 
 pub enum Guard {
@@ -165,7 +230,9 @@ pub async fn guard_idem(
     raw: &[u8],
     scope: &str,
 ) -> Result<Guard, CallerDenied> {
-    let stored = find_recorded(pool, key, scope).await.map_err(internal_sqlx)?;
+    let stored = find_recorded(pool, key, scope)
+        .await
+        .map_err(internal_sqlx)?;
     match stored {
         None => Ok(Guard::Fresh),
         Some(record) if record.request_hash == safe_digest(raw) => Ok(Guard::Replay(
@@ -178,86 +245,4 @@ pub async fn guard_idem(
             MessageCode::AccountIdempotencyConflict,
         )),
     }
-}
-
-async fn verify_password(
-    state: &AppState,
-    row: Option<&accounts::AccountRow>,
-    password: &Secret,
-) -> bool {
-    let Ok(hasher) = state.pass_hasher().await else {
-        return false;
-    };
-    match row {
-        Some(row) => hasher
-            .verify(password, &row.password_hash)
-            .await
-            .unwrap_or(false),
-        None => hasher.verify_dummy(password).await.unwrap_or(false),
-    }
-}
-
-async fn open_session(
-    state: &AppState,
-    pool: &Pool,
-    body: &LoginRequest,
-    row: Option<&accounts::AccountRow>,
-) -> Result<LoginSession, CallerDenied> {
-    let account = row.ok_or(denied(
-        StatusCode::UNAUTHORIZED,
-        MessageCode::AccountLoginCredentials,
-    ))?;
-    let now_ms = state.clock.now_ms().millis();
-    let at_ms = i64::try_from(now_ms).map_err(internal_text)?;
-    trim_sessions(pool, &account.account, now_ms).await?;
-    let key = Secret::from_untrusted(crate::session_key::random_key()?);
-    sessions::insert_session(
-        pool,
-        &uuid::Uuid::now_v7().to_string(),
-        &account.account,
-        &key_digest(&key),
-        &body.label,
-        at_ms,
-    )
-    .await
-    .map_err(internal_sqlx)?;
-    Ok(LoginSession {
-        session_key: key.expose().to_owned(),
-        account: account.account.clone(),
-    })
-}
-
-async fn trim_sessions(pool: &Pool, account: &str, now_ms: u64) -> Result<(), CallerDenied> {
-    let rows = sessions::list_sessions(pool, account)
-        .await
-        .map_err(internal_sqlx)?;
-    let mut doomed: Vec<String> = Vec::new();
-    let mut alive: Vec<(u64, String)> = Vec::new();
-    for row in rows {
-        let last = u64::try_from(row.last_active_ms).map_err(internal_text)?;
-        if session_expired(last, now_ms) {
-            doomed.push(row.id);
-        } else {
-            alive.push((last, row.id));
-        }
-    }
-    let times: Vec<u64> = alive.iter().map(|(at, _)| *at).collect();
-    let doomed_indices =
-        evict_indices(alive.len().saturating_add(1), &times, now_ms).map_err(internal_text)?;
-    for index in doomed_indices {
-        if let Some((_, id)) = alive.get(index) {
-            doomed.push(id.clone());
-        }
-    }
-    let refs: Vec<&str> = doomed.iter().map(String::as_str).collect();
-    sessions::delete_sessions(pool, &refs)
-        .await
-        .map_err(internal_sqlx)
-}
-
-async fn slow_fail(state: &AppState) {
-    state
-        .clock
-        .sleep(std::time::Duration::from_millis(LOGIN_DELAY_MS))
-        .await;
 }

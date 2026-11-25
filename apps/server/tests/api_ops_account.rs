@@ -185,11 +185,7 @@ async fn password_step(
     old: &str,
     key: &str,
 ) -> Result<ResponseSpec, String> {
-    let clock = std::sync::Arc::clone(&served.clock);
-    let advancer = tokio::spawn(async move {
-        test_harness::sleep_real(std::time::Duration::from_millis(50)).await;
-        let _advanced = clock.advance(std::time::Duration::from_millis(600));
-    });
+    let mut walker = anybot_app_test::ClockWalker::start(&served.clock);
     let outcome = post(
         &served.base_url(),
         "/v1/account/password",
@@ -198,8 +194,7 @@ async fn password_step(
             .with_key(key),
     )
     .await?;
-    advancer.abort();
-    let _joined = advancer.await;
+    walker.stop().await?;
     Ok(outcome)
 }
 

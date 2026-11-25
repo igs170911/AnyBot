@@ -7,10 +7,12 @@ use tracing as _;
 
 use test_harness::{Program, Running, migration_fixture, pg_start, pg_stop};
 
+pub mod clockwalk;
 pub mod http;
 pub mod serve;
 pub mod serverdb;
 
+pub use clockwalk::ClockWalker;
 pub use serverdb::{ServerDb, db_start};
 
 pub fn english(

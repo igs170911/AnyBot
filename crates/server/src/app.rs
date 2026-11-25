@@ -10,12 +10,13 @@ use anybot_store_server::Pool;
 use crate::api_account::login;
 use crate::api_admin::{invite, rotate_invite, set_public_url};
 use crate::api_admin_accounts::{disable_account, enable_account, reset_password};
-use crate::api_ops::{change_password, logout, logout_all};
+use crate::api_ops::change_password;
+use crate::api_ops_session::{logout, logout_all};
 use crate::api_register::register;
 use crate::config::ServerConfig;
 use crate::health::health;
 use crate::pass_hash::PassHash;
-use crate::status::{status};
+use crate::status::status;
 
 #[derive(Clone)]
 pub struct AppState {

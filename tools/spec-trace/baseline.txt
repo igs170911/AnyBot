@@ -18,7 +18,6 @@ T-account-login-5
 T-account-login-6
 T-account-login-7
 T-account-login-8
-T-account-login-9
 T-account-move-1
 T-account-move-2
 T-account-move-3
@@ -892,7 +891,6 @@ T-conn-heartbeat-2
 T-conn-heartbeat-3
 T-conn-heartbeat-4
 T-conn-heartbeat-5
-T-conn-post-1
 T-conn-post-3
 T-conn-post-4
 T-conn-push-1

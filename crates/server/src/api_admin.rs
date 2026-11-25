@@ -121,12 +121,14 @@ pub async fn rotate_invite(
     crate::req_write::record_outcome(
         pool,
         &state,
-        &key,
-        &raw,
-        &scope,
-        StatusCode::OK,
-        &value,
-        true,
+        &crate::req_write::Outcome {
+            key: &key,
+            raw: &raw,
+            scope: &scope,
+            status: StatusCode::OK,
+            value: &value,
+            marker: true,
+        },
     )
     .await
 }

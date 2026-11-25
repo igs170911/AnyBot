@@ -114,7 +114,8 @@ where
     )
     .fetch_one(executor)
     .await?;
-    row.total.ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
+    row.total
+        .ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
 }
 
 pub async fn count_account<'q, E>(
@@ -134,7 +135,8 @@ where
     )
     .fetch_one(executor)
     .await?;
-    row.total.ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
+    row.total
+        .ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
 }
 
 pub async fn count_address<'q, E>(
@@ -154,7 +156,8 @@ where
     )
     .fetch_one(executor)
     .await?;
-    row.total.ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
+    row.total
+        .ok_or(sqlx::Error::ColumnNotFound("total".to_owned()))
 }
 
 pub async fn drop_attempt(pool: &Pool, id: i64) -> Result<(), sqlx::Error> {

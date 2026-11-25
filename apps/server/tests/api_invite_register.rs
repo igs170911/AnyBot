@@ -13,8 +13,7 @@ use test_harness as _;
 use tokio as _;
 use tracing as _;
 
-use anybot_app_test::http::RequestSpec;
-use anybot_app_test::http::post;
+use anybot_app_test::http::{FORWARDED_HEADER, RequestSpec, ResponseSpec, post};
 use anybot_app_test::serve::serve_start;
 use serde_json::json;
 
@@ -23,6 +22,7 @@ fn register_body(account: &str, password: &str, invite: &str, key: &str) -> Requ
         &json!({"account": account, "password": password, "invite": invite}).to_string(),
     )
     .with_key(key)
+    .with_header(FORWARDED_HEADER, "10.9.9.9")
 }
 
 #[tokio::test]
@@ -94,6 +94,106 @@ async fn t_server_invite_4() -> Result<(), String> {
     assert_eq!(sixth.code().as_deref(), Some("account-register-rate"));
     served.stop().await?;
     Ok(())
+}
+
+const REGISTER_DEADLINE_MS: u128 = 2000;
+
+#[tokio::test]
+async fn sequential_registration_answers_within_two_seconds() -> Result<(), String> {
+    let served = serve_start("seq_register_2s").await?;
+    let invite = served
+        .started
+        .new_invite
+        .clone()
+        .ok_or("fresh boot must draw an invite".to_owned())?;
+    for (number, account) in ["firstone", "secondone"].into_iter().enumerate() {
+        let answer = post(
+            &served.base_url(),
+            "/v1/account/register",
+            &register_body(account, "longenough", &invite, &format!("k-seq{number}")),
+        )
+        .await?;
+        assert_eq!(answer.status, 201, "registration {number} must succeed");
+        assert!(
+            answer.elapsed.as_millis() < REGISTER_DEADLINE_MS,
+            "registration {number} took {} ms",
+            answer.elapsed.as_millis()
+        );
+    }
+    served.stop().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn concurrent_registration_creates_only_one_admin() -> Result<(), String> {
+    let served = serve_start("conc_register_admin").await?;
+    let invite = served
+        .started
+        .new_invite
+        .clone()
+        .ok_or("fresh boot must draw an invite".to_owned())?;
+    let base = served.base_url();
+    let alpha = tokio::spawn(register_task(
+        base.clone(),
+        "alphaone".to_owned(),
+        invite.clone(),
+        "k-alpha".to_owned(),
+    ));
+    let beta = tokio::spawn(register_task(
+        base,
+        "betatwo".to_owned(),
+        invite,
+        "k-beta".to_owned(),
+    ));
+    let (alpha_answer, alpha_ms) = alpha.await.map_err(|e| e.to_string())??;
+    let (beta_answer, beta_ms) = beta.await.map_err(|e| e.to_string())??;
+    assert_eq!(
+        alpha_answer.status, 201,
+        "alpha status: {0}",
+        alpha_answer.json
+    );
+    assert_eq!(
+        beta_answer.status, 201,
+        "beta status: {0}",
+        beta_answer.json
+    );
+    assert!(
+        alpha_ms < REGISTER_DEADLINE_MS && beta_ms < REGISTER_DEADLINE_MS,
+        "alpha {alpha_ms} ms, beta {beta_ms} ms"
+    );
+    let alpha_admin = alpha_answer
+        .json
+        .get("admin")
+        .and_then(serde_json::Value::as_bool);
+    let beta_admin = beta_answer
+        .json
+        .get("admin")
+        .and_then(serde_json::Value::as_bool);
+    assert_eq!(
+        alpha_admin,
+        beta_admin.map(|admin| !admin),
+        "exactly one registration must be the first admin: {} {}",
+        alpha_answer.json,
+        beta_answer.json
+    );
+    served.stop().await?;
+    Ok(())
+}
+
+async fn register_task(
+    base: String,
+    account: String,
+    invite: String,
+    key: String,
+) -> Result<(ResponseSpec, u128), String> {
+    let answer = post(
+        &base,
+        "/v1/account/register",
+        &register_body(&account, "longenough", &invite, &key),
+    )
+    .await?;
+    let millis = answer.elapsed.as_millis();
+    Ok((answer, millis))
 }
 
 #[tokio::test]

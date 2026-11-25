@@ -206,20 +206,16 @@ async fn serve_online(db: &ServerDb, capture: &Arc<Capture>) -> Result<(), Strin
     let _closed = pool.close().await;
     let want = startup_want(db)?;
     let mut ctx = ctx_with_capture(capture);
-    let staged = anybot_app_server::server_run::stage_serve(
-        &launched,
-        env!("CARGO_PKG_VERSION"),
-        &mut ctx,
-    )
-    .await;
+    let staged =
+        anybot_app_server::server_run::stage_serve(&launched, env!("CARGO_PKG_VERSION"), &mut ctx)
+            .await;
     let staged = match staged {
         Ok(staged) => staged,
         Err(code) => return Err(format!("stage failed {code:?}")),
     };
-    let stop_handle = std::sync::Arc::clone(&staged.shutdown);
+    let stop_handle = Arc::clone(&staged.shutdown);
     let mut serve = Box::pin(anybot_app_server::server_run::finish_serve(
-        staged,
-        &mut ctx,
+        staged, &mut ctx,
     ));
     let watched = watch_startup_line(serve.as_mut(), capture, &want).await;
     let _notified = stop_handle.notified();

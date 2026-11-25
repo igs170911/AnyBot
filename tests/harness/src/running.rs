@@ -6,8 +6,9 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::launch::{Outcome, Program};
-use crate::process::{terminate_child,
+use crate::process::{
     PollState, collect_stream, exit_status_code, finish_poll, kill_child, poll_exit, spawn_bytes,
+    terminate_child,
 };
 
 pub struct Running {

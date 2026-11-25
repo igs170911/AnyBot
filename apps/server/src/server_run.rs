@@ -224,7 +224,13 @@ pub async fn finish_serve(staged: StagedServing, ctx: &mut Ctx) -> ExitCode {
     }
     note_startup_counts(ctx, staged.account_count, &staged.new_invite);
     watch_stop_signals(&staged.shutdown);
-    serve_exit_stoppable(&mut ctx.catalog, staged.listeners, staged.app, staged.shutdown).await
+    serve_exit_stoppable(
+        &mut ctx.catalog,
+        staged.listeners,
+        staged.app,
+        staged.shutdown,
+    )
+    .await
 }
 
 fn watch_stop_signals(shutdown: &Arc<tokio::sync::Notify>) {
@@ -239,7 +245,7 @@ fn watch_stop_signals(shutdown: &Arc<tokio::sync::Notify>) {
 async fn listen_for_stop() -> Result<(), std::io::Error> {
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     tokio::select! {
-        (_ctrl) = tokio::signal::ctrl_c() => Ok(()),
+        _ctrl = tokio::signal::ctrl_c() => Ok(()),
         Some(_sig) = terminate.recv() => Ok(()),
     }
 }

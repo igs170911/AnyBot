@@ -16,11 +16,9 @@ pub async fn insert_account(
     password_hash: &str,
     now_ms: i64,
 ) -> Result<bool, sqlx::Error> {
-    sqlx::query!(
-        "SELECT pg_advisory_xact_lock(5050505)",
-    )
-    .execute(&mut *conn)
-    .await?;
+    sqlx::query!("SELECT pg_advisory_xact_lock(5050505)",)
+        .execute(&mut *conn)
+        .await?;
     let row = sqlx::query!(
         "INSERT INTO accounts (account, password_hash, admin, created_at_ms, last_password_at_ms) \
          SELECT $1, $2, NOT EXISTS (SELECT 1 FROM accounts), $3, $3 \

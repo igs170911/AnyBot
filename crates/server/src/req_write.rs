@@ -12,8 +12,8 @@ use crate::app::AppState;
 pub use crate::caller::CallerDenied;
 use crate::idem::IDEMPOTENCY_HEADER;
 use crate::problems::{auth_problem, status_of};
-use anybot_store_server::Pool;
 use crate::req_source::{FORWARDED_HEADER, request_source_address};
+use anybot_store_server::Pool;
 
 #[must_use]
 pub fn denied(status: StatusCode, code: MessageCode) -> CallerDenied {
@@ -146,43 +146,45 @@ pub fn value_of<T: serde::Serialize>(item: &T) -> Result<serde_json::Value, Call
     serde_json::to_value(item).map_err(|e| internal_detail(&e.to_string()))
 }
 
+pub struct Outcome<'a> {
+    pub key: &'a str,
+    pub raw: &'a [u8],
+    pub scope: &'a str,
+    pub status: StatusCode,
+    pub value: &'a serde_json::Value,
+    pub marker: bool,
+}
+
 pub async fn record_outcome(
     pool: &Pool,
     state: &AppState,
-    key: &str,
-    raw: &[u8],
-    scope: &str,
-    status: StatusCode,
-    value: &serde_json::Value,
-    marker: bool,
+    rec: &Outcome<'_>,
 ) -> Result<Response, CallerDenied> {
-    let body_text = if marker {
-        crate::idem::DID_IT_BODY.to_owned()
-    } else {
-        serde_json::to_string(value).map_err(internal_text)?
-    };
+    let body_text = outcome_body_text(rec)?;
     let at_ms = i64::try_from(state.clock.now_ms().millis()).map_err(internal_text)?;
     crate::idem::record_result(
         pool,
-        key,
-        scope,
-        &crate::idem::safe_digest(raw),
-        status.as_u16(),
+        rec.key,
+        rec.scope,
+        &crate::idem::safe_digest(rec.raw),
+        rec.status.as_u16(),
         &body_text,
         at_ms,
     )
     .await
     .map_err(internal_sqlx)?;
-    eprintln!("RECORDED {key}");
-    Ok(json_response(status, value.clone()))
+    Ok(json_response(rec.status, rec.value.clone()))
+}
+
+fn outcome_body_text(rec: &Outcome<'_>) -> Result<String, CallerDenied> {
+    if rec.marker {
+        return Ok(crate::idem::DID_IT_BODY.to_owned());
+    }
+    serde_json::to_string(rec.value).map_err(internal_text)
 }
 
 pub fn caller_scope(request: &Request, identity: &str) -> String {
-    crate::idem::request_scope(
-        request.method(),
-        &path_of(request),
-        identity,
-    )
+    crate::idem::request_scope(request.method(), &path_of(request), identity)
 }
 
 pub fn path_of(request: &Request) -> String {

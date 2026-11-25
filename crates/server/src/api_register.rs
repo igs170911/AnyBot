@@ -15,8 +15,8 @@ use crate::limits::Limiter;
 use crate::api_account::{Guard, guard_idem};
 use crate::idem::request_scope;
 use crate::req_write::{
-    denied, idempotency_key, internal_sqlx, internal_text, json_response, path_of, pool_of,
-    read_json, record_outcome, request_address,
+    Outcome, denied, idempotency_key, internal_sqlx, internal_text, json_response, path_of,
+    pool_of, read_json, record_outcome, request_address,
 };
 use axum::http::Method;
 
@@ -103,7 +103,19 @@ pub async fn register(
         return Ok(json_response(replay_status, replay_value));
     }
     let (status, value) = run_register(&state, &body).await?;
-    record_outcome(pool, &state, &key, &raw, &scope, status, &value, false).await
+    record_outcome(
+        pool,
+        &state,
+        &Outcome {
+            key: &key,
+            raw: &raw,
+            scope: &scope,
+            status,
+            value: &value,
+            marker: false,
+        },
+    )
+    .await
 }
 
 pub async fn run_register(
@@ -148,7 +160,7 @@ pub async fn run_register(
         .map_err(internal_text)?;
     let now_ms = i64::try_from(state.clock.now_ms().millis()).map_err(internal_text)?;
     let mut tx = pool.begin().await.map_err(internal_sqlx)?;
-    let admin = accounts::insert_account(&mut *tx, &account, &hash, now_ms)
+    let admin = accounts::insert_account(&mut tx, &account, &hash, now_ms)
         .await
         .map_err(internal_sqlx)?;
     tx.commit().await.map_err(internal_sqlx)?;

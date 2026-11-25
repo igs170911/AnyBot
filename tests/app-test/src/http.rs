@@ -8,6 +8,7 @@ use serde_json::Value;
 pub const IDEMPOTENCY_HEADER: &str = "idempotency-key";
 pub const PROXY_SECRET_HEADER: &str = "x-anybot-proxy-secret";
 pub const FORWARDED_HEADER: &str = "x-forwarded-for";
+pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct RequestSpec {
     pub key: Option<String>,
@@ -134,6 +135,7 @@ async fn send(
         _ => client.get(url),
     };
     request = request.headers(spec.headers()?);
+    request = request.timeout(REQUEST_TIMEOUT);
     if method == "POST" {
         request = request.body(spec.body.clone());
     }

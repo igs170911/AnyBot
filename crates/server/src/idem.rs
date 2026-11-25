@@ -26,7 +26,7 @@ pub fn request_scope(method: &Method, path: &str, identity: &str) -> String {
 pub fn strip_secrets(body: &[u8]) -> Vec<u8> {
     let parsed: Value = serde_json::from_slice(body).unwrap_or(Value::Null);
     let cleaned = strip_value(&parsed);
-    serde_json::to_vec(&cleaned).unwrap_or(Vec::new())
+    serde_json::to_vec(&cleaned).unwrap_or_default()
 }
 
 fn strip_value(value: &Value) -> Value {
@@ -41,17 +41,17 @@ fn strip_value(value: &Value) -> Value {
             }
             Value::Object(out)
         }
-        other => other.clone(),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
+            value.clone()
+        }
     }
 }
 
 fn is_secret_field(name: &str) -> bool {
-    matches!(
-        name,
-        "password" | "old" | "new" | "session_key" | "invite"
-    )
+    matches!(name, "password" | "old" | "new" | "session_key" | "invite")
 }
 
+#[must_use]
 pub fn body_digest(body: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(body);

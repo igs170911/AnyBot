@@ -37,7 +37,8 @@ impl Limiter {
         let mut tx = self.pool.begin().await?;
         let id =
             auth_events::begin_attempt(&mut *tx, KIND_LOGIN_FAIL, address, account, at).await?;
-        let pair = auth_events::count_pair(&mut *tx, KIND_LOGIN_FAIL, address, account, floor).await?;
+        let pair =
+            auth_events::count_pair(&mut *tx, KIND_LOGIN_FAIL, address, account, floor).await?;
         let total = auth_events::count_account(&mut *tx, KIND_LOGIN_FAIL, account, floor).await?;
         if pair > PAIR_LIMIT || total > ACCOUNT_LIMIT {
             tx.rollback().await?;

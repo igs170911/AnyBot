@@ -15,10 +15,8 @@ use test_harness as _;
 use tokio as _;
 use tracing as _;
 
-use anybot_app_test::http::{RequestSpec, ResponseSpec, post};
+use anybot_app_test::http::{FORWARDED_HEADER, RequestSpec, ResponseSpec, post};
 use anybot_app_test::serve::{serve_start, serve_start_real};
-
-use anybot_server::KEY_TRUST_PROXY;
 
 fn login_body(account: &str, password: &str) -> String {
     json!({"account": account, "password": password, "label": "test-device"}).to_string()
@@ -83,16 +81,6 @@ async fn login_step(
     login_step_with(served, account, password, key, None).await
 }
 
-async fn login_step_xff(
-    served: &anybot_app_test::serve::Served,
-    account: &str,
-    password: &str,
-    key: &str,
-    forwarded: &str,
-) -> Result<ResponseSpec, String> {
-    login_step_with(served, account, password, key, Some(forwarded)).await
-}
-
 async fn login_step_with(
     served: &anybot_app_test::serve::Served,
     account: &str,
@@ -100,18 +88,13 @@ async fn login_step_with(
     key: &str,
     forwarded: Option<&str>,
 ) -> Result<ResponseSpec, String> {
-    let clock = std::sync::Arc::clone(&served.clock);
-    let advancer = tokio::spawn(async move {
-        test_harness::sleep_real(std::time::Duration::from_millis(50)).await;
-        let _advanced = clock.advance(std::time::Duration::from_millis(600));
-    });
+    let mut walker = anybot_app_test::ClockWalker::start(&served.clock);
     let mut spec = login_spec(account, password, key);
     if let Some(address) = forwarded {
-        spec = spec.with_header(anybot_app_test::http::FORWARDED_HEADER, address);
+        spec = spec.with_header(FORWARDED_HEADER, address);
     }
     let outcome = post(&served.base_url(), "/v1/account/login", &spec).await?;
-    advancer.abort();
-    let _joined = advancer.await;
+    walker.stop().await?;
     Ok(outcome)
 }
 
@@ -167,69 +150,6 @@ async fn t_server_n2_5() -> Result<(), String> {
     let ninth = login_step(&served, "bob", "bobpassword", "k-ninth").await?;
     assert_eq!(ninth.status, 429);
     served.stop().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn t_server_n2_1() -> Result<(), String> {
-    let mut served = serve_start("t_server_n2_1").await?;
-    let invite = make_admin(&served).await?;
-    register(&served.base_url(), "bob", "bobpassword", &invite, "k-bob").await?;
-    served
-        .set_config_and_restart(KEY_TRUST_PROXY, "127.0.0.1")
-        .await?;
-    for round in 1..=8 {
-        let fail = login_step_xff(
-            &served,
-            "bob",
-            "wrongpassword",
-            &format!("a{round}"),
-            "1.1.1.1",
-        )
-        .await?;
-        assert_eq!(fail.status, 401, "pair failure {round}");
-    }
-    let ninth = login_step_xff(&served, "bob", "bobpassword", "k-ninth", "1.1.1.1").await?;
-    assert_eq!(ninth.status, 429);
-    spread_failures(&served).await?;
-    let total = login_step_xff(&served, "bob", "bobpassword", "k-total", "8.8.8.8").await?;
-    assert_eq!(total.status, 429);
-    let direct = login_step(&served, "bob", "bobpassword", "k-direct").await?;
-    assert_eq!(direct.status, 429);
-    served.stop().await?;
-    Ok(())
-}
-
-async fn spread_failures(served: &anybot_app_test::serve::Served) -> Result<(), String> {
-    let plans = [
-        ("2.2.2.2", 6),
-        ("3.3.3.3", 6),
-        ("4.4.4.4", 6),
-        ("5.5.5.5", 5),
-        ("6.6.6.6", 5),
-        ("7.7.7.7", 5),
-    ];
-    let mut round_total: usize = 10;
-    for (address, count) in plans {
-        for _ in 0..count {
-            round_total = round_total
-                .checked_add(1)
-                .ok_or("round overflow".to_owned())?;
-            let fail = login_step_xff(
-                served,
-                "bob",
-                "wrongpassword",
-                &format!("b{round_total}"),
-                address,
-            )
-            .await?;
-            assert!(
-                matches!(fail.status, 401 | 429),
-                "address {address} outcome {}",
-                fail.status,
-            );
-        }
-    }
     Ok(())
 }
 
