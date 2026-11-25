@@ -123,7 +123,12 @@ proptest! {
                     }
                 }
                 for u in &base.user_turns {
-                    prop_assert!(request.blocks.iter().any(|b| b.kind == BlockKind::UserText && b.text == u.text));
+                    let ok = request.blocks.iter().any(|b| {
+                        (b.kind == BlockKind::UserText && b.text == u.text)
+                            || (b.kind == BlockKind::UserRef
+                                && b.text.starts_with(&format!("ref {} len {}", u.record_id, u.text.chars().count())))
+                    });
+                    prop_assert!(ok, "user turn present {}", u.record_id);
                 }
                 prop_assert!(request.blocks.iter().any(|b| b.kind == BlockKind::System && b.text == base.system_prompt));
             }

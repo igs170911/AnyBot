@@ -26,6 +26,15 @@ pub(crate) fn mixed_text(max_len: usize) -> BoxedStrategy<String> {
     .boxed()
 }
 
+pub(crate) fn long_chat_record(prefix: &'static str, index: usize) -> BoxedStrategy<ChatRecord> {
+    chat_record(prefix, index)
+        .prop_map(move |mut r| {
+            r.text = r.text.clone() + &"y".repeat(9_000);
+            r
+        })
+        .boxed()
+}
+
 pub(crate) fn chat_record(prefix: &'static str, index: usize) -> BoxedStrategy<ChatRecord> {
     mixed_text(400)
         .prop_map(move |text| ChatRecord {
@@ -98,12 +107,14 @@ pub(crate) fn step_record(index: usize) -> BoxedStrategy<StepRecord> {
 }
 
 fn criterion() -> BoxedStrategy<Criterion> {
-    mixed_text(30)
-        .prop_map(|needle| Criterion::FileContains {
+    prop_oneof![
+        3 => mixed_text(30).prop_map(|needle| Criterion::FileContains {
             path: "p.txt".to_owned(),
             needle,
-        })
-        .boxed()
+        }),
+        1 => mixed_text(300).prop_map(|text| Criterion::ModelJudgement { text }),
+    ]
+    .boxed()
 }
 
 fn known_event() -> BoxedStrategy<TaskEventKind> {
@@ -156,7 +167,24 @@ pub(crate) fn events_strategy(max_len: usize) -> BoxedStrategy<Vec<TaskEvent>> {
             ));
             for (idx, kind) in kinds.into_iter().enumerate() {
                 let seq = u64::try_from(idx).unwrap_or(0).saturating_add(2);
-                out.push(event_with_seq(seq, kind));
+                out.push(event_with_seq(seq, kind.clone()));
+                if let TaskEventKind::Known(KnownTaskEventKind::ToolIntent {
+                    call_id,
+                    name,
+                    args_summary,
+                    level,
+                }) = kind
+                {
+                    out.push(event_with_seq(
+                        seq.saturating_add(1_000),
+                        TaskEventKind::Known(KnownTaskEventKind::ToolIntent {
+                            call_id,
+                            name,
+                            args_summary,
+                            level,
+                        }),
+                    ));
+                }
             }
             out
         })
@@ -205,7 +233,7 @@ pub(crate) fn build_input(
 ) -> BoxedStrategy<BuildInput> {
     (
         prop::collection::vec(mixed_text(60), 0..6),
-        prop::collection::vec(chat_record("u", 0), 0..3),
+        prop::collection::vec(long_chat_record("u", 0), 0..3),
         prop::collection::vec(chat_record("b", 0), 0..3),
         prop::collection::vec(step_record(0), 0..max_steps),
         prop::collection::vec(memory(0), 0..8),
