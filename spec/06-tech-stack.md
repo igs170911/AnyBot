@@ -61,7 +61,10 @@
 | 密碼雜湊 | argon2id | |
 | 加密 | rustls、ring | 規模部署：信封加密，主鑰匙放 KMS；個人部署：主鑰匙放檔案或系統鑰匙圈 |
 | MCP | rmcp（官方 Rust SDK） | 接外部工具，也把 AnyBot 的工具提供給外部 agent（`02` §11） |
-| 中文搜尋 | 程式端用 jieba-rs 斷詞＋PostgreSQL 的 pg_trgm | 向量用 pgvector |
+| 中文和記憶搜尋 | **自己寫一個 Rust 切詞模組，伺服器和客戶端共用**（中文單字加重疊兩字詞、jieba-rs 的詞、英數識別碼）；伺服器 PostgreSQL 全文索引（GIN）加 pg_trgm，客戶端 SQLite FTS5 加 trigram 表 | 只靠 pg_trgm 找不到一兩個字的中文詞（`09` K107）；不用 Tantivy、zhparser、pg_jieba |
+| 向量和語意模型 | 伺服器 pgvector；預設語意模型 potion-multilingual（CPU），選配走 OpenAI 相容的本機模型伺服器（Qwen3-Embedding、BGE-M3、bge-reranker-v2-m3） | 只用可商用的授權，jina 系列禁用；排序用 RRF；客戶端離線只比字詞（`09` K107） |
+| 上下文和壓縮 | 執行端自己的上下文編譯器：結構化工具輸出、遮蔽舊輸出、程式產生的狀態摘要、選配的本機摘要器 | 不叫雲端模型壓縮對話（`09` K95、K107） |
+| token 估算 | tokenizers（讀本機模型的 tokenizer.json）、tiktoken-rs（OpenAI 系）；其他用公式並依實際用量校正 | `09` K107 |
 | 模型供應商 | 自己寫薄的客戶端：OpenAI 相容、Anthropic Messages API、Gemini 等 | Rust 沒有官方的 Anthropic SDK，官方允許直接用 HTTP 接 |
 | 即時通知匯流排 | 一個介面兩種實作：單一 API 副本時在程式內部；多副本時用 **NATS** | 通知只是提示，紀錄在 PostgreSQL（`02` §4.1）。漏掉的通知只會慢一點 |
 | 檔案儲存 | 一個介面兩種實作：本機檔案系統（個人部署）、S3 相容儲存（規模部署） | |
