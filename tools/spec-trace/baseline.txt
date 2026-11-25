@@ -2119,7 +2119,6 @@ T-server-n7-1
 T-server-n7-2
 T-server-n8-1
 T-server-n8-2
-T-server-n8-3
 T-server-n9-1
 T-server-n9-2
 T-server-n9-3
