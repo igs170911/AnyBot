@@ -12,7 +12,7 @@ pub mod http;
 pub mod serve;
 pub mod serverdb;
 
-pub use clockwalk::ClockWalker;
+pub use clockwalk::{ClockWalker, WAVE_FAKE_STEP, settle_handles};
 pub use serverdb::{ServerDb, db_start};
 
 pub fn english(
