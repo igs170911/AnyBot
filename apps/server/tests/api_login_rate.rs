@@ -216,7 +216,7 @@ fn median(values: &[u128]) -> Result<u128, String> {
 const CLEANUP_TICKS: u64 = 24;
 
 #[tokio::test]
-async fn hourly_cleanup_prunes_old_records() -> Result<(), String> {
+async fn pg_cleanup_prunes_old_records() -> Result<(), String> {
     let served = serve_start("hourly_cleanup").await?;
     let at = 0;
     let event_id = anybot_store_server::auth_events::begin_attempt(

@@ -37,8 +37,9 @@ pub async fn serve_start(test: &str) -> Result<Served, String> {
     let db = db_start(test).await?;
     let pool = open_url(&db.url).await.map_err(|e| e.to_string())?;
     let clock = FakeClock::new(1_700_000_000_000);
+    let clock_dyn: Arc<dyn Clock> = Arc::clone(&clock) as Arc<dyn Clock>;
     let mut migrations: Migrator = product_migrations();
-    let started = boot_database(&pool, clock.as_ref(), &mut migrations, TEST_VERSION)
+    let started = boot_database(&pool, &*clock_dyn, &mut migrations, TEST_VERSION)
         .await
         .map_err(|e| format!("{e:?}"))?;
     let clock_fast: Arc<FakeClock> = Arc::clone(&clock);

@@ -1,4 +1,5 @@
 use std::net::IpAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use reqwest::Client;
@@ -9,7 +10,10 @@ pub const IDEMPOTENCY_HEADER: &str = "idempotency-key";
 pub const PROXY_SECRET_HEADER: &str = "x-anybot-proxy-secret";
 pub const FORWARDED_HEADER: &str = "x-forwarded-for";
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
+pub const STEP_REAL: Duration = Duration::from_millis(10);
+pub const LOGIN_STEP: Duration = Duration::from_millis(500);
 
+#[derive(Clone)]
 pub struct RequestSpec {
     pub key: Option<String>,
     pub bearer: Option<String>,
@@ -192,4 +196,33 @@ async fn send(
         json,
         elapsed,
     })
+}
+
+pub async fn post_driven(
+    clock: &Arc<test_harness::FakeClock>,
+    base: &str,
+    path: &str,
+    spec: &RequestSpec,
+    fake_step: Duration,
+    deadline: Duration,
+) -> Result<ResponseSpec, String> {
+    let base = base.to_owned();
+    let owned_path = path.to_owned();
+    let spec = spec.clone();
+    let task = tokio::spawn(async move { post(&base, &owned_path, &spec).await });
+    let started = tokio::time::Instant::now();
+    loop {
+        if task.is_finished() {
+            return task
+                .await
+                .map_err(|e| e.to_string())
+                .and_then(|inner| inner);
+        }
+        if started.elapsed() >= deadline {
+            task.abort();
+            return Err(format!("driven request timed out for {path}"));
+        }
+        test_harness::sleep_real(STEP_REAL).await;
+        let _advanced = clock.advance(fake_step);
+    }
 }

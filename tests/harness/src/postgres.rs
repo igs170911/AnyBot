@@ -10,6 +10,7 @@ pub struct PgInstance {
     server: PostgreSQL,
     base_dir: PathBuf,
     bound_port: u16,
+    stopped: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl PgInstance {
@@ -154,6 +155,7 @@ pub async fn pg_start(base_dir: &Path) -> Result<PgInstance, String> {
         server,
         base_dir: base_dir.to_path_buf(),
         bound_port,
+        stopped: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
     })
 }
 
@@ -175,6 +177,9 @@ fn pid_file_port(data_dir: &Path) -> Option<u16> {
 }
 
 pub async fn pg_stop(instance: &PgInstance) -> Result<(), String> {
+    instance
+        .stopped
+        .store(true, std::sync::atomic::Ordering::SeqCst);
     instance
         .server
         .stop()
@@ -233,4 +238,20 @@ pub fn migration_fixture(product_dir: &Path, test: &str, extra: &str) -> Result<
     };
     std::fs::write(dir.join(extra), sql).map_err(|e| format!("fixture write failed: {e}"))?;
     Ok(dir)
+}
+
+impl Drop for PgInstance {
+    fn drop(&mut self) {
+        if self.stopped.load(std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+        self.stopped
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let server = self.server.clone();
+        let base_dir = self.base_dir.clone();
+        tokio::spawn(async move {
+            let _stopped = server.stop().await.is_ok();
+            let _removed = std::fs::remove_dir_all(base_dir).is_ok();
+        });
+    }
 }

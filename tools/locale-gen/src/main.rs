@@ -5,8 +5,8 @@ use clap as _;
 use clap::Parser;
 
 use locale_gen::checks::{
-    generated_freshness_violations, locale_pair_violations, string_code_const_violations,
-    usage_violations,
+    generated_freshness_violations, locale_pair_violations, simplified_violations,
+    string_code_const_violations, usage_violations,
 };
 use locale_gen::cjk::{cjk_violations, is_excluded_path};
 use locale_gen::codes::{rust_codes, ts_codes, ts_locales};
@@ -105,6 +105,7 @@ fn locale_violations(
     let committed_ts = read_rel(root, TS_CODES_REL).map_err(|e| io_failure(&e))?;
     let committed_locales = read_rel(root, TS_LOCALES_REL).map_err(|e| io_failure(&e))?;
     let mut violations = locale_pair_violations(&en, &zh);
+    violations.extend(simplified_violations(files));
     let entries = parse_ftl(&en);
     violations.extend(generated_freshness_violations(
         &entries,

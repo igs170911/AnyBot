@@ -5,6 +5,8 @@ use test_harness as _;
 
 use axum::serve;
 
+use test_harness::postgres::pg_stop;
+
 use testenv::env::testenv_start;
 
 async fn run() -> Result<(), String> {
@@ -15,6 +17,7 @@ async fn run() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let served = serve(listener, router).await;
     served.map_err(|e| e.to_string())?;
+    pg_stop(&state.pg).await?;
     Ok(())
 }
 

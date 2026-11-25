@@ -152,3 +152,24 @@ async fn harness_http_get_reports_connection_failure_without_crashing() {
     let result = http_get(1, "/v1/health").await;
     assert!(result.is_err());
 }
+
+#[test]
+fn harness_running_dies_when_the_test_panics_midway() {
+    let dir = test_dir("harness-drop").unwrap();
+    let program = Program::new("/bin/sleep", vec!["60".to_owned()]);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _running = test_harness::Running::start(&program, &dir).unwrap();
+        panic!("deliberate midway failure");
+    }));
+    assert!(result.is_err(), "the panic must escape the closure");
+    let pid_out = std::process::Command::new("/bin/sh")
+        .args(["-c", "sleep 1; pgrep -f 'sleep 60' || true"])
+        .output()
+        .unwrap();
+    let found = String::from_utf8_lossy(&pid_out.stdout).into_owned();
+    let own = format!("{}", std::process::id());
+    assert!(
+        !found.contains("sleep 60") || found.contains(&own),
+        "child survived the drop: {found}"
+    );
+}

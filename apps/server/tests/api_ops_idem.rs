@@ -16,8 +16,10 @@ use test_harness as _;
 use tokio as _;
 use tracing as _;
 
-use anybot_app_test::http::{RequestSpec, ResponseSpec, post};
-use anybot_app_test::serve::serve_start_real;
+use std::time::Duration;
+
+use anybot_app_test::http::{LOGIN_STEP, RequestSpec, ResponseSpec, post, post_driven};
+use anybot_app_test::serve::serve_start;
 
 fn login_spec(account: &str, password: &str, key: &str) -> RequestSpec {
     RequestSpec::new(
@@ -54,15 +56,18 @@ async fn register(
 }
 
 async fn bearer_of(
-    served: &anybot_app_test::serve::ServedReal,
+    served: &anybot_app_test::serve::Served,
     account: &str,
     password: &str,
     key: &str,
 ) -> Result<String, String> {
-    let session = post(
+    let session = post_driven(
+        &served.clock,
         &served.base_url(),
         "/v1/account/login",
         &login_spec(account, password, key),
+        LOGIN_STEP,
+        Duration::from_secs(15),
     )
     .await?;
     if session.status != 200 {
@@ -91,7 +96,7 @@ async fn admin_post(
 
 #[tokio::test]
 async fn t_conn_post_2() -> Result<(), String> {
-    let served = serve_start_real("t_conn_post_2").await?;
+    let served = serve_start("t_conn_post_2").await?;
     let invite = invite_of(&served.started)?;
     assert_eq!(
         register(
@@ -120,7 +125,7 @@ async fn t_conn_post_2() -> Result<(), String> {
 }
 
 async fn url_call(
-    served: &anybot_app_test::serve::ServedReal,
+    served: &anybot_app_test::serve::Served,
     bearer: &str,
     url: &str,
     key: &str,
@@ -137,7 +142,7 @@ async fn url_call(
 
 #[tokio::test]
 async fn t_server_n13_4() -> Result<(), String> {
-    let served = serve_start_real("t_server_n13_4").await?;
+    let served = serve_start("t_server_n13_4").await?;
     let invite = invite_of(&served.started)?;
     assert_eq!(
         register(
@@ -163,7 +168,7 @@ async fn t_server_n13_4() -> Result<(), String> {
 }
 
 async fn self_disable_checks(
-    served: &anybot_app_test::serve::ServedReal,
+    served: &anybot_app_test::serve::Served,
     bearer: &str,
 ) -> Result<(), String> {
     let self_disable = admin_post(
@@ -187,7 +192,7 @@ async fn self_disable_checks(
 }
 
 async fn bob_admin_checks(
-    served: &anybot_app_test::serve::ServedReal,
+    served: &anybot_app_test::serve::Served,
     bearer: &str,
 ) -> Result<(), String> {
     let bob_rotate = admin_post(
@@ -225,8 +230,8 @@ const SCAN_PASSWORDS: [&str; 5] = [
 ];
 
 #[tokio::test]
-async fn idempotency_records_hold_no_secrets() -> Result<(), String> {
-    let served = serve_start_real("idem_no_secrets").await?;
+async fn pg_idempotency_records_hold_no_secrets() -> Result<(), String> {
+    let served = serve_start("idem_no_secrets").await?;
     let base = served.base_url();
     let invite = invite_of(&served.started)?;
     assert_eq!(

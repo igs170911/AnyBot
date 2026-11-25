@@ -11,13 +11,16 @@ use clap as _;
 use rpassword as _;
 use serde_json as _;
 use sqlx as _;
-use std as _;
 use test_harness as _;
 use tokio as _;
 use tracing as _;
 
-use anybot_app_test::http::{FORWARDED_HEADER, RequestSpec, ResponseSpec, post};
-use anybot_app_test::serve::serve_start_real;
+use std::time::Duration;
+
+use anybot_app_test::http::{
+    FORWARDED_HEADER, LOGIN_STEP, RequestSpec, ResponseSpec, post, post_driven,
+};
+use anybot_app_test::serve::serve_start;
 
 fn login_spec(account: &str, password: &str, key: &str) -> RequestSpec {
     RequestSpec::new(
@@ -56,7 +59,7 @@ fn invite_of(started: &anybot_server::Started) -> Result<String, String> {
         .ok_or("fresh boot must draw an invite".to_owned())
 }
 
-async fn boot_pair(served: &anybot_app_test::serve::ServedReal) -> Result<String, String> {
+async fn boot_pair(served: &anybot_app_test::serve::Served) -> Result<String, String> {
     let invite = invite_of(&served.started)?;
     register(
         &served.base_url(),
@@ -71,7 +74,7 @@ async fn boot_pair(served: &anybot_app_test::serve::ServedReal) -> Result<String
 }
 
 async fn fail_login(
-    served: &anybot_app_test::serve::ServedReal,
+    served: &anybot_app_test::serve::Served,
     account: &str,
     key: &str,
     forwarded: Option<&str>,
@@ -86,13 +89,21 @@ async fn fail_login(
     } else {
         served.base_url()
     };
-    let fail = post(&base, "/v1/account/login", &spec).await?;
+    let fail = post_driven(
+        &served.clock,
+        &base,
+        "/v1/account/login",
+        &spec,
+        LOGIN_STEP,
+        Duration::from_secs(15),
+    )
+    .await?;
     assert_eq!(fail.status, 401, "failure {key}");
     Ok(())
 }
 
 async fn login_blocked(
-    served: &anybot_app_test::serve::ServedReal,
+    served: &anybot_app_test::serve::Served,
     key: &str,
     forwarded: &str,
     v6: bool,
@@ -103,21 +114,26 @@ async fn login_blocked(
     } else {
         served.base_url()
     };
-    let answer = post(&base, "/v1/account/login", &spec).await?;
+    let answer = post_driven(
+        &served.clock,
+        &base,
+        "/v1/account/login",
+        &spec,
+        LOGIN_STEP,
+        Duration::from_secs(15),
+    )
+    .await?;
     Ok(answer.status)
 }
 
-async fn set_trust(
-    served: &mut anybot_app_test::serve::ServedReal,
-    value: &str,
-) -> Result<(), String> {
+async fn set_trust(served: &mut anybot_app_test::serve::Served, value: &str) -> Result<(), String> {
     served
         .set_config_and_restart(anybot_server::KEY_TRUST_PROXY, value)
         .await
 }
 
 async fn set_secret(
-    served: &mut anybot_app_test::serve::ServedReal,
+    served: &mut anybot_app_test::serve::Served,
     value: &str,
 ) -> Result<(), String> {
     served
@@ -127,7 +143,7 @@ async fn set_secret(
 
 #[tokio::test]
 async fn t_server_n1_1() -> Result<(), String> {
-    let served = serve_start_real("t_server_n1_1").await?;
+    let served = serve_start("t_server_n1_1").await?;
     boot_pair(&served).await?;
     for round in 1..=8 {
         fail_login(&served, "bob", &format!("x{round}"), Some("1.2.3.4"), false).await?;
@@ -140,7 +156,7 @@ async fn t_server_n1_1() -> Result<(), String> {
 
 #[tokio::test]
 async fn t_server_n1_2() -> Result<(), String> {
-    let mut served = serve_start_real("t_server_n1_2").await?;
+    let mut served = serve_start("t_server_n1_2").await?;
     boot_pair(&served).await?;
     set_trust(&mut served, "127.0.0.1").await?;
     for round in 1..=8 {
@@ -175,7 +191,7 @@ async fn t_server_n1_2() -> Result<(), String> {
 
 #[tokio::test]
 async fn t_server_n1_3() -> Result<(), String> {
-    let mut served = serve_start_real("t_server_n1_3").await?;
+    let mut served = serve_start("t_server_n1_3").await?;
     boot_pair(&served).await?;
     set_trust(&mut served, "127.0.0.1").await?;
     set_secret(&mut served, "testproxysecret").await?;
@@ -190,7 +206,7 @@ async fn t_server_n1_3() -> Result<(), String> {
 
 #[tokio::test]
 async fn t_safety_n11_1() -> Result<(), String> {
-    let served = serve_start_real("t_safety_n11_1").await?;
+    let served = serve_start("t_safety_n11_1").await?;
     boot_pair(&served).await?;
     for round in 1..=8 {
         let head = if round <= 4 { "1.2.3.4" } else { "5.6.7.8" };
@@ -204,7 +220,7 @@ async fn t_safety_n11_1() -> Result<(), String> {
 
 #[tokio::test]
 async fn t_safety_n11_2() -> Result<(), String> {
-    let mut served = serve_start_real("t_safety_n11_2").await?;
+    let mut served = serve_start("t_safety_n11_2").await?;
     boot_pair(&served).await?;
     set_trust(&mut served, "127.0.0.1").await?;
     for round in 1..=8 {
@@ -238,7 +254,7 @@ async fn t_safety_n11_2() -> Result<(), String> {
 
 #[tokio::test]
 async fn t_safety_n11_3() -> Result<(), String> {
-    let mut served = serve_start_real("t_safety_n11_3").await?;
+    let mut served = serve_start("t_safety_n11_3").await?;
     boot_pair(&served).await?;
     set_trust(&mut served, "127.0.0.1").await?;
     set_secret(&mut served, "testproxysecret").await?;
