@@ -112,7 +112,7 @@ jobs:
           echo "d039b43c3e0958441b6ad0a39c8884d018b3d2e8fb9928f209074b1100b5e17a  nextest.tar.gz" | sha256sum -c -
           tar -xzf nextest.tar.gz
           mv cargo-nextest "$out"
-          rm nextest.tar.gz cargo-nextest
+          rm nextest.tar.gz
           fi
           if [ ! -x "$CARGO_HOME/bin/cargo-deny" ]; then
           url="https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-x86_64-unknown-linux-musl.tar.gz"
