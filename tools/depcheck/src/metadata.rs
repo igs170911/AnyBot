@@ -112,7 +112,7 @@ fn check_harness_rules(
     violations
 }
 
-const HARNESS_RUNTIME_USERS: [&str; 2] = ["testenv", "live-model"];
+const HARNESS_RUNTIME_USERS: [&str; 3] = ["testenv", "live-model", "anybot-app-test"];
 
 #[must_use]
 pub fn check_metadata_value(meta: &Metadata) -> Vec<String> {

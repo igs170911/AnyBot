@@ -1,6 +1,3 @@
-use std::net::SocketAddr;
-use std::sync::Arc;
-
 use anybot_foundation as _;
 use anybot_messages::{Catalog, Lang, MessageCode, Params};
 use anybot_server as _;
@@ -8,7 +5,11 @@ use sqlx::Row as _;
 use tokio as _;
 use tracing as _;
 
-use test_harness::{Program, Running, ServerDb, migration_fixture, pg_start, pg_stop};
+use test_harness::{Program, Running, migration_fixture, pg_start, pg_stop};
+
+pub mod serverdb;
+
+pub use serverdb::{ServerDb, db_start};
 
 pub fn english(
     catalog: &mut Catalog,
@@ -55,48 +56,13 @@ pub async fn public_table_names(pool: &anybot_server::Pool) -> Result<Vec<String
     Ok(names)
 }
 
-pub async fn probe_forever_down(
-    bootstrap: &anybot_foundation::ServerBootstrap,
-    rounds: u64,
-) -> Vec<bool> {
-    let mut outcomes = Vec::new();
-    for _round in 0..rounds {
-        let gate = anybot_server::probe_pool(bootstrap);
-        let outcome = test_harness::timeout_real(
-            anybot_server::probe(&gate),
-            std::time::Duration::from_millis(2200),
-        )
-        .await;
-        let closed = match outcome {
-            Ok(inner) => inner.is_err(),
-            Err(_deadline) => true,
-        };
-        let _drain = gate.close().await;
-        outcomes.push(closed);
-    }
-    outcomes
-}
-
 pub async fn blocked_database_fixture(
     test: &str,
-) -> Result<(ServerDb, Arc<test_harness::NetCtl>, u16, SocketAddr), String> {
-    let db = test_harness::db_start(test).await?;
-    let pg_port = db.pg.port();
-    let (ctl, proxy_port) = test_harness::net_start_raw().await?;
-    let real = SocketAddr::from(([127, 0, 0, 1], pg_port));
-    let _attached = test_harness::net_attach(&ctl, proxy_port, real).await;
-    let _cut = test_harness::net_down(&ctl, proxy_port).await;
-    Ok((db, ctl, proxy_port, real))
-}
-
-#[must_use]
-pub fn blocked_url(db: &ServerDb, proxy_port: u16) -> String {
-    format!(
-        "postgresql://{}:{}@127.0.0.1:{}/anybot_test",
-        db.pg.user(),
-        db.pg.password().expose(),
-        proxy_port
-    )
+) -> Result<(ServerDb, std::path::PathBuf), String> {
+    let db = db_start(test).await?;
+    let dir = db.dir.clone();
+    db.pg.pause().await?;
+    Ok((db, dir))
 }
 
 pub async fn clean_fixture_database(

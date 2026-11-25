@@ -185,3 +185,34 @@ async fn postgres_dropped_database_disappears() {
     assert!(reopened.is_err());
     pg_stop(&instance).await.unwrap();
 }
+
+#[tokio::test]
+async fn postgres_restart_keeps_port_and_data() {
+    let mut instance = start_pg("pg-restart").await.unwrap();
+    let port = instance.port();
+    instance.create_database("kept").await.unwrap();
+    let pool = open_pool(&instance, "kept").await.unwrap();
+    sqlx::query("CREATE TABLE restart_marker (id INTEGER PRIMARY KEY)")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO restart_marker (id) VALUES ($1)")
+        .bind(3)
+        .execute(&pool)
+        .await
+        .unwrap();
+    pool.close().await;
+    instance.pause().await.unwrap();
+    assert!(!pg_ready(instance.base_dir(), port));
+    instance.resume().await.unwrap();
+    assert_eq!(instance.port(), port);
+    assert!(pg_ready(instance.base_dir(), port));
+    let pool = open_pool(&instance, "kept").await.unwrap();
+    let row = sqlx::query("SELECT count(*) AS c FROM restart_marker")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(row.get::<i64, _>("c"), 1);
+    pool.close().await;
+    pg_stop(&instance).await.unwrap();
+}

@@ -7,7 +7,7 @@ ports = { max-threads = 1 }
 net = { max-threads = 1 }
 
 [[profile.default.overrides]]
-filter = 'test(/postgres_(dropped|install|migration|stop|two)/)'
+filter = 'test(/postgres_(dropped|install|migration|restart|stop|two)/)'
 test-group = "pg"
 
 [[profile.default.overrides]]
@@ -31,4 +31,4 @@ filter = 'test(t_install|t_server|postgres)'
 slow-timeout = { period = "120s", terminate-after = 4 }
 
 [profile.quick]
-default-filter = 'not test(/postgres_(dropped|install|migration|stop|two)/)'
+default-filter = 'not test(/(postgres_(dropped|install|migration|restart|stop|two)|::pg_)/)'

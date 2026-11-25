@@ -9,6 +9,10 @@ description = "Isolated test environment executable: server library with fake cl
 [lints]
 workspace = true
 
+[[bin]]
+name = "sqlx-prepare"
+path = "src/bin/sqlx_prepare.rs"
+
 [dependencies]
 anybot-foundation = { workspace = true }
 anybot-server = { workspace = true }

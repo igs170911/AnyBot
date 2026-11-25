@@ -72,6 +72,30 @@ impl PgInstance {
             .map_err(|e| format!("drop database {database} failed: {e}"))
     }
 
+    pub async fn pause(&self) -> Result<(), String> {
+        self.server
+            .stop()
+            .await
+            .map_err(|e| format!("postgres pause failed: {e}"))?;
+        Ok(())
+    }
+
+    pub async fn resume(&mut self) -> Result<(), String> {
+        self.server
+            .start()
+            .await
+            .map_err(|e| format!("postgres resume failed: {e}"))?;
+        let data_dir = self.base_dir.join("data");
+        let confirmed = resolve_bound_port(&data_dir, self.bound_port).await?;
+        if confirmed != self.bound_port {
+            return Err(format!(
+                "postgres resumed on port {confirmed}, wanted {}",
+                self.bound_port
+            ));
+        }
+        Ok(())
+    }
+
     async fn admin_pool(&self) -> Result<sqlx::PgPool, String> {
         let settings = self.server.settings();
         let url = format!(
@@ -184,4 +208,29 @@ pub fn pg_ready(_base_dir: &Path, port: u16) -> bool {
 #[must_use]
 pub fn pg_socket_path(base_dir: &Path, port: u16) -> PathBuf {
     base_dir.join(format!(".s.PGSQL.{port}"))
+}
+
+pub fn migration_fixture(product_dir: &Path, test: &str, extra: &str) -> Result<PathBuf, String> {
+    let dir = crate::scratch::test_dir(test)?.join("migrations");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("create fixture dir failed: {e}"))?;
+    for entry in std::fs::read_dir(product_dir)
+        .map_err(|e| format!("read product migrations failed: {e}"))?
+    {
+        let path = entry
+            .map_err(|e| format!("fixture entry failed: {e}"))?
+            .path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_owned();
+        std::fs::copy(&path, dir.join(&name)).map_err(|e| format!("fixture copy failed: {e}"))?;
+    }
+    let sql = if extra.contains("broken") {
+        "NOT SQL AT ALL;\n".to_owned()
+    } else {
+        "CREATE TABLE IF NOT EXISTS fixture_extra (id INTEGER PRIMARY KEY);\n".to_owned()
+    };
+    std::fs::write(dir.join(extra), sql).map_err(|e| format!("fixture write failed: {e}"))?;
+    Ok(dir)
 }

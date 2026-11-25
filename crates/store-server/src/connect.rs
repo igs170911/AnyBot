@@ -43,7 +43,7 @@ pub fn probe_pool(bootstrap: &ServerBootstrap) -> Pool {
 }
 
 pub async fn probe(pool: &Pool) -> Result<u32, sqlx::Error> {
-    sqlx::query("SELECT 1 AS one").fetch_one(pool).await?;
+    sqlx::query!("SELECT 1 AS one").fetch_one(pool).await?;
     Ok(1)
 }
 

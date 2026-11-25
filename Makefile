@@ -7,6 +7,9 @@ PNPM ?= pnpm
 SHELL := /bin/bash -o pipefail
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
 
+# sqlx compile-time queries build from the committed .sqlx metadata; the live database url reaches sqlx-cli only through the sqlx-prepare target.
+export SQLX_OFFLINE := true
+
 # cross-worktree test lock (docs/testing.md, parallel work): the lock file lives in the git common
 # directory so every worktree of this repo shares it; macOS uses lockf, Linux uses flock,
 # neither present (CI runs one checkout at a time) means no lock.
@@ -27,19 +30,19 @@ endef
 # spec-trace baseline compare ref: locally compares against HEAD; CI compares against the commit pushed to before the push on dev and main, otherwise the merge base of origin/dev (K111; CI sets this variable).
 SPEC_TRACE_REF ?= HEAD
 
-.PHONY: check check-fast fmt clippy test test-fast live-model-check deny machete depcheck spec-trace spec-baseline \
+.PHONY: check check-fast fmt clippy test test-fast live-model-check deny machete depcheck spec-trace spec-baseline sqlx-prepare sqlx-check \
 	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
 	_test-body _test-fast-body _e2e-body \
 	locale locale-refresh
 
-check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks locale \
+check: fmt clippy test deny machete depcheck sqlx-check spec-trace ironlaws gitleaks locale \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
 # fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
-check-fast: fmt clippy test-fast depcheck ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
+check-fast: fmt clippy test-fast depcheck sqlx-check ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -86,6 +89,14 @@ machete:
 
 depcheck:
 	$(CARGO) run --locked -p depcheck
+
+# regenerate the committed offline query metadata with a throwaway harness PostgreSQL (the live url is passed here only).
+sqlx-prepare:
+	SQLX_OFFLINE= $(CARGO) run -q -p testenv --bin sqlx-prepare -- --cargo "$(CARGO)"
+	$(PNPM) exec biome format --write .sqlx
+
+sqlx-check:
+	SQLX_OFFLINE= $(CARGO) run -q -p testenv --bin sqlx-prepare -- --cargo "$(CARGO)" --check
 
 spec-trace:
 	$(CARGO) run --locked -p spec-trace -- --against $(SPEC_TRACE_REF)

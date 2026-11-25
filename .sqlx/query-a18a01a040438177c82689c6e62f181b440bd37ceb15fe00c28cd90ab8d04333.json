@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM server_config WHERE key = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": []
+  },
+  "hash": "a18a01a040438177c82689c6e62f181b440bd37ceb15fe00c28cd90ab8d04333"
+}

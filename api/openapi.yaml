@@ -58,6 +58,101 @@ paths:
                 type: https://anybot.test/problems/internal
       security:
       - {}
+  /v1/server/status:
+    get:
+      tags:
+      - system
+      summary: Public server status
+      description: Returns version, protocol version, uptime, listen port and the configured public URL; no identity required.
+      operationId: get_server_status
+      responses:
+        '200':
+          description: Server status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+              example:
+                listen_port: 8787
+                protocol_version: 1
+                public_url: null
+                uptime_ms: 1200
+                version: 0.1.0
+        '400':
+          description: The request was malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-bad-request
+                params: {}
+                status: 400
+                title: The request was malformed.
+                type: https://anybot.test/problems/bad-request
+        '500':
+          description: The server hit an internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - {}
+  /v1/server/stop:
+    post:
+      tags:
+      - system
+      summary: Ask the server to stop
+      description: Requests a graceful stop of the running server. The Idempotency-Key header is required for this write.
+      operationId: post_server_stop
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: Unique key for this write request
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Stop requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StopAck'
+              example:
+                stopping: true
+        '400':
+          description: The request was malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-bad-request
+                params: {}
+                status: 400
+                title: The request was malformed.
+                type: https://anybot.test/problems/bad-request
+        '500':
+          description: The server hit an internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - {}
 components:
   schemas:
     HealthResponse:
@@ -118,6 +213,45 @@ components:
         type:
           type: string
           example: https://anybot.test/problems/not-found
+    StatusResponse:
+      type: object
+      required:
+      - version
+      - protocol_version
+      - uptime_ms
+      - listen_port
+      properties:
+        listen_port:
+          type: integer
+          format: int32
+          example: 8787
+          minimum: 0
+        protocol_version:
+          type: integer
+          format: int32
+          example: 1
+          minimum: 0
+        public_url:
+          type:
+          - string
+          - 'null'
+          example: https://bot.example.test
+        uptime_ms:
+          type: integer
+          format: int64
+          example: 1200
+          minimum: 0
+        version:
+          type: string
+          example: 0.1.0
+    StopAck:
+      type: object
+      required:
+      - stopping
+      properties:
+        stopping:
+          type: boolean
+          example: true
   securitySchemes:
     bearer:
       type: http
@@ -126,4 +260,4 @@ security:
 - bearer: []
 tags:
 - name: system
-  description: 'the server itself: health check and startup state'
+  description: 'the server itself: health, status, stop'

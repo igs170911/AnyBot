@@ -13,7 +13,6 @@ workspace = true
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anybot-foundation = { workspace = true }
-anybot-store-server = { workspace = true }
 aes-gcm = { workspace = true }
 axum = { workspace = true, features = ["macros"] }
 base64 = { workspace = true }
@@ -35,6 +34,7 @@ url = { workspace = true }
 sqlx = { workspace = true, features = ["postgres", "runtime-tokio", "migrate"] }
 
 [dev-dependencies]
+anybot-store-server = { workspace = true }
 tracing-subscriber = { workspace = true }
 sad-web-push = { workspace = true }
 sqlx = { workspace = true, features = ["postgres", "runtime-tokio", "migrate"] }

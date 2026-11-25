@@ -1,35 +1,30 @@
-use sqlx::Row;
-
 use crate::Pool;
 
 pub async fn read_config_rows(pool: &Pool) -> Result<Vec<(String, String)>, sqlx::Error> {
-    let rows = sqlx::query("SELECT key, value FROM server_config ORDER BY key")
+    let rows = sqlx::query!("SELECT key, value FROM server_config ORDER BY key")
         .fetch_all(pool)
         .await?;
     let mut out = Vec::new();
     for row in rows {
-        let key: String = row.try_get("key")?;
-        let value: String = row.try_get("value")?;
-        out.push((key, value));
+        out.push((row.key, row.value));
     }
     Ok(out)
 }
 
 pub async fn write_config_row(pool: &Pool, key: &str, value: &str) -> Result<(), sqlx::Error> {
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO server_config (key, value) VALUES ($1, $2) \
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+        key,
+        value
     )
-    .bind(key)
-    .bind(value)
     .execute(pool)
     .await?;
     Ok(())
 }
 
 pub async fn delete_config_row(pool: &Pool, key: &str) -> Result<(), sqlx::Error> {
-    sqlx::query("DELETE FROM server_config WHERE key = $1")
-        .bind(key)
+    sqlx::query!("DELETE FROM server_config WHERE key = $1", key)
         .execute(pool)
         .await?;
     Ok(())

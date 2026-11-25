@@ -1,12 +1,12 @@
-use std::net::SocketAddr;
+use std::future::Future;
+use std::process::ExitCode;
 use std::sync::Arc;
 
 use anybot_app_server as _;
-use anybot_app_test::{ServerProgram, english};
+use anybot_app_test::{ServerDb, ServerProgram, db_start, english};
 use anybot_foundation as _;
-use anybot_foundation::{Clock, MessageRef, ServerLaunchArgs};
+use anybot_foundation::ServerLaunchArgs;
 use anybot_messages::{Catalog, Lang, MessageCode, Params};
-use anybot_server::{Pool, probe, probe_pool};
 use axum as _;
 use clap as _;
 use serde_json as _;
@@ -14,11 +14,7 @@ use sqlx as _;
 use test_harness as _;
 use tracing as _;
 
-use test_harness::{
-    ArcWriter, Capture, FakeClock, NetCtl, ServerDb, db_start, net_attach, net_cut_target,
-    net_down, net_probe_open, net_restore, net_start_raw, poll_contains, run_program, test_dir,
-    test_post,
-};
+use test_harness::{ArcWriter, Capture, FakeClock, run_program, test_dir, test_post};
 
 fn server_bin() -> ServerProgram {
     ServerProgram::new(env!("CARGO_BIN_EXE_anybot-server"))
@@ -91,102 +87,82 @@ fn foreign_check(outcome: &test_harness::Outcome) -> Result<(), String> {
 }
 
 async fn run_after_database_comes_online() -> Result<(), String> {
-    let db = db_start("server_n8_3_blocked").await?;
-    let pg_port = db.pg.port();
-    let (ctl, proxy_port) = net_start_raw().await?;
-    let real = SocketAddr::from(([127, 0, 0, 1], pg_port));
-    let _attached = net_attach(&ctl, proxy_port, real).await;
-    let _cut = net_down(&ctl, proxy_port).await;
-    eprintln!("n8 t0 down");
-    let url = blocked_url(&db, proxy_port);
-    let bootstrap = anybot_foundation::bootstrap::parse_connection(&url)
+    let mut db = db_start("server_n8_3_blocked").await?;
+    let _paused = db.pg.pause().await;
+    let bootstrap = anybot_foundation::bootstrap::parse_connection(&db.url)
         .map_err(|e| format!("bootstrap parse: {e}"))?;
-    let clock = FakeClock::new(1_000);
+    let clock = FakeClock::new(0);
     let capture = Arc::new(Capture::new());
-    let shared = Arc::clone(&capture);
-    let plan_clock = Arc::clone(&clock);
-    let ticker_clock = Arc::clone(&clock);
-    tokio::spawn(async move {
-        for _tick in 0..400 {
-            let _advanced = ticker_clock.advance(std::time::Duration::from_secs(5));
-            test_harness::sleep_real(std::time::Duration::from_millis(25)).await;
+    let mut ctx = ctx_with_capture(&capture);
+    let mut plan = Box::pin(anybot_app_server::server_run::connect_plan(
+        &bootstrap,
+        &mut ctx,
+        clock.as_ref(),
+    ));
+    let walk = walk_to_online(plan.as_mut(), &capture, &clock, &mut db).await;
+    let pool = match walk {
+        Ok(pool) => pool,
+        Err(msg) => {
+            let _stopped = db.stop().await;
+            return Err(msg);
         }
-    });
-    let mut ctx = ctx_with_capture(&shared);
-    let cycles = down_probe_cycles(&bootstrap, &mut ctx, &clock, &capture).await;
-    if cycles.is_ok_and(|n| n == 0) {
-        return Err("no retry lines printed".to_owned());
-    }
-    let _restored = net_restore(&ctl, proxy_port).await;
-    eprintln!("n8 t1 restored");
-    let opened = wait_proxy_open(&ctl, proxy_port).await;
-    eprintln!("n8 t2 opened");
-    let opened = match opened {
-        Ok(()) => opened,
-        Err(msg) => return Err(msg),
     };
-    let joined_plan = test_harness::timeout_real(
-        anybot_app_server::server_run::connect_plan(&bootstrap, &mut ctx, plan_clock.as_ref()),
-        std::time::Duration::from_secs(12),
-    )
-    .await?;
-    advance_plan_clock(plan_clock.as_ref());
-    eprintln!("n8 t3 planned");
-    let pool = joined_plan
-        .map_err(|e| format!("connect plan stalled: {e}; lines {:?}", capture.lines()))?;
-    let online = serve_online(&db, &pool, &capture).await;
-    let detached = net_cut_target(&ctl, proxy_port).await;
-    eprintln!("n8 t5 detached");
+    let _closed = pool.close().await;
+    let online = serve_online(&db, &capture).await;
     let stopped = db.stop().await;
     match online {
-        Ok(()) => match detached {
-            Ok(()) => stopped,
-            Err(msg) => Err(msg),
-        },
+        Ok(()) => stopped,
         Err(msg) => Err(msg),
     }
 }
 
-async fn down_probe_cycles(
-    bootstrap: &anybot_foundation::ServerBootstrap,
-    ctx: &mut anybot_app_server::server_run::Ctx,
-    clock: &FakeClock,
+async fn walk_to_online<F>(
+    mut plan: std::pin::Pin<&mut F>,
     capture: &Arc<Capture>,
-) -> Result<usize, String> {
-    let mut failures: usize = 0;
-    for _round in 0..3 {
-        let pool = probe_pool(bootstrap);
-        let probed =
-            test_harness::timeout_real(probe(&pool), std::time::Duration::from_millis(2200)).await;
-        let _closed = pool.close().await;
-        if probed.is_err() {
-            failures = failures.saturating_add(1);
-            let reference = MessageRef::new(anybot_app_server::CODE_SERVER_DB_CONNECT_RETRY)
-                .with_text("db_host", &bootstrap.host)
-                .with_text("reason", "blocked")
-                .with_int("seconds", 5);
-            ctx.print_ref(&reference).map_err(|e| e.to_string())?;
-            let _advanced = clock.advance(std::time::Duration::from_secs(5));
+    clock: &Arc<FakeClock>,
+    db: &mut ServerDb,
+) -> Result<anybot_server::Pool, String>
+where
+    F: Future<Output = Result<anybot_server::Pool, String>>,
+{
+    let mut round: u64 = 0;
+    for _tick in 0..600 {
+        tokio::select! {
+            joined = &mut plan => {
+                return joined.map_err(|e| format!("connect plan stalled: {e}; lines {:?}", capture.lines()));
+            }
+            () = test_harness::sleep_real(std::time::Duration::from_millis(50)) => {
+                let hits = count_retry_lines(capture) as u64;
+                if hits <= round {
+                    continue;
+                }
+                round = hits;
+                let want_ms = round.saturating_sub(1).saturating_mul(5_000);
+                if clock.now_ms() != want_ms {
+                    return Err(format!(
+                        "retry {round} at fake {} ms, want {want_ms}",
+                        clock.now_ms()
+                    ));
+                }
+                if round >= 5 {
+                    db.pg.resume().await?;
+                }
+                let _advanced = clock.advance(std::time::Duration::from_secs(5));
+            }
         }
     }
-    let hits = poll_contains(capture, "connect-retry", 3).await;
-    match hits {
-        Ok(_count) => Ok(failures),
-        Err(msg) => Err(msg),
-    }
+    Err(format!(
+        "connect plan budget exceeded; round {round}, lines {:?}",
+        capture.lines()
+    ))
 }
 
-fn advance_plan_clock(clock: &FakeClock) {
-    let _advanced = clock.advance(std::time::Duration::from_secs(5));
-}
-
-fn blocked_url(db: &ServerDb, proxy_port: u16) -> String {
-    format!(
-        "postgresql://{}:{}@127.0.0.1:{}/anybot_test",
-        db.pg.user(),
-        db.pg.password().expose(),
-        proxy_port
-    )
+fn count_retry_lines(capture: &Arc<Capture>) -> usize {
+    capture
+        .lines()
+        .iter()
+        .filter(|l| l.contains("retrying in 5 seconds"))
+        .count()
 }
 
 fn ctx_with_capture(sink: &Arc<Capture>) -> anybot_app_server::server_run::Ctx {
@@ -202,7 +178,7 @@ fn ctx_with_capture(sink: &Arc<Capture>) -> anybot_app_server::server_run::Ctx {
     }
 }
 
-async fn serve_online(db: &ServerDb, _pool: &Pool, capture: &Arc<Capture>) -> Result<(), String> {
+async fn serve_online(db: &ServerDb, capture: &Arc<Capture>) -> Result<(), String> {
     let launched = ServerLaunchArgs {
         bootstrap: Some(db.bootstrap.clone()),
         command: None,
@@ -212,8 +188,11 @@ async fn serve_online(db: &ServerDb, _pool: &Pool, capture: &Arc<Capture>) -> Re
         listen_port: db.listen_port,
         ..anybot_server::ServerConfig::default()
     };
+    let pool = anybot_server::open_url(&db.url)
+        .await
+        .map_err(|e| e.to_string())?;
     anybot_server::set_config_rows(
-        _pool,
+        &pool,
         &stored.rows(),
         &[
             anybot_server::KEY_LISTEN_ADDRESSES,
@@ -222,21 +201,20 @@ async fn serve_online(db: &ServerDb, _pool: &Pool, capture: &Arc<Capture>) -> Re
     )
     .await
     .map_err(|e| e.to_string())?;
+    let _closed = pool.close().await;
+    let want = startup_want(db)?;
     let mut ctx = ctx_with_capture(capture);
-    let running = test_harness::timeout_real(
-        anybot_app_server::server_run::serve_main(&launched, env!("CARGO_PKG_VERSION"), &mut ctx),
-        std::time::Duration::from_secs(40),
-    );
-    let checked = startup_line_check(capture, db).await;
-    let stopped_http = test_post(db.listen_port, "/v1/stop", "{}").await;
-    let joined = running.await;
-    eprintln!(
-        "n8 debug joined={joined:?} stopped={stopped_http:?} lines={:?}",
-        capture.lines()
-    );
-    match checked {
+    let mut serve = Box::pin(anybot_app_server::server_run::serve_main(
+        &launched,
+        env!("CARGO_PKG_VERSION"),
+        &mut ctx,
+    ));
+    let watched = watch_startup_line(serve.as_mut(), capture, &want).await;
+    let stopped_http = test_post(db.listen_port, "/v1/server/stop", "{}").await;
+    let joined = test_harness::timeout_real(serve, std::time::Duration::from_secs(20)).await;
+    match watched {
         Ok(()) => match stopped_http {
-            Ok((200, _body)) => match joined {
+            Ok((202, _body)) => match joined {
                 Ok(_code) => Ok(()),
                 Err(_slow) => Err("serve_main did not finish".to_owned()),
             },
@@ -246,8 +224,9 @@ async fn serve_online(db: &ServerDb, _pool: &Pool, capture: &Arc<Capture>) -> Re
         Err(msg) => Err(msg),
     }
 }
-async fn startup_line_check(capture: &Arc<Capture>, db: &ServerDb) -> Result<(), String> {
-    let want = english(
+
+fn startup_want(db: &ServerDb) -> Result<String, String> {
+    english(
         &mut Catalog::new(),
         MessageCode::ServerStartupListening,
         &Params::new()
@@ -258,27 +237,34 @@ async fn startup_line_check(capture: &Arc<Capture>, db: &ServerDb) -> Result<(),
             )
             .with_text("db_host", "127.0.0.1")
             .with_text("db_name", "anybot_test"),
-    )?;
-    for _tick in 0..120 {
-        let found = capture.lines().iter().any(|l| l.trim() == want);
-        if found {
-            return Ok(());
+    )
+}
+
+async fn watch_startup_line<F>(
+    mut serve: std::pin::Pin<&mut F>,
+    capture: &Arc<Capture>,
+    want: &str,
+) -> Result<(), String>
+where
+    F: Future<Output = ExitCode>,
+{
+    for _tick in 0..400 {
+        tokio::select! {
+            code = &mut serve => {
+                return Err(format!(
+                    "serve_main exited early {code:?}; lines {:?}",
+                    capture.lines()
+                ));
+            }
+            () = test_harness::sleep_real(std::time::Duration::from_millis(50)) => {
+                if capture.lines().iter().any(|l| l.trim() == want) {
+                    return Ok(());
+                }
+            }
         }
-        test_harness::sleep_real(std::time::Duration::from_millis(100)).await;
     }
     Err(format!(
         "startup line {want} missing; lines {:?}",
         capture.lines()
     ))
-}
-
-async fn wait_proxy_open(ctl: &Arc<NetCtl>, proxy_port: u16) -> Result<(), String> {
-    for _tick in 0..300 {
-        let open = net_probe_open(ctl, proxy_port).await?;
-        if open {
-            return Ok(());
-        }
-        test_harness::sleep_real(std::time::Duration::from_millis(200)).await;
-    }
-    Err("proxy never reopened".to_owned())
 }

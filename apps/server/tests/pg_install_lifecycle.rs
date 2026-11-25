@@ -12,13 +12,12 @@ use serde_json as _;
 use test_harness as _;
 use tracing as _;
 
-use anybot_app_test::{ServerProgram, english};
+use anybot_app_test::{ServerDb, ServerProgram, db_start, english};
 use anybot_messages as _;
 use anybot_messages::{Catalog, MessageCode, Params};
 
 use test_harness::{
-    Outcome, Running, ServerDb, db_start, http_get, pg_stop, run_program, test_dir,
-    write_file_with_mode,
+    Outcome, Running, http_get, pg_stop, run_program, test_dir, write_file_with_mode,
 };
 
 fn server_bin() -> ServerProgram {
@@ -83,7 +82,7 @@ async fn t_server_n14_2() -> Result<(), String> {
 }
 
 #[tokio::test]
-async fn t_server_n14_1_public_url_survives_a_restart() -> Result<(), String> {
+async fn t_server_n14_1() -> Result<(), String> {
     let db = db_start("server_n14_1").await?;
     let first = start_live(&db).await?;
     let _stopped = stop_live(first, db.listen_port).await;
@@ -140,7 +139,7 @@ fn public_url_check(body: &str) -> Result<(), String> {
 }
 
 #[tokio::test]
-async fn t_server_n14_4_environment_variables_change_nothing() -> Result<(), String> {
+async fn t_server_n14_4() -> Result<(), String> {
     let db = db_start("server_n14_4").await?;
     let mut program = server_bin().program(db.args());
     program = program.with_env("ANYBOT_RELAY_PUBLIC_URL", "https://env.example/");
