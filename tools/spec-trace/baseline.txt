@@ -890,6 +890,12 @@ T-computers-send-2
 T-computers-send-3
 T-computers-send-4
 T-computers-send-5
+T-conn-auth-1
+T-conn-auth-2
+T-conn-auth-3
+T-conn-auth-4
+T-conn-auth-5
+T-conn-auth-6
 T-conn-batch-1
 T-conn-batch-2
 T-conn-batch-3
@@ -1235,6 +1241,7 @@ T-install-n25-1
 T-install-n25-2
 T-install-n25-3
 T-install-n25-4
+T-install-n25-5
 T-install-n26-1
 T-install-n26-2
 T-install-n27-1
@@ -2041,6 +2048,7 @@ T-server-brains-2
 T-server-brains-3
 T-server-brains-4
 T-server-brains-5
+T-server-brains-6
 T-server-install-1
 T-server-install-2
 T-server-install-3
@@ -2120,6 +2128,9 @@ T-server-privacy-2
 T-server-privacy-3
 T-server-privacy-4
 T-server-privacy-5
+T-server-privacy-6
+T-server-privacy-7
+T-server-privacy-8
 T-server-trust-1
 T-server-trust-2
 T-server-trust-3
@@ -2238,6 +2249,8 @@ T-sync-after-3
 T-sync-append-1
 T-sync-append-2
 T-sync-append-3
+T-sync-append-4
+T-sync-append-5
 T-sync-files-1
 T-sync-files-2
 T-sync-files-3
@@ -2288,6 +2301,8 @@ T-task-entry-1
 T-task-entry-2
 T-task-entry-3
 T-task-entry-5
+T-task-events-7
+T-task-events-8
 T-task-export-1
 T-task-export-2
 T-task-export-3
