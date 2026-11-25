@@ -82,7 +82,7 @@
 
 | 跑 | 不跑 |
 |---|---|
-| `crates/` 全部、`apps/` 全部的函式庫和執行檔（`--lib --bins`，警告當錯誤） | 下面 `<!-- windows-skip -->` 清單裡的套件，以及會把它們拉進來的整合測試 |
+| `crates/` 全部、`apps/` 全部的函式庫和執行檔（`--lib --bins`）。本機套件的 lint 警告用 `CARGO_BUILD_WARNINGS=deny` 當錯誤（相依套件仍被 cargo 壓住） | 下面 `<!-- windows-skip -->` 清單裡的套件，以及會把它們拉進來的整合測試 |
 | 產品套件自己的單元測試（`cargo nextest --lib --bins`，套件原始碼裡的 `#[cfg(test)]`） | `apps/*/tests/`、`crates/*/tests/` 的整合測試（現在有 `apps/server/tests/`、`crates/server/tests/`、`crates/models` 裡用到 harness 的整合測試） |
 | `pnpm -r test` | Playwright、需要 PostgreSQL 的測試 |
 

@@ -267,7 +267,11 @@ jobs:
           bash tools/windows-skip.sh list
           $skip = @(bash tools/windows-skip.sh list)
           if ($skip.Count -lt 1) { throw "windows skip list is empty" }
-          cargo build --locked --workspace @($skip | ForEach-Object { "--exclude"; $_ }) --lib --bins -- -D warnings
+          # cargo build does not take rustc flags after --. CARGO_BUILD_WARNINGS
+          # denies lint warnings in local packages only (Cargo config, since 1.97).
+          # It does not replace build.rustflags. Dependencies stay under --cap-lints.
+          $env:CARGO_BUILD_WARNINGS = "deny"
+          cargo build --locked --workspace @($skip | ForEach-Object { "--exclude"; $_ }) --lib --bins
 
       - name: pnpm
         shell: bash
@@ -305,9 +309,13 @@ jobs:
           command -v "${PNPM:-pnpm}"
           mkdir -p target
           # Unit tests inside product packages. The skip list is docs/testing.md.
-          skip="$(sh tools/windows-skip.sh --cargo)"
-          # shellcheck disable=SC2086
-          bash tools/test-gate.sh run target/nextest-basic.log cargo nextest run --locked --workspace $skip --lib --bins --profile quick
+          # One --exclude per name: a single quoted string is one cargo argument.
+          set --
+          sh tools/windows-skip.sh list > target/windows-skip.txt
+          while IFS= read -r name; do
+            set -- "$@" --exclude "$name"
+          done < target/windows-skip.txt
+          bash tools/test-gate.sh run target/nextest-basic.log cargo nextest run --locked --workspace "$@" --lib --bins --profile quick
           "${PNPM:-pnpm}" -r --no-bail test | tee target/pnpm-test.log
           sh tools/test-count.sh windows target/nextest-basic.log target/pnpm-test.log
 
