@@ -3,6 +3,7 @@
 export type MessageCode =
   "server-startup-listening" |
   "server-port-unusable" |
+  "server-arguments-invalid" |
   "server-bootstrap-missing" |
   "server-bootstrap-file-missing" |
   "server-bootstrap-permissions-read-failed" |
@@ -31,6 +32,7 @@ export type MessageCode =
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
   "server-port-unusable",
+  "server-arguments-invalid",
   "server-bootstrap-missing",
   "server-bootstrap-file-missing",
   "server-bootstrap-permissions-read-failed",

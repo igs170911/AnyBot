@@ -49,7 +49,7 @@ export interface components {
             detail?: string | null;
             /** @example /v1/health */
             instance?: string | null;
-            params?: components["schemas"]["MessageParams"];
+            params: components["schemas"]["MessageParams"];
             /**
              * Format: int32
              * @example 400

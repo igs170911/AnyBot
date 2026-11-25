@@ -48,7 +48,7 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
         "migrate-old",
         &["foundation", "protocol", "domain", "store-client"],
     );
-    add("messages", &["foundation"]);
+    add("messages", &[]);
     add_tools(&mut m);
     m
 }
@@ -182,6 +182,14 @@ mod tests {
         let allowed = allowed_internal_deps();
         let want = BTreeSet::from(["anybot-server".to_owned(), "anybot-protocol".to_owned()]);
         assert_eq!(allowed.get("api-docs"), Some(&want));
+    }
+
+    #[test]
+    fn test_depcheck_messages_has_no_internal_deps() {
+        assert_eq!(
+            allowed_internal_deps().get("anybot-messages"),
+            Some(&BTreeSet::new())
+        );
     }
 
     #[test]

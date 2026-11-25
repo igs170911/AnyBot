@@ -6,6 +6,7 @@ use serde;
 pub enum MessageCode {
     ServerStartupListening,
     ServerPortUnusable,
+    ServerArgumentsInvalid,
     ServerBootstrapMissing,
     ServerBootstrapFileMissing,
     ServerBootstrapPermissionsReadFailed,
@@ -46,6 +47,7 @@ impl MessageCode {
         match self {
             Self::ServerStartupListening => "server-startup-listening",
             Self::ServerPortUnusable => "server-port-unusable",
+            Self::ServerArgumentsInvalid => "server-arguments-invalid",
             Self::ServerBootstrapMissing => "server-bootstrap-missing",
             Self::ServerBootstrapFileMissing => "server-bootstrap-file-missing",
             Self::ServerBootstrapPermissionsReadFailed => {
@@ -80,6 +82,7 @@ impl MessageCode {
         match text {
             "server-startup-listening" => Some(Self::ServerStartupListening),
             "server-port-unusable" => Some(Self::ServerPortUnusable),
+            "server-arguments-invalid" => Some(Self::ServerArgumentsInvalid),
             "server-bootstrap-missing" => Some(Self::ServerBootstrapMissing),
             "server-bootstrap-file-missing" => Some(Self::ServerBootstrapFileMissing),
             "server-bootstrap-permissions-read-failed" => {
@@ -117,6 +120,7 @@ impl MessageCode {
         vec![
             Self::ServerStartupListening,
             Self::ServerPortUnusable,
+            Self::ServerArgumentsInvalid,
             Self::ServerBootstrapMissing,
             Self::ServerBootstrapFileMissing,
             Self::ServerBootstrapPermissionsReadFailed,

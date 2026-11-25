@@ -1,5 +1,6 @@
 server-startup-listening = AnyBot 伺服務器 v{ $version }：聽 127.0.0.1:{ $port }、[::1]:{ $port }（資料庫 { $db_host }/{ $db_name }）
 server-port-unusable = 無法使用連接埠 { $port }：{ $reason }
+server-arguments-invalid = 命令列參數無效：{ $reason }
 server-bootstrap-missing = 找不到啟動檔（用 --bootstrap 指定）
 server-bootstrap-file-missing = 找不到啟動檔 { $path }（用 --bootstrap 指定）：{ $reason }
 server-bootstrap-permissions-read-failed = 讀啟動檔 { $path } 的權限失敗：{ $reason }

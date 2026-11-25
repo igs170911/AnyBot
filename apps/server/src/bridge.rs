@@ -1,24 +1,6 @@
 use anybot_foundation::{FoundationError, MessageRef};
 use anybot_messages::{Lang, MessageCode, MessagesError, Params};
 
-pub const CODE_STARTUP_LISTENING: &str = "server-startup-listening";
-pub const CODE_PORT_UNUSABLE: &str = "server-port-unusable";
-pub const CODE_BOOTSTRAP_MISSING: &str = "server-bootstrap-missing";
-pub const CODE_BOOTSTRAP_FILE_MISSING: &str = "server-bootstrap-file-missing";
-pub const CODE_BOOTSTRAP_PERMISSIONS_READ_FAILED: &str = "server-bootstrap-permissions-read-failed";
-pub const CODE_BOOTSTRAP_READ_FAILED: &str = "server-bootstrap-read-failed";
-pub const CODE_BOOTSTRAP_PERMISSIONS_TOO_OPEN: &str = "server-bootstrap-permissions-too-open";
-pub const CODE_BOOTSTRAP_URL_MALFORMED: &str = "server-bootstrap-url-malformed";
-pub const CODE_BOOTSTRAP_URL_SCHEME: &str = "server-bootstrap-url-scheme";
-pub const CODE_BOOTSTRAP_CREDENTIALS_MISSING: &str = "server-bootstrap-credentials-missing";
-pub const CODE_BOOTSTRAP_HOST_MISSING: &str = "server-bootstrap-host-missing";
-pub const CODE_BOOTSTRAP_DATABASE_MISSING: &str = "server-bootstrap-database-missing";
-pub const CODE_SUBCOMMAND_UNIMPLEMENTED: &str = "server-subcommand-unimplemented";
-pub const CODE_STOP_NORMAL: &str = "server-stop-normal";
-pub const CODE_STOP_ERROR: &str = "server-stop-error";
-pub const CODE_STOP_NO_LISTENER: &str = "server-stop-no-listener";
-pub const CODE_CLIENT_DATA_DIR_MISSING: &str = "client-data-dir-missing";
-
 pub fn params_from_ref(reference: &MessageRef) -> Result<Params, anybot_messages::ParamsError> {
     let value =
         serde_json::to_value(&reference.params).map_err(|err| anybot_messages::ParamsError {
@@ -68,16 +50,19 @@ mod tests {
     }
 
     #[test]
-    fn bridge_constants_match_generated_codes() {
-        assert_eq!(CODE_STARTUP_LISTENING, CODE_SERVER_STARTUP_LISTENING);
+    fn bridge_startup_code_converts_from_foundation_constant() {
         assert_eq!(
-            CODE_BOOTSTRAP_PERMISSIONS_TOO_OPEN,
-            "server-bootstrap-permissions-too-open"
-        );
-        assert_eq!(
-            code_from_str(CODE_STARTUP_LISTENING).unwrap(),
+            code_from_str(CODE_SERVER_STARTUP_LISTENING).unwrap(),
             MessageCode::ServerStartupListening
         );
+    }
+
+    #[test]
+    fn every_foundation_code_constant_converts_to_a_message_code() {
+        for constant in anybot_foundation::FOUNDATION_MESSAGE_CODES {
+            let code = code_from_str(constant).unwrap_or_else(|err| panic!("{constant}: {err}"));
+            assert_eq!(code.as_str(), constant);
+        }
     }
 
     #[test]

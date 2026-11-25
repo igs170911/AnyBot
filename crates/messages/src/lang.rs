@@ -24,10 +24,8 @@ impl Lang {
     #[must_use]
     pub fn identifier(self) -> LanguageIdentifier {
         match self {
-            Lang::En => LANG_EN_TAG.parse().unwrap_or(LanguageIdentifier::default()),
-            Lang::ZhTw => LANG_ZH_TW_TAG
-                .parse()
-                .unwrap_or(LanguageIdentifier::default()),
+            Lang::En => unic_langid::langid!("en"),
+            Lang::ZhTw => unic_langid::langid!("zh-TW"),
         }
     }
 
@@ -110,5 +108,12 @@ mod tests {
     fn test_lang_identifier_matches_tag() {
         assert_eq!(Lang::En.identifier().to_string(), "en");
         assert_eq!(Lang::ZhTw.identifier().to_string(), "zh-TW");
+    }
+
+    #[test]
+    fn lang_identifier_is_compiled_from_tag() {
+        assert_eq!(Lang::En.identifier(), unic_langid::langid!("en"));
+        assert_eq!(Lang::ZhTw.identifier(), unic_langid::langid!("zh-TW"));
+        assert_eq!(Lang::En.identifier().language.as_str(), "en");
     }
 }

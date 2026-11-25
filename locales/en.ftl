@@ -1,5 +1,6 @@
 server-startup-listening = AnyBot server v{ $version }: listening on 127.0.0.1:{ $port } and [::1]:{ $port } (database { $db_host }/{ $db_name })
 server-port-unusable = Cannot use port { $port }: { $reason }
+server-arguments-invalid = Command line arguments are invalid: { $reason }
 server-bootstrap-missing = Bootstrap file not found (specify it with --bootstrap)
 server-bootstrap-file-missing = Bootstrap file { $path } not found (specify it with --bootstrap): { $reason }
 server-bootstrap-permissions-read-failed = Reading bootstrap file { $path } permissions failed: { $reason }

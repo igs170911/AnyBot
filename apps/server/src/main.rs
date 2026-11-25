@@ -37,13 +37,13 @@ async fn main() -> ExitCode {
         Ok(Err(failure)) => return report_failure(&mut catalog, &failure, &mut std::io::stderr()),
         Err(err) => return bug_exit(&mut catalog, &err),
     };
-    if startup_text(&mut catalog, &startup).is_err() {
-        return ExitCode::from(3);
-    }
     let listeners = match bind_plan(DEFAULT_PORT).await {
         Ok(listeners) => listeners,
         Err(failure) => return report_failure(&mut catalog, &failure, &mut std::io::stderr()),
     };
+    if startup_text(&mut catalog, &startup).is_err() {
+        return ExitCode::from(3);
+    }
     let app = build_router(AppState::new(version));
     serve_exit(&mut catalog, listeners, app).await
 }

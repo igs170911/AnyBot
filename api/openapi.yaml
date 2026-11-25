@@ -90,6 +90,7 @@ components:
       - title
       - status
       - code
+      - params
       properties:
         code:
           type: string

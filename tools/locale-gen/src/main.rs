@@ -5,14 +5,15 @@ use clap as _;
 use clap::Parser;
 
 use locale_gen::checks::{
-    generated_freshness_violations, locale_pair_violations, usage_violations,
+    generated_freshness_violations, locale_pair_violations, string_code_const_violations,
+    usage_violations,
 };
 use locale_gen::cjk::{cjk_violations, is_excluded_path};
-use locale_gen::codes::{rust_codes, ts_codes};
+use locale_gen::codes::{rust_codes, ts_codes, ts_locales};
 use locale_gen::parse::parse_ftl;
 use locale_gen::runner::{
-    RUST_CODES_REL, RunnerError, TS_CODES_REL, is_source_path, read_all, read_rel, repo_root,
-    split_scan, tracked_files, write_rel,
+    RUST_CODES_REL, RunnerError, TS_CODES_REL, TS_LOCALES_REL, is_source_path, read_all, read_rel,
+    repo_root, split_scan, tracked_files, write_rel,
 };
 
 #[derive(Parser)]
@@ -52,6 +53,8 @@ fn generate() -> Result<(), Vec<String>> {
     )
     .map_err(|e| io_failure(&e))?;
     write_rel(&root, TS_CODES_REL, &ts_codes(&entries)).map_err(|e| io_failure(&e))?;
+    let zh = read_rel(&root, "locales/zh-TW.ftl").map_err(|e| io_failure(&e))?;
+    write_rel(&root, TS_LOCALES_REL, &ts_locales(&en, &zh)).map_err(|e| io_failure(&e))?;
     report(&format!(
         "locale-gen: wrote generated code types for {} codes",
         entries.len()
@@ -100,6 +103,7 @@ fn locale_violations(
     let zh = read_rel(root, "locales/zh-TW.ftl").map_err(|e| io_failure(&e))?;
     let committed_rust = read_rel(root, RUST_CODES_REL).map_err(|e| io_failure(&e))?;
     let committed_ts = read_rel(root, TS_CODES_REL).map_err(|e| io_failure(&e))?;
+    let committed_locales = read_rel(root, TS_LOCALES_REL).map_err(|e| io_failure(&e))?;
     let mut violations = locale_pair_violations(&en, &zh);
     let entries = parse_ftl(&en);
     violations.extend(generated_freshness_violations(
@@ -108,6 +112,8 @@ fn locale_violations(
         &committed_ts,
         &rust_codes(&entries).map_err(code_failure)?,
         &ts_codes(&entries),
+        &ts_locales(&en, &zh),
+        &committed_locales,
     ));
     let sources: Vec<(String, String)> = files
         .iter()
@@ -115,6 +121,7 @@ fn locale_violations(
         .cloned()
         .collect();
     let (rust_scan, ts_scan, all_scan) = split_scan(&sources);
+    violations.extend(string_code_const_violations(&en, &rust_scan));
     violations.extend(usage_violations(&en, &rust_scan, &ts_scan, &all_scan));
     Ok(violations)
 }

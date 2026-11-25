@@ -3,6 +3,7 @@ use std::process::Command;
 
 pub const RUST_CODES_REL: &str = "crates/messages/src/generated/codes.rs";
 pub const TS_CODES_REL: &str = "web/ui/src/generated/codes.ts";
+pub const TS_LOCALES_REL: &str = "web/ui/src/generated/locales.ts";
 
 #[derive(Debug)]
 pub enum RunnerError {

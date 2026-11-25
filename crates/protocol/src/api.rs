@@ -46,7 +46,6 @@ pub struct ProblemJson {
     #[serde(rename = "code")]
     #[cfg_attr(feature = "schema", schema(example = "problem-bad-request"))]
     pub code: String,
-    #[serde(default, skip_serializing_if = "MessageParams::is_empty")]
     #[cfg_attr(feature = "schema", schema(value_type = MessageParams))]
     pub params: MessageParams,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -150,7 +149,7 @@ mod tests {
         assert!(json.contains("\"type\""));
         assert!(json.contains("\"code\""));
         assert!(!json.contains("detail"));
-        assert!(!json.contains("params"));
+        assert!(json.contains("\"params\":{}"), "{json}");
         let back: ProblemJson = serde_json::from_str(&json).unwrap();
         assert_eq!(back, p);
     }

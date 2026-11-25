@@ -1,6 +1,6 @@
 use tokio::net::TcpListener;
 
-use anybot_app_server as _;
+use anybot_app_server::parse_launch;
 use anybot_foundation as _;
 use anybot_server as _;
 use axum as _;
@@ -145,6 +145,9 @@ fn check_port_failure(
     if outcome.code != 1 {
         return Err(format!("port-conflict exit {}", outcome.code));
     }
+    if !outcome.stdout.is_empty() {
+        return Err(format!("port-conflict server printed stdout {outcome:?}"));
+    }
     let expected = full_text(&mut Catalog::new(), MessageCode::ServerPortUnusable)?;
     let Some(prefix) = expected.split(':').next() else {
         return Err("port message has no first segment".to_owned());
@@ -182,7 +185,28 @@ async fn t_install_n22_4() -> Result<(), String> {
     if unknown.code != 2 {
         return Err(format!("unknown-flag exit {}", unknown.code));
     }
+    let argv = vec![
+        "--bootstrap".to_owned(),
+        path.display().to_string(),
+        "--port".to_owned(),
+        "1".to_owned(),
+    ];
+    let expected = arguments_invalid_text(&argv)?;
+    if !unknown.stderr.contains(&expected) {
+        return Err(format!("{unknown:?} misses {expected}"));
+    }
     Ok(())
+}
+
+fn arguments_invalid_text(argv: &[String]) -> Result<String, String> {
+    let failure = match parse_launch(argv) {
+        Err(failure) => failure,
+        Ok(parsed) => return Err(format!("fixture argv parsed without failure: {parsed:?}")),
+    };
+    if failure.code != MessageCode::ServerArgumentsInvalid {
+        return Err(format!("fixture code mismatch: {:?}", failure.code));
+    }
+    english(&mut Catalog::new(), failure.code, &failure.params)
 }
 
 #[tokio::test]
@@ -251,6 +275,9 @@ async fn second_server_exits_with_one_while_first_keeps_serving_health() -> Resu
     let second = run_program(&server_program(bootstrap_args(&path)), &dir)?;
     if second.code != 1 {
         return Err(format!("second server exit {}", second.code));
+    }
+    if !second.stdout.is_empty() {
+        return Err(format!("second server printed startup output {second:?}"));
     }
     if !second.stderr.contains("Cannot use port 8787") {
         return Err(format!("{second:?} misses the port message"));

@@ -46,8 +46,7 @@ impl PlanFailure {
         })
     }
 
-    #[must_use]
-    pub fn render(&self, catalog: &mut Catalog) -> String {
+    pub fn render(&self, catalog: &mut Catalog) -> Result<String, MessagesError> {
         line_text(catalog, self)
     }
 }
@@ -86,7 +85,7 @@ pub fn parse_launch(argv: &[String]) -> Result<Parsed, PlanFailure> {
                 return Ok(Parsed::Printed(err.to_string()));
             }
             Err(PlanFailure {
-                code: MessageCode::ProblemBadRequest,
+                code: MessageCode::ServerArgumentsInvalid,
                 params: Params::single("reason", ParamValue::text(&err.to_string())),
                 exit: ExitCode::from(2),
             })
@@ -127,7 +126,7 @@ use anybot_messages::Lang;
 
 pub fn startup_text(catalog: &mut Catalog, startup: &ServerStartup) -> Result<(), MessagesError> {
     let line = startup_line(startup)?;
-    let text = line_text(catalog, &line);
+    let text = line_text(catalog, &line)?;
     let _result = emit(&text, &mut std::io::stdout());
     Ok(())
 }
@@ -150,7 +149,13 @@ pub async fn serve_exit(
 }
 
 pub fn stop_exit(catalog: &mut Catalog, line: &StopLine) -> ExitCode {
-    let text = line_text(catalog, line);
+    let text = match line_text(catalog, line) {
+        Ok(text) => text,
+        Err(err) => {
+            let _result = emit(&err.to_string(), &mut std::io::stderr());
+            return ExitCode::from(3);
+        }
+    };
     if line.code == StopLine::CODE_NORMAL {
         let _result = emit(&text, &mut std::io::stdout());
         return ExitCode::SUCCESS;
@@ -164,7 +169,13 @@ pub fn report_failure(
     failure: &PlanFailure,
     out: &mut impl Write,
 ) -> ExitCode {
-    let text = failure.render(catalog);
+    let text = match failure.render(catalog) {
+        Ok(text) => text,
+        Err(err) => {
+            let _result = emit(&err.to_string(), &mut std::io::stderr());
+            return ExitCode::from(3);
+        }
+    };
     let _result = emit(&text, out);
     failure.exit
 }

@@ -61,7 +61,7 @@ fn harness_write_file_with_mode_sets_exact_permissions() {
 }
 
 #[test]
-fn harness_run_program_times_out_on_program_that_never_exits() {
+fn harness_run_program_times_out_and_kills_child() {
     let dir = test_dir("harness-timeout").unwrap();
     let program = Program::new("/bin/sleep", vec!["600".to_owned()])
         .with_timeout(std::time::Duration::from_secs(2));
@@ -78,6 +78,12 @@ fn harness_run_program_times_out_on_program_that_never_exits() {
     assert!(err.contains("to exit"), "{err}");
     let pid = spawned.lock().unwrap().first().copied().unwrap();
     assert!(err.contains(&format!("PID {pid}")), "{err}");
+    let alive = std::process::Command::new("/bin/kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .unwrap()
+        .success();
+    assert!(!alive, "child PID {pid} still alive after timeout");
 }
 
 #[test]

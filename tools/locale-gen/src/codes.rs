@@ -190,6 +190,53 @@ pub fn ts_codes(entries: &[FtlEntry]) -> String {
     out
 }
 
+#[must_use]
+pub fn ts_locales(en: &str, zh: &str) -> String {
+    let mut out = String::from(TS_GENERATED_HEADER);
+    w(&mut out, "// Source: locales/en.ftl and locales/zh-TW.ftl");
+    w(
+        &mut out,
+        &format!("export const EN_FTL_SOURCE = {}", escape_ts_string(en)),
+    );
+    w(
+        &mut out,
+        &format!("export const ZH_TW_FTL_SOURCE = {}", escape_ts_string(zh)),
+    );
+    out
+}
+
+#[must_use]
+pub fn escape_ts_string(text: &str) -> String {
+    let mut out = String::from("\"");
+    for ch in text.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c < ' ' => {
+                let _result = write!(out, "\\u{:04x}", u32::from(c));
+            }
+            c if c.is_ascii() => out.push(c),
+            c => push_escaped_codepoint(&mut out, u32::from(c)),
+        }
+    }
+    out.push('"');
+    out
+}
+
+fn push_escaped_codepoint(out: &mut String, cp: u32) {
+    if cp <= 0xFFFF {
+        let _result = write!(out, "\\u{cp:04x}");
+        return;
+    }
+    let biased = cp.saturating_sub(0x1_0000);
+    let high = (biased >> 10).wrapping_add(0xD800);
+    let low = (biased & 0x3FF).wrapping_add(0xDC00);
+    let _result = write!(out, "\\u{high:04x}\\u{low:04x}");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,5 +273,23 @@ mod tests {
         assert!(text.contains("\"server-startup-listening\""));
         assert!(text.contains("\"ui-shell-2\""));
         assert!(text.contains("ALL_MESSAGE_CODES"));
+    }
+
+    #[test]
+    fn test_ts_locales_escapes_cjk_and_quotes() {
+        let got = ts_locales("a = Say \"hi\"\n", "a = \u{8aaa}\u{8aa1}\n");
+        assert!(
+            got.contains("export const EN_FTL_SOURCE = \"a = Say \\\"hi\\\"\\n\""),
+            "{got}"
+        );
+        assert!(got.contains("\\u8aaa\\u8aa1"), "{got}");
+        assert!(got.is_ascii(), "generated locales must be ascii");
+    }
+
+    #[test]
+    fn test_ts_locales_escapes_astral_codepoints_as_surrogate_pairs() {
+        let got = ts_locales("a = x\n", "a = \u{20000}\n");
+        assert!(got.contains("\\ud840\\udc00"), "{got}");
+        assert!(got.is_ascii(), "generated locales must be ascii");
     }
 }

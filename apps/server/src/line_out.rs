@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anybot_messages::{Catalog, Lang, MessageCode, Params};
+use anybot_messages::{Catalog, Lang, MessageCode, MessagesError, Params};
 
 #[derive(Debug)]
 pub struct StartupLine {
@@ -85,12 +85,8 @@ impl Line for FailureLine {
     }
 }
 
-#[must_use]
-pub fn line_text<L: Line>(catalog: &mut Catalog, line: &L) -> String {
-    let code = line.code();
-    catalog
-        .format(Lang::default_lang(), &code, line.params())
-        .unwrap_or_else(|err| format!("{code:?} formatter failure: {err}"))
+pub fn line_text<L: Line>(catalog: &mut Catalog, line: &L) -> Result<String, MessagesError> {
+    catalog.format(Lang::default_lang(), &line.code(), line.params())
 }
 
 pub fn emit(text: &str, out: &mut impl Write) -> std::io::Result<()> {
@@ -112,9 +108,17 @@ mod tests {
     #[test]
     fn startup_line_text_uses_default_english() {
         let mut catalog = Catalog::new();
-        let text = line_text(&mut catalog, &StartupLine::new(startup_params()));
+        let text = line_text(&mut catalog, &StartupLine::new(startup_params())).unwrap();
         assert!(text.contains("AnyBot server v9.9.9"), "{text}");
         assert!(text.contains("127.0.0.1:8787"), "{text}");
+    }
+
+    #[test]
+    fn line_text_reports_formatter_failure_as_error() {
+        let mut catalog = Catalog::new();
+        let line = StartupLine::new(Params::new());
+        let err = line_text(&mut catalog, &line).unwrap_err();
+        assert!(matches!(err, MessagesError::ParamsMismatch { .. }));
     }
 
     #[test]
@@ -122,7 +126,7 @@ mod tests {
         assert_ne!(StopLine::CODE_NORMAL, StopLine::CODE_ERROR);
         let line = StopLine::new(StopLine::CODE_NORMAL, Params::new());
         let mut catalog = Catalog::new();
-        let text = line_text(&mut catalog, &line);
+        let text = line_text(&mut catalog, &line).unwrap();
         assert!(text.contains("ended normally"), "{text}");
     }
 
@@ -135,7 +139,7 @@ mod tests {
                 .with_text("mode", "644")
                 .with_text("path", "start.toml"),
         );
-        let text = line_text(&mut catalog, &line);
+        let text = line_text(&mut catalog, &line).unwrap();
         assert!(text.contains("644"), "{text}");
         assert!(text.contains("start.toml"), "{text}");
     }

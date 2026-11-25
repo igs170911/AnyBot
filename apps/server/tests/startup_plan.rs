@@ -166,6 +166,16 @@ fn parse_launch_rejects_unknown_flag_with_exit_code_two() -> Result<(), String> 
     if failure.exit != ExitCode::from(2) {
         return Err(format!("unexpected exit {:?}", failure.exit));
     }
+    if failure.code != MessageCode::ServerArgumentsInvalid {
+        return Err(format!("unexpected code {:?}", failure.code));
+    }
+    if failure.params.get("reason").is_none() {
+        return Err(format!("missing reason param {:?}", failure.params));
+    }
+    let text = english(&mut Catalog::new(), failure.code, &failure.params)?;
+    if !text.starts_with("Command line arguments are invalid:") {
+        return Err(format!("unexpected text {text}"));
+    }
     Ok(())
 }
 
