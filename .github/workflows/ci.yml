@@ -182,7 +182,7 @@ jobs:
         run: make check
 
       - name: save the compiled output cache on main only
-        if: github.ref == 'refs/heads/main' && steps.target-cache-restore.outputs.cache-hit != 'true'
+        if: success() && github.ref == 'refs/heads/main' && steps.target-cache-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
