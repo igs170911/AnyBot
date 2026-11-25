@@ -21,6 +21,9 @@ jobs:
           gitleaks --version && oasdiff --version
       # TypeScript gates (M2 item 3): the pnpm workspace.
       - run: npm install -g pnpm
+      # Playwright browsers for the M4 section B e2e gate (make e2e); WebKit needs system deps.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit
       # the Rust part of Tauri 2 (apps/desktop/src-tauri) needs system packages such as WebKitGTK on Linux
       # (spec/06 section 2.4: WebKitGTK on Linux needs extra testing).
       - run: |

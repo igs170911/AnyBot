@@ -103,7 +103,7 @@ fn check_harness_rules(
         }
         return violations;
     }
-    if deps.contains("test-harness") {
+    if deps.contains("test-harness") && pkg.name != "testenv" {
         violations.push(format!(
             "{} uses test-harness in normal dependencies: the harness is allowed only as a dev dependency (spec/09 K87)",
             pkg.name

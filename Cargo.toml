@@ -11,6 +11,7 @@ members = [
     "apps/desktop/context",
     "tools/*",
     "tests/harness",
+    "tests/testenv",
 ]
 
 [workspace.package]

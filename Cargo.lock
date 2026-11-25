@@ -5490,6 +5490,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "testenv"
+version = "0.1.0"
+dependencies = [
+ "anybot-foundation",
+ "anybot-server",
+ "axum",
+ "serde",
+ "serde_json",
+ "test-harness",
+ "tokio",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,0 +1,18 @@
+{
+  "name": "@anybot/e2e",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "description": "Playwright end-to-end foundation: scenario projects, smoke runs against apps/web, control-API self-test (M4 section B).",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "echo no unit tests in the e2e package - make e2e runs playwright",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.1.14",
+    "typescript": "^7.0.2"
+  }
+}

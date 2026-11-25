@@ -58,6 +58,20 @@ fn test_depcheck_blocks_reverse_and_banned_edges() {
 }
 
 #[test]
+fn test_depcheck_allows_testenv_normal_harness_dep() {
+    let m = meta(vec![
+        pkg(
+            "testenv",
+            &["test-harness", "anybot-foundation", "anybot-server"],
+        ),
+        pkg("test-harness", &["serde"]),
+        pkg("anybot-server", &[]),
+        pkg("anybot-foundation", &[]),
+    ]);
+    assert_eq!(check_metadata_value(&m), Vec::<String>::new());
+}
+
+#[test]
 fn test_depcheck_blocks_harness_in_normal_deps_and_reverse() {
     let m = meta(vec![
         pkg("anybot-server", &["test-harness"]),

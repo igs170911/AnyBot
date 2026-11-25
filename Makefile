@@ -13,11 +13,12 @@ SPEC_TRACE_REF ?= HEAD
 .PHONY: check check-fast fmt clippy test deny machete depcheck spec-trace spec-baseline \
 	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
+	e2e \
 	locale locale-refresh
 
 check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks locale \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest \
-	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build
+	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
 # fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
 check-fast: fmt clippy depcheck ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
@@ -86,6 +87,11 @@ ts-test:
 
 ts-build:
 	$(PNPM) -r --no-bail build
+
+# M4 section B: Playwright scenarios against apps/web, driven by the testenv executable.
+e2e: ts-install
+	$(CARGO) build -p testenv
+	$(PNPM) --filter=@anybot/e2e exec playwright test
 
 # API document gates (spec/02 section 8): regenerate and diff against the committed files; any difference blocks (docs follow the code).
 api-docs:

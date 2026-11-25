@@ -34,6 +34,17 @@
 - `crates/server` 的整合測試把 `Arc<FakeClock>` 放進 `AppState::with_clock`，從外面打 HTTP（見 `crates/server/tests/health_clock.rs`：假時鐘前進一小時，`/v1/health` 的 `now` 必須剛好位移 3,600,000 毫秒）。
 - 伺服器整合測試裡要等真實時間的地方用 `test_harness::sleep_real`，不准直接用 `tokio::time`。
 
-## 端對端（B 節，做完後補充於此）
+## 端對端（M4 B 節）
 
-- 測試環境程式、Playwright 情境、手機情境、假推播接法，完成後在本節補充。
+- 測試環境程式 `tests/testenv`（執行檔 `testenv`）：啟動假網路代理、假模型、假推播、假時鐘、真正的伺服器（`AppState::with_clock`），再啟動控制 API；啟動完成後在 stdout 印一行 `testenv ready {port 報告}`，測試由 `globalSetup` 啟動它、解析這行、把 port 寫進 `target/scratch/testenv-ports.json`，收工時用 PID 收掉。
+- 控制 API（只給測試環境用，不在產品裡）：`/control/status`、`/control/model/script`（POST 寫腳本）、`/control/model/requests`（GET 讀記錄）、`/control/clock/advance`（POST 快轉假時鐘）、`/control/net/cut`、`/control/net/restore`、`/control/push/records`（GET 讀推播記錄）。
+- Playwright 設定在 `tests/e2e/playwright.config.ts`，情境專案：
+  - `phone-max-font`：WebKit + iPhone 15 Pro 視口（393×852，deviceScaleFactor 3）。最大字級模擬方式：Playwright 沒有字級縮放選項，測試在頁面注入 `html { font-size: 170%; }`，等於 iOS Safari 最大 Dynamic Type 的放大效果，專案用自訂屬性 `maxTextZoom: "1.7"` 標明倍率。
+  - `desktop-large`：Chromium 1600×1000。
+  - `rtl-arabic`：locale `ar`（RTL 版面規則要等 M8 的 UI，現在只做煙霧測試）。
+  - `dark-mode`：colorScheme dark。
+  - `lang-en`、`lang-zh-TW`：語言情境。
+- 畫面文字一律用訊息代碼查 `locales/*.ftl`（`src/ftl.ts`），動作詞彙對應的輔助函式在 `src/act.ts`（按〔按鈕上的字〕、填欄位、出現在螢幕／不出現、版面量測、console 檢查）。
+- 端對端測試從外面打真程式：煙霧測試打 `vite preview` 的靜態站；自我測試（`selftest.spec.ts`）用控制 API 寫模型腳本、直接打假模型、讀請求記錄、快轉時鐘後驗證 `/v1/health` 的 `now` 位移 3,600,000 毫秒。
+- 執行：`make e2e`（先 `cargo build -p testenv`，再跑 Playwright）；`make check` 含 e2e 閘。CI（`.gitea/workflows/ci.yml`）加裝 `pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit`。
+- 輸出（截圖、trace、html 報告）一律在 `target/playwright`、`target/playwright-html`。

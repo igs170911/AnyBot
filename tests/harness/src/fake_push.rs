@@ -11,7 +11,7 @@ use tokio::net::TcpListener;
 
 use crate::push_crypto::{SubscriptionKeys, decrypt_aes128gcm};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct PushRecord {
     pub subscription_id: String,
     pub plaintext: Vec<u8>,

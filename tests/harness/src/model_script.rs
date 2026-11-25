@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::time::Duration;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Step {
     ReplyText {
         text: String,
@@ -118,14 +118,14 @@ pub fn model_reply_status(status: u16, message: &str) -> Step {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct RecordedRequest {
     pub path: String,
     pub body: String,
     pub headers: Vec<(String, HeaderValueKind)>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HeaderValueKind {
     Present,
     Value(String),

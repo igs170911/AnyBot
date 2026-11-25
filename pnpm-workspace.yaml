@@ -2,6 +2,7 @@ packages:
   - web/*
   - apps/web
   - apps/desktop
+  - tests/e2e
 
 # dependencies allowed to run install scripts (pnpm 12 blocks all by default).
 minimumReleaseAgeExclude:

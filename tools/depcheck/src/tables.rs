@@ -81,6 +81,16 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
         BTreeSet::from(["anybot-foundation".to_owned()]),
     );
     m.insert(
+        "testenv".to_owned(),
+        [
+            "test-harness".to_owned(),
+            "anybot-foundation".to_owned(),
+            "anybot-server".to_owned(),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    m.insert(
         "api-docs".to_owned(),
         ["anybot-server".to_owned(), "anybot-protocol".to_owned()]
             .into_iter()
