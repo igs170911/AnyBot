@@ -59,6 +59,109 @@ pub fn scan_exemption_attrs(files: &[(String, String)]) -> Vec<String> {
     violations
 }
 
+fn package_name_in_toml(content: &str) -> Option<String> {
+    let in_package = content
+        .lines()
+        .skip_while(|l| !l.trim().eq("[package]"))
+        .skip(1)
+        .take_while(|l| !l.trim().starts_with('['));
+    for line in in_package {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("name = \"") {
+            return Some(rest.trim_end_matches('"').to_owned());
+        }
+    }
+    None
+}
+
+fn feature_list_of(content: &str, dep: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in content.lines() {
+        let t = line.replace(' ', "");
+        let prefix = format!("{dep}=");
+        let Some((_, after)) = t.split_once(&prefix) else {
+            continue;
+        };
+        let Some((_, feats)) = after.split_once("features=[") else {
+            continue;
+        };
+        let list = feats.split_once(']').map_or(feats, |(l, _)| l);
+        for f in list.split(',') {
+            let clean = f.trim_matches('"').to_owned();
+            if !clean.is_empty() {
+                out.push(clean);
+            }
+        }
+    }
+    out
+}
+
+fn http_client_names(content: &str) -> Vec<String> {
+    const CLIENTS: [&str; 5] = ["reqwest", "ureq", "isahc", "attohttpc", "curl"];
+    let mut out = Vec::new();
+    for line in content.lines() {
+        let t = line.replace(' ', "");
+        for c in CLIENTS {
+            let direct = format!("{c}=");
+            let quoted = format!("\"{c}\"");
+            if t.starts_with(&direct) || t.contains(&quoted) {
+                out.push(c.to_owned());
+            }
+        }
+    }
+    out
+}
+
+const TOKIO_PROCESS_ALLOWED: [&str; 2] = ["anybot-computers", "test-harness"];
+const TOKIO_FS_ALLOWED: [&str; 5] = [
+    "anybot-computers",
+    "anybot-blob",
+    "anybot-store-client",
+    "anybot-foundation",
+    "test-harness",
+];
+const HTTP_CLIENT_ALLOWED: [&str; 6] = [
+    "anybot-models",
+    "anybot-mcp",
+    "anybot-sync",
+    "anybot-channels",
+    "anybot-computers",
+    "test-harness",
+];
+
+#[must_use]
+pub fn cargo_toml_violations(files: &[(String, String)]) -> Vec<String> {
+    let mut violations = Vec::new();
+    for (path, content) in files {
+        if !path.ends_with("Cargo.toml") {
+            continue;
+        }
+        let Some(pkg) = package_name_in_toml(content) else {
+            continue;
+        };
+        for f in feature_list_of(content, "tokio") {
+            if f == "process" && !TOKIO_PROCESS_ALLOWED.contains(&pkg.as_str()) {
+                violations.push(format!(
+                    "{path}：tokio 的 process 功能只准 {TOKIO_PROCESS_ALLOWED:?}（spec/07 §3）"
+                ));
+            }
+            if f == "fs" && !TOKIO_FS_ALLOWED.contains(&pkg.as_str()) {
+                violations.push(format!(
+                    "{path}：tokio 的 fs 功能只准 {TOKIO_FS_ALLOWED:?}（spec/07 §3）"
+                ));
+            }
+        }
+        for c in http_client_names(content) {
+            if !HTTP_CLIENT_ALLOWED.contains(&pkg.as_str()) {
+                violations.push(format!(
+                    "{path}：HTTP 客戶端套件 {c} 只准 {HTTP_CLIENT_ALLOWED:?}（spec/07 §3）"
+                ));
+            }
+        }
+    }
+    violations
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,6 +216,32 @@ mod tests {
                 .any(|s| s.contains("crates/foundation/src/lib.rs:1"))
         );
         assert!(v.iter().any(|s| s.contains("apps/cli/src/main.rs:1")));
+    }
+
+    #[test]
+    fn test_depcheck_blocks_extra_features_and_http_clients() {
+        let files = vec![
+            (
+                "crates/server/Cargo.toml".to_owned(),
+                "[package]\nname = \"anybot-server\"\ntokio = { workspace = true, features = [\"process\", \"fs\", \"net\"] }\nreqwest = { workspace = true }\n".to_owned(),
+            ),
+            (
+                "crates/computers/Cargo.toml".to_owned(),
+                "[package]\nname = \"anybot-computers\"\ntokio = { workspace = true, features = [\"process\"] }\nreqwest = { workspace = true }\n".to_owned(),
+            ),
+            (
+                "tests/harness/Cargo.toml".to_owned(),
+                "[package]\nname = \"test-harness\"\ntokio = { workspace = true, features = [\"fs\", \"process\"] }\nureq = \"2\"\n".to_owned(),
+            ),
+            (
+                "Cargo.toml".to_owned(),
+                "[workspace]\n[workspace.dependencies]\ntokio = { version = \"1\", features = [\"macros\", \"rt\", \"net\"] }\nreqwest = { version = \"0.12\", features = [\"rustls\"] }\n".to_owned(),
+            ),
+        ];
+        let v = cargo_toml_violations(&files);
+        assert_eq!(v.len(), 3);
+        assert!(v.iter().any(|s| s.contains("crates/server/Cargo.toml")));
+        assert!(v.iter().all(|s| s.contains("只准")));
     }
 
     #[test]

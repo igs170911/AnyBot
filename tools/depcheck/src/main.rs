@@ -27,6 +27,10 @@ fn collect_source_files(dir: &Path, prefix: &str, out: &mut Vec<(String, String)
             && let Ok(content) = read_to_string_lossy(&path)
         {
             out.push((rel, content));
+        } else if path.file_name().is_some_and(|n| n == "Cargo.toml")
+            && let Ok(content) = read_to_string_lossy(&path)
+        {
+            out.push((rel, content));
         }
     }
 }
@@ -98,10 +102,14 @@ fn main() -> ExitCode {
         }
     };
     let mut files = Vec::new();
-    for dir in ["crates", "apps", "tools"] {
+    for dir in ["crates", "apps", "tools", "tests"] {
         collect_source_files(&PathBuf::from(dir), "", &mut files);
     }
+    if let Ok(content) = read_to_string_lossy(&PathBuf::from("Cargo.toml")) {
+        files.push(("Cargo.toml".to_owned(), content));
+    }
     violations.extend(depcheck::scan_exemption_attrs(&files));
+    violations.extend(depcheck::cargo_toml_violations(&files));
     violations.extend(depcheck::env_usage_violations(&files));
     report(&violations, files.len())
 }

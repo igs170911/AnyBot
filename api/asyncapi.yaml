@@ -4,9 +4,26 @@ channels:
     address: /v1/tasks/{taskId}/events/stream
     description: 依任務推送事件；每則有遞增編號。
     messages:
-      runEvent:
-        payload:
-          $ref: "#/components/schemas/runEventEnvelope"
+      approval_card:
+        $ref: '#/components/messages/approval_card'
+      evidence_added:
+        $ref: '#/components/messages/evidence_added'
+      run_error:
+        $ref: '#/components/messages/run_error'
+      task_status_changed:
+        $ref: '#/components/messages/task_status_changed'
+      tool_call_result:
+        $ref: '#/components/messages/tool_call_result'
+      tool_call_started:
+        $ref: '#/components/messages/tool_call_started'
+      turn_ended:
+        $ref: '#/components/messages/turn_ended'
+      turn_started:
+        $ref: '#/components/messages/turn_started'
+      turn_text:
+        $ref: '#/components/messages/turn_text'
+      turn_thinking:
+        $ref: '#/components/messages/turn_thinking'
 components:
   messages:
     approval_card:
@@ -16,27 +33,28 @@ components:
           data:
             properties:
               card_id:
-                $ref: "#/$defs/CardId"
+                $ref: '#/components/schemas/CardId'
               options:
                 items:
                   type: string
                 type: array
               summary:
+                examples:
+                - 2026-01-01T00:00:00Z
                 type: string
-              turn_id:
-                $ref: "#/$defs/TurnId"
             required:
-              - turn_id
-              - card_id
-              - summary
-              - options
+            - card_id
+            - summary
+            - options
             type: object
           kind:
             const: approval_card
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: approval_card
@@ -47,25 +65,26 @@ components:
           data:
             properties:
               blob_id:
-                $ref: "#/$defs/BlobId"
+                $ref: '#/components/schemas/BlobId'
               evidence_id:
-                $ref: "#/$defs/EvidenceId"
+                $ref: '#/components/schemas/EvidenceId'
               summary:
+                examples:
+                - 2026-01-01T00:00:00Z
                 type: string
-              turn_id:
-                $ref: "#/$defs/TurnId"
             required:
-              - turn_id
-              - evidence_id
-              - summary
-              - blob_id
+            - evidence_id
+            - summary
+            - blob_id
             type: object
           kind:
             const: evidence_added
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: evidence_added
@@ -76,16 +95,20 @@ components:
           data:
             properties:
               message:
+                examples:
+                - 2026-01-01T00:00:00Z
                 type: string
             required:
-              - message
+            - message
             type: object
           kind:
             const: run_error
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: run_error
@@ -95,17 +118,26 @@ components:
         properties:
           data:
             properties:
+              detail:
+                anyOf:
+                - $ref: '#/components/schemas/CompletedDetail'
+                - type: 'null'
               status:
-                $ref: "#/$defs/TaskStatus"
+                $ref: '#/components/schemas/TaskStatus'
+              task_id:
+                $ref: '#/components/schemas/TaskId'
             required:
-              - status
+            - task_id
+            - status
             type: object
           kind:
             const: task_status_changed
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: task_status_changed
@@ -116,24 +148,25 @@ components:
           data:
             properties:
               call_id:
-                $ref: "#/$defs/CallId"
+                $ref: '#/components/schemas/CallId'
               ok:
+                examples:
+                - true
                 type: boolean
               output: true
-              turn_id:
-                $ref: "#/$defs/TurnId"
             required:
-              - turn_id
-              - call_id
-              - ok
-              - output
+            - call_id
+            - ok
+            - output
             type: object
           kind:
             const: tool_call_result
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: tool_call_result
@@ -145,23 +178,24 @@ components:
             properties:
               args: true
               call_id:
-                $ref: "#/$defs/CallId"
+                $ref: '#/components/schemas/CallId'
               name:
+                examples:
+                - 2026-01-01T00:00:00Z
                 type: string
-              turn_id:
-                $ref: "#/$defs/TurnId"
             required:
-              - turn_id
-              - call_id
-              - name
-              - args
+            - call_id
+            - name
+            - args
             type: object
           kind:
             const: tool_call_started
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: tool_call_started
@@ -170,18 +204,15 @@ components:
       payload:
         properties:
           data:
-            properties:
-              turn_id:
-                $ref: "#/$defs/TurnId"
-            required:
-              - turn_id
             type: object
           kind:
             const: turn_ended
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: turn_ended
@@ -190,18 +221,15 @@ components:
       payload:
         properties:
           data:
-            properties:
-              turn_id:
-                $ref: "#/$defs/TurnId"
-            required:
-              - turn_id
             type: object
           kind:
             const: turn_started
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: turn_started
@@ -212,19 +240,20 @@ components:
           data:
             properties:
               text:
+                examples:
+                - 2026-01-01T00:00:00Z
                 type: string
-              turn_id:
-                $ref: "#/$defs/TurnId"
             required:
-              - turn_id
-              - text
+            - text
             type: object
           kind:
             const: turn_text
+            examples:
+            - 2026-01-01T00:00:00Z
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
       summary: 執行事件協定的事件種類
       title: turn_text
@@ -235,303 +264,323 @@ components:
           data:
             properties:
               text:
+                examples:
+                - 2026-01-01T00:00:00Z
                 type: string
-              turn_id:
-                $ref: "#/$defs/TurnId"
             required:
-              - turn_id
-              - text
+            - text
+            type: object
+          kind:
+            const: turn_thinking
+            examples:
+            - 2026-01-01T00:00:00Z
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      summary: 執行事件協定的事件種類
+      title: turn_thinking
+  schemas:
+    BlobId:
+      format: uuid
+      type: string
+    CallId:
+      format: uuid
+      type: string
+    CardId:
+      format: uuid
+      type: string
+    CompletedDetail:
+      enum:
+      - delivered
+      - user_confirmed
+      - accepted
+      - unverified
+      - stopped
+      - cancelled
+      type: string
+    EventId:
+      format: uuid
+      type: string
+    EventKind:
+      anyOf:
+      - $ref: '#/components/schemas/KnownEventKind'
+      - $ref: '#/components/schemas/RawEventKind'
+    EvidenceId:
+      format: uuid
+      type: string
+    KnownEventKind:
+      oneOf:
+      - properties:
+          data:
+            type: object
+          kind:
+            const: turn_started
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      - properties:
+          data:
+            properties:
+              text:
+                type: string
+            required:
+            - text
+            type: object
+          kind:
+            const: turn_text
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      - properties:
+          data:
+            properties:
+              text:
+                type: string
+            required:
+            - text
             type: object
           kind:
             const: turn_thinking
             type: string
         required:
-          - kind
-          - data
+        - kind
+        - data
         type: object
-      summary: 執行事件協定的事件種類
-      title: turn_thinking
-  schemas:
+      - properties:
+          data:
+            type: object
+          kind:
+            const: turn_ended
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      - properties:
+          data:
+            properties:
+              args: true
+              call_id:
+                $ref: '#/components/schemas/CallId'
+              name:
+                type: string
+            required:
+            - call_id
+            - name
+            - args
+            type: object
+          kind:
+            const: tool_call_started
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      - properties:
+          data:
+            properties:
+              call_id:
+                $ref: '#/components/schemas/CallId'
+              ok:
+                type: boolean
+              output: true
+            required:
+            - call_id
+            - ok
+            - output
+            type: object
+          kind:
+            const: tool_call_result
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      - properties:
+          data:
+            properties:
+              card_id:
+                $ref: '#/components/schemas/CardId'
+              options:
+                items:
+                  type: string
+                type: array
+              summary:
+                type: string
+            required:
+            - card_id
+            - summary
+            - options
+            type: object
+          kind:
+            const: approval_card
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      - properties:
+          data:
+            properties:
+              blob_id:
+                $ref: '#/components/schemas/BlobId'
+              evidence_id:
+                $ref: '#/components/schemas/EvidenceId'
+              summary:
+                type: string
+            required:
+            - evidence_id
+            - summary
+            - blob_id
+            type: object
+          kind:
+            const: evidence_added
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      - properties:
+          data:
+            properties:
+              detail:
+                anyOf:
+                - $ref: '#/components/schemas/CompletedDetail'
+                - type: 'null'
+              status:
+                $ref: '#/components/schemas/TaskStatus'
+              task_id:
+                $ref: '#/components/schemas/TaskId'
+            required:
+            - task_id
+            - status
+            type: object
+          kind:
+            const: task_status_changed
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+      - properties:
+          data:
+            properties:
+              message:
+                type: string
+            required:
+            - message
+            type: object
+          kind:
+            const: run_error
+            type: string
+        required:
+        - kind
+        - data
+        type: object
+    RawEventKind:
+      properties:
+        data: true
+        kind:
+          type: string
+      required:
+      - kind
+      - data
+      type: object
+    TaskId:
+      format: uuid
+      type: string
+    TaskStatus:
+      enum:
+      - running
+      - awaiting_user
+      - stuck
+      - completed
+      - failed
+      type: string
+    TurnId:
+      format: uuid
+      type: string
     runEventEnvelope:
-      $defs:
-        BlobId:
-          format: uuid
-          type: string
-        CallId:
-          format: uuid
-          type: string
-        CardId:
-          format: uuid
-          type: string
-        EventId:
-          format: uuid
-          type: string
-        EventKind:
-          oneOf:
-            - properties:
-                data:
-                  properties:
-                    turn_id:
-                      $ref: "#/$defs/TurnId"
-                  required:
-                    - turn_id
-                  type: object
-                kind:
-                  const: turn_started
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    text:
-                      type: string
-                    turn_id:
-                      $ref: "#/$defs/TurnId"
-                  required:
-                    - turn_id
-                    - text
-                  type: object
-                kind:
-                  const: turn_text
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    text:
-                      type: string
-                    turn_id:
-                      $ref: "#/$defs/TurnId"
-                  required:
-                    - turn_id
-                    - text
-                  type: object
-                kind:
-                  const: turn_thinking
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    turn_id:
-                      $ref: "#/$defs/TurnId"
-                  required:
-                    - turn_id
-                  type: object
-                kind:
-                  const: turn_ended
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    args: true
-                    call_id:
-                      $ref: "#/$defs/CallId"
-                    name:
-                      type: string
-                    turn_id:
-                      $ref: "#/$defs/TurnId"
-                  required:
-                    - turn_id
-                    - call_id
-                    - name
-                    - args
-                  type: object
-                kind:
-                  const: tool_call_started
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    call_id:
-                      $ref: "#/$defs/CallId"
-                    ok:
-                      type: boolean
-                    output: true
-                    turn_id:
-                      $ref: "#/$defs/TurnId"
-                  required:
-                    - turn_id
-                    - call_id
-                    - ok
-                    - output
-                  type: object
-                kind:
-                  const: tool_call_result
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    card_id:
-                      $ref: "#/$defs/CardId"
-                    options:
-                      items:
-                        type: string
-                      type: array
-                    summary:
-                      type: string
-                    turn_id:
-                      $ref: "#/$defs/TurnId"
-                  required:
-                    - turn_id
-                    - card_id
-                    - summary
-                    - options
-                  type: object
-                kind:
-                  const: approval_card
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    blob_id:
-                      $ref: "#/$defs/BlobId"
-                    evidence_id:
-                      $ref: "#/$defs/EvidenceId"
-                    summary:
-                      type: string
-                    turn_id:
-                      $ref: "#/$defs/TurnId"
-                  required:
-                    - turn_id
-                    - evidence_id
-                    - summary
-                    - blob_id
-                  type: object
-                kind:
-                  const: evidence_added
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    status:
-                      $ref: "#/$defs/TaskStatus"
-                  required:
-                    - status
-                  type: object
-                kind:
-                  const: task_status_changed
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-            - properties:
-                data:
-                  properties:
-                    message:
-                      type: string
-                  required:
-                    - message
-                  type: object
-                kind:
-                  const: run_error
-                  type: string
-              required:
-                - kind
-                - data
-              type: object
-        EvidenceId:
-          format: uuid
-          type: string
-        TaskId:
-          format: uuid
-          type: string
-        TaskStatus:
-          enum:
-            - queued
-            - running
-            - paused
-            - awaiting_approval
-            - completed
-            - failed
-            - cancelled
-          type: string
-        TurnId:
-          format: uuid
-          type: string
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
         at_ms:
+          examples:
+          - 1
           format: uint64
           minimum: 0
           type: integer
         event_id:
-          $ref: "#/$defs/EventId"
+          $ref: '#/components/schemas/EventId'
         kind:
-          $ref: "#/$defs/EventKind"
+          $ref: '#/components/schemas/EventKind'
         protocol_version:
+          examples:
+          - 1
           format: uint32
           minimum: 0
           type: integer
         seq:
+          examples:
+          - 1
           format: uint64
           minimum: 0
           type: integer
-        task_id:
-          $ref: "#/$defs/TaskId"
+        turn_id:
+          $ref: '#/components/schemas/TurnId'
       required:
-        - event_id
-        - task_id
-        - seq
-        - at_ms
-        - protocol_version
-        - kind
-      title: RunEvent
+      - seq
+      - event_id
+      - turn_id
+      - at_ms
+      - protocol_version
+      - kind
+      title: RecordedEvent
       type: object
   securitySchemes:
     bearer:
-      scheme: bearer
-      type: http
+      in: header
+      name: Authorization
+      type: httpApiKey
 info:
+  contact:
+    name: AnyBot 開發團隊
+    url: http://127.0.0.1:8787/v1/health
   description: 伺服器推給執行端與畫面的執行事件，走 SSE；內容 schema 由 Rust 型別產生。
+  license:
+    name: MIT OR Apache-2.0
+    url: https://opensource.org/license/mit/
   title: AnyBot 執行事件協定
-  version: "1"
+  version: '1'
 operations:
   streamRunEvents:
     action: receive
     channel:
-      $ref: "#/channels/runEvents"
+      $ref: '#/channels/runEvents'
     description: 客戶端從伺服器接收事件串流
     messages:
-      - "#/components/messages/approval_card"
-      - "#/components/messages/evidence_added"
-      - "#/components/messages/run_error"
-      - "#/components/messages/task_status_changed"
-      - "#/components/messages/tool_call_result"
-      - "#/components/messages/tool_call_started"
-      - "#/components/messages/turn_ended"
-      - "#/components/messages/turn_started"
-      - "#/components/messages/turn_text"
-      - "#/components/messages/turn_thinking"
+    - $ref: '#/components/messages/approval_card'
+    - $ref: '#/components/messages/evidence_added'
+    - $ref: '#/components/messages/run_error'
+    - $ref: '#/components/messages/task_status_changed'
+    - $ref: '#/components/messages/tool_call_result'
+    - $ref: '#/components/messages/tool_call_started'
+    - $ref: '#/components/messages/turn_ended'
+    - $ref: '#/components/messages/turn_started'
+    - $ref: '#/components/messages/turn_text'
+    - $ref: '#/components/messages/turn_thinking'
+    operationId: stream_run_events
     security:
-      - bearer: []
+    - description: M3 佔位；Bearer 金鑰。
+      in: header
+      name: Authorization
+      type: httpApiKey
+    tags:
+    - description: 執行事件協定的事件種類
+      name: events
+    title: 接收事件串流

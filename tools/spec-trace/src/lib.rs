@@ -14,7 +14,7 @@ pub fn spec_ids_from_md(content: &str) -> Result<BTreeSet<String>, String> {
 pub fn code_ids_from_source(content: &str) -> Result<BTreeSet<String>, String> {
     use regex::Regex;
     let re = Regex::new(
-        r"(?m)^#\[[^\]]*\btest\b[^\]]*\]\s*\n(?:\s*#[^\n]*\]\s*\n)*(?:\s*(?:pub(?:\(crate\))?\s+)?)?(?:async\s+)?fn\s+t_([A-Za-z0-9_]+)\b",
+        r"(?m)^\s*#\[[^\]]*\btest\b[^\]]*\]\s*\n(?:\s*(?://[^\n]*|#[^\n]*)\n)*\s*(?:pub(?:\(crate\))?\s+)?(?:async\s+)?fn\s+t_([A-Za-z0-9_]+)\b",
     )
     .map_err(|e| format!("Rust 測試名稱樣式解析失敗：{e}"))?;
     Ok(re
@@ -141,3 +141,7 @@ pub fn check(
         missing: spec_ids.len().saturating_sub(tested),
     }
 }
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;

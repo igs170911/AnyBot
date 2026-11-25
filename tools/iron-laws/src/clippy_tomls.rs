@@ -1,4 +1,5 @@
-use crate::table::{clippy_exemptions, package_of_path};
+use crate::exemptions::clippy_exemptions;
+use crate::table::package_of_path;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 

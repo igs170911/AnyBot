@@ -103,7 +103,7 @@ fn find_clippy_tomls(dir: &Path, repo: &Path, out: &mut Vec<String>) {
 #[must_use]
 pub fn clippy_toml_files(repo: &Path) -> Vec<(String, String)> {
     let mut rels = Vec::new();
-    for dir in ["crates", "apps", "tools"] {
+    for dir in ["crates", "apps", "tools", "tests"] {
         find_clippy_tomls(&repo.join(dir), repo, &mut rels);
     }
     rels.sort();

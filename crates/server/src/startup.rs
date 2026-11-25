@@ -37,8 +37,22 @@ pub fn prepare(args: &ServerLaunchArgs, version: &str) -> Result<ServerStartup, 
 pub async fn bind_listeners(port: u16) -> std::io::Result<Vec<TcpListener>> {
     let v4 = SocketAddr::from(([127, 0, 0, 1], port));
     let v6 = SocketAddr::from((std::net::Ipv6Addr::LOCALHOST, port));
-    let mut out = Vec::new();
-    out.push(TcpListener::bind(v4).await?);
-    out.push(TcpListener::bind(v6).await?);
+    let out = vec![bind_one(v4)?, bind_one(v6)?];
     Ok(out)
+}
+
+fn bind_one(addr: SocketAddr) -> std::io::Result<TcpListener> {
+    let domain = if addr.is_ipv4() {
+        socket2::Domain::IPV4
+    } else {
+        socket2::Domain::IPV6
+    };
+    let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
+    socket.set_reuse_address(true)?;
+    socket.set_reuse_port(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(128)?;
+    let std_listener: std::net::TcpListener = socket.into();
+    std_listener.set_nonblocking(true)?;
+    TcpListener::from_std(std_listener)
 }

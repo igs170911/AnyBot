@@ -10,6 +10,7 @@ members = [
     "apps/desktop/src-tauri",
     "apps/desktop/context",
     "tools/*",
+    "tests/harness",
 ]
 
 [workspace.package]
@@ -37,14 +38,18 @@ anybot-blob = { path = "crates/blob", version = "0.1.0" }
 anybot-channels = { path = "crates/channels", version = "0.1.0" }
 anybot-server = { path = "crates/server", version = "0.1.0" }
 anybot-migrate-old = { path = "crates/migrate-old", version = "0.1.0" }
+test-harness = { path = "tests/harness", version = "0.1.0" }
 # 外部套件（照 spec/06）
 anyhow = "1"
 time = { version = "0.3", features = ["formatting", "macros"] }
 axum = "0.8"
 rand = "0.10"
 schemars = { version = "1", features = ["uuid1"] }
-noyalib = "0.0.64"
+yaml_serde = "0.10"
+url = "2"
+percent-encoding = "2"
 tokio = { version = "1", features = ["macros", "rt", "net"] }
+socket2 = "0.6"
 trybuild = "1"
 utoipa = { version = "6", features = ["yaml", "uuid"] }
 uuid = { version = "1", features = ["std", "serde"] }

@@ -5,6 +5,7 @@ pub mod collect;
 pub mod comments;
 pub mod deny_limits;
 pub mod editions;
+pub mod exemptions;
 pub mod lines;
 pub mod lints;
 pub mod suppressions;

@@ -1,114 +1,200 @@
 use super::*;
-use anybot_foundation::{BlobId, CallId, CardId, EventId, EvidenceId, SystemClock, TaskId, TurnId};
+use anybot_foundation::{BlobId, CallId, CardId, Clock, EvidenceId, SystemClock, TaskId, TurnId};
 use proptest::prelude::*;
 
-const TASK: &str = "018f3b7e-2b3f-7000-8000-000000000000";
+const TURN: &str = "018f3b7e-2b3f-7000-8000-000000000000";
+const TASK: &str = "019f3b7e-2b3f-7000-8000-000000000001";
 
-fn text_kind() -> EventKind {
-    EventKind::TurnText {
-        turn_id: TurnId::generate(&SystemClock),
-        text: "你好".to_owned(),
+struct FixedClock(u64);
+
+impl Clock for FixedClock {
+    fn now_ms(&self) -> TimestampMs {
+        TimestampMs::from_millis(self.0)
     }
 }
 
-fn sample_event(seq: u64, kind: EventKind) -> RunEvent {
-    RunEvent::new(&SystemClock, TaskId::parse(TASK).unwrap(), seq, kind)
+fn turn() -> TurnId {
+    TurnId::parse(TURN).unwrap()
+}
+
+fn text_kind() -> EventKind {
+    EventKind::Known(KnownEventKind::TurnText {
+        text: "你好".to_owned(),
+    })
+}
+
+fn sample_event(kind: EventKind) -> RunEvent {
+    RunEvent::new(&SystemClock, turn(), kind)
 }
 
 #[test]
 fn test_events_roundtrip_keeps_content() {
-    let e = sample_event(3, text_kind());
+    let e = sample_event(text_kind());
     let json = serde_json::to_string(&e).unwrap();
     let back: RunEvent = serde_json::from_str(&json).unwrap();
     assert_eq!(back, e);
-    assert_eq!(e.seq, 3);
 }
 
 #[test]
-fn test_events_envelope_fields_serialized() {
-    let e = sample_event(
-        9,
-        EventKind::TurnEnded {
-            turn_id: TurnId::generate(&SystemClock),
-        },
-    );
+fn test_events_envelope_has_turn_id_and_no_task_id_or_seq() {
+    let e = sample_event(text_kind());
     let value: serde_json::Value = serde_json::to_value(&e).unwrap();
-    assert_eq!(value.get("seq").unwrap().as_u64(), Some(9));
     assert_eq!(value.get("protocol_version").unwrap().as_u64(), Some(1));
     assert_eq!(
-        value.get("kind").unwrap().get("kind").unwrap().as_str(),
-        Some("turn_ended")
+        value.get("turn_id").unwrap().as_str(),
+        Some("018f3b7e-2b3f-7000-8000-000000000000")
     );
+    assert!(value.get("event_id").unwrap().as_str().is_some());
+    assert!(value.get("at_ms").unwrap().is_number());
+    assert!(value.get("seq").is_none());
+    assert!(value.get("task_id").is_none());
+    assert_eq!(
+        value.get("kind").unwrap().get("kind").unwrap().as_str(),
+        Some("turn_text")
+    );
+}
+
+#[test]
+fn test_events_recorded_adds_seq_keeps_envelope() {
+    let e = sample_event(text_kind());
+    let r = e.recorded(9);
+    let value: serde_json::Value = serde_json::to_value(&r).unwrap();
+    assert_eq!(value.get("seq").unwrap().as_u64(), Some(9));
+    assert_eq!(value.get("turn_id").unwrap().as_str(), Some(TURN));
+    assert_eq!(value.get("protocol_version").unwrap().as_u64(), Some(1));
+    let back: RecordedEvent = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
+    assert_eq!(back, r);
+}
+
+#[test]
+fn test_events_task_status_changed_carries_task_id() {
+    let kind = EventKind::Known(KnownEventKind::TaskStatusChanged {
+        task_id: TaskId::parse(TASK).unwrap(),
+        status: TaskStatus::Completed,
+        detail: Some(CompletedDetail::Delivered),
+    });
+    let e = sample_event(kind);
+    let value: serde_json::Value = serde_json::to_value(&e).unwrap();
+    assert_eq!(
+        value
+            .get("kind")
+            .unwrap()
+            .get("data")
+            .unwrap()
+            .get("task_id")
+            .unwrap()
+            .as_str(),
+        Some(TASK)
+    );
+    assert_eq!(
+        value
+            .get("kind")
+            .unwrap()
+            .get("data")
+            .unwrap()
+            .get("detail")
+            .unwrap()
+            .as_str(),
+        Some("delivered")
+    );
+    let plain = EventKind::Known(KnownEventKind::TaskStatusChanged {
+        task_id: TaskId::parse(TASK).unwrap(),
+        status: TaskStatus::Running,
+        detail: None,
+    });
+    let value: serde_json::Value = serde_json::to_value(sample_event(plain)).unwrap();
     assert!(
         value
             .get("kind")
             .unwrap()
             .get("data")
             .unwrap()
-            .get("turn_id")
-            .unwrap()
-            .as_str()
-            .is_some_and(|s| EventId::parse(s).is_ok())
+            .get("detail")
+            .is_none()
     );
-    assert!(value.get("at_ms").unwrap().is_number());
 }
 
 #[test]
-fn t_agent_ext_protocol_5() {
-    let mut e = sample_event(1, text_kind());
-    assert!(e.accept().is_ok());
-    e.protocol_version = 0;
-    assert!(e.accept().is_err());
+fn test_events_unknown_kind_keeps_raw_and_batch_parses() {
+    let json = r#"{"event_id":"019f3b7e-2b3f-7000-8000-000000000002","turn_id":"018f3b7e-2b3f-7000-8000-000000000000","at_ms":1700000000000,"protocol_version":1,"kind":{"kind":"mystery_kind","data":{"stuff":[1,2]}}}"#;
+    let batch = format!(
+        "[{json},{}]",
+        serde_json::to_string(&sample_event(text_kind())).unwrap()
+    );
+    let events: Vec<RunEvent> = serde_json::from_str(&batch).unwrap();
+    assert_eq!(events.len(), 2);
+    let first = events.first().unwrap();
+    assert_eq!(
+        first.kind,
+        EventKind::Raw(RawEventKind {
+            kind: "mystery_kind".to_owned(),
+            data: serde_json::json!({"stuff": [1, 2]}),
+        })
+    );
+    let back = serde_json::to_string(&first.kind).unwrap();
+    let reparsed: EventKind = serde_json::from_str(&back).unwrap();
+    assert_eq!(reparsed, first.kind);
+    assert_eq!(first.kind.kind_name(), "mystery_kind");
+}
+
+#[test]
+fn test_events_accept_accepts_current_and_rejects_old_after_grace() {
+    let e = sample_event(text_kind());
+    assert!(e.accept(&SystemClock).is_ok());
+    let mut old = sample_event(text_kind());
+    old.protocol_version = 0;
+    assert!(old.accept(&SystemClock).is_err());
+    let mut old = sample_event(text_kind());
+    old.protocol_version = 1;
+    let long_past = FixedClock(1_000_000_000_000);
+    assert!(old.accept(&long_past).is_ok());
 }
 
 #[test]
 fn test_events_all_kinds_roundtrip() {
-    let turn = TurnId::generate(&SystemClock);
     let call = CallId::generate(&SystemClock);
     let card = CardId::generate(&SystemClock);
     let ev = EvidenceId::generate(&SystemClock);
     let blob = BlobId::generate(&SystemClock);
+    let task = TaskId::parse(TASK).unwrap();
     let kinds = vec![
-        EventKind::TurnStarted { turn_id: turn },
+        EventKind::Known(KnownEventKind::TurnStarted {}),
         text_kind(),
-        EventKind::TurnThinking {
-            turn_id: turn,
+        EventKind::Known(KnownEventKind::TurnThinking {
             text: "想".to_owned(),
-        },
-        EventKind::TurnEnded { turn_id: turn },
-        EventKind::ToolCallStarted {
-            turn_id: turn,
+        }),
+        EventKind::Known(KnownEventKind::TurnEnded {}),
+        EventKind::Known(KnownEventKind::ToolCallStarted {
             call_id: call,
             name: "ls".to_owned(),
             args: serde_json::json!({"p": "."}),
-        },
-        EventKind::ToolCallResult {
-            turn_id: turn,
+        }),
+        EventKind::Known(KnownEventKind::ToolCallResult {
             call_id: call,
             ok: true,
             output: serde_json::json!("done"),
-        },
-        EventKind::ApprovalCard {
-            turn_id: turn,
+        }),
+        EventKind::Known(KnownEventKind::ApprovalCard {
             card_id: card,
             summary: "s".to_owned(),
             options: vec!["yes".to_owned()],
-        },
-        EventKind::EvidenceAdded {
-            turn_id: turn,
+        }),
+        EventKind::Known(KnownEventKind::EvidenceAdded {
             evidence_id: ev,
             summary: "e".to_owned(),
             blob_id: blob,
-        },
-        EventKind::TaskStatusChanged {
+        }),
+        EventKind::Known(KnownEventKind::TaskStatusChanged {
+            task_id: task,
             status: TaskStatus::Running,
-        },
-        EventKind::RunError {
+            detail: None,
+        }),
+        EventKind::Known(KnownEventKind::RunError {
             message: "m".to_owned(),
-        },
+        }),
     ];
     for kind in kinds {
-        let e = sample_event(1, kind.clone());
+        let e = sample_event(kind.clone());
         let json = serde_json::to_string(&e).unwrap();
         let back: RunEvent = serde_json::from_str(&json).unwrap();
         assert_eq!(back.kind, kind);
@@ -116,59 +202,49 @@ fn test_events_all_kinds_roundtrip() {
 }
 
 fn kind_strategy() -> BoxedStrategy<EventKind> {
-    let turn = Just(TurnId::generate(&SystemClock)).boxed();
     let text = proptest::string::string_regex("[a-z]{0,8}")
         .unwrap()
         .boxed();
     prop_oneof![
-        turn.clone()
-            .prop_map(|t| EventKind::TurnStarted { turn_id: t }),
-        (turn.clone(), text.clone()).prop_map(|(t, s)| EventKind::TurnText {
-            turn_id: t,
-            text: s.clone(),
+        Just(EventKind::Known(KnownEventKind::TurnStarted {})),
+        text.clone()
+            .prop_map(|s| EventKind::Known(KnownEventKind::TurnText { text: s.clone() })),
+        text.clone()
+            .prop_map(|s| EventKind::Known(KnownEventKind::TurnThinking { text: s.clone() })),
+        Just(EventKind::Known(KnownEventKind::TurnEnded {})),
+        (text.clone(), Just(CallId::generate(&SystemClock)),).prop_map(|(n, c)| {
+            EventKind::Known(KnownEventKind::ToolCallStarted {
+                call_id: c,
+                name: n.clone(),
+                args: serde_json::Value::Null,
+            })
         }),
-        (turn.clone(), text.clone()).prop_map(|(t, s)| EventKind::TurnThinking {
-            turn_id: t,
-            text: s.clone(),
-        }),
-        turn.clone()
-            .prop_map(|t| EventKind::TurnEnded { turn_id: t }),
-        (
-            turn.clone(),
-            proptest::string::string_regex("[a-z]{1,6}")
-                .unwrap()
-                .boxed()
-        )
-            .prop_map(|(t, n)| {
-                EventKind::ToolCallStarted {
-                    turn_id: t,
-                    call_id: CallId::generate(&SystemClock),
-                    name: n.clone(),
-                    args: serde_json::Value::Null,
-                }
-            }),
-        turn.clone().prop_map(|t| EventKind::ToolCallResult {
-            turn_id: t,
+        Just(EventKind::Known(KnownEventKind::ToolCallResult {
             call_id: CallId::generate(&SystemClock),
             ok: true,
             output: serde_json::Value::Null,
+        })),
+        (text.clone(), Just(CardId::generate(&SystemClock))).prop_map(|(s, c)| {
+            EventKind::Known(KnownEventKind::ApprovalCard {
+                card_id: c,
+                summary: s.clone(),
+                options: vec![],
+            })
         }),
-        (turn.clone(), text.clone()).prop_map(|(t, s)| EventKind::ApprovalCard {
-            turn_id: t,
-            card_id: CardId::generate(&SystemClock),
-            summary: s.clone(),
-            options: vec![],
-        }),
-        (turn.clone(), text.clone()).prop_map(|(t, s)| EventKind::EvidenceAdded {
-            turn_id: t,
-            evidence_id: EvidenceId::generate(&SystemClock),
-            summary: s.clone(),
-            blob_id: BlobId::generate(&SystemClock),
-        }),
-        Just(EventKind::TaskStatusChanged {
-            status: TaskStatus::Completed,
-        }),
-        text.prop_map(|s| EventKind::RunError { message: s.clone() }),
+        (
+            text.clone(),
+            Just(EvidenceId::generate(&SystemClock)),
+            Just(BlobId::generate(&SystemClock)),
+        )
+            .prop_map(|(s, e, b)| {
+                EventKind::Known(KnownEventKind::EvidenceAdded {
+                    evidence_id: e,
+                    summary: s.clone(),
+                    blob_id: b,
+                })
+            }),
+        text.clone()
+            .prop_map(|s| EventKind::Known(KnownEventKind::RunError { message: s.clone() })),
     ]
     .boxed()
 }
@@ -176,7 +252,7 @@ fn kind_strategy() -> BoxedStrategy<EventKind> {
 proptest! {
     #[test]
     fn prop_events_roundtrip(kind in kind_strategy()) {
-        let e = RunEvent::new(&SystemClock, TaskId::generate(&SystemClock), 7, kind);
+        let e = RunEvent::new(&SystemClock, TurnId::generate(&SystemClock), kind);
         let json = serde_json::to_string(&e).unwrap();
         let back: RunEvent = serde_json::from_str(&json).unwrap();
         prop_assert_eq!(back, e);

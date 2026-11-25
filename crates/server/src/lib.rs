@@ -10,9 +10,8 @@ use serde_json as _;
 
 pub mod app;
 pub mod health;
-#[cfg(test)]
-mod health_tests;
 pub mod openapi;
+pub mod serve_all;
 pub mod startup;
 
 pub use app::{AppState, build_router};

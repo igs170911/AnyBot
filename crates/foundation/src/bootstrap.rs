@@ -1,0 +1,113 @@
+use std::io::Read;
+use std::path::Path;
+
+use url::Url;
+
+use crate::error::FoundationError;
+use crate::secret::Secret;
+
+#[derive(Debug)]
+pub struct ServerBootstrap {
+    pub user: String,
+    pub password: Secret,
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub query: String,
+}
+
+impl ServerBootstrap {
+    #[must_use]
+    pub fn describe_db(&self) -> String {
+        format!("{}/{}", self.host, self.database)
+    }
+
+    pub fn read(path: &Path) -> Result<Self, FoundationError> {
+        let mut file = std::fs::File::open(path).map_err(|e| {
+            FoundationError::BootstrapNotFound(format!(
+                "找不到啟動檔 {}（用 --bootstrap 指定）：{e}",
+                path.display()
+            ))
+        })?;
+        let meta = file.metadata().map_err(|e| {
+            FoundationError::BootstrapNotFound(format!(
+                "讀啟動檔 {} 的權限失敗：{e}",
+                path.display()
+            ))
+        })?;
+        check_permissions(path, &meta)?;
+        let mut text = String::new();
+        file.read_to_string(&mut text).map_err(|e| {
+            FoundationError::BootstrapNotFound(format!("讀啟動檔 {} 失敗：{e}", path.display()))
+        })?;
+        parse_connection(text.trim())
+    }
+}
+
+fn check_permissions(path: &Path, meta: &std::fs::Metadata) -> Result<(), FoundationError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let mode = meta.mode() & 0o777;
+        if mode & 0o077 != 0 {
+            return Err(FoundationError::BootstrapPermissions(format!(
+                "啟動檔的權限太開放（{mode:o}）：改成只有擁有者能讀（{}）",
+                path.display()
+            )));
+        }
+    }
+    Ok(())
+}
+
+pub fn parse_connection(text: &str) -> Result<ServerBootstrap, FoundationError> {
+    let url = Url::parse(text)
+        .map_err(|_| FoundationError::BootstrapMalformed("啟動檔的連線位址格式不對".to_owned()))?;
+    if url.scheme() != "postgres" && url.scheme() != "postgresql" {
+        return Err(FoundationError::BootstrapMalformed(
+            "啟動檔的連線位址不是 postgresql:// 或 postgres://".to_owned(),
+        ));
+    }
+    if url.username().is_empty() && url.password().is_none() {
+        return Err(FoundationError::BootstrapMalformed(
+            "啟動檔缺少使用者與密碼".to_owned(),
+        ));
+    }
+    let user = percent_decode(url.username());
+    let password = url.password().unwrap_or("").to_owned();
+    if user.is_empty() || password.is_empty() {
+        return Err(FoundationError::BootstrapMalformed(
+            "啟動檔缺少使用者與密碼".to_owned(),
+        ));
+    }
+    let host = url
+        .host_str()
+        .ok_or(FoundationError::BootstrapMalformed(
+            "啟動檔缺少主機位址".to_owned(),
+        ))?
+        .to_owned();
+    let port = url
+        .port_or_known_default()
+        .ok_or(FoundationError::BootstrapMalformed(
+            "啟動檔的埠格式錯".to_owned(),
+        ))?;
+    let database = url.path().trim_start_matches('/').to_owned();
+    if database.is_empty() {
+        return Err(FoundationError::BootstrapMalformed(
+            "啟動檔缺少資料庫名稱".to_owned(),
+        ));
+    }
+    Ok(ServerBootstrap {
+        user,
+        password: Secret::from_untrusted(password),
+        host,
+        port,
+        database,
+        query: url.query().unwrap_or("").to_owned(),
+    })
+}
+
+fn percent_decode(part: &str) -> String {
+    percent_encoding::percent_decode_str(part)
+        .decode_utf8_lossy()
+        .into_owned()
+}

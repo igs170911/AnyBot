@@ -4,8 +4,6 @@ use utoipa::openapi::RefOr;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
-use crate::health::HealthResponse;
-
 struct BearerAuth;
 
 impl Modify for BearerAuth {
@@ -26,9 +24,17 @@ impl Modify for BearerAuth {
         title = "AnyBot 伺服器 API",
         description = "AnyBot 新版伺服器的 HTTP API。跟著程式碼產生，文件即合約。",
         version = env!("CARGO_PKG_VERSION"),
+        license(
+            name = "MIT OR Apache-2.0",
+            identifier = "MIT OR Apache-2.0"
+        ),
+        contact(
+            name = "AnyBot 開發團隊",
+            url = "http://127.0.0.1:8787/v1/health"
+        ),
     ),
     paths(crate::health::health),
-    components(schemas(HealthResponse, anybot_protocol::ProblemJson)),
+    components(schemas(crate::health::HealthResponse, anybot_protocol::ProblemJson)),
     servers(
         (url = "http://127.0.0.1:8787", description = "本機開發伺服器（M3 只聽本機）"),
         (url = "http://[::1]:8787", description = "本機 IPv6 開發伺服器"),

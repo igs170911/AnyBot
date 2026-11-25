@@ -14,6 +14,11 @@ jobs:
       # 工具鏈版本由 rust-toolchain.toml 鎖住；這裡只補關卡要用的元件和工具。
       - run: rustup component add rustfmt clippy
       - run: cargo install --locked cargo-deny cargo-machete cargo-nextest
+      # 關卡要用的兩個官方Release 工具（spec/05 §1：gitleaks、oasdiff）。
+      - run: |
+          curl -sL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz -C /usr/local/bin
+          curl -sL https://github.com/oasdiff/oasdiff/releases/download/v1.39.0/oasdiff_1.39.0_linux_amd64.tar.gz | tar -xz -C /usr/local/bin
+          gitleaks --version && oasdiff --version
       # TypeScript 關卡（M2 第 3 項）：pnpm 工作區。
       - run: npm install -g pnpm
       # Tauri 2 的 Rust 部分（apps/desktop/src-tauri）在 Linux 上要 WebKitGTK 等系統套件

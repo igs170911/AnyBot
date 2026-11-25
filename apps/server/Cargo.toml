@@ -18,5 +18,6 @@ clap = { workspace = true }
 tokio = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "net", "macros"] }
+test-harness = { workspace = true }
 [lints]
 workspace = true

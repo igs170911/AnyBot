@@ -18,7 +18,7 @@ check: fmt clippy test deny machete depcheck spec-trace ironlaws gitleaks \
 	ts-install ts-biome ts-typecheck ts-test ts-build
 
 # 邊寫邊跑：最快的關卡＋四條鐵律的檢查（cargo fmt 檢查、clippy、depcheck、iron-laws、biome）。
-check-fast: fmt clippy depcheck ironlaws api-docs api-lint ts-biome
+check-fast: fmt clippy depcheck ironlaws api-docs api-lint api-client api-html ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -103,8 +103,8 @@ api-html:
 # 相容性檢查（spec/02 §8）：跟 git 上已提交的版本比，破壞性變更就擋。
 api-compat:
 	mkdir -p target/api
-	@if git cat-file -e HEAD:api/openapi.yaml 2>/dev/null; then \
-		git show HEAD:api/openapi.yaml > target/api/baseline.yaml; \
+	@if git cat-file -e $(SPEC_TRACE_REF):api/openapi.yaml 2>/dev/null; then \
+		git show $(SPEC_TRACE_REF):api/openapi.yaml > target/api/baseline.yaml; \
 		$(CARGO) run --locked -p api-docs -- openapi target/api/fresh.yaml; \
 		oasdiff breaking target/api/baseline.yaml target/api/fresh.yaml -o ERR; \
 	fi

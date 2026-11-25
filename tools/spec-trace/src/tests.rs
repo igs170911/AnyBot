@@ -50,9 +50,23 @@ fn test_spec_trace_ts_test_titles_are_the_trace_source() {
 }
 
 #[test]
+fn test_spec_trace_finds_indented_and_macro_tests() {
+    let src = "mod tests {\n    use super::*;\n\n    #[test]\n    fn t_sync_id_1() {}\n\n    #[test]\n    /// 文件註解\n    fn t_chat_steer_3() {}\n\n    proptest! {\n        #[test]\n        fn t_sync_seq_1(v in 0..64u64) {\n            let _ = v;\n        }\n    }\n";
+    let ids = code_ids_from_source(src).unwrap();
+    assert!(ids.contains("T-sync-id-1"));
+    assert!(ids.contains("T-chat-steer-3"));
+    assert!(ids.contains("T-sync-seq-1"));
+    assert_eq!(ids.len(), 3);
+}
+
+#[test]
 fn test_spec_trace_blocks_unknown_id() {
     let baseline = set(&["T-chat-steer-1"]);
-    let r = check(&set(&["T-chat-steer-1"]), &set(&["T-nope-1"]), Some(&baseline));
+    let r = check(
+        &set(&["T-chat-steer-1"]),
+        &set(&["T-nope-1"]),
+        Some(&baseline),
+    );
     assert!(
         r.violations
             .iter()
@@ -137,6 +151,7 @@ fn test_spec_trace_against_ref_allows_shrink_and_new_spec_ids() {
 fn test_spec_trace_against_ref_blocks_stuffed_back_id() {
     let v = check_baseline_against_ref(&set(&["T-chat-steer-1"]), &set(&[]), &set(&[]));
     assert_eq!(v.len(), 1);
-    assert!(v[0].contains("T-chat-steer-1"));
-    assert!(v[0].contains("只能變短"));
+    let first = v.first().unwrap();
+    assert!(first.contains("T-chat-steer-1"));
+    assert!(first.contains("只能變短"));
 }

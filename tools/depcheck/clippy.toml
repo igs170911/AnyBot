@@ -9,14 +9,18 @@ allow-expect-in-tests = true
 allow-panic-in-tests = true
 
 disallowed-methods = [
-    # 讀環境變數：任何地方都不准（spec/07 §3 2026-11-24 修正；命令列參數可以讀）
     { path = "std::env::var", reason = "讀環境變數任何地方都不准（spec/07 §3）；設定用命令列 --data-dir、--bootstrap" },
     { path = "std::env::var_os", reason = "同上（spec/07 §3）" },
     { path = "std::env::vars", reason = "同上（spec/07 §3）" },
     { path = "std::env::vars_os", reason = "同上（spec/07 §3）" },
-    # 執行外部程式：只准 computers，而且要經過 trust 給的通行證
-    # 發 HTTP 請求：只准 models、mcp、sync、channels、computers
-    { path = "reqwest::Client::new", reason = "發 HTTP 請求只准 models、mcp、sync、channels、computers（spec/07 §3）" },
+    { path = "std::env::home_dir", reason = "讀環境變數任何地方都不准（spec/07 §3）；只有 foundation 豁免（K85 的 App 資料夾）" },
+    { path = "std::env::temp_dir", reason = "同上（spec/07 §3）；暫存檔一律放 repo 的 target/（AGENTS §一7）" },
+    { path = "tokio::process::Command::new", allow-invalid = true, reason = "同上（非同步版也要经过 trust 通行證；spec/05 §2）" },
+    { path = "tokio::process::Command::output", allow-invalid = true, reason = "同上" },
+    { path = "tokio::process::Command::spawn", allow-invalid = true, reason = "同上" },
+    { path = "tokio::process::Command::status", allow-invalid = true, reason = "同上" },
+    { path = "std::os::unix::process::CommandExt::exec", reason = "執行外部程式只准 computers 與 tests/harness（spec/05 §2、spec/09 K87）" },
+    { path = "reqwest::Client::new", reason = "發 HTTP 請求只准 models、mcp、sync、channels、computers、tests/harness（spec/07 §3、spec/09 K87）" },
     { path = "reqwest::Client::get", reason = "同上" },
     { path = "reqwest::Client::post", reason = "同上" },
     { path = "reqwest::Client::put", reason = "同上" },
@@ -24,8 +28,27 @@ disallowed-methods = [
     { path = "reqwest::Client::head", reason = "同上" },
     { path = "reqwest::Client::request", reason = "同上" },
     { path = "reqwest::RequestBuilder::send", reason = "同上" },
-    # 讀寫任意檔案：只准 computers、blob、store-client
+    { path = "reqwest::get", reason = "同上（簡便函式也要擋）" },
+    { path = "reqwest::blocking::Client::new", allow-invalid = true, reason = "同上（blocking 版也要擋）" },
+    { path = "reqwest::blocking::Client::get", allow-invalid = true, reason = "同上" },
+    { path = "tokio::fs::read", reason = "同上" },
+    { path = "tokio::fs::read_to_string", reason = "同上" },
+    { path = "tokio::fs::write", reason = "同上" },
+    { path = "tokio::fs::remove_file", reason = "同上" },
+    { path = "tokio::fs::rename", reason = "同上" },
+    { path = "tokio::fs::create_dir", reason = "同上" },
+    { path = "tokio::fs::create_dir_all", reason = "同上" },
+    { path = "tokio::fs::remove_dir", reason = "同上" },
+    { path = "tokio::fs::remove_dir_all", reason = "同上" },
+    { path = "tokio::fs::read_dir", reason = "同上" },
+    { path = "tokio::fs::metadata", reason = "同上" },
+    { path = "tokio::fs::set_permissions", reason = "同上" },
+    { path = "tokio::fs::hard_link", reason = "同上" },
+    { path = "tokio::fs::copy", reason = "同上" },
+    { path = "tokio::fs::file", allow-invalid = true, reason = "同上" },
 ]
 
 disallowed-types = [
+    { path = "tokio::process::Command", allow-invalid = true, reason = "同上" },
+    { path = "tokio::fs::File", reason = "同上" },
 ]

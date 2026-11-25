@@ -3,17 +3,23 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 pub const PROBLEM_JSON_CONTENT_TYPE: &str = "application/problem+json";
+pub const PROBLEM_TYPE_BASE: &str = "https://anybot.test/problems";
 pub const SSE_CONTENT_TYPE: &str = "text/event-stream";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct ProblemJson {
     #[serde(rename = "type")]
+    #[schema(example = "https://anybot.test/problems/bad-request")]
     pub problem_type: String,
+    #[schema(example = "請求格式錯誤")]
     pub title: String,
+    #[schema(example = 400)]
     pub status: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(example = "明細說明")]
     pub detail: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(example = "/v1/health")]
     pub instance: Option<String>,
 }
 

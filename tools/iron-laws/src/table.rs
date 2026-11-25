@@ -1,14 +1,25 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 pub const SCAN_DIRS: [&str; 6] = ["crates", "apps", "tools", "web", "adapters", "tests"];
 
-const PROC_M: [&str; 4] = [
+pub const PROC_M: [&str; 9] = [
     "std::process::Command::new",
     "std::process::Command::output",
     "std::process::Command::spawn",
     "std::process::Command::status",
+    "tokio::process::Command::new",
+    "tokio::process::Command::output",
+    "tokio::process::Command::spawn",
+    "tokio::process::Command::status",
+    "std::os::unix::process::CommandExt::exec",
 ];
-const HTTP_M: [&str; 8] = [
+pub const ENV_M: [&str; 6] = [
+    "std::env::var",
+    "std::env::var_os",
+    "std::env::vars",
+    "std::env::vars_os",
+    "std::env::home_dir",
+    "std::env::temp_dir",
+];
+pub const HTTP_M: [&str; 11] = [
     "reqwest::Client::new",
     "reqwest::Client::get",
     "reqwest::Client::post",
@@ -17,17 +28,85 @@ const HTTP_M: [&str; 8] = [
     "reqwest::Client::head",
     "reqwest::Client::request",
     "reqwest::RequestBuilder::send",
+    "reqwest::get",
+    "reqwest::blocking::Client::new",
+    "reqwest::blocking::Client::get",
 ];
-const FS_M: [&str; 6] = [
+pub const FS_STD_M: [&str; 16] = [
     "std::fs::read",
     "std::fs::read_to_string",
     "std::fs::write",
     "std::fs::remove_file",
     "std::fs::rename",
     "std::fs::create_dir_all",
+    "std::fs::copy",
+    "std::fs::create_dir",
+    "std::fs::remove_dir",
+    "std::fs::remove_dir_all",
+    "std::fs::read_dir",
+    "std::fs::set_permissions",
+    "std::fs::hard_link",
+    "std::fs::OpenOptions::new",
+    "std::fs::OpenOptions::open",
+    "std::fs::File::open",
 ];
-const FS_T: [&str; 2] = ["std::fs::File", "std::fs::OpenOptions"];
-const CMD_T: &str = "std::process::Command";
+pub const FS_TOKIO_M: [&str; 15] = [
+    "tokio::fs::read",
+    "tokio::fs::read_to_string",
+    "tokio::fs::write",
+    "tokio::fs::remove_file",
+    "tokio::fs::rename",
+    "tokio::fs::create_dir",
+    "tokio::fs::create_dir_all",
+    "tokio::fs::remove_dir",
+    "tokio::fs::remove_dir_all",
+    "tokio::fs::read_dir",
+    "tokio::fs::metadata",
+    "tokio::fs::set_permissions",
+    "tokio::fs::hard_link",
+    "tokio::fs::copy",
+    "tokio::fs::file",
+];
+pub const FS_M: [&str; 31] = [
+    "std::fs::read",
+    "std::fs::read_to_string",
+    "std::fs::write",
+    "std::fs::remove_file",
+    "std::fs::rename",
+    "std::fs::create_dir_all",
+    "std::fs::copy",
+    "std::fs::create_dir",
+    "std::fs::remove_dir",
+    "std::fs::remove_dir_all",
+    "std::fs::read_dir",
+    "std::fs::set_permissions",
+    "std::fs::hard_link",
+    "std::fs::OpenOptions::new",
+    "std::fs::OpenOptions::open",
+    "std::fs::File::open",
+    "tokio::fs::read",
+    "tokio::fs::read_to_string",
+    "tokio::fs::write",
+    "tokio::fs::remove_file",
+    "tokio::fs::rename",
+    "tokio::fs::create_dir",
+    "tokio::fs::create_dir_all",
+    "tokio::fs::remove_dir",
+    "tokio::fs::remove_dir_all",
+    "tokio::fs::read_dir",
+    "tokio::fs::metadata",
+    "tokio::fs::set_permissions",
+    "tokio::fs::hard_link",
+    "tokio::fs::copy",
+    "tokio::fs::file",
+];
+pub const FS_T: [&str; 4] = [
+    "std::fs::File",
+    "std::fs::OpenOptions",
+    "std::fs::DirBuilder",
+    "tokio::fs::File",
+];
+pub const CMD_T: [&str; 2] = ["std::process::Command", "tokio::process::Command"];
 
 #[must_use]
 pub fn suppression_tokens() -> Vec<String> {
@@ -78,81 +157,6 @@ pub const DENY_EXCEPTION_KEYS: [(&str, &str); 4] = [
 ];
 
 #[must_use]
-pub fn clippy_exemptions() -> BTreeMap<String, BTreeMap<String, BTreeSet<String>>> {
-    let mut m = BTreeMap::new();
-    insert(
-        &mut m,
-        "anybot-foundation",
-        &["std::fs::read_to_string"],
-        &[],
-    );
-    insert(
-        &mut m,
-        "anybot-computers",
-        &merge(&[PROC_M.as_slice(), HTTP_M.as_slice(), FS_M.as_slice()]),
-        &[CMD_T, FS_T[0], FS_T[1]],
-    );
-    insert(&mut m, "anybot-models", &HTTP_M, &[]);
-    insert(&mut m, "anybot-mcp", &HTTP_M, &[]);
-    insert(&mut m, "anybot-sync", &HTTP_M, &[]);
-    insert(&mut m, "anybot-channels", &HTTP_M, &[]);
-    insert(&mut m, "anybot-blob", &FS_M, &FS_T);
-    insert(&mut m, "anybot-store-client", &FS_M, &FS_T);
-    insert(
-        &mut m,
-        "depcheck",
-        &merge(&[&PROC_M, &FS_M]),
-        &[CMD_T, FS_T[0], FS_T[1]],
-    );
-    insert(
-        &mut m,
-        "spec-trace",
-        &merge(&[&PROC_M, &FS_M]),
-        &[CMD_T, FS_T[0], FS_T[1]],
-    );
-    insert(
-        &mut m,
-        "iron-laws",
-        &merge(&[&PROC_M, &FS_M]),
-        &[CMD_T, FS_T[0], FS_T[1]],
-    );
-    insert(&mut m, "api-docs", &FS_M, &FS_T);
-    m
-}
-
-fn merge<'a>(parts: &'a [&'a [&'a str]]) -> Vec<&'a str> {
-    parts.iter().flat_map(|p| p.iter().copied()).collect()
-}
-
-fn insert(
-    m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>>>,
-    pkg: &str,
-    methods: &[&str],
-    types: &[&str],
-) {
-    let mut per_key = BTreeMap::new();
-    if !methods.is_empty() {
-        per_key.insert(
-            "disallowed-methods".to_owned(),
-            methods
-                .iter()
-                .map(|p| (*p).to_owned())
-                .collect::<BTreeSet<_>>(),
-        );
-    }
-    if !types.is_empty() {
-        per_key.insert(
-            "disallowed-types".to_owned(),
-            types
-                .iter()
-                .map(|p| (*p).to_owned())
-                .collect::<BTreeSet<_>>(),
-        );
-    }
-    m.insert(pkg.to_owned(), per_key);
-}
-
-#[must_use]
 pub fn package_of_path(path: &str) -> Option<String> {
     let mut parts = path.split('/');
     let head = parts.next()?;
@@ -163,6 +167,7 @@ pub fn package_of_path(path: &str) -> Option<String> {
         ("apps", Some("src-tauri")) => Some("anybot-app-desktop".to_owned()),
         ("apps", Some(_) | None) => Some(format!("anybot-app-{dir}")),
         ("tools", Some(_) | None) => Some(dir.to_owned()),
+        ("tests", Some(_)) if dir == "harness" => Some("test-harness".to_owned()),
         _ => None,
     }
 }
@@ -170,6 +175,9 @@ pub fn package_of_path(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::exemptions::clippy_exemptions;
+    use crate::exemptions::merge;
+    use std::collections::BTreeSet;
 
     #[test]
     fn test_table_exemptions_match_repo_layout_paths() {
@@ -178,9 +186,13 @@ mod tests {
         assert!(e.contains_key("depcheck"));
         assert!(e.contains_key("api-docs"));
         assert!(!e.contains_key("anybot-domain"));
-        let want = ["std::fs::read_to_string".to_owned()]
-            .into_iter()
-            .collect::<BTreeSet<String>>();
+        let want = [
+            "std::fs::read_to_string".to_owned(),
+            "std::fs::File::open".to_owned(),
+            "std::env::home_dir".to_owned(),
+        ]
+        .into_iter()
+        .collect::<BTreeSet<String>>();
         let got = e
             .get("anybot-foundation")
             .and_then(|m| m.get("disallowed-methods"));
@@ -190,12 +202,60 @@ mod tests {
     #[test]
     fn test_table_api_docs_exempts_only_file_writing() {
         let e = clippy_exemptions();
-        let want = FS_M
+        let want = FS_STD_M
             .into_iter()
             .map(String::from)
             .collect::<BTreeSet<String>>();
         let got = e.get("api-docs").and_then(|m| m.get("disallowed-methods"));
         assert_eq!(got, Some(&want));
+    }
+
+    #[test]
+    fn test_table_harness_exempts_process_http_files_but_not_env() {
+        let e = clippy_exemptions();
+        let want = merge(&[&PROC_M[..], &HTTP_M[..], &FS_M[..]])
+            .into_iter()
+            .map(String::from)
+            .collect::<BTreeSet<String>>();
+        let got = e
+            .get("test-harness")
+            .and_then(|m| m.get("disallowed-methods"));
+        assert_eq!(got, Some(&want));
+        for env in ENV_M {
+            if env == "std::env::home_dir" {
+                continue;
+            }
+            for per_key in e.values() {
+                for set in per_key.values() {
+                    assert!(!set.contains(env), "{env} 不准豁免（spec/07 §3）");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_table_env_methods_cover_the_full_env_ban() {
+        let want = [
+            "std::env::var",
+            "std::env::var_os",
+            "std::env::vars",
+            "std::env::vars_os",
+            "std::env::home_dir",
+            "std::env::temp_dir",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect::<BTreeSet<String>>();
+        let got = ENV_M
+            .into_iter()
+            .map(String::from)
+            .collect::<BTreeSet<String>>();
+        assert_eq!(got, want);
+        let all = clippy_exemptions();
+        let home = all
+            .get("anybot-foundation")
+            .and_then(|m| m.get("disallowed-methods"));
+        assert!(home.is_some_and(|s| s.contains("std::env::home_dir")));
     }
 
     #[test]

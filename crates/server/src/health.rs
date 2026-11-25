@@ -1,16 +1,20 @@
 use axum::Json;
 use axum::extract::State;
+use axum::http::StatusCode;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use anybot_protocol::{PROTOCOL_VERSION, ProblemJson};
+use anybot_protocol::{PROBLEM_TYPE_BASE, PROTOCOL_VERSION, ProblemJson};
 
 use crate::app::AppState;
 
 #[derive(Serialize, ToSchema)]
 pub struct HealthResponse {
+    #[schema(example = "0.1.0")]
     pub version: String,
+    #[schema(example = "2026-01-01T00:00:00Z")]
     pub now: String,
+    #[schema(example = 1)]
     pub protocol_version: u32,
 }
 
@@ -23,7 +27,7 @@ pub struct HealthResponse {
     tag = "system",
     security(()),
     responses(
-        (status = 200, description = "伺服器活着",
+        (status = 200, description = "伺服器活著",
             content_type = "application/json",
             body = HealthResponse,
             example = json!({"version": "0.1.0", "now": "2026-01-01T00:00:00Z", "protocol_version": 1})),
@@ -37,11 +41,26 @@ pub struct HealthResponse {
             example = json!({"type": "https://anybot.test/problems/internal", "title": "伺服器內部錯誤", "status": 500})),
     )
 )]
-pub async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
-    let now = state.clock.now_ms().rfc3339().unwrap_or_default();
-    Json(HealthResponse {
+pub async fn health(
+    State(state): State<AppState>,
+) -> Result<Json<HealthResponse>, (StatusCode, Json<ProblemJson>)> {
+    let now = state
+        .clock
+        .now_ms()
+        .rfc3339()
+        .ok_or_else(internal_problem)?;
+    Ok(Json(HealthResponse {
         version: state.version.clone(),
         now,
         protocol_version: PROTOCOL_VERSION,
-    })
+    }))
+}
+
+fn internal_problem() -> (StatusCode, Json<ProblemJson>) {
+    let problem = ProblemJson::new(
+        500,
+        "伺服器內部錯誤".to_owned(),
+        format!("{PROBLEM_TYPE_BASE}/internal"),
+    );
+    (StatusCode::INTERNAL_SERVER_ERROR, Json(problem))
 }

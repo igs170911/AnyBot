@@ -1,0 +1,22 @@
+# clippy 禁用清單（spec/07 §3「用 lint 禁用的寫法」）
+# 准許的套件在自己的資料夾放一份一模一樣的 clippy.toml，只少它被准許的禁用項目
+# （spec/09 K75；由 tools/iron-laws 核對，不寫在程式碼裡）。
+msrv = "1.98"
+too-many-lines-threshold = 60
+cognitive-complexity-threshold = 15
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+
+disallowed-methods = [
+    { path = "std::env::var", reason = "讀環境變數任何地方都不准（spec/07 §3）；設定用命令列 --data-dir、--bootstrap" },
+    { path = "std::env::var_os", reason = "同上（spec/07 §3）" },
+    { path = "std::env::vars", reason = "同上（spec/07 §3）" },
+    { path = "std::env::vars_os", reason = "同上（spec/07 §3）" },
+    { path = "std::env::home_dir", reason = "讀環境變數任何地方都不准（spec/07 §3）；只有 foundation 豁免（K85 的 App 資料夾）" },
+    { path = "std::env::temp_dir", reason = "同上（spec/07 §3）；暫存檔一律放 repo 的 target/（AGENTS §一7）" },
+]
+
+disallowed-types = [
+
+]

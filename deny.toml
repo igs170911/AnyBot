@@ -63,3 +63,15 @@ reason = "TLS 一律用 rustls（spec/06）"
 [[bans.deny]]
 name = "native-tls"
 reason = "TLS 一律用 rustls（spec/06）"
+
+[[bans.deny]]
+name = "noyalib"
+reason = "0.0.x、半年 64 版、單一作者，作者上一代 YAML 套件已被 RustSec 標成不安全（spec/06 §2.7；M3 審查第 14 項）"
+
+[[bans.deny]]
+name = "serde_yml"
+reason = "RustSec 標成不安全、無人維護的 noyalib 作者前作（M3 審查第 14 項）"
+
+[[bans.deny]]
+name = "serde_yaml"
+reason = "serde_yaml 已停止維護，官方後繼是 yaml_serde（M3 審查第 14 項）"

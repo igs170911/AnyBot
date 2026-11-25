@@ -12,6 +12,8 @@ serde = { workspace = true }
 schemars = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
+url = { workspace = true }
+percent-encoding = { workspace = true }
 uuid = { workspace = true }
 zeroize = { workspace = true }
 [lints]

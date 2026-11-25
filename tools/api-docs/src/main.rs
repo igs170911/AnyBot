@@ -7,10 +7,10 @@ use api_docs::{asyncapi, openapi};
 
 use anybot_protocol as _;
 use anybot_server as _;
-use noyalib as _;
 use schemars as _;
 use serde_json as _;
 use utoipa as _;
+use yaml_serde as _;
 
 #[derive(Parser)]
 #[command(

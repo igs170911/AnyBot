@@ -107,7 +107,7 @@ mod tests {
     }
 
     #[test]
-    fn t_sync_id_1() {
+    fn task_ids_stay_unique_across_ten_skewed_clocks() {
         let base = 1_700_000_000_000u64;
         let mut seen = BTreeSet::new();
         for shift in 0..10 {

@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use crate::{asyncapi, openapi};
 
 fn kind_names() -> BTreeSet<String> {
-    let schema = schemars::schema_for!(anybot_protocol::EventKind);
+    let schema = schemars::schema_for!(anybot_protocol::KnownEventKind);
     let value = serde_json::to_value(schema).unwrap();
     let one_of = value.get("oneOf").unwrap().as_array().unwrap();
     let mut out = BTreeSet::new();
@@ -33,7 +33,7 @@ fn message_names(doc: &serde_json::Value) -> BTreeSet<String> {
 #[test]
 fn test_asyncapi_covers_every_event_kind() {
     let text = asyncapi::document().unwrap();
-    let doc: serde_json::Value = noyalib::from_str(&text).unwrap();
+    let doc: serde_json::Value = yaml_serde::from_str(&text).unwrap();
     assert_eq!(message_names(&doc), kind_names());
     assert_eq!(kind_names().len(), 10);
 }
@@ -41,7 +41,7 @@ fn test_asyncapi_covers_every_event_kind() {
 #[test]
 fn test_openapi_documents_health_path_with_required_metadata() {
     let text = openapi::document().unwrap();
-    let doc: serde_json::Value = noyalib::from_str(&text).unwrap();
+    let doc: serde_json::Value = yaml_serde::from_str(&text).unwrap();
     let op = doc
         .get("paths")
         .and_then(|p| p.get("/v1/health"))
@@ -69,7 +69,7 @@ fn test_openapi_documents_health_path_with_required_metadata() {
 #[test]
 fn test_openapi_is_openapi_31() {
     let text = openapi::document().unwrap();
-    let doc: serde_json::Value = noyalib::from_str(&text).unwrap();
+    let doc: serde_json::Value = yaml_serde::from_str(&text).unwrap();
     assert_eq!(doc.get("openapi").and_then(|v| v.as_str()), Some("3.1.0"));
 }
 
@@ -94,7 +94,7 @@ fn operations(doc: &serde_json::Value) -> Vec<&serde_json::Value> {
 #[test]
 fn test_openapi_error_responses_only_use_problem_json() {
     let text = openapi::document().unwrap();
-    let doc: serde_json::Value = noyalib::from_str(&text).unwrap();
+    let doc: serde_json::Value = yaml_serde::from_str(&text).unwrap();
     for op in operations(&doc) {
         let Some(responses) = op.get("responses").and_then(|v| v.as_object()) else {
             continue;
@@ -120,7 +120,7 @@ fn test_openapi_error_responses_only_use_problem_json() {
 #[test]
 fn test_openapi_every_response_has_example() {
     let text = openapi::document().unwrap();
-    let doc: serde_json::Value = noyalib::from_str(&text).unwrap();
+    let doc: serde_json::Value = yaml_serde::from_str(&text).unwrap();
     for op in operations(&doc) {
         let Some(responses) = op.get("responses").and_then(|v| v.as_object()) else {
             continue;

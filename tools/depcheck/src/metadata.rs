@@ -84,6 +84,31 @@ fn check_internal_package(
     violations
 }
 
+fn check_harness_rules(
+    pkg: &Package,
+    deps: &BTreeSet<String>,
+    internal: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut violations = Vec::new();
+    if pkg.name == "test-harness" {
+        for dep in deps {
+            if internal.contains(dep) {
+                violations.push(format!(
+                    "test-harness 依賴 {dep}：測試輔助套件不准依賴產品套件（spec/07 §3）"
+                ));
+            }
+        }
+        return violations;
+    }
+    if deps.contains("test-harness") {
+        violations.push(format!(
+            "{} 在正式依賴裡用 test-harness：harness 只准當開發用依賴（spec/09 K87）",
+            pkg.name
+        ));
+    }
+    violations
+}
+
 #[must_use]
 pub fn check_metadata_value(meta: &Metadata) -> Vec<String> {
     let mut violations = Vec::new();
@@ -98,6 +123,10 @@ pub fn check_metadata_value(meta: &Metadata) -> Vec<String> {
             continue;
         }
         let deps = normal_deps(pkg);
+        violations.extend(check_harness_rules(pkg, &deps, &internal));
+        if pkg.name == "test-harness" {
+            continue;
+        }
         if pkg.name.starts_with("anybot-app-") {
             violations.extend(check_app_package(pkg, &deps));
         } else {
@@ -169,6 +198,26 @@ mod tests {
                 .any(|s| s.contains("anybot-server 依賴 anybot-runner"))
         );
         assert!(v.iter().any(|s| s.contains("anybot-domain 依賴 tokio")));
+    }
+
+    #[test]
+    fn test_depcheck_blocks_harness_in_normal_deps_and_reverse() {
+        let m = meta(vec![
+            pkg("anybot-server", &["test-harness"]),
+            pkg("anybot-foundation", &[]),
+            pkg("test-harness", &["anybot-foundation"]),
+            pkg("test-harness", &["serde"]),
+        ]);
+        let v = check_metadata_value(&m);
+        assert_eq!(v.len(), 3);
+        assert!(
+            v.iter()
+                .any(|s| s.contains("anybot-server 在正式依賴裡用 test-harness"))
+        );
+        assert!(
+            v.iter()
+                .any(|s| s.contains("test-harness 依賴 anybot-foundation"))
+        );
     }
 
     #[test]

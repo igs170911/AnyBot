@@ -29,17 +29,29 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         HealthResponse: {
+            /** @example 2026-01-01T00:00:00Z */
             now: string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @example 1
+             */
             protocol_version: number;
+            /** @example 0.1.0 */
             version: string;
         };
         ProblemJson: {
+            /** @example 明細說明 */
             detail?: string | null;
+            /** @example /v1/health */
             instance?: string | null;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @example 400
+             */
             status: number;
+            /** @example 請求格式錯誤 */
             title: string;
+            /** @example https://anybot.test/problems/bad-request */
             type: string;
         };
     };
@@ -60,7 +72,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 伺服器活着 */
+            /** @description 伺服器活著 */
             200: {
                 headers: {
                     [name: string]: unknown;

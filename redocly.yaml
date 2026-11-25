@@ -1,9 +1,61 @@
-extends: []
+extends:
+  - recommended-strict
+plugins:
+  - ./web/api-lint/plugin.js
 rules:
+  security-defined: error
+  rule/operation-tags-not-empty:
+    subject:
+      type: Operation
+      property: tags
+    assertions:
+      defined: true
+      minLength: 1
+    message: 每個 API 都要有標籤，標籤不能是空的（spec/05 §2）。
+    severity: error
+oas3_1Rules:
   operation-operationId: error
   operation-operationId-unique: error
   operation-summary: error
   operation-description: error
   operation-tag-defined: error
+  operation-singular-tag: error
   no-empty-servers: error
-  security-defined: error
+  info-license: error
+  info-contact: error
+  operation-4xx-response: error
+  operation-4xx-problem-details-rfc7807: error
+  scalar-property-missing-example: error
+  anybot/idempotencyKeyRequired: error
+  rule/operation-has-5xx:
+    subject:
+      type: Responses
+    assertions:
+      requireAny: ["500", "502", "503", "504"]
+    where:
+      - subject:
+          type: Operation
+        assertions:
+          defined: true
+    message: 每個操作都要有一個 5xx 回應（spec/05 §2：錯誤回應要有 5xx）。
+    severity: error
+  rule/problem-json-in-4xx-5xx:
+    subject:
+      type: MediaTypesMap
+    assertions:
+      required: ["application/problem+json"]
+    where:
+      - subject:
+          type: Response
+          matchParentKeys: "^[45]"
+        assertions:
+          defined: true
+    message: 4xx／5xx 回應的內容要用 application/problem+json（spec/05 §2）。
+    severity: error
+  rule/media-content-example-required:
+    subject:
+      type: MediaType
+    assertions:
+      requireAny: ["example", "examples"]
+    message: 每個請求內容和回應內容都要有 example 或 examples（spec/05 §2）。
+    severity: error

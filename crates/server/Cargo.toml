@@ -14,13 +14,14 @@ anybot-blob = { workspace = true }
 anybot-bus = { workspace = true }
 anybot-channels = { workspace = true }
 axum = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["socket2"] }
 utoipa = { workspace = true }
+socket2 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 [lints]
 workspace = true
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["rt", "net", "macros"] }
+tokio = { workspace = true, features = ["rt", "net", "macros", "rt-multi-thread"] }
 serde_json = { workspace = true }

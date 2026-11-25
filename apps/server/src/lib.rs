@@ -1,4 +1,6 @@
 use std::process::ExitCode;
+#[cfg(test)]
+use test_harness as _;
 
 use tokio::net::TcpListener;
 

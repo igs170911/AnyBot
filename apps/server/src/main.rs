@@ -1,6 +1,10 @@
+use axum as _;
 use std::io::Write;
 use std::process::ExitCode;
+#[cfg(test)]
+use test_harness as _;
 
+use anybot_server::serve_all::serve_all;
 use anybot_server::startup::DEFAULT_PORT;
 use anybot_server::{AppState, build_router};
 
@@ -20,6 +24,10 @@ fn print_problem(message: &str) {
 }
 
 fn report_failure(failure: &PlanFailure) -> ExitCode {
+    if failure.code == ExitCode::SUCCESS {
+        print_line(&failure.message);
+        return failure.code;
+    }
     print_problem(&failure.message);
     failure.code
 }
@@ -46,14 +54,7 @@ async fn main() -> ExitCode {
         Err(failure) => return report_failure(&failure),
     };
     let app = build_router(AppState::new(version));
-    for listener in listeners {
-        match axum::serve(listener, app.clone()).await {
-            Ok(()) => {}
-            Err(err) => {
-                print_problem(&format!("伺服器停止：{err}"));
-                return ExitCode::from(1);
-            }
-        }
-    }
-    ExitCode::SUCCESS
+    let reason = serve_all(listeners, app).await;
+    print_problem(&reason);
+    ExitCode::from(1)
 }
