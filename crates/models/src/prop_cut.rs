@@ -9,7 +9,7 @@ pub(crate) fn send_cut(
     at: usize,
     stream: bool,
 ) -> Result<TurnResult, crate::GatewayFail> {
-    let step = crate::scripted::script_cut(200, body, at);
+    let step = crate::scripted::raw_cut(200, body, at);
     let poster = crate::scripted::ScriptPoster::new(vec![step]);
     let gateway = crate::client::Gateway::from_wire(poster, std::sync::Arc::new(Quiet), Vec::new());
     let permit = crate::egress::SendPermit::for_endpoint(
@@ -21,19 +21,14 @@ pub(crate) fn send_cut(
     crate::prop_run::drive(gateway.complete(endpoint, &crate::prop_run::hi(), stream, &permit))
 }
 
-pub(crate) fn cut_body(raw: &str, cut: usize) -> (String, bool) {
-    if raw.is_empty() {
-        return (String::new(), true);
+pub(crate) fn cut_at(raw: &str, cut: usize) -> (usize, bool) {
+    let bytes = raw.as_bytes();
+    if bytes.is_empty() {
+        return (0, true);
     }
-    let width = raw.len().saturating_add(1);
+    let width = bytes.len().saturating_add(1);
     let at = cut.checked_rem(width).unwrap_or(0);
-    if at >= raw.len() {
-        return (raw.to_owned(), true);
-    }
-    let Some(piece) = raw.get(..at) else {
-        return (raw.to_owned(), true);
-    };
-    (piece.to_owned(), false)
+    (at, at >= bytes.len())
 }
 
 pub(crate) fn send_body(
@@ -42,7 +37,7 @@ pub(crate) fn send_body(
     stream: bool,
 ) -> Result<TurnResult, crate::GatewayFail> {
     let step = if stream {
-        crate::scripted::script_chunks(200, &[body.to_owned()])
+        crate::scripted::script_chunks(200, &crate::scripted::byte_slices(body))
     } else {
         crate::scripted::script_http(200, body)
     };

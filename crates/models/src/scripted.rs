@@ -12,7 +12,7 @@ pub(crate) struct ScriptStep {
     pub status: u16,
     pub body: String,
     pub fail: bool,
-    pub stall: bool,
+    pub _stall: bool,
     pub chunks: Vec<String>,
     pub cut_at: Option<usize>,
     pub hold: Option<Arc<tokio::sync::Notify>>,
@@ -37,7 +37,7 @@ impl SentRow {
 pub(crate) struct ScriptPoster {
     steps: Mutex<Vec<ScriptStep>>,
     sent: Mutex<Vec<SentRow>>,
-    on_send: Mutex<Option<Box<dyn Fn() + Send + Sync>>>,
+    on_chunk: Mutex<Option<Arc<dyn Fn() + Send + Sync>>>,
 }
 
 impl ScriptPoster {
@@ -45,14 +45,15 @@ impl ScriptPoster {
         Arc::new(Self {
             steps: Mutex::new(steps),
             sent: Mutex::new(Vec::new()),
-            on_send: Mutex::new(None),
+            on_chunk: Mutex::new(None),
         })
     }
 
-    pub(crate) fn arm_send(&self, hook: impl Fn() + Send + Sync + 'static) {
-        match self.on_send.lock() {
-            Ok(mut slot) => *slot = Some(Box::new(hook)),
-            Err(poisoned) => *poisoned.into_inner() = Some(Box::new(hook)),
+    pub(crate) fn arm_chunk(&self, hook: impl Fn() + Send + Sync + 'static) {
+        let hook: Arc<dyn Fn() + Send + Sync> = Arc::new(hook);
+        match self.on_chunk.lock() {
+            Ok(mut slot) => *slot = Some(hook),
+            Err(poisoned) => *poisoned.into_inner() = Some(hook),
         }
     }
 
@@ -69,71 +70,69 @@ impl HttpWire for ScriptPoster {
         &'a self,
         request: &'a WireRequest,
     ) -> Pin<Box<dyn Future<Output = Result<WireOpen, TransportFail>> + Send + 'a>> {
-        Box::pin(async move { self.open_reply(request).await })
+        Box::pin(std::future::ready(self.open_reply(request)))
     }
 }
 
 impl ScriptPoster {
-    async fn open_reply(&self, request: &WireRequest) -> Result<WireOpen, TransportFail> {
+    fn open_reply(&self, request: &WireRequest) -> Result<WireOpen, TransportFail> {
         let Some(step) = self.taken(request) else {
             return Err(TransportFail::Unreachable);
         };
         if step.fail {
             return Err(TransportFail::Unreachable);
         }
-        if step.stall {
-            return std::future::pending().await;
-        }
+
         Ok(WireOpen {
             status: step.status,
             headers: Vec::new(),
-            body: body_of(step),
+            body: body_of(self, step),
         })
     }
 
     fn taken(&self, request: &WireRequest) -> Option<ScriptStep> {
-        fire_hook(&self.on_send);
         push_sent(&self.sent, request);
         take_step(&self.steps)
     }
 }
 
-fn body_of(step: ScriptStep) -> WireBody {
+fn body_of(poster: &ScriptPoster, step: ScriptStep) -> WireBody {
     let hold = step.hold.clone();
     let pieces = if step.chunks.is_empty() && step.cut_at.is_none() {
         vec![Ok(Bytes::from(step.body))]
     } else {
         crate::scripted_body::chunk_pieces(&step)
     };
-    WireBody::Stream(Box::pin(async_stream(hold, pieces)))
+    let hook = chunk_hook(&poster.on_chunk);
+    WireBody::Stream(Box::pin(async_stream(hold, pieces, hook)))
 }
 
 fn async_stream(
     hold: Option<Arc<tokio::sync::Notify>>,
     pieces: Vec<Result<Bytes, TransportFail>>,
+    hook: Option<Arc<dyn Fn() + Send + Sync>>,
 ) -> impl futures_util::Stream<Item = Result<Bytes, TransportFail>> {
-    futures_util::stream::unfold((hold, pieces.into_iter()), |state| async move {
-        let (hold, mut pieces) = state;
-        if let Some(wait) = hold {
-            wait.notified().await;
-            return pieces.next().map(|item| (item, (None, pieces)));
+    futures_util::stream::unfold((hold, pieces.into_iter(), hook, 0_u8), |state| async move {
+        let (hold, mut pieces, hook, seen) = state;
+        if seen == 1
+            && let Some(hook) = hook.as_ref()
+        {
+            hook();
         }
-        pieces.next().map(|item| (item, (None, pieces)))
+        if let Some(wait) = hold.as_ref() {
+            wait.notified().await;
+        }
+        let next = seen.saturating_add(1);
+        pieces.next().map(|item| (item, (None, pieces, hook, next)))
     })
 }
 
-fn fire_hook(slot: &Mutex<Option<Box<dyn Fn() + Send + Sync>>>) {
+fn chunk_hook(
+    slot: &Mutex<Option<Arc<dyn Fn() + Send + Sync>>>,
+) -> Option<Arc<dyn Fn() + Send + Sync>> {
     match slot.lock() {
-        Ok(hook) => {
-            if let Some(hook) = hook.as_ref() {
-                hook();
-            }
-        }
-        Err(poisoned) => {
-            if let Some(hook) = poisoned.into_inner().as_ref() {
-                hook();
-            }
-        }
+        Ok(hook) => hook.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
     }
 }
 
@@ -175,27 +174,21 @@ pub(crate) fn script_chunks(status: u16, chunks: &[String]) -> ScriptStep {
     step
 }
 
-pub(crate) fn script_cut(status: u16, body: &str, at: usize) -> ScriptStep {
-    let mut step = script_step(status, body.to_owned(), false);
-    step.cut_at = Some(at);
-    step
-}
+pub(crate) use crate::scripted_steps::{
+    blank_step, byte_slices, first_token_step, held, raw_cut, reject_step, script_cut, stall_step,
+    stream_error_step,
+};
 
-fn script_step(status: u16, body: String, fail: bool) -> ScriptStep {
+pub(crate) fn script_step(status: u16, body: String, fail: bool) -> ScriptStep {
     ScriptStep {
         status,
         body,
         fail,
-        stall: false,
+        _stall: false,
         chunks: Vec::new(),
         cut_at: None,
         hold: None,
     }
-}
-
-pub(crate) fn held(mut step: ScriptStep, hold: Arc<tokio::sync::Notify>) -> ScriptStep {
-    step.hold = Some(hold);
-    step
 }
 
 pub(crate) fn http_fail(status: u16, message: &str) -> ScriptStep {

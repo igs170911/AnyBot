@@ -23,6 +23,8 @@ pub mod retry;
 pub(crate) mod scripted;
 #[cfg(test)]
 pub(crate) mod scripted_body;
+#[cfg(test)]
+pub(crate) mod scripted_steps;
 pub mod session;
 pub(crate) mod session_ask;
 pub(crate) mod session_chain;

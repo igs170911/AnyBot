@@ -2,17 +2,17 @@ use std::sync::Arc;
 
 use proptest::prelude::*;
 
-use crate::egress::{DataPolicy, JudgeCandidate, ModelUse, SendPermit, allowed, pick_judge};
+use crate::egress::{DataPolicy, JudgeCandidate, ModelUse, pick_judge};
 use crate::prop_run::{ask_one, hi, model_ref, poster_of};
 use crate::scripted::{ScriptStep, connect_fail, http_fail, ok_text};
 use crate::session::ModelRef;
-use crate::types::{Audience, ProviderKind, WireFormat};
+use crate::types::{Audience, ProviderKind};
 use crate::where_run::RunPlace;
 
 #[derive(Clone, Debug)]
 struct BotCase {
-    local_primary: bool,
-    fallbacks: Vec<bool>,
+    primary: u8,
+    fallbacks: Vec<u8>,
     local_only: bool,
     allow_openai: bool,
     use_kind: u8,
@@ -23,28 +23,19 @@ struct BotCase {
 
 fn bot_strategy() -> impl Strategy<Value = BotCase> {
     (
-        any::<bool>(),
-        proptest::collection::vec(any::<bool>(), 0..9),
+        0_u8..5,
+        proptest::collection::vec(0_u8..5, 0..9),
         any::<bool>(),
         any::<bool>(),
         0_u8..6,
         any::<bool>(),
-        0_u8..4,
+        0_u8..5,
         proptest::collection::vec(0_u8..4, 0..4),
     )
         .prop_map(
-            |(
-                local_primary,
-                fallbacks,
-                local_only,
-                allow_openai,
-                use_kind,
-                redirect,
-                fail,
-                judges,
-            )| {
+            |(primary, fallbacks, local_only, allow_openai, use_kind, redirect, fail, judges)| {
                 BotCase {
-                    local_primary,
+                    primary,
                     fallbacks,
                     local_only,
                     allow_openai,
@@ -79,31 +70,34 @@ fn policy_of(case: &BotCase) -> DataPolicy {
     DataPolicy::Cloud { allowed }
 }
 
-fn place_model(local: bool, name: &str) -> ModelRef {
-    if local {
-        return model_ref(crate::prop_run::custom(name, WireFormat::OpenAiCompatible));
-    }
-    model_ref(crate::prop_run::endpoint(
-        ProviderKind::OpenAi,
-        "https://api.openai.com/v1",
-        "k",
-        name,
-    ))
+fn place_model(code: u8, name: &str) -> ModelRef {
+    let (kind, url, key) = match code % 5 {
+        0 => (ProviderKind::Custom, "http://127.0.0.1:9/v1", ""),
+        1 => (ProviderKind::Custom, "http://192.168.1.20:9/v1", ""),
+        2 => (ProviderKind::Custom, "http://gpu:8000/v1", ""),
+        3 => (ProviderKind::OpenAi, "https://api.openai.com/v1", "k"),
+        _ => (ProviderKind::Anthropic, "https://api.anthropic.com", "k"),
+    };
+    model_ref(crate::prop_run::endpoint(kind, url, key, name))
 }
 
 fn known_cloud(model: &ModelRef) -> bool {
-    model.endpoint.base_url.contains("api.openai.com")
+    matches!(
+        crate::where_run::classify_url(&model.endpoint.base_url),
+        RunPlace::Cloud
+    )
 }
 
 fn fail_step(kind: u8, redirect: bool) -> ScriptStep {
     if redirect && kind.is_multiple_of(2) {
         return crate::scripted::script_http(302, "http://api.cloud.test/v1/chat/completions");
     }
-    match kind % 4 {
+    match kind % 5 {
         0 => http_fail(500, "down"),
         1 => http_fail(401, "no"),
         2 => connect_fail(),
-        _ => http_fail(429, "busy"),
+        3 => http_fail(429, "busy"),
+        _ => crate::scripted::blank_step(),
     }
 }
 
@@ -115,11 +109,18 @@ fn script_for(case: &BotCase) -> Vec<ScriptStep> {
     steps
 }
 
-fn expected_place(url: &str) -> RunPlace {
-    if url.contains("192.168.") || url.contains("127.0.0.1") {
-        return RunPlace::Lan;
+fn s8(kind: ModelUse) -> bool {
+    matches!(kind, ModelUse::Summary | ModelUse::Embed | ModelUse::Rerank)
+}
+
+fn judge_ok(policy: &DataPolicy, picked: Option<&JudgeCandidate>) -> bool {
+    let Some(picked) = picked else {
+        return true;
+    };
+    if matches!(picked.place, RunPlace::Cloud) && matches!(policy, DataPolicy::LocalOnly) {
+        return false;
     }
-    RunPlace::Cloud
+    picked.has_key
 }
 
 proptest! {
@@ -129,35 +130,35 @@ proptest! {
     fn t_models_egress_6(case in bot_strategy()) {
         let policy = policy_of(&case);
         let kind = use_kind(case.use_kind);
-        let primary = place_model(case.local_primary, "m0");
+        let primary = place_model(case.primary, "m0");
         let fallbacks: Vec<ModelRef> = case
             .fallbacks
             .iter()
             .enumerate()
-            .map(|(index, local)| place_model(*local, &format!("f{index}")))
+            .map(|(index, code)| place_model(*code, &format!("f{index}")))
             .collect();
         let poster = poster_of(script_for(&case));
         let sent_poster = Arc::clone(&poster);
-        if matches!(kind, ModelUse::Bot | ModelUse::Fallback | ModelUse::Judge) {
-            let mut session = crate::scripted::session_policy(poster, policy.clone());
-            let request = hi();
-            let mut plan = crate::session::ask_plan(
-                &primary,
-                &fallbacks,
-                &request,
-                Audience::Watching,
-            );
-            plan.use_kind = kind;
-            let _outcome = ask_one(&mut session, &mut plan);
-        }
+        let mut session = crate::scripted::session_policy(poster, policy.clone());
+        let request = hi();
+        let mut plan = crate::session::ask_plan(
+            &primary,
+            &fallbacks,
+            &request,
+            Audience::Watching,
+        );
+        plan.use_kind = kind;
+        let _outcome = ask_one(&mut session, &mut plan);
         for row in sent_poster.sent() {
-            if case.local_only {
-                prop_assert!(!matches!(expected_place(&row.url), RunPlace::Cloud));
+            if case.local_only || s8(kind) {
+                prop_assert!(!matches!(crate::where_run::classify_url(&row.url), RunPlace::Cloud));
             }
             prop_assert!(!row.shows_destination().contains("api.cloud.test"));
         }
         assert_local_uses(&policy, &primary, &fallbacks, kind)?;
-        let _picked = pick_judge(&policy, ProviderKind::OpenAi, &judges_of(&case));
+        let judges = judges_of(&case);
+        let picked = pick_judge(&policy, ProviderKind::OpenAi, &judges);
+        prop_assert!(judge_ok(&policy, picked));
     }
 }
 
@@ -167,21 +168,16 @@ fn assert_local_uses(
     fallbacks: &[ModelRef],
     kind: ModelUse,
 ) -> Result<(), TestCaseError> {
-    if !matches!(kind, ModelUse::Summary | ModelUse::Embed | ModelUse::Rerank) {
+    if !s8(kind) && !matches!(policy, DataPolicy::LocalOnly) {
         return Ok(());
     }
     let mut models = vec![primary];
     models.extend(fallbacks);
     for model in models {
-        let issued = SendPermit::for_endpoint(policy, &model.endpoint, kind);
         if known_cloud(model) {
-            prop_assert!(issued.is_none());
-            prop_assert!(!allowed(
-                policy,
-                &model.endpoint.base_url,
-                model.endpoint.kind,
-                kind
-            ));
+            prop_assert!(
+                crate::egress::SendPermit::for_endpoint(policy, &model.endpoint, kind).is_none()
+            );
         }
     }
     Ok(())
@@ -198,10 +194,10 @@ fn judges_of(case: &BotCase) -> Vec<JudgeCandidate> {
                 _ => ProviderKind::Custom,
             },
             has_key: code % 2 == 0,
-            place: if code % 3 == 0 {
-                RunPlace::Cloud
-            } else {
-                RunPlace::Local
+            place: match code % 3 {
+                0 => RunPlace::Local,
+                1 => RunPlace::Lan,
+                _ => RunPlace::Cloud,
             },
         })
         .collect()

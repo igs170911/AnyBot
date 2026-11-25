@@ -27,6 +27,13 @@ pub(crate) fn partial_outcome(
     Ok(interrupted(endpoint, &text))
 }
 
+pub(crate) fn saw_model_text(endpoint: &ProviderEndpoint, raw: &str) -> bool {
+    let result = decode_events(endpoint, &sse_payloads(raw), false);
+    !result.text.trim().is_empty()
+        || !result.thinking.trim().is_empty()
+        || !result.tool_calls.is_empty()
+}
+
 pub(crate) fn stream_closed(raw: &str, format: WireFormat) -> bool {
     match format {
         WireFormat::OpenAiCompatible => sse_done(raw),

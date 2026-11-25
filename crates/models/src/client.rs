@@ -189,24 +189,20 @@ impl Gateway {
                     saw_fail = true;
                     break;
                 }
+                Err(crate::transport::TransportFail::FirstToken) if raw.is_empty() => {
+                    return Err(crate::ask::transport_fail(
+                        endpoint,
+                        &crate::transport::TransportFail::FirstToken,
+                        false,
+                    ));
+                }
                 Err(_) => {
                     saw_fail = true;
                     break;
                 }
             }
         }
-        let text = String::from_utf8_lossy(&raw);
-        if open.status >= 400 {
-            return Err(crate::client_wire::classified_status(
-                endpoint,
-                &crate::transport::HttpBytes {
-                    status: open.status,
-                    body: bytes::Bytes::from(text.into_owned()),
-                    retry_after: crate::transport::retry_after_of(&open.headers),
-                },
-            ));
-        }
-        crate::stream_fail::finish_stream(endpoint, &text, saw_fail)
+        finish_open(endpoint, open.status, &open.headers, &raw, saw_fail)
     }
 
     pub(crate) async fn transport_send(
@@ -216,6 +212,34 @@ impl Gateway {
     ) -> Result<crate::transport::HttpBytes, crate::transport::TransportFail> {
         self.transport.exchange(request, first_wait).await
     }
+}
+
+fn finish_open(
+    endpoint: &ProviderEndpoint,
+    status: u16,
+    headers: &[(String, String)],
+    raw: &[u8],
+    saw_fail: bool,
+) -> Result<TurnResult, GatewayFail> {
+    let text = String::from_utf8_lossy(raw);
+    if status >= 400 {
+        return Err(crate::client_wire::classified_status(
+            endpoint,
+            &crate::transport::HttpBytes {
+                status,
+                body: bytes::Bytes::from(text.into_owned()),
+                retry_after: crate::transport::retry_after_of(headers),
+            },
+        ));
+    }
+    if saw_fail && !crate::stream_fail::saw_model_text(endpoint, &text) {
+        return Err(crate::ask::transport_fail(
+            endpoint,
+            &crate::transport::TransportFail::Dropped,
+            false,
+        ));
+    }
+    crate::stream_fail::finish_stream(endpoint, &text, saw_fail)
 }
 
 pub(crate) fn chat_url_of(endpoint: &ProviderEndpoint) -> String {

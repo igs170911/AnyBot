@@ -139,6 +139,12 @@ async fn t_models_capabilities_4() -> Result<(), String> {
         .body
         .clone();
     assert!(!dropped.contains("reasoning_effort"));
+    assert!(
+        first
+            .notices
+            .iter()
+            .all(|notice| notice.code != "model-retry-wait")
+    );
     let again = ask_m1_again(&mut session, &pair.primary).await?;
     assert_eq!(again.result.text, "again");
     let later = recorded_body(&world, 2)?;

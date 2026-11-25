@@ -2,15 +2,23 @@ use proptest::prelude::*;
 
 use crate::prop_body::{ReplyCase, events_of, sse, whole_body};
 use crate::prop_cut::{
-    assert_column, cut_body, endpoint_for, plain_decode, same_answer, send_body, send_cut,
+    assert_column, cut_at, endpoint_for, plain_decode, same_answer, send_body, send_cut,
     stream_decode,
 };
 
 fn reply_strategy() -> impl Strategy<Value = ReplyCase> {
     (
         0_u8..3,
-        prop_oneof![Just(String::new()), Just("ok".to_owned())],
-        prop_oneof![Just(String::new()), Just("plan".to_owned())],
+        prop_oneof![
+            Just(String::new()),
+            Just("ok".to_owned()),
+            Just("\u{4e2d}\u{6587}".to_owned())
+        ],
+        prop_oneof![
+            Just(String::new()),
+            Just("plan".to_owned()),
+            Just("\u{601d}\u{8003}".to_owned())
+        ],
         prop_oneof![Just(String::new()), Just("read_file".to_owned())],
         prop_oneof![Just("{}".to_owned()), Just(r#"{"path":"a"}"#.to_owned())],
         prop_oneof![
@@ -63,12 +71,17 @@ proptest! {
         let stream = sse(&events_of(&case), true);
         let bare = without_extra(&case);
         let sent = if case.stream { &stream } else { &plain };
-        let (cut, closed) = cut_body(sent, case.cut);
+        let (at, closed) = cut_at(sent, case.cut);
         let cut_result = if closed {
-            send_body(&endpoint, &cut, case.stream)
+            send_body(&endpoint, sent, case.stream)
         } else {
-            send_cut(&endpoint, sent, case.cut, case.stream)
+            send_cut(&endpoint, sent, at, case.stream)
         };
+        if !closed {
+            let delivered = sent.as_bytes().get(..at).unwrap_or(&[]);
+            prop_assert!(cut_matches(&cut_result, delivered, sent));
+            prop_assert!(prefix_holds(&cut_result, delivered));
+        }
         match cut_result {
             Ok(result) => assert_column(&result)?,
             Err(err) => prop_assert!(cut_failure(&err)),
@@ -90,6 +103,52 @@ proptest! {
             &stream_decode(&endpoint, &stream).expect("stream decode")
         ));
     }
+}
+
+fn cut_matches(
+    result: &Result<crate::types::TurnResult, crate::GatewayFail>,
+    delivered: &[u8],
+    whole: &str,
+) -> bool {
+    let shown = match result {
+        Ok(result) => format!("{result:?}"),
+        Err(err) => format!("{err:?}"),
+    };
+    let text = String::from_utf8_lossy(delivered);
+    if text.as_ref() == whole {
+        return false;
+    }
+    word_kept(whole, &text, &shown, "\u{4e2d}\u{6587}")
+        && word_kept(whole, &text, &shown, "\u{601d}\u{8003}")
+}
+
+fn word_kept(whole: &str, delivered: &str, shown: &str, word: &str) -> bool {
+    if !whole.contains(word) {
+        return true;
+    }
+    let kept = word.chars().any(|unit| {
+        let mut buffer = [0; 4];
+        let encoded = unit.encode_utf8(&mut buffer);
+        delivered.contains(&*encoded) && !delivered.contains(word)
+    });
+    if kept {
+        return !shown.contains(word);
+    }
+    if delivered.contains(word) {
+        return true;
+    }
+    !shown.contains(word)
+}
+
+fn prefix_holds(
+    result: &Result<crate::types::TurnResult, crate::GatewayFail>,
+    delivered: &[u8],
+) -> bool {
+    let Ok(result) = result else {
+        return true;
+    };
+    let text = String::from_utf8_lossy(delivered);
+    text.contains(result.text.as_str()) && text.contains(result.thinking.as_str())
 }
 
 fn cut_failure(err: &crate::GatewayFail) -> bool {

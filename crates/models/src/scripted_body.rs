@@ -12,8 +12,17 @@ pub(crate) fn chunk_pieces(step: &ScriptStep) -> Vec<Result<Bytes, TransportFail
     let mut out = Vec::new();
     let mut seen = 0usize;
     for piece in source {
-        let kept = kept_piece(&piece, step.cut_at, seen);
-        seen = seen.saturating_add(piece.len());
+        if piece == "STALL" {
+            out.push(Err(TransportFail::Partial(crate::transport::PartialBody {
+                status: 200,
+                bytes: b"data: {\"choices\":[{\"delta\":{\"content\":\"kept\"}}]}\n\n".to_vec(),
+                stalled: true,
+            })));
+            return out;
+        }
+        let raw = crate::scripted_steps::decoded_piece(&piece);
+        let kept = kept_bytes(&raw, step.cut_at, seen);
+        seen = seen.saturating_add(raw.len());
         if !kept.is_empty() {
             out.push(Ok(Bytes::from(kept)));
         }
@@ -25,8 +34,7 @@ pub(crate) fn chunk_pieces(step: &ScriptStep) -> Vec<Result<Bytes, TransportFail
     out
 }
 
-fn kept_piece(piece: &str, cut_at: Option<usize>, seen: usize) -> Vec<u8> {
-    let bytes = piece.as_bytes();
+fn kept_bytes(bytes: &[u8], cut_at: Option<usize>, seen: usize) -> Vec<u8> {
     let Some(at) = cut_at else {
         return bytes.to_vec();
     };
