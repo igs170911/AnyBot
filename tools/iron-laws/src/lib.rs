@@ -54,4 +54,3 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
 pub fn run(repo: &Path) -> Vec<String> {
     all_violations(repo)
 }
-use serde as _;

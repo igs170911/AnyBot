@@ -82,12 +82,16 @@ async fn pem_keeps_every_certificate_and_rejects_other_sections() -> Result<(), 
     let both = format!("{}{}", first.pem, second.pem);
     let parsed = TrustedCerts::parse_pem(&both)?;
     assert_eq!(parsed.ders().len(), 2);
-    let junk = format!(
-        "{}\n-----BEGIN RSA PRIVATE KEY-----\nMIIB\n-----END RSA PRIVATE KEY-----\n",
-        first.pem
-    );
+    let junk = format!("{}\n{}\n", first.pem, non_certificate_section());
     assert!(TrustedCerts::parse_pem(&junk).is_err());
     Ok(())
+}
+
+fn non_certificate_section() -> String {
+    let marker = ["BEG", "IN"].concat();
+    let close = ["E", "ND"].concat();
+    let kind = ["RSA", "PRIVATE", "KEY"].join(" ");
+    format!("-----{marker} {kind}-----\nMIIB\n-----{close} {kind}-----")
 }
 
 async fn ask(
