@@ -59,7 +59,7 @@
 | 錯誤 | thiserror（函式庫）、anyhow（執行檔） | |
 | 紀錄與追蹤 | tracing＋OpenTelemetry；指標用 Prometheus 格式 | |
 | 密碼雜湊 | argon2id | |
-| 加密 | rustls、ring | 規模部署：信封加密，主鑰匙放 KMS；個人部署：主鑰匙放檔案或系統鑰匙圈 |
+| 加密 | rustls、ring | 規模部署：信封加密，主鑰匙放 KMS；個人部署：伺服器的主鑰匙放啟動檔（`09` K113 ④），客戶端的金鑰放系統鑰匙圈 |
 | MCP | rmcp（官方 Rust SDK） | 接外部工具，也把 AnyBot 的工具提供給外部 agent（`02` §11） |
 | 中文和記憶搜尋 | **自己寫一個 Rust 切詞模組，伺服器和客戶端共用**（中文單字加重疊兩字詞、jieba-rs 的詞、英數識別碼）；伺服器 PostgreSQL 全文索引（GIN）加 pg_trgm，客戶端 SQLite FTS5 加 trigram 表 | 只靠 pg_trgm 找不到一兩個字的中文詞（`09` K107）；不用 Tantivy、zhparser、pg_jieba |
 | 向量和語意模型 | 伺服器 pgvector；預設語意模型 potion-multilingual（CPU），選配走 OpenAI 相容的本機模型伺服器（Qwen3-Embedding、BGE-M3、bge-reranker-v2-m3） | 只用可商用的授權，jina 系列禁用；排序用 RRF；客戶端離線只比字詞（`09` K107） |
