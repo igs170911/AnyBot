@@ -4,9 +4,6 @@ use jiff::{Span, Timestamp};
 
 use anybot_foundation::{Clock, TimestampMs};
 
-pub const PROTOCOL_VERSION: u32 = 2;
-pub const DEPRECATED_PROTOCOL_VERSION: u32 = 1;
-
 pub struct ProtocolRelease {
     pub version: u32,
     pub released: Date,
@@ -24,7 +21,7 @@ impl ProtocolRelease {
 }
 
 pub const PROTOCOL_RELEASES: [ProtocolRelease; 1] = [ProtocolRelease {
-    version: PROTOCOL_VERSION,
+    version: crate::events::PROTOCOL_VERSION,
     released: jiff::civil::date(2026, 1, 1),
 }];
 
@@ -70,3 +67,7 @@ fn today_from(ms: TimestampMs) -> Result<Date, jiff::Error> {
     let timestamp = Timestamp::from_millisecond(millis)?;
     Ok(timestamp.to_zoned_datetime(TimeZone::UTC).datetime().date())
 }
+
+#[cfg(test)]
+#[path = "versions_tests.rs"]
+mod tests;
