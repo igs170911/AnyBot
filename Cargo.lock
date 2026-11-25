@@ -250,7 +250,6 @@ dependencies = [
  "trybuild",
  "url",
  "uuid",
- "webpki-roots",
  "x509-parser",
  "zeroize",
 ]

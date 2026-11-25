@@ -1,3 +1,13 @@
+use rustls_native_certs as _;
+use rustls_pki_types as _;
+
+#[cfg(test)]
+#[path = "certs_fault.rs"]
+mod certs_fault;
+#[cfg(test)]
+#[path = "certs_store.rs"]
+mod certs_store;
+
 pub mod bootstrap;
 pub mod certs;
 mod certs_check;

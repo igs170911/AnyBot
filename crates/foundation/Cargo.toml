@@ -21,7 +21,6 @@ zeroize = { workspace = true }
 rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
 rustls-native-certs = { workspace = true }
-webpki-roots = { workspace = true }
 webpki = { workspace = true }
 x509-parser = { workspace = true }
 [lints]

@@ -10,7 +10,7 @@ fn cert_code(fault: &anybot_foundation::CertFault) -> &'static str {
         anybot_foundation::CertFault::Expired | anybot_foundation::CertFault::NotValidYet => {
             "model-cert-expired"
         }
-        anybot_foundation::CertFault::Untrusted | anybot_foundation::CertFault::Other => {
+        anybot_foundation::CertFault::Untrusted | anybot_foundation::CertFault::Other(_) => {
             "model-cert-untrusted"
         }
     }

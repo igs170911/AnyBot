@@ -27,6 +27,12 @@ fn scan_file(path: &str, content: &str) -> Vec<String> {
                 index.saturating_add(1)
             ));
         }
+        if trimmed.contains("cfg!(test)") {
+            out.push(format!(
+                "{path}:{} cfg!(test) is banned in product code",
+                index.saturating_add(1)
+            ));
+        }
         if !cfg_test_attr(trimmed) {
             continue;
         }
@@ -84,6 +90,14 @@ mod tests {
             v.first()
                 .is_some_and(|row| row.contains("only allowed on mod and use"))
         );
+    }
+
+    #[test]
+    fn test_iron_laws_cfg_macro_test_is_blocked() {
+        let content = "fn hidden() -> bool { cfg!(test) }\n";
+        let v = violations(&[("crates/x/src/a.rs".to_owned(), content.to_owned())]);
+        assert_eq!(v.len(), 1);
+        assert!(v.first().is_some_and(|row| row.contains("cfg!(test)")));
     }
 
     #[test]

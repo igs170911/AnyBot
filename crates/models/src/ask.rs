@@ -148,7 +148,9 @@ fn fail_label(fail: &TransportFail) -> String {
         TransportFail::Certificate(anybot_foundation::CertFault::Untrusted) => {
             "untrusted".to_owned()
         }
-        TransportFail::Certificate(anybot_foundation::CertFault::Other) => "certificate".to_owned(),
+        TransportFail::Certificate(anybot_foundation::CertFault::Other(_)) => {
+            "certificate".to_owned()
+        }
         TransportFail::FirstToken => "first token".to_owned(),
         TransportFail::Stalled { .. } => "stalled after text".to_owned(),
         TransportFail::Dropped => "dropped".to_owned(),

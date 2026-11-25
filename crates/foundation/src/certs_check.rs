@@ -40,17 +40,28 @@ fn check_time(end_entity: &CertificateDer<'_>, now: UnixTime) -> Result<(), Erro
 }
 
 fn map_webpki(err: webpki::Error) -> Error {
-    let text = err.to_string();
-    if text.contains("not valid for name") {
+    if webpki_is_name(&err) {
         return Error::InvalidCertificate(rustls::CertificateError::NotValidForName);
     }
-    if text.contains("not valid yet") {
+    if webpki_is_not_yet(&err) {
         return Error::InvalidCertificate(rustls::CertificateError::NotValidYet);
     }
-    if text.contains("expired") {
+    if webpki_is_expired(&err) {
         return Error::InvalidCertificate(rustls::CertificateError::Expired);
     }
     Error::InvalidCertificate(rustls::CertificateError::Other(rustls::OtherError(
         std::sync::Arc::new(err),
     )))
+}
+
+fn webpki_is_name(err: &webpki::Error) -> bool {
+    matches!(err, webpki::Error::CertNotValidForName(_))
+}
+
+fn webpki_is_not_yet(err: &webpki::Error) -> bool {
+    matches!(err, webpki::Error::CertNotValidYet { .. })
+}
+
+fn webpki_is_expired(err: &webpki::Error) -> bool {
+    matches!(err, webpki::Error::CertExpired { .. })
 }

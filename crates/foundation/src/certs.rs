@@ -11,7 +11,7 @@ pub enum CertFault {
     NameMismatch,
     Expired,
     NotValidYet,
-    Other,
+    Other(String),
 }
 
 #[derive(Clone, Debug, Default)]
@@ -76,19 +76,28 @@ pub struct TrustStore {
     roots: Arc<RootCertStore>,
     extra: Vec<CertificateDer<'static>>,
     supported: WebPkiSupportedAlgorithms,
+    os_notes: Vec<String>,
 }
 
 impl TrustStore {
     pub fn new(extra: &TrustedCerts) -> Result<Arc<Self>, String> {
-        let mut roots = RootCertStore::empty();
         let loaded = rustls_native_certs::load_native_certs();
+        if loaded.certs.is_empty() {
+            return Err(os_store_error(&loaded.errors));
+        }
+        let mut roots = RootCertStore::empty();
+        let mut skipped = Vec::new();
+        for err in loaded.errors {
+            skipped.push(format!("os trust store: {err}"));
+        }
         for cert in loaded.certs {
-            match roots.add(cert) {
-                Ok(()) | Err(Error::InvalidCertificate(_)) => {}
-                Err(err) => return Err(format!("os trust store: {err}")),
+            if let Err(err) = roots.add(cert) {
+                skipped.push(format!("os trust store: {err}"));
             }
         }
-        roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        if roots.is_empty() {
+            return Err(os_store_error_text(&skipped));
+        }
         for cert in &extra.ders {
             roots
                 .add(cert.clone())
@@ -99,7 +108,13 @@ impl TrustStore {
             roots: Arc::new(roots),
             extra: extra.ders.clone(),
             supported: provider.signature_verification_algorithms,
+            os_notes: skipped,
         }))
+    }
+
+    #[must_use]
+    pub fn os_notes(&self) -> &[String] {
+        &self.os_notes
     }
 
     pub fn client_config(self: &Arc<Self>) -> Result<rustls::ClientConfig, String> {
@@ -112,6 +127,21 @@ impl TrustStore {
             .with_no_client_auth();
         Ok(built)
     }
+}
+
+fn os_store_error(errors: &[rustls_native_certs::Error]) -> String {
+    if errors.is_empty() {
+        return "os trust store returned no certificates".to_owned();
+    }
+    let notes: Vec<String> = errors.iter().map(ToString::to_string).collect();
+    os_store_error_text(&notes)
+}
+
+fn os_store_error_text(notes: &[String]) -> String {
+    if notes.is_empty() {
+        return "os trust store returned no certificates".to_owned();
+    }
+    format!("os trust store unreadable: {}", notes.join("; "))
 }
 
 fn ring_provider() -> Arc<rustls::crypto::CryptoProvider> {
@@ -170,21 +200,43 @@ impl ServerCertVerifier for TrustStore {
 
 #[must_use]
 pub fn classify_tls(err: &Error) -> CertFault {
-    fault_from_text(&err.to_string())
+    let Error::InvalidCertificate(kind) = err else {
+        return CertFault::Other(err.to_string());
+    };
+    classify_certificate(kind)
 }
 
-fn fault_from_text(text: &str) -> CertFault {
-    if text.contains("NotValidForName") {
+fn classify_certificate(kind: &rustls::CertificateError) -> CertFault {
+    if cert_is_name(kind) {
         return CertFault::NameMismatch;
     }
-    if text.contains("NotValidYet") {
+    if cert_is_not_yet(kind) {
         return CertFault::NotValidYet;
     }
-    if text.contains("Expired") {
+    if cert_is_expired(kind) {
         return CertFault::Expired;
     }
-    if text.contains("InvalidCertificate") || text.contains("certificate") {
-        return CertFault::Untrusted;
-    }
-    CertFault::Other
+    CertFault::Other(kind.to_string())
+}
+
+fn cert_is_name(kind: &rustls::CertificateError) -> bool {
+    matches!(
+        kind,
+        rustls::CertificateError::NotValidForName
+            | rustls::CertificateError::NotValidForNameContext { .. }
+    )
+}
+
+fn cert_is_not_yet(kind: &rustls::CertificateError) -> bool {
+    matches!(
+        kind,
+        rustls::CertificateError::NotValidYet | rustls::CertificateError::NotValidYetContext { .. }
+    )
+}
+
+fn cert_is_expired(kind: &rustls::CertificateError) -> bool {
+    matches!(
+        kind,
+        rustls::CertificateError::Expired | rustls::CertificateError::ExpiredContext { .. }
+    )
 }
