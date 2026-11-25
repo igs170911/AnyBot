@@ -184,7 +184,10 @@ jobs:
         run: pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit
 
       - name: make check
-        run: make check
+        run: |
+          set -euo pipefail
+          make check
+          sh tools/test-count.sh linux target/nextest.log target/pnpm-test.log
 
       - name: upload e2e evidence on failure
         if: failure()
@@ -253,12 +256,18 @@ jobs:
           Install-Pinned "cargo-deny.exe" "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-x86_64-pc-windows-msvc.tar.gz" "b8d7e473f54c328cc528ef8aea221c40b5ccac3d63844aa056f86ed0886800a2" "deny.tar.gz" "cargo-deny-0.22.1-x86_64-pc-windows-msvc/cargo-deny.exe"
           Install-Pinned "cargo-machete.exe" "https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-x86_64-pc-windows-msvc.tar.gz" "64bd4ceae7680af1d1468cc1edbe09c9bea6221f4f525231c8213666eb01fa5a" "machete.tar.gz" "cargo-machete-v0.10.1-x86_64-pc-windows-msvc/cargo-machete.exe"
 
-      - name: compile the workspace
+      - name: compile the product
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-          cargo build --workspace --locked --all-targets
+          # Skip list is the windows-skip block in docs/testing.md (WIN-1).
+          # --lib --bins skips apps/*/tests and crates/*/tests, which pull in the harness.
+          # -D warnings: a Windows-only unused import failed the rehearsal as a warning.
+          bash tools/windows-skip.sh list
+          $skip = @(bash tools/windows-skip.sh list)
+          if ($skip.Count -lt 1) { throw "windows skip list is empty" }
+          cargo build --locked --workspace @($skip | ForEach-Object { "--exclude"; $_ }) --lib --bins -- -D warnings
 
       - name: pnpm
         shell: bash
@@ -295,8 +304,12 @@ jobs:
           fi
           command -v "${PNPM:-pnpm}"
           mkdir -p target
-          bash tools/test-gate.sh run target/nextest-basic.log cargo nextest run --workspace --profile quick
-          "${PNPM:-pnpm}" -r --no-bail test
+          # Unit tests inside product packages. The skip list is docs/testing.md.
+          skip="$(sh tools/windows-skip.sh --cargo)"
+          # shellcheck disable=SC2086
+          bash tools/test-gate.sh run target/nextest-basic.log cargo nextest run --locked --workspace $skip --lib --bins --profile quick
+          "${PNPM:-pnpm}" -r --no-bail test | tee target/pnpm-test.log
+          sh tools/test-count.sh windows target/nextest-basic.log target/pnpm-test.log
 
   build-macos:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/rel-'))
@@ -368,6 +381,7 @@ jobs:
           command -v cargo-nextest
           command -v pnpm
           make test-basic
+          sh tools/test-count.sh macos target/nextest-basic.log target/pnpm-test.log
 
   # Visible sequence, not a poll: this job starts only after the three checks succeed.
   # A job that calls another workflow cannot set timeout-minutes (GitHub docs:

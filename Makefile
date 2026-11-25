@@ -77,7 +77,7 @@ ifdef NEXTTEST
 else
 	$(CARGO) test --workspace
 endif
-	$(PNPM) -r --no-bail test
+	$(PNPM) -r --no-bail test | tee target/pnpm-test.log
 
 # check-fast Rust tests: everything except the postgres group (spec/09 K90 real DB, slow) and e2e (separate target).
 test-fast:
@@ -147,7 +147,8 @@ ts-typecheck:
 	$(PNPM) -r --no-bail typecheck
 
 ts-test:
-	$(PNPM) -r --no-bail test
+	@mkdir -p target
+	$(PNPM) -r --no-bail test | tee target/pnpm-test.log
 
 ts-build:
 	$(PNPM) -r --no-bail build

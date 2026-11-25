@@ -1,6 +1,7 @@
 #!/bin/sh
 # Copy desktop installers for one Rust target into dest and write SHA256SUMS.
 # Tauri writes to the repo-root target/<triple>/release/bundle, not under src-tauri.
+# Deb intermediates (control.tar.gz, data.tar.gz) are not downloads.
 # Usage: collect-bundles.sh <dest> <target-triple>
 set -eu
 dest="${1:?dest}"
@@ -18,24 +19,28 @@ if [ ! -d "$bundle" ]; then
   exit 1
 fi
 mkdir -p "$dest"
-found=0
-find "$bundle" -type f \( \
-  -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.exe' -o -name '*.msi' -o \
-  -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.tar.gz' \
-  \) -print | while IFS= read -r file; do
-  cp "$file" "$dest/$(basename "$file")"
-done
-found="$(find "$bundle" -type f \( \
-  -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.exe' -o -name '*.msi' -o \
-  -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.tar.gz' \
-  \) | wc -l | tr -d ' ')"
-if [ "$found" = 0 ]; then
-  echo "bundle directory exists but no installers were found in target/$triple/release/bundle" >&2
-  exit 1
-fi
+find "$bundle" -type f -exec sh -c '
+  dest="$1"
+  shift
+  keep() {
+    case "$(basename "$1")" in
+      control.tar.gz|data.tar.gz) return 1 ;;
+    esac
+    case "$1" in
+      *.dmg|*.app.tar.gz|*.exe|*.msi|*.deb|*.rpm|*.AppImage) return 0 ;;
+      */archive/*.tar.gz) return 0 ;;
+      *) return 1 ;;
+    esac
+  }
+  for file do
+    if keep "$file"; then
+      cp "$file" "$dest/$(basename "$file")"
+    fi
+  done
+' sh "$dest" {} +
 count="$(find "$dest" -type f ! -name SHA256SUMS | wc -l | tr -d ' ')"
 if [ "$count" = 0 ]; then
-  echo "installers were listed but none were copied" >&2
+  echo "bundle directory exists but no installers were found in target/$triple/release/bundle" >&2
   exit 1
 fi
 (

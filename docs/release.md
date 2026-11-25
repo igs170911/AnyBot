@@ -82,7 +82,16 @@ https://github.com/igs170911/AnyBot/releases/tag/dev-build
 
 ## 目前有哪些平台
 
-桌面安裝檔：macOS arm64（`.dmg`）、macOS x86_64（`.dmg`）、Windows x64 NSIS、Linux x86_64 的 `.deb`、`.rpm`、壓縮檔（`.tar.gz`，裡面是執行檔）。AppImage 規格沒要求，已從必備清單拿掉，避免它擋住其他格式。
+桌面安裝檔（第四次預演實際產出，開發版、版本 `0.1.0`）：
+
+| 系統 | 檔名 |
+|---|---|
+| macOS Apple 晶片 | `AnyBot Dev_0.1.0_aarch64.dmg` |
+| macOS Intel | `AnyBot Dev_0.1.0_x64.dmg` |
+| Windows x64 | `AnyBot Dev_0.1.0_x64-setup.exe` |
+| Linux x64 | `AnyBot Dev_0.1.0_amd64.deb`、`AnyBot Dev-0.1.0-1.x86_64.rpm`、`anybot-desktop-x86_64-unknown-linux-gnu.tar.gz` |
+
+各附 `SHA256SUMS`。AppImage 規格沒要求，已從必備清單拿掉。`.deb` 的 `control.tar.gz`、`data.tar.gz` 是中間檔，不收。
 
 這次沒有：Windows arm64、Linux aarch64 的桌面安裝檔。
 

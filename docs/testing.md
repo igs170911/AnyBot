@@ -4,7 +4,8 @@
 
 ## 跑測試
 
-- Rust 一律用 `cargo nextest run`（不要用 `cargo test`）。make 目標：`make check` 裡有 `test` 關卡；`make check-fast` 跑 `make test-fast`（`--profile quick`：跳過 PostgreSQL 群組的測試，e2e 是分開的目標）。`make test`、`make test-fast`、`make e2e` 都會先拿跨工作區的測試鎖（見「並行工作」節）。
+- Rust 一律用 `cargo nextest run`（不要用 `cargo test`）。make 目標：`make check` 裡有 `test` 關卡；`make check-fast` 跑 `make test-fast`（`--profile quick`：跳過需要 PostgreSQL 的測試，e2e 是分開的目標）。`make test`、`make test-fast`、`make e2e` 都會先拿跨工作區的測試鎖（見「並行工作」節）。
+- **需要 PostgreSQL 的測試檔一律 `pg_` 開頭**（例如 `pg_postgres.rs`）。nextest 的 binary 名稱就是檔名。`.config/nextest.toml` 的 `quick` 用 `not binary(/^pg_/)` 排除它們。呼叫 `pg_start` 的檔如果不叫 `pg_*.rs`，iron-laws 會擋。現在需要 PostgreSQL 的是 `tests/harness/tests/pg_postgres.rs`。之後 `apps/server/tests/` 或 `crates/*/tests/` 裡要啟動資料庫的，也用這個檔名。
 - **工作流程語法**：`make check` 的 `actionlint` 關卡下載固定的 actionlint 1.7.12（驗 sha256），掃 `.github/workflows/`。呼叫別的工作流程的工作若寫了 `timeout-minutes`，actionlint 會擋。`tools/actionlint-selftest.sh` 塞一份會被擋的檔確認這件事。
 - **`make test` 的結尾碼關卡（HOTFIX）**：`_test-body` 經 `tools/test-gate.sh`（`run` 模式）：nextest 結尾碼不是 0 → 擋；紀錄 `target/nextest.log` 出現 `ignoring unknown configuration keys` → 擋（缺一個都不行）。同一支腳本也是 `make gate-selftest` 的邏輯（在 `check` 和 `check-fast` 裡，幾秒跑完）：`expect-fail` 餵結尾碼非 0 的指令、餵結尾碼 0 但輸出帶那句警告的指令，都要擋；`expect-pass` 餵乾淨指令要過。iron-laws 另有一道 `makefile_recipes` 檢查：recipe 同一邏輯行裡 `;` 接兩個會失敗的指令、管線沒有 `pipefail`、`$(shell ...)` 裡有管線，都擋；要連寫指令一律用 `&&`、条件，或抽成 `tools/` 裡的腳本。
 - `make live-model-check`（`tests/live-model`）：跟真的本機模型比對。先比請求與回應格式（一般／串流／工具呼叫），再用產品客戶端把一般、串流、工具呼叫、思考各送一次給 vllm 假模型和真的模型，比兩邊閘道交出的中立結果結構（結束原因、有沒有文字、有沒有思考、工具呼叫數、用量有沒有）。設定只讀 `.local/live-model/profile.toml`（`cargo clean` 不會刪），只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印、**絕不放進命令列參數**（`ps` 會看到）；要打真的模型一律走這個程式，真的要手動 `curl` 時把標頭寫進 `target/` 裡權限 600 的檔案、用 `curl -H @檔案`，用完刪掉。假模型用 `vllm` 格式跟真的比，三種格式要比到 identical。終端機會印每一種格式差在哪，以及 `product client:` 底下四行結構比較（`identical structure` 或兩邊的結構）。報告寫在 `.local/live-model/format-report.txt`。檔案不在時，程式在連出去之前就列出要建的 `profile.toml`、`base_url`、`model`、`ca_file`、`key_file`。不在 `make check`、`make check-fast`、CI 裡。
@@ -42,7 +43,7 @@
 | `model_script.rs` / `model_openai.rs` / `model_vllm.rs` / `model_anthropic.rs` / `model_plan.rs` / `fake_model.rs` | 假模型伺服器：照腳本回 responses（串流、JSON、tool、中斷、卡死、無回應、錯誤狀態、用量、模型清單、空白、轉址），並記錄收到的請求 | 腳本依序回應；空腳本回錯誤；金鑰只記 Match / Mismatch / Missing，不記值。OpenAI 相容端點有兩種格式（見上面「假模型的兩種格式」）。自我測試在 `tests/harness/tests/fake_model*.rs` |
 | `cloud_map.rs` | 測試用的名稱對照：把 `http://api.cloud.test/...` 改寫成假模型的位址 | 從閘道建構函式傳進去（`Gateway::with_names`）。產品不讀環境變數、不加旗標 |
 | `http.rs` / `realtime.rs` | 測試用的 HTTP/SSE/WebSocket helper；`timeout_real` 给非同步等待包上真時間期限 | 等待外部的東西一律要有期限 |
-| `postgres.rs` | 測試用 PostgreSQL（K90：不用 Docker）：`pg_start` 把程式下載到 `target/pg-install`（共用快取），資料夾在 `target/`，`unix_socket_directories`（`socket_dir`）設在 `target/` 裡那個資料庫自己的資料夾（macOS socket 路徑上限約 104 字元，base dir 要短），帳密為套件內建的 superuser；`pg_create_database` / `pg_drop_database` 走 admin pool；`pg_migrations_dir()` 指向 `tests/harness/fixtures/migrations/server` | 每個測試用獨立 base dir 與獨立 database；stop 會釋放 port 並清掉資料夾；不准讓 socket 檔寫到 `/tmp` |
+| `postgres.rs`（測試檔是 `tests/harness/tests/pg_postgres.rs`） | 測試用 PostgreSQL（K90：不用 Docker）：`pg_start` 把程式下載到 `target/pg-install`（共用快取），資料夾在 `target/`，`unix_socket_directories`（`socket_dir`）設在 `target/` 裡那個資料庫自己的資料夾（macOS socket 路徑上限約 104 字元，base dir 要短），帳密為套件內建的 superuser；`pg_create_database` / `pg_drop_database` 走 admin pool；`pg_migrations_dir()` 指向 `tests/harness/fixtures/migrations/server` | 每個測試用獨立 base dir 與獨立 database；stop 會釋放 port 並清掉資料夾；不准讓 socket 檔寫到 `/tmp` |
 | `fake_push.rs` / `push_crypto.rs` | 假推播（RFC 8030 的推播服務）：訂閱註冊、PUT `/push/{id}`，用測試自己產生的金鑰（RFC 8291 aes128gcm，金鑰在 body 的前 86 字节裡）解開內容，記錄 `subscription_id`、明文、`ttl`、`topic`、`urgency` | 加解密用 `sad-web-push`（純 Rust，不用 OpenSSL），不手寫；自我測試見 `tests/harness/tests/fake_push.rs` |
 
 ## 測試命名與分級（`spec/09` K86、`spec/05` 鐵律 4）
@@ -73,5 +74,27 @@
 - 畫面文字一律用訊息代碼查 `locales/*.ftl`（`src/ftl.ts`），動作詞彙對應的輔助函式在 `src/act.ts`（按〔按鈕上的字〕、填欄位、出現在螢幕／不出現、版面量測、console 檢查）。
 - 時間快轉連瀏覽器一起轉：控制 API `/control/status` 回 `now_ms`，測試用 `src/act.ts` 的 `installFakeClock`／`syncBrowserClock`（Playwright 的 `page.clock`）把瀏覽器時鐘設成假時鐘的現在時間；自我測試快轉一小時後，瀏覽器 `Date.now()` 必須剛好等於 `/v1/health` 的新 `now`。
 - 端對端測試從外面打真程式：煙霧測試打 `vite preview` 的靜態站；自我測試（`selftest.spec.ts`）用控制 API 寫模型腳本、直接打假模型、讀請求記錄、快轉時鐘後驗證 `/v1/health` 的 `now` 位移 3,600,000 毫秒。
-- 執行：`make e2e`（先 `cargo build -p testenv`，再跑 Playwright；e2e 前有跨工作區測試鎖，見「並行工作」）；`make check` 含 e2e 閘。CI（`.github/workflows/ci.yml`）加裝 `pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit`；CI 失敗時把 `target/playwright` 和 `target/e2e-screens` 上傳成 artifact（`actions/upload-artifact`，保留 7 天）。推 `dev` 和 `main` 時，同一個檔案另有 Windows、macOS 工作，跑 `cargo build --workspace --locked --all-targets` 和 `make test-basic`（不需要 PostgreSQL、不需要瀏覽器）。
+- 執行：`make e2e`（先 `cargo build -p testenv`，再跑 Playwright；e2e 前有跨工作區測試鎖，見「並行工作」）；`make check` 含 e2e 閘。CI（`.github/workflows/ci.yml`）加裝 `pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit`；CI 失敗時把 `target/playwright` 和 `target/e2e-screens` 上傳成 artifact（`actions/upload-artifact`，保留 7 天）。
+
+## Windows 基本測試還沒跑的（WIN-1 之前）
+
+`tests/harness` 用了只有 Unix 才有的訊號和行程群組，Windows 編不過。在 WIN-1 做完之前，Windows 的自動檢查不編、不跑依賴測試工具的東西。產品套件一個都不跳過。
+
+| 跑 | 不跑 |
+|---|---|
+| `crates/` 全部、`apps/` 全部的函式庫和執行檔（`--lib --bins`，警告當錯誤） | 下面 `<!-- windows-skip -->` 清單裡的套件，以及會把它們拉進來的整合測試 |
+| 產品套件自己的單元測試（`cargo nextest --lib --bins`，套件原始碼裡的 `#[cfg(test)]`） | `apps/*/tests/`、`crates/*/tests/` 的整合測試（現在有 `apps/server/tests/`、`crates/server/tests/`、`crates/models` 裡用到 harness 的整合測試） |
+| `pnpm -r test` | Playwright、需要 PostgreSQL 的測試 |
+
+Windows 不編、不跑的套件只有這一份。`ci.yml` 的 Windows 工作呼叫 `tools/windows-skip.sh`，參數從這裡讀，不另外寫在工作流程的指令裡。
+
+<!-- windows-skip
+test-harness
+testenv
+live-model
+-->
+
+macOS 和 Linux 的基本測試仍是 `make test-basic`：`quick` 設定（不含 `pg_` 開頭的測試）加 `pnpm -r test`。Linux 的 `make check` 跑全部，包括 PostgreSQL。
+
+三種系統的工作最後都印一行 `tests ran: <數字>`。數字是 nextest 摘要裡的 `N tests run` 加上 `pnpm -r test` 的 `Tests N passed`。Windows 的數字會比 macOS 小，因為整合測試沒跑。Linux 的 `make check` 還含 Playwright，那一行只算 nextest 和 pnpm。
 - 輸出（截圖、trace、html 報告）一律在 `target/playwright`、`target/playwright-html`。
