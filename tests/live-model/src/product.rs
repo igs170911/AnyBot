@@ -127,7 +127,7 @@ async fn shapes_from(format: ModelFormat) -> Result<Vec<NeutralShape>, String> {
             .map_err(|err| format!("{err:?}"))?;
         shapes.push(shape_of(&result));
     }
-    let _held = model;
+    drop(model);
     Ok(shapes)
 }
 

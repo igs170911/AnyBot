@@ -128,8 +128,7 @@ fn redirect(location: &str) -> Response {
 fn silent_list() -> Response {
     let (tx, rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(1);
     tokio::spawn(async move {
-        let _held = tx;
-        std::future::pending::<()>().await;
+        tx.closed().await;
     });
     let stream =
         tokio_stream::wrappers::ReceiverStream::new(rx).map(Ok::<bytes::Bytes, std::io::Error>);
