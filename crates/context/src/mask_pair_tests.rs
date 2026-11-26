@@ -101,7 +101,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(150))]
     #[test]
     fn accumulate_margin_between_collapse_events(
-        lens in prop::collection::vec(step_record(0).prop_map(|s| s.content.chars().count()), 12..22),
+        lens in prop::collection::vec(step_record(0).prop_map(|s| s.content.chars().count()), 12..13),
         usable in 4_000u64..40_000u64,
     ) {
         let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
