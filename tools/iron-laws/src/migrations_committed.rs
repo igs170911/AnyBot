@@ -39,31 +39,33 @@ fn dir_violations(repo: &Path, git_ref: &str, rel_dir: &str) -> Vec<String> {
 }
 
 fn diff_violations(repo: &Path, git_ref: &str, rel_dir: &str) -> Vec<String> {
-    match git_diff_quiet(repo, git_ref, rel_dir) {
-        Ok(()) => vec![],
-        Err(e) => vec![e],
-    }
-}
-
-fn git_diff_quiet(repo: &Path, git_ref: &str, rel_dir: &str) -> Result<(), String> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(["diff", "--quiet", git_ref, "--", rel_dir])
-        .output()
-        .map_err(|e| format!("git diff failed to run: {e}"))?;
-    if out.status.success() {
-        return Ok(());
-    }
-    if out.status.code() == Some(1) {
-        return Err(format!(
-            "{rel_dir}: committed migration content changed against {git_ref}; committed migrations never change (spec/09 K118 6)"
+    let text = match git_output(
+        repo,
+        &[
+            "diff",
+            "--name-status",
+            "--no-renames",
+            "--diff-filter=DMT",
+            git_ref,
+            "--",
+            rel_dir,
+        ],
+    ) {
+        Ok(text) => text,
+        Err(e) => return vec![e],
+    };
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let mut parts = line.split('\t');
+        let (Some(kind), Some(file)) = (parts.next(), parts.next()) else {
+            out.push(format!("{rel_dir}: unparsed diff line {line}"));
+            continue;
+        };
+        out.push(format!(
+            "{file}: a committed migration was {kind} against {git_ref}; committed migrations never change (spec/09 K118 6)"
         ));
     }
-    Err(format!(
-        "{rel_dir}: git diff against {git_ref} failed: {}",
-        String::from_utf8_lossy(&out.stderr)
-    ))
+    out
 }
 
 fn git_output(repo: &Path, args: &[&str]) -> Result<String, String> {
@@ -91,11 +93,19 @@ mod tests {
         let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../target/scratch")
             .join(name);
-        let _removed = std::fs::remove_dir_all(&repo);
+        remove_scratch(&repo);
         std::fs::create_dir_all(repo.join("migrations/server")).unwrap();
         std::fs::create_dir_all(repo.join("migrations/client")).unwrap();
         git(&repo, &["init", "-b", "main"]);
         repo
+    }
+
+    fn remove_scratch(repo: &Path) {
+        match std::fs::remove_dir_all(repo) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => panic!("cannot clear the scratch repo: {e}"),
+        }
     }
 
     fn git(repo: &Path, args: &[&str]) {

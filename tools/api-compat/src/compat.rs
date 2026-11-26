@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::process::Command;
 
 use crate::log;
 use crate::sha;
@@ -56,13 +55,16 @@ pub fn violations_with_notes(inputs: &Inputs<'_>) -> (Vec<String>, Vec<String>) 
         Ok(files) => files,
         Err(e) => return (vec![e], notes),
     };
-    let prev = prev_ref(inputs.git_ref);
-    let ref_files = match read_ref_baselines(inputs, &prev) {
+    let ref_files = match read_ref_baselines(inputs, inputs.git_ref) {
         Ok(files) => files,
         Err(e) => return (e, notes),
     };
     out.extend(gate_violations(
-        inputs, &ref_files, &tree, &prev, &mut notes,
+        inputs,
+        &ref_files,
+        &tree,
+        inputs.git_ref,
+        &mut notes,
     ));
     (out, notes)
 }
@@ -136,7 +138,7 @@ fn gate_violations(
     inputs: &Inputs<'_>,
     ref_files: &Baselines,
     tree: &Baselines,
-    prev: &str,
+    git_ref: &str,
     notes: &mut Vec<String>,
 ) -> Vec<String> {
     let mut out = baseline_file_violations(tree);
@@ -152,7 +154,7 @@ fn gate_violations(
     }
     for item in (inputs.breaking_of)(&ref_files.asyncapi_text, &tree.asyncapi_text) {
         notes.push(format!(
-            "{}: breaking protocol change: {item} (record it before merging {prev})",
+            "{}: breaking protocol change: {item} (record it before merging {git_ref})",
             sha::ASYNCAPI_REL
         ));
     }
@@ -199,88 +201,8 @@ fn log_prefix_violations(ref_log: &str, tree_log: &str) -> Vec<String> {
     out
 }
 
-#[must_use = "the baselines are compared at the ref before this one"]
-pub fn prev_ref(git_ref: &str) -> String {
-    format!("{git_ref}~1")
-}
-
 fn missing_baseline(git_ref: &str, rel: &str) -> String {
     format!(
         "{rel} is missing at ref {git_ref}; commit the baselines first (the api-docs gate keeps them current)"
     )
-}
-
-#[must_use = "the real git reads feed the gate"]
-pub fn read_ref(repo: &Path, git_ref: &str, rel: &str) -> Result<Option<String>, String> {
-    let mut spec = git_ref.to_owned();
-    spec.push(':');
-    spec.push_str(rel);
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(["show", &spec])
-        .output()
-        .map_err(|e| format!("git show {git_ref}:{rel} failed to run: {e}"))?;
-    if out.status.success() {
-        return Ok(Some(String::from_utf8_lossy(&out.stdout).into_owned()));
-    }
-    if missing_at_ref(&out.stderr, git_ref, rel) {
-        return Ok(None);
-    }
-    Err(format!(
-        "git show {git_ref}:{rel} failed: {}",
-        String::from_utf8_lossy(&out.stderr)
-    ))
-}
-
-fn missing_at_ref(stderr: &[u8], git_ref: &str, rel: &str) -> bool {
-    let text = String::from_utf8_lossy(stderr);
-    let lower = text.to_lowercase();
-    lower.contains("exists") && lower.contains(&git_ref.to_lowercase()) && lower.contains(rel)
-}
-
-#[must_use = "the tracked record file is what every clone can check against"]
-pub fn changelog_tracked(repo: &Path, rel: &str) -> Result<(), String> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(["ls-files", "--error-unmatch", rel])
-        .output()
-        .map_err(|e| format!("git ls-files failed to run: {e}"))?;
-    if out.status.success() {
-        return Ok(());
-    }
-    Err(format!(
-        "{rel} is not tracked by git: the record file must live in the repo (spec/09 K118 6)"
-    ))
-}
-
-#[must_use = "a released version switches the gate to the post-release rules"]
-pub fn release_tags(repo: &Path) -> Result<Vec<String>, String> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(["tag", "--list"])
-        .output()
-        .map_err(|e| format!("git tag --list failed to run: {e}"))?;
-    if !out.status.success() {
-        return Err(format!(
-            "git tag --list failed: {}",
-            String::from_utf8_lossy(&out.stderr)
-        ));
-    }
-    let text = String::from_utf8_lossy(&out.stdout).into_owned();
-    Ok(version_tags(&text))
-}
-
-fn version_tags(text: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    for line in text.lines() {
-        let tag = line.trim();
-        if tag.starts_with('v') && !tag.to_lowercase().contains("-rc") {
-            out.push(tag.to_owned());
-        }
-    }
-    out.sort();
-    out
 }

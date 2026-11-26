@@ -28,6 +28,11 @@ fn walk(path: &str, baseline: &Value, current: &Value, out: &mut Vec<String>) {
                     Some(new) => walk(&format!("{path}/{key}"), old, new, out),
                 }
             }
+            for key in b.keys() {
+                if key == "required" && !a.contains_key("required") {
+                    out.push(format!("{path}/{key}: a new required list"));
+                }
+            }
         }
         (Value::Array(a), Value::Array(b)) => {
             if path.ends_with("/required") && b.len() > a.len() {

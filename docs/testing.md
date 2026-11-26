@@ -121,3 +121,17 @@ macOS 和 Linux 的基本測試仍是 `make test-basic`：`quick` 設定（不�
 
 三種系統的工作最後都印一行 `tests ran: <數字>`。數字是 nextest 摘要裡的 `N tests run` 加上 `pnpm -r test` 的 `Tests N passed`。Windows 的數字會比 macOS 小，因為整合測試沒跑。Linux 的 `make check` 還含 Playwright，那一行只算 nextest 和 pnpm。
 - 輸出（截圖、trace、html 報告）一律在 `target/playwright`、`target/playwright-html`。
+
+
+## api-compat 的 release tag 規則（`spec/09` K118 ⑥）
+
+`api-compat` 拿比較 ref（Makefile 的 `SPEC_TRACE_REF`＝`git merge-base HEAD dev`，CI 自己設），
+把目前 tree 的 `api/openapi.yaml`、`api/asyncapi.yaml`、`api/breaking-changes.log` 跟該 ref 上的
+三份檔比對；ref 上找不到基準檔用 `git cat-file -e` 判定，當基準缺失（當 ref 真的沒有，不當成空）。
+
+- **尚未 release**（`git tag --list` 沒有任何 `v*` tag）：基準檔案改變 ⇒ `api/breaking-changes.log`
+  必須新增一行（帶當天日期、新基準的 sha256、改了什麼、為什麼），舊行不准動（ref 版必須是目前版的
+  逐位元組前綴）；有新增行就放行。breaking 的協議/API 變化（包含新增 required 項目、required 清單變長）
+  印成 `info:` 報告，不算違反。
+- **已 release**（存在任何 `v*` tag，`v*-rc*` 除外）：發版後的相容規則（K118 ⑥ 的向後相容那半）
+  還沒實作，`api-compat` 一律擋，訊息裡說明並指向 K118 ⑥；要讓它過，先實作發版後規則。

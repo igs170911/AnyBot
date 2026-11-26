@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use sqlparser::ast::Statement;
+use sqlparser::dialect::PostgreSqlDialect;
+use sqlparser::tokenizer::{Token, Tokenizer};
 
 use crate::collect::read_file_lossy;
 use crate::migrations_parser::parse_sql;
@@ -56,15 +58,39 @@ pub fn file_violations(rel: &str, content: &str) -> Vec<String> {
             )];
         }
     };
+    let lines = statement_lines(content);
     let mut out = Vec::new();
-    for statement in &statements {
-        out.extend(statement_violations_of(rel, statement));
+    for (idx, statement) in statements.iter().enumerate() {
+        let line = lines.get(idx).copied().unwrap_or(1);
+        out.extend(statement_violations_of(rel, statement, line));
     }
     out
 }
 
-fn statement_violations_of(rel: &str, statement: &Statement) -> Vec<String> {
-    statement_violations(rel, 1, statement)
+fn statement_lines(content: &str) -> Vec<usize> {
+    let dialect = PostgreSqlDialect {};
+    let mut tokenizer = Tokenizer::new(&dialect, content);
+    let Ok(tokens) = tokenizer.tokenize_with_location() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    let mut start = 1usize;
+    for token in &tokens {
+        if token.token != Token::SemiColon && token.token != Token::EOF {
+            continue;
+        }
+        let end_line = usize::try_from(token.span.end.line).unwrap_or(start);
+        if token.token == Token::EOF && out.last().is_some_and(|last| *last == start) {
+            break;
+        }
+        out.push(start);
+        start = end_line.saturating_add(1);
+    }
+    out
+}
+
+fn statement_violations_of(rel: &str, statement: &Statement, line: usize) -> Vec<String> {
+    statement_violations(rel, line, statement)
 }
 
 #[cfg(test)]
@@ -219,6 +245,35 @@ mod tests {
         blocked("the sql parser rejects", "ALTER TABLE t ADD COLUMN;\n");
         blocked("the sql parser rejects", "CREATE TABLE a (id INT\n");
         blocked("the sql parser rejects", "SEED DATA HERE;\n");
+    }
+
+    #[test]
+    fn test_migration_gate_blocks_default_null_additions() {
+        blocked(
+            "defaults a column to NULL",
+            "ALTER TABLE t ADD COLUMN x INT NOT NULL DEFAULT NULL;\n",
+        );
+        blocked(
+            "defaults a column to NULL",
+            "ALTER TABLE t ADD COLUMN x INT DEFAULT NULL;\n",
+        );
+        allowed("ALTER TABLE t ADD COLUMN x INT NOT NULL DEFAULT 0;\n");
+        allowed("ALTER TABLE t ADD COLUMN x INT DEFAULT 'seed';\n");
+    }
+
+    #[test]
+    fn test_migration_violation_reports_the_statement_line() {
+        let sql =
+            "CREATE TABLE a (id BIGINT);\nALTER TABLE a ADD COLUMN b TEXT;\nDROP INDEX a_i;\n";
+        let found = file_violations("migrations/server/fixture.sql", sql);
+        assert!(
+            found.iter().any(|line| line.contains("fixture.sql:3")),
+            "{found:?}"
+        );
+        assert!(
+            !found.iter().any(|line| line.contains("fixture.sql:1:")),
+            "{found:?}"
+        );
     }
 
     #[test]

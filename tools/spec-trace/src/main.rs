@@ -120,6 +120,13 @@ fn ref_spec_ids(repo: &Path, git_ref: &str) -> Result<BTreeSet<String>, String> 
     Ok(ids)
 }
 
+fn base_ref_guard(args: &[String], against: Option<&str>) -> Result<(), String> {
+    if args.iter().any(|a| a == "--against") && against.is_none_or(str::is_empty) {
+        return Err("spec-trace: no comparison base (--against must be the merge base; there is no HEAD fallback)".to_owned());
+    }
+    Ok(())
+}
+
 fn arg_value(args: &[String], flag: &str) -> Option<String> {
     let idx = args.iter().position(|a| a == flag)?;
     args.get(idx.saturating_add(1)).cloned()
@@ -205,8 +212,9 @@ fn against_report(
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
-    let write_baseline = args.iter().any(|a| a == "--write-baseline");
     let against = arg_value(&args, "--against");
+    base_ref_guard(&args, against.as_deref())?;
+    let write_baseline = args.iter().any(|a| a == "--write-baseline");
     let repo = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()

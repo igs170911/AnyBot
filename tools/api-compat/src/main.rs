@@ -4,14 +4,12 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use api_compat::{compat, schema};
+use api_compat::{compat, git_ops, schema};
 
 use clap as _;
 use serde_json as _;
 use sha2 as _;
 use yaml_serde as _;
-
-use serde as _;
 
 #[derive(Parser)]
 #[command(
@@ -40,9 +38,9 @@ fn main() -> ExitCode {
     let inputs = compat::Inputs {
         repo: &repo,
         git_ref: &args.against,
-        read_ref: &compat::read_ref,
-        tracked: &compat::changelog_tracked,
-        release_tags: &compat::release_tags,
+        read_ref: &git_ops::read_ref,
+        tracked: &git_ops::changelog_tracked,
+        release_tags: &git_ops::release_tags,
         breaking_of: &schema::breaking,
     };
     let (violations, notes) = compat::violations_with_notes(&inputs);

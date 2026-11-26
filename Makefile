@@ -19,7 +19,7 @@ define locked
 	@bash tools/testlock.sh $1
 endef
 
-# spec-trace baseline compare ref: locally compares against HEAD; CI compares against the commit pushed to before the push on dev and main, otherwise the merge base of origin/dev (K111; CI sets this variable).
+# spec-trace baseline compare ref: the merge base of HEAD and dev; when there is no merge base this variable is empty and spec-trace fails (INFRA-4: no fallback to HEAD). CI sets its own value: dev and main compare against the commit pushed to before the push, otherwise the merge base of origin/dev (K111). api-compat uses the same ref (spec/09 K118 6).
 SPEC_TRACE_REF ?= $(shell git merge-base HEAD dev)
 
 .PHONY: check check-fast fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline sqlx-prepare sqlx-check \

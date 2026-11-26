@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 
-use serde as _;
 use serde_json as _;
 use sqlparser as _;
 use yaml_serde as _;
@@ -18,7 +17,19 @@ fn repo_root() -> PathBuf {
 }
 
 fn main() -> ExitCode {
-    let git_ref = std::env::args().nth(1).unwrap_or_else(|| "HEAD".to_owned());
+    let git_ref = std::env::args().nth(1).unwrap_or_default();
+    if git_ref.is_empty() {
+        let mut stdout = std::io::stdout();
+        if writeln!(
+            stdout,
+            "iron-laws: no comparison base (SPEC_TRACE_REF must be the merge base; there is no HEAD fallback)"
+        )
+        .is_err()
+        {
+            return ExitCode::FAILURE;
+        }
+        return ExitCode::FAILURE;
+    }
     let violations = iron_laws::run(&repo_root(), &git_ref);
     let mut stdout = std::io::stdout();
     for v in &violations {

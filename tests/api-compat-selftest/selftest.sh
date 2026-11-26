@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # selftest of the api-compat gate (spec/09 K86): every scenario is a scratch git repo
 # with fixture baselines; the tool must block the bad ones and pass the good ones.
-# The gate compares the tree against ref~1, so every scenario commits its state.
+
 set -uo pipefail
 
 repo=${1:-.}
@@ -43,7 +43,7 @@ expect() {
 run_tool() {
 	local name="$1" want="$2" needle="$3"
 	local out rc
-	out=$("$bin" --repo "$scratch" --against HEAD 2>&1)
+	out=$("$bin" --repo "$scratch" --against "$ref" 2>&1)
 	rc=$?
 	expect "$name" "$want" "$needle" "$out" "$rc"
 }
@@ -70,6 +70,7 @@ start_scenario() {
 	fixture asyncapi-base.yaml asyncapi.yaml
 	printf '%s | sha256=%s | fixtures seeded | the selftest starts from a committed baseline\n' "2026-01-01" "$(baseline_sha)" > "$scratch/api/breaking-changes.log"
 	commit_all "scenario seed"
+	ref=$(git -C "$scratch" rev-parse HEAD)
 }
 
 append_record() {
@@ -83,6 +84,7 @@ git -C "$scratch" -c user.email=selftest@invalid -c user.name=selftest commit --
 start_scenario
 printf '%s\n' "# a trailing comment line: the files themselves do not change" >> "$scratch/api/breaking-changes.log"
 commit_all "touch the changelog comment"
+ref=$(git -C "$scratch" rev-parse HEAD)
 
 cargo build --locked -p api-compat --quiet
 build_rc=$?

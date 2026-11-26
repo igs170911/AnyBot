@@ -1,4 +1,4 @@
-use sqlparser::ast::{AlterTableOperation, ColumnOption, Statement};
+use sqlparser::ast::{AlterTableOperation, ColumnOption, Statement, Value};
 
 use crate::migrations_insert::insert_violations;
 
@@ -89,8 +89,11 @@ fn add_column_violations(
         if matches!(option.option, ColumnOption::NotNull) {
             required = true;
         }
-        if matches!(option.option, ColumnOption::Default(_)) {
+        if column_default_is_fixed(&option.option) {
             has_default = true;
+        }
+        if default_is_null(&option.option) {
+            out.push(violation(rel, line, "defaults a column to NULL"));
         }
     }
     if required && !has_default {
@@ -101,6 +104,24 @@ fn add_column_violations(
         ));
     }
     out
+}
+
+fn column_default_is_fixed(option: &ColumnOption) -> bool {
+    let ColumnOption::Default(expr) = option else {
+        return false;
+    };
+    !expr_is_null(expr)
+}
+
+fn default_is_null(option: &ColumnOption) -> bool {
+    let ColumnOption::Default(expr) = option else {
+        return false;
+    };
+    expr_is_null(expr)
+}
+
+fn expr_is_null(expr: &sqlparser::ast::Expr) -> bool {
+    matches!(expr, sqlparser::ast::Expr::Value(value) if value.value == Value::Null)
 }
 
 #[must_use = "the reason names the column option that breaks the additive rule"]

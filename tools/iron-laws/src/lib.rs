@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 
-use serde as _;
-
 pub mod banlists;
 pub mod cfg_test;
 pub mod clippy_tomls;
@@ -18,6 +16,8 @@ pub mod makefile_recipes;
 pub mod makefile_scan;
 pub mod migrations;
 pub mod migrations_committed;
+#[cfg(test)]
+mod migrations_committed_tests;
 pub mod migrations_insert;
 pub mod migrations_parser;
 pub mod migrations_rules;
