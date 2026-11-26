@@ -169,20 +169,45 @@ fn pair_line(name: &str, left: &NeutralShape, right: &NeutralShape) -> String {
 }
 
 pub async fn compare_fakes() -> Result<(), String> {
-    let left = shapes_from(ModelFormat::Vllm).await?;
-    let right = shapes_from(ModelFormat::Vllm).await?;
-    if left != right {
-        return Err(format!("neutral shapes differ: {left:?} vs {right:?}"));
-    }
-    let lines = product_lines(&left, &right);
-    let matched = lines
-        .iter()
-        .filter(|line| line.contains("identical structure"))
-        .count();
-    if matched != crate::cases::PRODUCT_SCENARIOS.len() {
-        return Err(format!("product structures differ: {lines:?}"));
+    let shapes = shapes_from(ModelFormat::Vllm).await?;
+    let expected = expected_shapes();
+    if shapes != expected {
+        return Err(format!("neutral shapes differ: {shapes:?} vs {expected:?}"));
     }
     Ok(())
+}
+
+fn expected_shapes() -> Vec<NeutralShape> {
+    vec![
+        NeutralShape {
+            stop: "finished".to_owned(),
+            has_text: true,
+            has_thinking: true,
+            tool_calls: 0,
+            usage: "present".to_owned(),
+        },
+        NeutralShape {
+            stop: "finished".to_owned(),
+            has_text: true,
+            has_thinking: true,
+            tool_calls: 0,
+            usage: "present".to_owned(),
+        },
+        NeutralShape {
+            stop: "needs-tool".to_owned(),
+            has_text: false,
+            has_thinking: false,
+            tool_calls: 1,
+            usage: "present".to_owned(),
+        },
+        NeutralShape {
+            stop: "finished".to_owned(),
+            has_text: true,
+            has_thinking: true,
+            tool_calls: 0,
+            usage: "present".to_owned(),
+        },
+    ]
 }
 
 async fn shapes_from(format: ModelFormat) -> Result<Vec<NeutralShape>, String> {

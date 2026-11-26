@@ -133,14 +133,11 @@ proptest! {
         };
         let mut carry = 0_usize;
         for step in &steps {
-            let outcome = ask_serving(&mut parts, step, &serving)?;
+            let started = serving.clone();
+            let outcome = ask_serving(&mut parts, step, &started)?;
             records = records.saturating_add(carry);
             carry = outcome;
-            if step.switch && !step.fail {
-                serving = flip(&serving);
-            }
-            if step.fail && step.switch {
-                fire_pending(&armed);
+            if step.switch {
                 serving = flip(&serving);
             }
         }
@@ -155,7 +152,7 @@ proptest! {
         let outcome = ask_serving(&mut parts, &idle, &serving)?;
         records = records.saturating_add(carry).saturating_add(outcome);
         let switches = steps.iter().filter(|step| step.switch).count();
-        prop_assert!(records >= switches);
+        prop_assert_eq!(records, switches);
     }
 }
 
@@ -177,6 +174,10 @@ fn ask_serving(
         Err(err) => {
             if step.fail {
                 sent_model(parts.poster, before, &expected)?;
+                prop_assert!(parts.poster.sent().len() > before);
+                if step.switch {
+                    fire_pending(parts.armed);
+                }
                 return Ok(0);
             }
             return Err(TestCaseError::fail(format!("{err:?}")));
@@ -206,7 +207,10 @@ fn sent_model(poster: &ScriptPoster, before: usize, serving: &str) -> Result<(),
     let Some(row) = sent.get(before) else {
         return Err(TestCaseError::fail("sent"));
     };
-    prop_assert!(row.shows_destination().contains(serving));
+    let host = row.shows_destination();
+    if !host.contains(serving) {
+        return Err(TestCaseError::fail(format!("saw {host} wanted {serving}")));
+    }
     Ok(())
 }
 
@@ -232,21 +236,21 @@ fn prime(parts: &AskParts<'_>, step: &Step, expected: &str) {
 
 fn arm_mid(poster: &ScriptPoster, armed: &Arc<Mutex<Armed>>) {
     let armed = Arc::clone(armed);
-    poster.arm_chunk(move || fire_switch(&armed, true));
+    poster.arm_sent(move || fire_switch(&armed, true));
 }
 
 fn fire_pending(armed: &Arc<Mutex<Armed>>) {
     fire_switch(armed, true);
 }
 
-fn fire_switch(armed: &Mutex<Armed>, during_chunks: bool) {
+fn fire_switch(armed: &Mutex<Armed>, during_send: bool) {
     let Ok(guard) = armed.lock() else {
         return;
     };
     let (Some(handle), Some(target)) = (guard.handle.as_ref(), guard.target.as_ref()) else {
         return;
     };
-    if during_chunks {
+    if during_send {
         handle.request(target, guard.reason);
     }
     if guard.again {
@@ -257,7 +261,7 @@ fn fire_switch(armed: &Mutex<Armed>, during_chunks: bool) {
 fn named(model: &str) -> crate::types::ProviderEndpoint {
     crate::prop_run::endpoint(
         crate::types::ProviderKind::Custom,
-        &format!("http://127.0.0.1:9/v1/{model}"),
+        &format!("http://{model}.example/v1"),
         "",
         model,
     )

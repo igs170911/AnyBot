@@ -49,6 +49,10 @@ impl ScriptPoster {
         })
     }
 
+    pub(crate) fn arm_sent(&self, hook: impl Fn() + Send + Sync + 'static) {
+        self.arm_chunk(hook);
+    }
+
     pub(crate) fn arm_chunk(&self, hook: impl Fn() + Send + Sync + 'static) {
         let hook: Arc<dyn Fn() + Send + Sync> = Arc::new(hook);
         match self.on_chunk.lock() {
@@ -91,20 +95,23 @@ impl ScriptPoster {
     }
 
     fn taken(&self, request: &WireRequest) -> Option<ScriptStep> {
-        push_sent(&self.sent, request);
-        take_step(&self.steps)
+        push_sent(self, request);
+        let step = take_step(&self.steps);
+        if let Some(hook) = chunk_hook(&self.on_chunk) {
+            hook();
+        }
+        step
     }
 }
 
-fn body_of(poster: &ScriptPoster, step: ScriptStep) -> WireBody {
+fn body_of(_poster: &ScriptPoster, step: ScriptStep) -> WireBody {
     let hold = step.hold.clone();
     let pieces = if step.chunks.is_empty() && step.cut_at.is_none() {
         vec![Ok(Bytes::from(step.body))]
     } else {
         crate::scripted_body::chunk_pieces(&step)
     };
-    let hook = chunk_hook(&poster.on_chunk);
-    WireBody::Stream(Box::pin(async_stream(hold, pieces, hook)))
+    WireBody::Stream(Box::pin(async_stream(hold, pieces, None)))
 }
 
 fn async_stream(
@@ -136,11 +143,12 @@ fn chunk_hook(
     }
 }
 
-fn push_sent(sent: &Mutex<Vec<SentRow>>, posted: &WireRequest) {
+fn push_sent(poster: &ScriptPoster, request: &WireRequest) {
     let row = SentRow {
-        url: posted.url.clone(),
-        body: posted.body.clone(),
+        url: request.url.clone(),
+        body: request.body.clone(),
     };
+    let sent = &poster.sent;
     match sent.lock() {
         Ok(mut rows) => rows.push(row),
         Err(poisoned) => poisoned.into_inner().push(row),
@@ -176,7 +184,6 @@ pub(crate) fn script_chunks(status: u16, chunks: &[String]) -> ScriptStep {
 
 pub(crate) use crate::scripted_steps::{
     blank_step, byte_slices, first_token_step, held, raw_cut, reject_step, script_cut, stall_step,
-    stream_error_step,
 };
 
 pub(crate) fn script_step(status: u16, body: String, fail: bool) -> ScriptStep {

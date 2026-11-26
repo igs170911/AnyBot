@@ -136,16 +136,6 @@ pub(crate) fn reject_step() -> ScriptStep {
     )
 }
 
-pub(crate) fn stream_error_step() -> ScriptStep {
-    script_chunks(
-        200,
-        &[
-            "data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\n".to_owned(),
-            "data: {\"type\":\"error\",\"error\":{\"message\":\"broke\"}}\n\n".to_owned(),
-        ],
-    )
-}
-
 pub(crate) fn first_token_step() -> ScriptStep {
     let mut step = script_step(200, String::new(), false);
     step.cut_at = Some(0);

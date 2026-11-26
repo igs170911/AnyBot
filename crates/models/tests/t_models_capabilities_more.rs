@@ -136,15 +136,38 @@ async fn t_models_capabilities_4() -> Result<(), String> {
     });
     let first = support::ask_watching(&mut session, &pair.primary, &[], ThinkingMode::Deep).await?;
     driver.abort();
+    assert_dropped_effort(&world, &first)?;
+    let again = ask_m1_again(&mut session, &pair.primary).await?;
+    assert_eq!(again.result.text, "again");
+    assert!(!recorded_body(&world, 2)?.contains("reasoning_effort"));
+    let second =
+        support::ask_watching(&mut session, &pair.fallback, &[], ThinkingMode::Deep).await?;
+    assert_eq!(second.result.text, "m2");
+    assert!(body_has_effort(&pair.other, "reasoning_effort")?);
+    Ok(())
+}
+
+fn body_has_effort(model: &test_harness::FakeModel, needle: &str) -> Result<bool, String> {
+    let rows = model.recorded();
+    let body = &rows.first().ok_or("missing m2")?.body;
+    Ok(body.contains(needle))
+}
+
+fn assert_dropped_effort(
+    world: &support::World,
+    first: &anybot_models::AskOutcome,
+) -> Result<(), String> {
     assert_eq!(first.result.text, "ok");
     assert_eq!(world.model.recorded().len(), 2);
-    let dropped = world
+    let first_body = world
         .model
         .recorded()
-        .get(1)
-        .ok_or("missing retry")?
+        .first()
+        .ok_or("missing first")?
         .body
         .clone();
+    let dropped = recorded_body(world, 1)?;
+    assert!(first_body.contains("reasoning_effort"));
     assert!(!dropped.contains("reasoning_effort"));
     assert!(
         first
@@ -152,21 +175,6 @@ async fn t_models_capabilities_4() -> Result<(), String> {
             .iter()
             .all(|notice| notice.code != "model-retry-wait")
     );
-    let again = ask_m1_again(&mut session, &pair.primary).await?;
-    assert_eq!(again.result.text, "again");
-    let later = recorded_body(&world, 2)?;
-    assert!(!later.contains("reasoning_effort"));
-    let second =
-        support::ask_watching(&mut session, &pair.fallback, &[], ThinkingMode::Deep).await?;
-    assert_eq!(second.result.text, "m2");
-    let m2 = pair
-        .other
-        .recorded()
-        .first()
-        .ok_or("missing m2")?
-        .body
-        .clone();
-    assert!(m2.contains("reasoning_effort"));
     Ok(())
 }
 

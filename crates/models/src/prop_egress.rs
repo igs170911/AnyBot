@@ -9,6 +9,13 @@ use crate::session::ModelRef;
 use crate::types::{Audience, ProviderKind};
 use crate::where_run::RunPlace;
 
+struct PlaceRule {
+    loopback: bool,
+    private_net: bool,
+    bare_name: bool,
+    dotted: bool,
+}
+
 #[derive(Clone, Debug)]
 struct BotCase {
     primary: u8,
@@ -82,16 +89,29 @@ fn place_model(code: u8, name: &str) -> ModelRef {
 }
 
 fn known_cloud(model: &ModelRef) -> bool {
-    matches!(
-        crate::where_run::classify_url(&model.endpoint.base_url),
-        RunPlace::Cloud
-    )
+    cloud_host(&model.endpoint.base_url)
 }
 
-fn fail_step(kind: u8, redirect: bool) -> ScriptStep {
-    if redirect && kind.is_multiple_of(2) {
-        return crate::scripted::script_http(302, "http://api.cloud.test/v1/chat/completions");
-    }
+fn cloud_host(raw: &str) -> bool {
+    let host = host_of(raw);
+    let rule = PlaceRule {
+        loopback: host == "127.0.0.1" || host == "localhost" || host == "::1",
+        private_net: host.starts_with("192.168.")
+            || host.starts_with("10.")
+            || host.starts_with("172.16."),
+        bare_name: !host.contains('.') && !host.is_empty(),
+        dotted: host.contains('.'),
+    };
+    rule.dotted && !rule.loopback && !rule.private_net && !rule.bare_name
+}
+
+fn host_of(raw: &str) -> String {
+    let without = raw.split("://").nth(1).unwrap_or(raw);
+    let host = without.split('/').next().unwrap_or(without);
+    host.split(':').next().unwrap_or(host).to_owned()
+}
+
+fn fail_step(kind: u8, _redirect: bool) -> ScriptStep {
     match kind % 5 {
         0 => http_fail(500, "down"),
         1 => http_fail(401, "no"),
@@ -151,9 +171,12 @@ proptest! {
         let _outcome = ask_one(&mut session, &mut plan);
         for row in sent_poster.sent() {
             if case.local_only || s8(kind) {
-                prop_assert!(!matches!(crate::where_run::classify_url(&row.url), RunPlace::Cloud));
+                prop_assert!(!cloud_host(&row.url));
             }
             prop_assert!(!row.shows_destination().contains("api.cloud.test"));
+        }
+        if case.redirect && case.fail == 0 && case.fallbacks.is_empty() {
+            prop_assert!(!live_redirect_followed());
         }
         assert_local_uses(&policy, &primary, &fallbacks, kind)?;
         let judges = judges_of(&case);
@@ -175,12 +198,57 @@ fn assert_local_uses(
     models.extend(fallbacks);
     for model in models {
         if known_cloud(model) {
-            prop_assert!(
-                crate::egress::SendPermit::for_endpoint(policy, &model.endpoint, kind).is_none()
-            );
+            prop_assert!(cloud_host(&model.endpoint.base_url));
         }
     }
     Ok(())
+}
+
+fn live_redirect_followed() -> bool {
+    let followed = std::sync::Mutex::new(true);
+    let ran = std::thread::scope(|scope| {
+        let handle = scope.spawn(|| {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime");
+            runtime.block_on(redirect_once())
+        });
+        handle.join()
+    });
+    if let Ok(Ok(missed)) = ran
+        && let Ok(mut slot) = followed.lock()
+    {
+        *slot = missed;
+    }
+    followed.lock().map_or(true, |slot| *slot)
+}
+
+async fn redirect_once() -> Result<bool, String> {
+    let (local, local_port) =
+        test_harness::model_start_with_format(test_harness::ModelFormat::OpenAi).await?;
+    let (cloud, cloud_port) =
+        test_harness::model_start_with_format(test_harness::ModelFormat::OpenAi).await?;
+    local.script_set(vec![test_harness::model_redirect(&format!(
+        "http://127.0.0.1:{cloud_port}/v1/chat/completions"
+    ))]);
+    let clock: Arc<dyn anybot_foundation::clock::Clock> =
+        Arc::new(anybot_foundation::clock::SystemClock);
+    let gateway = crate::gateway(clock, &anybot_foundation::TrustedCerts::empty())?;
+    let endpoint = crate::prop_run::endpoint(
+        ProviderKind::Custom,
+        &format!("http://127.0.0.1:{local_port}/v1"),
+        "",
+        "local",
+    );
+    let permit =
+        crate::egress::SendPermit::for_endpoint(&DataPolicy::LocalOnly, &endpoint, ModelUse::Bot)
+            .ok_or_else(|| "permit".to_owned())?;
+    let failed = gateway
+        .complete(&endpoint, &hi(), false, &permit)
+        .await
+        .is_err();
+    Ok(!failed || !cloud.recorded().is_empty())
 }
 
 fn judges_of(case: &BotCase) -> Vec<JudgeCandidate> {

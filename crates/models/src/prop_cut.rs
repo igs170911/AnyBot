@@ -21,16 +21,6 @@ pub(crate) fn send_cut(
     crate::prop_run::drive(gateway.complete(endpoint, &crate::prop_run::hi(), stream, &permit))
 }
 
-pub(crate) fn cut_at(raw: &str, cut: usize) -> (usize, bool) {
-    let bytes = raw.as_bytes();
-    if bytes.is_empty() {
-        return (0, true);
-    }
-    let width = bytes.len().saturating_add(1);
-    let at = cut.checked_rem(width).unwrap_or(0);
-    (at, at >= bytes.len())
-}
-
 pub(crate) fn send_body(
     endpoint: &ProviderEndpoint,
     body: &str,

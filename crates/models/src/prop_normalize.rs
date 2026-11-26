@@ -2,8 +2,7 @@ use proptest::prelude::*;
 
 use crate::prop_body::{ReplyCase, events_of, sse, whole_body};
 use crate::prop_cut::{
-    assert_column, cut_at, endpoint_for, plain_decode, same_answer, send_body, send_cut,
-    stream_decode,
+    assert_column, endpoint_for, plain_decode, same_answer, send_body, send_cut, stream_decode,
 };
 
 fn reply_strategy() -> impl Strategy<Value = ReplyCase> {
@@ -71,7 +70,7 @@ proptest! {
         let stream = sse(&events_of(&case), true);
         let bare = without_extra(&case);
         let sent = if case.stream { &stream } else { &plain };
-        let (at, closed) = cut_at(sent, case.cut);
+        let (at, closed) = byte_cut(sent, case.cut);
         let cut_result = if closed {
             send_body(&endpoint, sent, case.stream)
         } else {
@@ -103,6 +102,16 @@ proptest! {
             &stream_decode(&endpoint, &stream).expect("stream decode")
         ));
     }
+}
+
+fn byte_cut(raw: &str, cut: usize) -> (usize, bool) {
+    let bytes = raw.as_bytes();
+    if bytes.is_empty() {
+        return (0, true);
+    }
+    let width = bytes.len().saturating_add(1);
+    let at = cut.checked_rem(width).unwrap_or(0);
+    (at, at >= bytes.len())
 }
 
 fn cut_matches(

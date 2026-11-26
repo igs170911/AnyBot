@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use proptest::prelude::*;
 
-use crate::errors::{FailInput, RetryPlan, classify};
 use crate::prop_run::{ask_one, hi, model_ref, poster_of};
 use crate::scripted::{ScriptStep, connect_fail, http_fail, session_with};
 use crate::types::Audience;
@@ -21,8 +20,21 @@ fn fail_step(kind: u8, stream: bool) -> ScriptStep {
         9 => crate::scripted::reject_step(),
         10 => crate::scripted::first_token_step(),
         11 => crate::scripted::stall_step(),
-        _ => stream_or_other(stream),
+        _ => mixed_step(stream),
     }
+}
+
+fn mixed_step(stream: bool) -> ScriptStep {
+    if stream {
+        return crate::scripted::script_chunks(
+            200,
+            &[
+                "data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\n".to_owned(),
+                "data: {\"error\":{\"message\":\"broke\"}}\n\n".to_owned(),
+            ],
+        );
+    }
+    http_fail(418, "other")
 }
 
 fn done_step(stream: bool) -> ScriptStep {
@@ -51,57 +63,8 @@ fn blank_for(stream: bool) -> ScriptStep {
     crate::scripted::blank_step()
 }
 
-fn stream_or_other(stream: bool) -> ScriptStep {
-    if stream {
-        return crate::scripted::stream_error_step();
-    }
-    http_fail(418, "other")
-}
-
-fn input_of(kind: u8) -> FailInput {
-    match kind % 13 {
-        0 => FailInput::Http {
-            status: 400,
-            message: "prompt is too long".to_owned(),
-        },
-        1 => FailInput::Http {
-            status: 401,
-            message: "no".to_owned(),
-        },
-        2 => FailInput::Http {
-            status: 404,
-            message: "missing".to_owned(),
-        },
-        3 => FailInput::Http {
-            status: 402,
-            message: "quota".to_owned(),
-        },
-        4 => FailInput::Http {
-            status: 418,
-            message: "teapot".to_owned(),
-        },
-        5 => FailInput::Http {
-            status: 500,
-            message: "down".to_owned(),
-        },
-        6 => FailInput::Http {
-            status: 429,
-            message: "busy".to_owned(),
-        },
-        7 => FailInput::Connect { ollama: false },
-        8 => FailInput::Http {
-            status: 200,
-            message: String::new(),
-        },
-        9 => FailInput::RejectedParam,
-        10 => FailInput::FirstToken,
-        11 => FailInput::Stalled,
-        _ => FailInput::StreamOther,
-    }
-}
-
 fn once_only(kind: u8) -> bool {
-    !matches!(kind % 13, 8 | 9) && matches!(classify(&input_of(kind)).retry, RetryPlan::None)
+    matches!(kind % 13, 0 | 1 | 2 | 3 | 4 | 11 | 12)
 }
 
 fn extras_of(kinds: &[u8]) -> u32 {
@@ -129,7 +92,7 @@ proptest! {
         )
     ) {
         let audience = if watching { Audience::Watching } else { Audience::Unattended };
-        let limit = crate::retry::try_limit(audience);
+        let limit = if watching { 3_u32 } else { 8_u32 };
         let mut steps = vec![done_step(stream)];
         for kind in kinds.iter().rev() {
             steps.push(fail_step(*kind, stream));
