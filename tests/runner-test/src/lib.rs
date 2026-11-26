@@ -9,6 +9,7 @@ pub mod mem_store;
 pub mod turn;
 pub mod turn_helpers;
 pub mod turn_setup;
+pub mod turn_tool_helpers;
 
 pub use fake_builder::FakeComputerBuilder;
 pub use fake_computer::FakeComputer;
@@ -22,3 +23,5 @@ pub use test_view::TestView;
 mod ops_tests;
 #[cfg(test)]
 mod pipeline_flow_tests;
+#[cfg(test)]
+mod trust_entry_tests;

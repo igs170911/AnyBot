@@ -133,7 +133,7 @@ fn push_result(
     view_limit: usize,
     col: &mut Collector,
 ) {
-    if !step.has_output() {
+    if step.outcome == crate::input::StepOutcomeKind::Pending {
         return;
     }
     let refs = refs_for(step);

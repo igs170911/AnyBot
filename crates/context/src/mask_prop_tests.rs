@@ -165,7 +165,11 @@ fn ladder_round_problems(
         .iter()
         .filter(|b| b.kind == BlockKind::ToolResultFull || b.kind == BlockKind::ToolResultDuplicate)
         .count();
-    if fulls > 0 && !steps.iter().any(StepRecord::has_output) {
+    if fulls > 0
+        && !steps
+            .iter()
+            .any(|s| s.has_output() || s.outcome == crate::input::StepOutcomeKind::Unknown)
+    {
         problems.push("result blocks without outputs".to_owned());
     }
     problems

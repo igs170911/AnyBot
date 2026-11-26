@@ -50,14 +50,14 @@ pub(crate) fn run(computer: &FakeComputer, req: &ActionRequest) -> RunStep {
 
 use anybot_trust::run_action;
 
-fn bot_computer(clock: &Arc<FakeClock>) -> FakeComputer {
+pub(crate) fn bot_computer(clock: &Arc<FakeClock>) -> FakeComputer {
     FakeComputerBuilder::default()
         .bot_machine()
         .clock(Arc::clone(clock))
         .build()
 }
 
-fn write_request(content: &str, clock: &Arc<FakeClock>) -> ActionRequest {
+pub(crate) fn write_request(content: &str, clock: &Arc<FakeClock>) -> ActionRequest {
     request(
         "edit_file",
         RequestedAction::WriteFile {
