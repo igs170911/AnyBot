@@ -1,59 +1,83 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
-use anybot_foundation::clock::Clock;
-use serde_json::Value;
-
-use crate::providers::{OPENROUTER_APP, key_allowed};
-use crate::thinking::apply_thinking;
+use crate::egress::SendPermit;
+use crate::http_wire::{SharedWire, WireRequest};
 use crate::transport::TimedTransport;
-use crate::types::{ProviderEndpoint, ProviderKind, TurnRequest, TurnResult, WireFormat};
+use crate::types::{ProviderEndpoint, TurnRequest, TurnResult};
 use crate::where_run::first_token_wait;
-use crate::{wire_claude, wire_openai};
 
 pub struct Gateway {
     transport: TimedTransport,
-    name_map: Arc<dyn NameResolver>,
+    pins: Vec<HostPin>,
+    os_notes: Vec<String>,
 }
 
-pub trait NameResolver: Send + Sync {
-    fn resolve(&self, url: &str) -> Option<String>;
-}
-
-pub struct IdentityResolver;
-
-impl NameResolver for IdentityResolver {
-    fn resolve(&self, _url: &str) -> Option<String> {
-        None
-    }
+#[derive(Clone)]
+struct HostPin {
+    host: String,
+    addr: SocketAddr,
 }
 
 impl Gateway {
-    pub fn new(client: reqwest::Client, clock: Arc<dyn Clock>) -> Self {
+    pub fn new(
+        clock: Arc<dyn anybot_foundation::clock::Clock>,
+        trusted: &anybot_foundation::TrustedCerts,
+    ) -> Result<Self, String> {
+        Self::with_proxy(clock, trusted, None)
+    }
+
+    pub fn with_proxy(
+        clock: Arc<dyn anybot_foundation::clock::Clock>,
+        trusted: &anybot_foundation::TrustedCerts,
+        proxy: Option<&str>,
+    ) -> Result<Self, String> {
+        let built = crate::client_http::product_client(trusted, proxy)?;
+        Ok(Self::from_client(clock, built))
+    }
+
+    pub fn pin_host(&mut self, host: &str, addr: SocketAddr) {
+        if let Some(found) = self.pins.iter_mut().find(|pin| pin.host == host) {
+            found.addr = addr;
+            return;
+        }
+        self.pins.push(HostPin {
+            host: host.to_owned(),
+            addr,
+        });
+    }
+
+    fn from_client(
+        clock: Arc<dyn anybot_foundation::clock::Clock>,
+        built: crate::client_http::BuiltClient,
+    ) -> Self {
+        let notes = built.os_notes.clone();
+        Self::from_wire(crate::reqwest_wire::ReqwestWire::new(built), clock, notes)
+    }
+
+    pub(crate) fn from_wire(
+        wire: SharedWire,
+        clock: Arc<dyn anybot_foundation::clock::Clock>,
+        os_notes: Vec<String>,
+    ) -> Self {
         Self {
-            transport: TimedTransport::new(client, clock),
-            name_map: Arc::new(IdentityResolver),
+            transport: TimedTransport::new(wire, clock),
+            pins: Vec::new(),
+            os_notes,
         }
     }
 
     #[must_use]
-    pub fn with_names(mut self, name_map: Arc<dyn NameResolver>) -> Self {
-        self.name_map = name_map;
-        self
+    pub fn os_notes(&self) -> &[String] {
+        &self.os_notes
     }
 
     #[must_use]
     pub fn clone_gateway(&self) -> Self {
         Self {
-            transport: TimedTransport::new(self.transport.client.clone(), self.transport.clock()),
-            name_map: Arc::clone(&self.name_map),
-        }
-    }
-
-    #[must_use]
-    pub fn clone_with_names(&self, name_map: Arc<dyn NameResolver>) -> Self {
-        Self {
-            transport: TimedTransport::new(self.transport.client.clone(), self.transport.clock()),
-            name_map,
+            transport: TimedTransport::new(self.transport.wire(), self.transport.clock()),
+            pins: self.pins.clone(),
+            os_notes: self.os_notes.clone(),
         }
     }
 
@@ -62,21 +86,30 @@ impl Gateway {
         endpoint: &ProviderEndpoint,
         request: &TurnRequest,
         stream: bool,
+        permit: &SendPermit,
     ) -> Result<TurnResult, GatewayFail> {
-        if endpoint.api_key.is_none() && needs_key(endpoint.kind) {
+        if endpoint.api_key.is_none() && crate::client_http::needs_key(endpoint.kind) {
             return Err(GatewayFail::MissingKey);
         }
-        let url = Self::chat_url(endpoint);
-        if endpoint.api_key.is_some() && !key_allowed(endpoint, &url) {
+        let listed = crate::client_http::chat_url(endpoint);
+        let dial = self.dial_of(&listed);
+        let use_kind = permit.use_kind();
+        if !permit.matches(&listed, use_kind)
+            || !crate::client_place::place_ok(permit, &listed, &dial, endpoint.kind)
+        {
+            return Err(policy_blocked());
+        }
+        if endpoint.api_key.is_some() && !crate::client_place::key_for(endpoint, &listed, &dial) {
             return Err(GatewayFail::KeyDestination);
         }
-        let body = encode_body(endpoint, request, stream);
-        let builder = authorized(self.client_request(&url, &body, endpoint), endpoint);
+        let body = crate::client_wire::encode_body(endpoint, request, stream);
+        let mut wire = crate::client_wire::wire_request(&listed, &body, endpoint);
+        wire.dial = self.dial_addr(&listed);
         let first_wait = first_token_wait(0);
         if stream {
-            return self.complete_stream(endpoint, builder, first_wait).await;
+            return self.complete_stream(endpoint, &wire, first_wait).await;
         }
-        match self.transport.send(builder, first_wait).await {
+        match self.transport.exchange(&wire, first_wait).await {
             Ok(bytes) => {
                 if bytes.status >= 300 && bytes.status < 400 {
                     return Err(crate::ask::classified_fail(
@@ -85,7 +118,7 @@ impl Gateway {
                     ));
                 }
                 if bytes.status >= 400 {
-                    return Err(classified_status(endpoint, &bytes));
+                    return Err(crate::client_wire::classified_status(endpoint, &bytes));
                 }
                 Ok(crate::stream_fail::decode_body(
                     endpoint,
@@ -95,55 +128,64 @@ impl Gateway {
             Err(crate::transport::TransportFail::Partial(partial)) => {
                 crate::stream_fail::partial_outcome(endpoint, &partial.bytes)
             }
-            Err(other) => Err(GatewayFail::Transport(other)),
+            Err(other) => Err(crate::ask::transport_fail(endpoint, &other, false)),
         }
     }
 
-    pub(crate) fn client_request(
-        &self,
-        url: &str,
-        body: &Value,
-        _endpoint: &ProviderEndpoint,
-    ) -> reqwest::RequestBuilder {
-        let target = self.name_map.resolve(url).unwrap_or_else(|| url.to_owned());
-        if body.as_object().is_some_and(serde_json::Map::is_empty) {
-            return self.transport.client.get(target);
-        }
-        self.transport.client.post(target).json(body)
+    pub(crate) fn dial_addr(&self, url: &str) -> Option<SocketAddr> {
+        let host = crate::client_place::host_of(url)?;
+        self.pins
+            .iter()
+            .find(|pin| pin.host == host)
+            .map(|pin| pin.addr)
+    }
+
+    pub(crate) fn dial_of(&self, url: &str) -> String {
+        let Some(host) = crate::client_place::host_of(url) else {
+            return url.to_owned();
+        };
+        let Some(pin) = self.pins.iter().find(|pin| pin.host == host) else {
+            return url.to_owned();
+        };
+        crate::client_place::pin_url(url, pin.addr).unwrap_or_else(|| url.to_owned())
     }
 
     async fn complete_stream(
         &self,
         endpoint: &ProviderEndpoint,
-        builder: reqwest::RequestBuilder,
+        request: &WireRequest,
         first_wait: std::time::Duration,
     ) -> Result<TurnResult, GatewayFail> {
         let open = self
             .transport
-            .open_stream(builder, first_wait)
+            .open_stream(request, first_wait)
             .await
-            .map_err(GatewayFail::Transport)?;
-        if open.status >= 300 {
+            .map_err(|fail| crate::ask::transport_fail(endpoint, &fail, false))?;
+        if open.status >= 300 && open.status < 400 {
             return Err(crate::ask::classified_fail(
-                crate::errors::classify(&crate::errors::FailInput::Http {
-                    status: open.status,
-                    message: String::new(),
-                }),
+                crate::errors::classify(&crate::errors::FailInput::Redirect),
                 Vec::new(),
             ));
         }
-        let mut raw = String::new();
+        let mut raw = Vec::new();
         let mut rx = open.rx;
         let mut saw_fail = false;
         while let Some(item) = rx.recv().await {
             match item {
-                Ok(chunk) => raw.push_str(&String::from_utf8_lossy(&chunk)),
+                Ok(chunk) => raw.extend_from_slice(&chunk),
                 Err(crate::transport::TransportFail::Partial(partial)) => {
                     if raw.is_empty() {
-                        raw.push_str(&String::from_utf8_lossy(&partial.bytes));
+                        raw = partial.bytes;
                     }
                     saw_fail = true;
                     break;
+                }
+                Err(crate::transport::TransportFail::FirstToken) if raw.is_empty() => {
+                    return Err(crate::ask::transport_fail(
+                        endpoint,
+                        &crate::transport::TransportFail::FirstToken,
+                        false,
+                    ));
                 }
                 Err(_) => {
                     saw_fail = true;
@@ -151,76 +193,55 @@ impl Gateway {
                 }
             }
         }
-        crate::stream_fail::finish_stream(endpoint, &raw, saw_fail)
+        finish_open(endpoint, open.status, &open.headers, &raw, saw_fail)
     }
 
     pub(crate) async fn transport_send(
         &self,
-        builder: reqwest::RequestBuilder,
+        request: &WireRequest,
         first_wait: std::time::Duration,
     ) -> Result<crate::transport::HttpBytes, crate::transport::TransportFail> {
-        self.transport.send(builder, first_wait).await
-    }
-
-    fn chat_url(endpoint: &ProviderEndpoint) -> String {
-        let path = match endpoint.format {
-            WireFormat::Anthropic => wire_claude::MESSAGES_PATH,
-            WireFormat::OpenAiCompatible => wire_openai::CHAT_PATH,
-        };
-        format!("{}{path}", endpoint.base_url)
+        self.transport.exchange(request, first_wait).await
     }
 }
 
-fn needs_key(kind: ProviderKind) -> bool {
-    !matches!(kind, ProviderKind::Ollama | ProviderKind::Custom)
-}
-
-fn encode_body(endpoint: &ProviderEndpoint, request: &TurnRequest, stream: bool) -> Value {
-    let mut body = match endpoint.format {
-        WireFormat::Anthropic => wire_claude::encode(request, &endpoint.model, stream),
-        WireFormat::OpenAiCompatible => wire_openai::encode(request, &endpoint.model, stream, true),
-    };
-    let _applied = apply_thinking(&mut body, endpoint.kind, endpoint.format, request.thinking);
-    body
-}
-
-fn classified_status(
+fn finish_open(
     endpoint: &ProviderEndpoint,
-    bytes: &crate::transport::HttpBytes,
-) -> GatewayFail {
-    let mut fail = crate::ask::from_status(
-        bytes.status,
-        &String::from_utf8_lossy(&bytes.body),
-        endpoint.kind,
-        endpoint
-            .api_key
-            .as_ref()
-            .map(anybot_foundation::Secret::expose),
-        bytes.retry_after,
-    );
-    fail.classified.retry_after = fail.retry_after;
-    crate::ask::classified_fail(fail.classified, fail.notices)
+    status: u16,
+    headers: &[(String, String)],
+    raw: &[u8],
+    saw_fail: bool,
+) -> Result<TurnResult, GatewayFail> {
+    let text = String::from_utf8_lossy(raw);
+    if status >= 400 {
+        return Err(crate::client_wire::classified_status(
+            endpoint,
+            &crate::transport::HttpBytes {
+                status,
+                body: bytes::Bytes::from(text.into_owned()),
+                retry_after: crate::transport::retry_after_of(headers),
+            },
+        ));
+    }
+    if saw_fail && !crate::stream_fail::saw_model_text(endpoint, &text) {
+        return Err(crate::ask::transport_fail(
+            endpoint,
+            &crate::transport::TransportFail::Dropped,
+            false,
+        ));
+    }
+    crate::stream_fail::finish_stream(endpoint, &text, saw_fail)
 }
 
-fn authorized(
-    builder: reqwest::RequestBuilder,
-    endpoint: &ProviderEndpoint,
-) -> reqwest::RequestBuilder {
-    let mut builder = builder;
-    if let Some(key) = &endpoint.api_key {
-        builder = match endpoint.format {
-            WireFormat::Anthropic => builder
-                .header("x-api-key", key.expose())
-                .header("anthropic-version", wire_claude::ANTHROPIC_VERSION),
-            WireFormat::OpenAiCompatible => builder.bearer_auth(key.expose()),
-        };
-    }
-    if matches!(endpoint.kind, ProviderKind::OpenRouter) {
-        builder = builder
-            .header("HTTP-Referer", "https://anybot.local")
-            .header("X-Title", OPENROUTER_APP);
-    }
-    builder
+pub(crate) fn chat_url_of(endpoint: &ProviderEndpoint) -> String {
+    crate::client_place::chat_url_of(endpoint)
+}
+
+fn policy_blocked() -> GatewayFail {
+    crate::ask::classified_fail(
+        crate::errors::classify(&crate::errors::FailInput::PolicyBlocked),
+        Vec::new(),
+    )
 }
 
 #[derive(Debug)]

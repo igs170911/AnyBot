@@ -1,0 +1,137 @@
+use std::collections::HashMap;
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::{Arc, Mutex};
+
+use crate::types::{ProviderEndpoint, ProviderKind, WireFormat};
+use crate::{wire_claude, wire_openai};
+
+pub(crate) struct BuiltClient {
+    pub client: reqwest::Client,
+    pub os_notes: Vec<String>,
+    pub pins: PinMap,
+    pub tls: Arc<rustls::ClientConfig>,
+}
+
+pub(crate) type PinMap = Arc<Mutex<HashMap<String, SocketAddr>>>;
+
+struct DialResolver {
+    pins: PinMap,
+}
+
+pub(crate) fn product_client(
+    trusted: &anybot_foundation::TrustedCerts,
+    proxy: Option<&str>,
+) -> Result<BuiltClient, String> {
+    client_for(trusted, None, proxy)
+}
+
+pub(crate) fn client_for(
+    trusted: &anybot_foundation::TrustedCerts,
+    pin: Option<(&str, SocketAddr)>,
+    proxy: Option<&str>,
+) -> Result<BuiltClient, String> {
+    let store = anybot_foundation::TrustStore::new(trusted)?;
+    let notes = store.os_notes().to_vec();
+    let tls = store.client_config()?;
+    let pins = Arc::new(Mutex::new(HashMap::new()));
+    if let Some((host, addr)) = pin {
+        insert_pin(&pins, host, addr);
+    }
+    let mut builder = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .use_preconfigured_tls(tls.clone())
+        .no_proxy()
+        .dns_resolver(Arc::new(DialResolver {
+            pins: Arc::clone(&pins),
+        }));
+    if let Some(raw) = proxy {
+        builder = builder.proxy(explicit_proxy(raw)?);
+    }
+    let client = builder.build().map_err(|err| err.to_string())?;
+    Ok(BuiltClient {
+        client,
+        os_notes: notes,
+        pins,
+        tls: Arc::new(tls),
+    })
+}
+
+impl reqwest::dns::Resolve for DialResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let host = name.as_str().to_owned();
+        let pinned = pin_of(&self.pins, &host);
+        Box::pin(async move {
+            let addrs: reqwest::dns::Addrs = if let Some(addr) = pinned {
+                Box::new(std::iter::once(addr))
+            } else {
+                let looked = tokio::task::spawn_blocking(move || lookup_host(&host))
+                    .await
+                    .map_err(|err| -> Box<dyn std::error::Error + Send + Sync> { Box::new(err) })?
+                    .map_err(|err| -> Box<dyn std::error::Error + Send + Sync> { Box::new(err) })?;
+                Box::new(looked.into_iter())
+            };
+            Ok(addrs)
+        })
+    }
+}
+
+fn lookup_host(host: &str) -> Result<Vec<SocketAddr>, std::io::Error> {
+    (host, 0).to_socket_addrs().map(Iterator::collect)
+}
+
+pub(crate) fn insert_pin(pins: &PinMap, host: &str, addr: SocketAddr) {
+    match pins.lock() {
+        Ok(mut rows) => {
+            rows.insert(host.to_ascii_lowercase(), addr);
+        }
+        Err(poisoned) => {
+            poisoned
+                .into_inner()
+                .insert(host.to_ascii_lowercase(), addr);
+        }
+    }
+}
+
+pub(crate) fn pin_of(pins: &PinMap, host: &str) -> Option<SocketAddr> {
+    match pins.lock() {
+        Ok(rows) => rows.get(&host.to_ascii_lowercase()).copied(),
+        Err(poisoned) => poisoned
+            .into_inner()
+            .get(&host.to_ascii_lowercase())
+            .copied(),
+    }
+}
+
+fn explicit_proxy(raw: &str) -> Result<reqwest::Proxy, String> {
+    let parsed = reqwest::Url::parse(raw).map_err(|err| format!("proxy url: {err}"))?;
+    let proxy_url = parsed.to_string();
+    Ok(reqwest::Proxy::custom(move |url| {
+        direct_or_proxy(url, &proxy_url)
+    }))
+}
+
+fn direct_or_proxy(url: &reqwest::Url, proxy: &str) -> Option<reqwest::Url> {
+    if direct_place(url.as_ref()) {
+        return None;
+    }
+    reqwest::Url::parse(proxy).ok()
+}
+
+fn direct_place(url: &str) -> bool {
+    matches!(
+        crate::where_run::classify_url(url),
+        crate::where_run::RunPlace::Local | crate::where_run::RunPlace::Lan
+    )
+}
+
+pub(crate) fn chat_url(endpoint: &ProviderEndpoint) -> String {
+    let path = match endpoint.format {
+        WireFormat::Anthropic => wire_claude::MESSAGES_PATH,
+        WireFormat::OpenAiCompatible => wire_openai::CHAT_PATH,
+    };
+    format!("{}{path}", endpoint.base_url)
+}
+
+pub(crate) fn needs_key(kind: ProviderKind) -> bool {
+    !matches!(kind, ProviderKind::Ollama | ProviderKind::Custom)
+}

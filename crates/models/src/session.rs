@@ -15,31 +15,30 @@ use crate::{Gateway, GatewayFail};
 pub fn ask_plan<'a>(
     primary: &'a ModelRef,
     fallbacks: &'a [ModelRef],
-    policy: &'a DataPolicy,
     request: &'a TurnRequest,
     audience: Audience,
 ) -> AskPlan<'a> {
     AskPlan {
         primary,
         fallbacks,
-        policy,
         request,
         request_for: None,
         stream: false,
         audience,
         bot: "bot",
+        use_kind: ModelUse::Bot,
     }
 }
 
 pub struct AskPlan<'a> {
     pub primary: &'a ModelRef,
     pub fallbacks: &'a [ModelRef],
-    pub policy: &'a DataPolicy,
     pub request: &'a TurnRequest,
     pub request_for: Option<&'a mut (dyn FnMut(&ProviderEndpoint) -> TurnRequest + Send)>,
     pub stream: bool,
     pub audience: Audience,
     pub bot: &'a str,
+    pub use_kind: ModelUse,
 }
 
 pub const REST_MS: u64 = 10 * 60 * 1_000;
@@ -65,32 +64,31 @@ pub struct AskOutcome {
 }
 
 pub struct SwitchHandle {
-    pending: Arc<Mutex<Option<ModelRef>>>,
-    reason: Arc<Mutex<Option<SwitchReason>>>,
+    pending: Arc<Mutex<Option<(ModelRef, SwitchReason)>>>,
 }
 
 impl SwitchHandle {
     pub fn request(&self, model: &ModelRef, reason: SwitchReason) {
-        if let Ok(mut slot) = self.pending.lock() {
-            *slot = Some(crate::model_copy::copy_model(model));
-        }
-        if let Ok(mut slot) = self.reason.lock() {
-            *slot = Some(reason);
+        match self.pending.lock() {
+            Ok(mut slot) => *slot = Some((crate::model_copy::copy_model(model), reason)),
+            Err(poisoned) => {
+                *poisoned.into_inner() = Some((crate::model_copy::copy_model(model), reason));
+            }
         }
     }
 }
 
 pub struct Session {
     gateway: Gateway,
-    clock: Arc<dyn Clock>,
+    policy: DataPolicy,
+    pub(crate) clock: Arc<dyn Clock>,
     learned: Vec<Learned>,
     pub(crate) resting: Vec<RestMark>,
-    jitter_milli: i32,
-    stop: watch::Receiver<bool>,
-    pub(crate) pending: Arc<Mutex<Option<ModelRef>>>,
-    pub(crate) pending_reason: Arc<Mutex<Option<SwitchReason>>>,
-    pub(crate) active: Option<(ProviderKind, String)>,
-    pub(crate) failed: Option<(ProviderKind, String)>,
+    pub(crate) jitter_milli: i32,
+    pub(crate) stop: watch::Receiver<bool>,
+    pub(crate) pending: Arc<Mutex<Option<(ModelRef, SwitchReason)>>>,
+    pub(crate) active: Option<ModelRef>,
+    pub(crate) failed: Option<ModelRef>,
     pub(crate) failed_reason: Option<SwitchReason>,
     pub(crate) failed_code: Option<String>,
     pub(crate) adopted: Option<ModelRef>,
@@ -102,17 +100,22 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(gateway: Gateway, clock: Arc<dyn Clock>, jitter_milli: i32) -> Self {
+    pub fn new(
+        gateway: Gateway,
+        policy: DataPolicy,
+        clock: Arc<dyn Clock>,
+        jitter_milli: i32,
+    ) -> Self {
         let (_tx, stop) = watch::channel(false);
         Self {
             gateway,
+            policy,
             clock,
             learned: Vec::new(),
             resting: Vec::new(),
             jitter_milli,
             stop,
             pending: Arc::new(Mutex::new(None)),
-            pending_reason: Arc::new(Mutex::new(None)),
             active: None,
             failed: None,
             failed_reason: None,
@@ -163,22 +166,26 @@ impl Session {
     pub fn switch_handle(&self) -> SwitchHandle {
         SwitchHandle {
             pending: Arc::clone(&self.pending),
-            reason: Arc::clone(&self.pending_reason),
         }
+    }
+
+    #[must_use]
+    pub fn policy(&self) -> &DataPolicy {
+        &self.policy
     }
 
     #[must_use]
     pub fn switched_model(&self) -> Option<(ProviderKind, &str)> {
         self.active
             .as_ref()
-            .map(|(kind, model)| (*kind, model.as_str()))
+            .map(|model| (model.endpoint.kind, model.endpoint.model.as_str()))
     }
 
     pub async fn ask(&mut self, plan: &mut AskPlan<'_>) -> Result<AskOutcome, GatewayFail> {
-        if let Some(next) = self.adopted.take() {
-            self.primary_override = Some(next);
+        if let Some(next) = self.adopted.as_ref() {
+            self.primary_override = Some(crate::model_copy::copy_model(next));
         }
-        let pending = crate::session_io::peek_pending(self);
+        let pending = crate::session_io::read_pending(self).map(|(model, _)| model);
         let chain = crate::session_chain::chain_of(
             plan.primary,
             plan.fallbacks,
@@ -186,7 +193,6 @@ impl Session {
             self.primary_override.as_ref(),
         );
         let request = plan.request;
-        let policy = plan.policy;
         let stream = plan.stream;
         let audience = plan.audience;
         let bot = plan.bot;
@@ -200,29 +206,27 @@ impl Session {
             ) {
                 continue;
             }
-            if !egress::allowed(
-                policy,
-                &model.endpoint.base_url,
-                model.endpoint.kind,
-                ModelUse::Bot,
-            ) {
+            let Some(permit) = egress::SendPermit::for_endpoint(
+                &self.policy.clone(),
+                &model.endpoint,
+                plan.use_kind,
+            ) else {
                 skips.push(skip_notice(model.endpoint.kind, bot));
                 continue;
-            }
+            };
             if model.endpoint.api_key.is_none() && needs_key(model.endpoint.kind) {
                 skips.push(crate::notice::missing_key_notice(model.endpoint.kind));
                 continue;
             }
-            crate::session_switch::note_active(self, &model.endpoint);
+            crate::session_switch::note_active(self, &model);
             let built = crate::session_step::request_for_model(
                 &model,
                 plan.primary,
                 request,
                 &mut plan.request_for,
             );
-            match crate::session_ask::one(self, &model, &built, stream, audience).await {
+            match crate::session_ask::one(self, &model, &built, stream, audience, &permit).await {
                 Ok(result) => {
-                    crate::session_switch::note_pending_after(self, &model.endpoint);
                     return Ok(crate::session_switch::finish_ask(self, result, skips));
                 }
                 Err(err) => match crate::session_switch::keep_or_stop(self, &model, err) {
@@ -231,7 +235,7 @@ impl Session {
                 },
             }
         }
-        Err(crate::session_io::exhausted(last, skips))
+        Err(crate::session_io::exhausted(last, skips, &self.resting))
     }
 
     pub(crate) async fn wait_or_stop(

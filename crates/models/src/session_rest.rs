@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::capabilities::{self, Learned};
 use crate::session::{REST_MS, RestMark, Session};
 use crate::types::{ProviderEndpoint, ThinkingMode, TurnRequest, TurnResult, UsageReport};
@@ -64,42 +66,62 @@ pub(crate) fn note_too_long(rows: &mut Vec<Learned>, endpoint: &ProviderEndpoint
     rows.push(row);
 }
 
+pub(crate) struct TrySend<'a> {
+    pub model: &'a crate::session::ModelRef,
+    pub request: &'a TurnRequest,
+    pub stream: bool,
+    pub audience: crate::types::Audience,
+    pub calibration: &'a crate::estimate::Calibration,
+    pub thinking: bool,
+    pub permit: &'a crate::egress::SendPermit,
+}
+
 pub(crate) async fn send_tries(
     session: &mut Session,
-    model: &crate::session::ModelRef,
-    request: &TurnRequest,
-    stream: bool,
-    audience: crate::types::Audience,
-    calibration: &crate::estimate::Calibration,
-    thinking: bool,
+    attempt: TrySend<'_>,
 ) -> Result<TurnResult, GatewayFail> {
-    let mut sent = 0_u32;
+    let TrySend {
+        model,
+        request,
+        stream,
+        audience,
+        calibration,
+        thinking,
+        permit,
+    } = attempt;
+    let mut counted = 0_u32;
+    let mut blanks = 0_u32;
+    let mut dropped = false;
     let mut current = request.clone();
     if !thinking {
         current.thinking = ThinkingMode::Auto;
     }
     loop {
-        sent = sent.saturating_add(1);
+        counted = counted.saturating_add(1);
         let outcome = session
             .gateway()
-            .complete(&model.endpoint, &current, stream)
+            .complete(&model.endpoint, &current, stream, permit)
             .await;
-        match crate::session_step::decide(outcome, sent) {
+        match crate::session_step::decide(outcome, counted, blanks, dropped) {
             crate::session_step::Step::Done(result) => {
                 let estimated = crate::session_step::estimate_request(request, calibration);
                 session.remember_estimate(estimated);
                 return Ok(done_try(session, model, estimated, result));
             }
             crate::session_step::Step::DropParam => {
+                counted = counted.saturating_sub(1);
                 current.thinking = ThinkingMode::Auto;
                 note_no_thinking(session.learned_rows(), &model.endpoint);
-                sent = sent.saturating_sub(1);
+                dropped = true;
+                pause_extra(session, audience).await?;
             }
             crate::session_step::Step::BlankAgain => {
-                sent = sent.saturating_sub(1);
+                counted = counted.saturating_sub(1);
+                blanks = blanks.saturating_add(1);
+                pause_extra(session, audience).await?;
             }
             crate::session_step::Step::Wait(mut fail) => {
-                if !wait_try(session, model, &mut fail, sent, audience).await? {
+                if !wait_try(session, model, &mut fail, counted, audience).await? {
                     return Err(ask::classified_fail(fail.classified, fail.notices));
                 }
             }
@@ -116,6 +138,37 @@ fn done_try(
 ) -> TurnResult {
     note_usage(session.learned_rows(), &model.endpoint, estimated, &result);
     result
+}
+
+async fn pause_extra(
+    session: &mut Session,
+    audience: crate::types::Audience,
+) -> Result<(), GatewayFail> {
+    let mut fail = ask::AttemptFail {
+        classified: crate::errors::classify(&crate::errors::FailInput::Http {
+            status: 503,
+            message: String::new(),
+        }),
+        detail: String::new(),
+        retry_after: None,
+        notices: Vec::new(),
+    };
+    let clock = Arc::clone(&session.clock);
+    let again = ask::wait_retry(
+        &clock,
+        &session.stop,
+        &mut fail,
+        1,
+        ask::AttemptLimit {
+            audience,
+            jitter_milli: session.jitter_milli,
+        },
+    )
+    .await?;
+    if again {
+        return Ok(());
+    }
+    Err(ask::classified_fail(fail.classified, fail.notices))
 }
 
 async fn wait_try(

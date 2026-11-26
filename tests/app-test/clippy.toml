@@ -23,6 +23,9 @@ disallowed-methods = [
     # sending HTTP requests: only models, mcp, sync, channels, computers, tests/harness
     # reading and writing arbitrary files: only computers, blob, store-client, tests/harness
     # clock and time: every time access goes through the foundation Clock (M4 A.2)
+    { path = "anybot_models::SendPermit::for_endpoint", allow-invalid = true, reason = "ask models only through Session; the policy is the bot policy given when the Session is built" },
+    { path = "anybot_models::SendPermit::issue", allow-invalid = true, reason = "a permit is issued only inside the models crate; product code asks through Session" },
+    { path = "anybot_models::Gateway::pin_host", allow-invalid = true, reason = "pinning a name to an address is a test-only dial; product code must connect to the listed URL" },
 ]
 
 disallowed-types = [

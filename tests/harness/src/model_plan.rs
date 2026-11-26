@@ -72,6 +72,8 @@ fn stream_special(plan: &Plan) -> Option<String> {
         | Step::EmptyBody
         | Step::Redirect { .. }
         | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. }
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }
@@ -103,7 +105,9 @@ pub fn json_response(step: Step, format: ModelFormat, model: &str) -> Response {
         Step::ReplyStatus { .. }
         | Step::EmptyBody
         | Step::Redirect { .. }
-        | Step::ModelList { .. } => empty_list(),
+        | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. } => empty_list(),
         other @ (Step::ReplyText { .. }
         | Step::ThinkThenReply { .. }
         | Step::CallTool { .. }

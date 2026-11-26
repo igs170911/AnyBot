@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use crate::GatewayFail;
 use crate::catalog::{self, LIST_WAIT_SECS};
-use crate::errors::{clip_detail, redact};
-use crate::providers::key_allowed;
+use crate::errors_text::{clip_detail, redact};
+
 use crate::types::ProviderEndpoint;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -23,22 +23,25 @@ pub async fn fetch_models(
             detail: String::new(),
         });
     }
-    let url = format!("{}/models", endpoint.base_url);
-    if endpoint.api_key.is_some() && !key_allowed(endpoint, &url) {
+    let listed = format!("{}/models", endpoint.base_url);
+    let dial = gateway.dial_of(&listed);
+    if endpoint.api_key.is_some() && !crate::client_place::key_for(endpoint, &listed, &dial) {
         return Err(GatewayFail::KeyDestination);
     }
-    let builder = gateway.client_request(&url, &serde_json::json!({}), endpoint);
-    let wait = Duration::from_secs(LIST_WAIT_SECS);
-    match gateway.transport_send(builder, wait).await {
+    let mut request = crate::client_wire::wire_for(&listed, &serde_json::json!({}), endpoint);
+    request.dial = gateway.dial_addr(&listed);
+    request.header_wait = Some(Duration::from_secs(LIST_WAIT_SECS));
+    let outcome = list_exchange(gateway, &request).await;
+    match outcome {
         Ok(bytes) if bytes.status >= 400 => Ok(ListOutcome::Failed {
             code: "model-list-status",
-            detail: redact(
-                &clip_detail(&String::from_utf8_lossy(&bytes.body)),
+            detail: clip_detail(&redact(
+                &String::from_utf8_lossy(&bytes.body),
                 endpoint
                     .api_key
                     .as_ref()
                     .map(anybot_foundation::Secret::expose),
-            ),
+            )),
         }),
         Ok(bytes) => {
             let names = parse_ids(&String::from_utf8_lossy(&bytes.body));
@@ -55,8 +58,16 @@ pub async fn fetch_models(
             code: catalog::list_timeout_code(),
             detail: "timeout".to_owned(),
         }),
-        Err(other) => Err(GatewayFail::Transport(other)),
+        Err(other) => Err(crate::ask::transport_fail(endpoint, &other, false)),
     }
+}
+
+async fn list_exchange(
+    gateway: &crate::Gateway,
+    request: &crate::http_wire::WireRequest,
+) -> Result<crate::transport::HttpBytes, crate::transport::TransportFail> {
+    let wait = Duration::from_secs(LIST_WAIT_SECS);
+    gateway.transport_send(request, wait).await
 }
 
 fn parse_ids(body: &str) -> Vec<String> {

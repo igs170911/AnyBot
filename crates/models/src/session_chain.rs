@@ -1,5 +1,4 @@
 use crate::session::{MAX_FALLBACKS, ModelRef};
-use crate::types::ProviderKind;
 
 pub(crate) fn chain_of(
     primary: &ModelRef,
@@ -21,33 +20,28 @@ pub(crate) fn chain_of(
     {
         chain.insert(0, crate::model_copy::copy_model(next));
     }
-    prefer_pending(chain, pending.map(kind_model))
-}
-
-fn kind_model(model: &ModelRef) -> (ProviderKind, &str) {
-    (model.endpoint.kind, model.endpoint.model.as_str())
+    prefer_pending(chain, pending.or(adopted))
 }
 
 fn in_chain(chain: &[ModelRef], model: &ModelRef) -> bool {
-    chain.iter().any(|item| same_model(item, model))
+    chain.iter().any(|item| same_endpoint(item, model))
 }
 
-fn same_model(left: &ModelRef, right: &ModelRef) -> bool {
-    left.endpoint.kind == right.endpoint.kind && left.endpoint.model == right.endpoint.model
+fn same_endpoint(left: &ModelRef, right: &ModelRef) -> bool {
+    left.endpoint.kind == right.endpoint.kind
+        && left.endpoint.model == right.endpoint.model
+        && left.endpoint.base_url == right.endpoint.base_url
 }
 
-fn prefer_pending(chain: Vec<ModelRef>, pending: Option<(ProviderKind, &str)>) -> Vec<ModelRef> {
-    let Some((kind, model)) = pending else {
+fn prefer_pending(chain: Vec<ModelRef>, pending: Option<&ModelRef>) -> Vec<ModelRef> {
+    let Some(pending) = pending else {
         return chain;
     };
-    let Some(index) = chain
-        .iter()
-        .position(|item| item.endpoint.kind == kind && item.endpoint.model == model)
-    else {
+    let Some(index) = chain.iter().position(|item| same_endpoint(item, pending)) else {
         return chain;
     };
-    let Some(picked) = chain.into_iter().nth(index) else {
-        return Vec::new();
-    };
-    vec![picked]
+    let mut ordered = chain;
+    let picked = ordered.remove(index);
+    ordered.insert(0, picked);
+    ordered
 }

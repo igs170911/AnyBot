@@ -1,12 +1,13 @@
 use anybot_foundation as _;
 use anybot_foundation::clock::Clock;
 use anybot_models::{
-    Audience, DataPolicy, FailKind, ProviderKind, ThinkingMode, UsageReport, ask_plan, model_key,
+    Audience, FailKind, ProviderKind, ThinkingMode, UsageReport, ask_plan, model_key,
 };
 use bytes as _;
 use futures_util as _;
 use proptest as _;
 use reqwest as _;
+use rustls as _;
 use serde as _;
 use serde_json as _;
 use std::sync::Arc;
@@ -15,8 +16,12 @@ use test_harness::{
     model_start_with_format, model_usage,
 };
 use tokio as _;
+use tokio_rustls as _;
+use trybuild as _;
 use url as _;
 
+#[path = "../test_support/drive.rs"]
+mod drive;
 #[path = "../test_support/session.rs"]
 mod support;
 
@@ -42,7 +47,7 @@ async fn t_models_capabilities_3() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
         bot_context: None,
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let first = ask_once(&mut session, &primary).await;
     assert!(matches!(
         first,
@@ -56,8 +61,12 @@ async fn t_models_capabilities_3() -> Result<(), String> {
         Some(50_000)
     );
     let snapshot = session.learned().to_vec();
-    let mut reopened =
-        anybot_models::Session::new(world_gateway(&world), support::share(&world.clock), 0);
+    let mut reopened = anybot_models::Session::new(
+        world_gateway(&world)?,
+        anybot_models::DataPolicy::LocalOnly,
+        support::share(&world.clock),
+        0,
+    );
     reopened.load_learned(snapshot);
     assert_eq!(
         reopened
@@ -77,15 +86,33 @@ async fn ask_once(
         .ask(&mut ask_plan(
             primary,
             &[],
-            &DataPolicy::LocalOnly,
             &support::hi(ThinkingMode::Auto),
             Audience::Watching,
         ))
         .await
 }
 
-fn world_gateway(world: &support::World) -> anybot_models::Gateway {
-    anybot_models::gateway(support::share(&world.clock))
+async fn ask_m1_again(
+    session: &mut anybot_models::Session,
+    primary: &anybot_models::ModelRef,
+) -> Result<anybot_models::AskOutcome, String> {
+    support::ask_watching(session, primary, &[], ThinkingMode::Deep).await
+}
+
+fn recorded_body(world: &support::World, index: usize) -> Result<String, String> {
+    world
+        .model
+        .recorded()
+        .get(index)
+        .ok_or_else(|| "missing later ask".to_owned())
+        .map(|row| row.body.clone())
+}
+
+fn world_gateway(world: &support::World) -> Result<anybot_models::Gateway, String> {
+    anybot_models::gateway(
+        support::share(&world.clock),
+        &anybot_foundation::TrustedCerts::empty(),
+    )
 }
 
 #[tokio::test]
@@ -100,32 +127,56 @@ async fn t_models_capabilities_4() -> Result<(), String> {
                 test_harness::ErrorBodyKind::OpenAi,
             ),
             model_replies_text("ok", false),
+            model_replies_text("again", false),
         ],
     );
     support::script(&pair.other, vec![model_replies_text("m2", false)]);
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
+    let clock = Arc::clone(&world.clock);
+    let driver = tokio::spawn(async move {
+        drive::drive_until(&clock, || false).await;
+    });
     let first = support::ask_watching(&mut session, &pair.primary, &[], ThinkingMode::Deep).await?;
-    assert_eq!(first.result.text, "ok");
-    assert_eq!(world.model.recorded().len(), 2);
-    let dropped = world
-        .model
-        .recorded()
-        .get(1)
-        .ok_or("missing retry")?
-        .body
-        .clone();
-    assert!(!dropped.contains("reasoning_effort"));
+    driver.abort();
+    assert_dropped_effort(&world, &first)?;
+    let again = ask_m1_again(&mut session, &pair.primary).await?;
+    assert_eq!(again.result.text, "again");
+    assert!(!recorded_body(&world, 2)?.contains("reasoning_effort"));
     let second =
         support::ask_watching(&mut session, &pair.fallback, &[], ThinkingMode::Deep).await?;
     assert_eq!(second.result.text, "m2");
-    let m2 = pair
-        .other
+    assert!(body_has_effort(&pair.other, "reasoning_effort")?);
+    Ok(())
+}
+
+fn body_has_effort(model: &test_harness::FakeModel, needle: &str) -> Result<bool, String> {
+    let rows = model.recorded();
+    let body = &rows.first().ok_or("missing m2")?.body;
+    Ok(body.contains(needle))
+}
+
+fn assert_dropped_effort(
+    world: &support::World,
+    first: &anybot_models::AskOutcome,
+) -> Result<(), String> {
+    assert_eq!(first.result.text, "ok");
+    assert_eq!(world.model.recorded().len(), 2);
+    let first_body = world
+        .model
         .recorded()
         .first()
-        .ok_or("missing m2")?
+        .ok_or("missing first")?
         .body
         .clone();
-    assert!(m2.contains("reasoning_effort"));
+    let dropped = recorded_body(world, 1)?;
+    assert!(first_body.contains("reasoning_effort"));
+    assert!(!dropped.contains("reasoning_effort"));
+    assert!(
+        first
+            .notices
+            .iter()
+            .all(|notice| notice.code != "model-retry-wait")
+    );
     Ok(())
 }
 
@@ -151,7 +202,7 @@ async fn t_models_capabilities_8() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::Custom, world.port, "local-model", ""),
         bot_context: Some(32_000),
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let mut fifth = 0_u64;
     for index in 1..=6 {
         let outcome =
@@ -196,8 +247,12 @@ async fn t_models_capabilities_10() -> Result<(), String> {
     let clock = FakeClock::new(0);
     let shared: Arc<FakeClock> = Arc::clone(&clock);
     let clock_dyn: Arc<dyn Clock> = shared;
-    let mut session =
-        anybot_models::Session::new(anybot_models::gateway(clock_dyn), share(&clock), 0);
+    let mut session = anybot_models::Session::new(
+        anybot_models::gateway(clock_dyn, &anybot_foundation::TrustedCerts::empty())?,
+        anybot_models::DataPolicy::LocalOnly,
+        share(&clock),
+        0,
+    );
     let primary = anybot_models::ModelRef {
         endpoint: anybot_models::resolve_endpoint(
             ProviderKind::Custom,
@@ -211,13 +266,7 @@ async fn t_models_capabilities_10() -> Result<(), String> {
     let mut request = support::hi(ThinkingMode::Auto);
     request.estimate_override = Some(11_000);
     let outcome = session
-        .ask(&mut ask_plan(
-            &primary,
-            &[],
-            &DataPolicy::LocalOnly,
-            &request,
-            Audience::Watching,
-        ))
+        .ask(&mut ask_plan(&primary, &[], &request, Audience::Watching))
         .await;
     let Err(err) = outcome else {
         return Err("budget still sent".to_owned());

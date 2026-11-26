@@ -3,6 +3,7 @@ use anybot_foundation as _;
 #[cfg(test)]
 use anybot_store_server as _;
 use libc as _;
+use rustls_pki_types as _;
 #[cfg(test)]
 use sad_web_push as _;
 use serde as _;
@@ -23,9 +24,11 @@ pub mod launch;
 pub mod model_anthropic;
 pub mod model_extra;
 pub(crate) mod model_hold;
+pub mod model_https;
 pub mod model_openai;
 pub mod model_plan;
 pub mod model_script;
+pub mod model_tls;
 pub mod model_vllm;
 pub mod model_vllm_body;
 pub mod model_vllm_chunks;
@@ -67,14 +70,20 @@ pub use launch::{
     Outcome, Program, child_is_dead, run_program, run_program_clocked, run_program_with,
 };
 pub use model_hold::arm as arm_model_hold;
+pub use model_https::{HttpsModel, https_client, model_start_https, model_start_with_cert};
 pub use model_script::{
     ErrorBodyKind, HeaderValueKind, KeyMatch, RecordedRequest, Step, ToolCallScript, UsageScript,
-    model_calls_tool, model_cut_off, model_empty_body, model_error_body, model_hold_then_finish,
-    model_list, model_list_silent, model_no_response, model_omit_usage, model_redacted_thinking,
-    model_redirect, model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
+    model_accept_then_delay, model_calls_tool, model_cut_off, model_delay_headers,
+    model_empty_body, model_error_body, model_hold_then_finish, model_list, model_list_silent,
+    model_no_response, model_omit_usage, model_redacted_thinking, model_redirect,
+    model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
     model_stop_reason, model_stream_error, model_think_then_reply, model_think_then_tool,
     model_thinking_block, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,
     model_usage, random_reply,
+};
+pub use model_tls::{
+    IssuedLeaf, MintedCert, mint_issued, mint_issued_not_yet, mint_issued_window, mint_not_yet,
+    mint_self_signed,
 };
 pub use netctl_state::NetCtl;
 

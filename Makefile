@@ -104,7 +104,8 @@ machete:
 	$(CARGO) machete
 
 depcheck:
-	$(CARGO) run --locked -p depcheck
+	$(CARGO) build --locked -p depcheck --target-dir target/depcheck-build
+	./target/depcheck-build/debug/depcheck
 
 sqlx-prepare:
 	tools/sqlx_prepare.sh "$(CARGO)" "$(PNPM)" prepare

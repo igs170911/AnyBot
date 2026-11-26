@@ -55,7 +55,9 @@ async fn dispatch(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bool {
         | Step::StreamError { .. }
         | Step::EmptyBody
         | Step::Redirect { .. }
-        | Step::ModelList { .. }) => dispatch_rest(tx, other, model).await,
+        | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. }) => dispatch_rest(tx, other, model).await,
     }
 }
 async fn dispatch_rest(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bool {
@@ -103,7 +105,9 @@ async fn dispatch_rest(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bo
         | Step::StreamError { .. }
         | Step::EmptyBody
         | Step::Redirect { .. }
-        | Step::ModelList { .. } => false,
+        | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. } => false,
     }
 }
 async fn send(tx: &mpsc::Sender<String>, value: serde_json::Value) {

@@ -1,0 +1,15 @@
+error[E0061]: this method takes 4 arguments but 3 arguments were supplied
+  --> tests/compilefail/complete_without_permit.rs:25:25
+   |
+25 |     let _sent = gateway.complete(&endpoint, &request, false);
+   |                         ^^^^^^^^---------------------------- argument #4 of type `&SendPermit` is missing
+   |
+note: method defined here
+  --> src/client.rs
+   |
+   |     pub async fn complete(
+   |                  ^^^^^^^^
+help: provide the argument
+   |
+25 |     let _sent = gateway.complete(&endpoint, &request, false, /* &SendPermit */);
+   |                                                            +++++++++++++++++++

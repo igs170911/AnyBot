@@ -1,9 +1,12 @@
 use proptest as _;
+use rustls as _;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio_rustls as _;
+use trybuild as _;
 
 use anybot_foundation::clock::Clock;
-use anybot_models::{Audience, ProviderKind, Session, ThinkingMode, ask_plan, gateway};
+use anybot_models::{Audience, DataPolicy, ProviderKind, Session, ThinkingMode, ask_plan, gateway};
 use bytes as _;
 use futures_util as _;
 use reqwest as _;
@@ -38,14 +41,16 @@ async fn t_models_n1_1() -> Result<(), String> {
     let _held = world.gateway;
     let clock = Arc::clone(&world.clock);
     let task = tokio::spawn(async move {
-        let mut session = Session::new(gateway(share(&clock)), share(&clock), 0);
+        let Ok(built) = gateway(share(&clock), &anybot_foundation::TrustedCerts::empty()) else {
+            return Err(anybot_models::GatewayFail::MissingKey);
+        };
+        let mut session = Session::new(built, DataPolicy::LocalOnly, share(&clock), 0);
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
         };
         let request = support::hi(ThinkingMode::Auto);
-        let policy = anybot_models::DataPolicy::LocalOnly;
-        let mut plan = ask_plan(&primary, &[], &policy, &request, Audience::Watching);
+        let mut plan = ask_plan(&primary, &[], &request, Audience::Watching);
         session.ask(&mut plan).await
     });
     let ready = timeout_real(drive(&world.clock, &task), Duration::from_secs(5)).await;
@@ -55,33 +60,32 @@ async fn t_models_n1_1() -> Result<(), String> {
         .await
         .map_err(|err| format!("{err}"))?
         .map_err(|err| format!("{err:?}"))?;
-    let seconds: Vec<String> = outcome
-        .notices
-        .iter()
-        .filter(|notice| notice.code == "model-retry-wait")
-        .filter_map(|notice| {
-            notice
-                .params
-                .iter()
-                .find(|(name, _)| name == "seconds")
-                .map(|(_, value)| value.clone())
-        })
-        .collect();
-    assert_eq!(seconds, vec!["1".to_owned(), "2".to_owned()]);
-    let attempts: Vec<String> = outcome
-        .notices
-        .iter()
-        .filter(|notice| notice.code == "model-retry-wait")
-        .filter_map(|notice| {
-            notice
-                .params
-                .iter()
-                .find(|(name, _)| name == "attempt")
-                .map(|(_, value)| value.clone())
-        })
-        .collect();
-    assert_eq!(attempts.first().map(String::as_str), Some("1"));
+    assert_eq!(
+        notice_values(&outcome, "seconds"),
+        vec!["1".to_owned(), "2".to_owned()]
+    );
+    assert_eq!(
+        notice_values(&outcome, "attempt")
+            .first()
+            .map(String::as_str),
+        Some("1")
+    );
     Ok(())
+}
+
+fn notice_values(outcome: &anybot_models::AskOutcome, name: &str) -> Vec<String> {
+    outcome
+        .notices
+        .iter()
+        .filter(|notice| notice.code == "model-retry-wait")
+        .filter_map(|notice| {
+            notice
+                .params
+                .iter()
+                .find(|(key, _)| key == name)
+                .map(|(_, value)| value.clone())
+        })
+        .collect()
 }
 
 #[tokio::test]
@@ -90,14 +94,21 @@ async fn t_models_n1_4() -> Result<(), String> {
         let world = support::world(ModelFormat::OpenAi).await?;
         support::script(&world.model, vec![model_reply_status(status, "no")]);
         let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
-        let mut session = Session::new(gateway(share(&world.clock)), share(&world.clock), 0);
+        let mut session = Session::new(
+            gateway(
+                share(&world.clock),
+                &anybot_foundation::TrustedCerts::empty(),
+            )?,
+            DataPolicy::LocalOnly,
+            share(&world.clock),
+            0,
+        );
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
         };
         let request = support::hi(ThinkingMode::Auto);
-        let policy = anybot_models::DataPolicy::LocalOnly;
-        let mut plan = ask_plan(&primary, &[], &policy, &request, Audience::Watching);
+        let mut plan = ask_plan(&primary, &[], &request, Audience::Watching);
         let _outcome = session.ask(&mut plan).await;
         assert_eq!(world.model.recorded().len(), 1);
     }
@@ -115,14 +126,16 @@ async fn unattended_sends_eight_times() -> Result<(), String> {
     let clock = Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
-        let mut session = Session::new(gateway(share(&clock)), share(&clock), 200);
+        let Ok(built) = gateway(share(&clock), &anybot_foundation::TrustedCerts::empty()) else {
+            return Err(anybot_models::GatewayFail::MissingKey);
+        };
+        let mut session = Session::new(built, DataPolicy::LocalOnly, share(&clock), 200);
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
         };
         let request = support::hi(ThinkingMode::Auto);
-        let policy = anybot_models::DataPolicy::LocalOnly;
-        let mut plan = ask_plan(&primary, &[], &policy, &request, Audience::Unattended);
+        let mut plan = ask_plan(&primary, &[], &request, Audience::Unattended);
         session.ask(&mut plan).await
     });
     let ready = timeout_real(drive(&world.clock, &task), Duration::from_secs(8)).await;

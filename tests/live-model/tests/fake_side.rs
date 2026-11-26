@@ -2,8 +2,7 @@ use anybot_foundation as _;
 use anybot_models as _;
 use live_model::side::fake_side;
 use reqwest as _;
-use rustls as _;
-use rustls_pki_types as _;
+
 use serde_json as _;
 use test_harness as _;
 use tokio as _;
@@ -11,7 +10,7 @@ use toml as _;
 
 #[tokio::test]
 async fn live_fake_side_completes_all_seven_requests() {
-    let outcome = fake_side("local").await;
+    let outcome = fake_side("local", true).await;
     assert_eq!(outcome.failed, None);
     assert_eq!(outcome.side.probe.len(), 3);
     assert_eq!(outcome.side.product.len(), 4);
@@ -19,7 +18,7 @@ async fn live_fake_side_completes_all_seven_requests() {
 
 #[tokio::test]
 async fn live_fake_side_probe_shapes_match_scripts() {
-    let outcome = fake_side("local").await;
+    let outcome = fake_side("local", true).await;
     assert_eq!(outcome.failed, None);
     let normal = outcome.side.probe.first().expect("probe normal");
     assert!(
@@ -34,13 +33,27 @@ async fn live_fake_side_probe_shapes_match_scripts() {
 
 #[tokio::test]
 async fn live_fake_side_product_shapes_match_scripts_in_order() {
-    let outcome = fake_side("local").await;
+    let outcome = fake_side("local", true).await;
     assert_eq!(outcome.failed, None);
     let product = &outcome.side.product;
     assert_eq!(product.first().expect("product normal").stop, "finished");
+    assert!(product.first().expect("product normal").has_thinking);
     assert_eq!(product.get(1).expect("product stream").stop, "finished");
+    assert!(product.get(1).expect("product stream").has_thinking);
     assert_eq!(product.get(2).expect("product tool").stop, "needs-tool");
     assert_eq!(product.get(2).expect("product tool").tool_calls, 1);
     assert_eq!(product.get(3).expect("product thinking").stop, "finished");
     assert!(product.get(3).expect("product thinking").has_thinking);
+}
+
+#[tokio::test]
+async fn live_fake_side_four_comparisons_are_structurally_equal() {
+    let lines = live_model::side::compare_fake_formats("local")
+        .await
+        .expect("fake comparison");
+    let identical = lines
+        .iter()
+        .filter(|line| line.contains("identical"))
+        .count();
+    assert_eq!(identical, 7, "{lines:?}");
 }
