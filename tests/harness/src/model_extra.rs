@@ -92,7 +92,9 @@ pub fn status_response(step: &Step) -> Option<Response> {
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }
         | Step::ToolCalls { .. }
-        | Step::ThinkThenTool { .. } => None,
+        | Step::ThinkThenTool { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. } => None,
     }
 }
 

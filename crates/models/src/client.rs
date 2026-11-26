@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anybot_foundation::clock::Clock;
@@ -7,24 +8,18 @@ use crate::http_wire::{SharedWire, WireRequest};
 use crate::providers::key_allowed;
 use crate::transport::TimedTransport;
 use crate::types::{ProviderEndpoint, TurnRequest, TurnResult};
-use crate::where_run::first_token_wait;
+use crate::where_run::{RunPlace, classify_url, first_token_wait};
 
 pub struct Gateway {
     transport: TimedTransport,
-    name_map: Arc<dyn NameResolver>,
+    pins: Vec<HostPin>,
     os_notes: Vec<String>,
 }
 
-pub trait NameResolver: Send + Sync {
-    fn resolve(&self, url: &str) -> Option<String>;
-}
-
-pub struct IdentityResolver;
-
-impl NameResolver for IdentityResolver {
-    fn resolve(&self, _url: &str) -> Option<String> {
-        None
-    }
+#[derive(Clone)]
+struct HostPin {
+    host: String,
+    addr: SocketAddr,
 }
 
 impl Gateway {
@@ -44,22 +39,20 @@ impl Gateway {
         Ok(Self::from_client(clock, built))
     }
 
-    pub fn with_pinned_host(
-        clock: Arc<dyn Clock>,
-        trusted: &anybot_foundation::TrustedCerts,
-        host: &str,
-        addr: std::net::SocketAddr,
-    ) -> Result<Self, String> {
-        let built = crate::client_http::client_for(trusted, Some((host, addr)), None)?;
-        Ok(Self::from_client(clock, built))
+    pub fn pin_host(&mut self, host: &str, addr: SocketAddr) {
+        if let Some(found) = self.pins.iter_mut().find(|pin| pin.host == host) {
+            found.addr = addr;
+            return;
+        }
+        self.pins.push(HostPin {
+            host: host.to_owned(),
+            addr,
+        });
     }
 
     fn from_client(clock: Arc<dyn Clock>, built: crate::client_http::BuiltClient) -> Self {
-        Self::from_wire(
-            crate::reqwest_wire::ReqwestWire::new(built.client),
-            clock,
-            built.os_notes,
-        )
+        let notes = built.os_notes.clone();
+        Self::from_wire(crate::reqwest_wire::ReqwestWire::new(built), clock, notes)
     }
 
     pub(crate) fn from_wire(
@@ -69,7 +62,7 @@ impl Gateway {
     ) -> Self {
         Self {
             transport: TimedTransport::new(wire, clock),
-            name_map: Arc::new(IdentityResolver),
+            pins: Vec::new(),
             os_notes,
         }
     }
@@ -80,25 +73,10 @@ impl Gateway {
     }
 
     #[must_use]
-    pub fn with_names(mut self, name_map: Arc<dyn NameResolver>) -> Self {
-        self.name_map = name_map;
-        self
-    }
-
-    #[must_use]
     pub fn clone_gateway(&self) -> Self {
         Self {
             transport: TimedTransport::new(self.transport.wire(), self.transport.clock()),
-            name_map: Arc::clone(&self.name_map),
-            os_notes: self.os_notes.clone(),
-        }
-    }
-
-    #[must_use]
-    pub fn clone_with_names(&self, name_map: Arc<dyn NameResolver>) -> Self {
-        Self {
-            transport: TimedTransport::new(self.transport.wire(), self.transport.clock()),
-            name_map,
+            pins: self.pins.clone(),
             os_notes: self.os_notes.clone(),
         }
     }
@@ -114,16 +92,17 @@ impl Gateway {
             return Err(GatewayFail::MissingKey);
         }
         let listed = crate::client_http::chat_url(endpoint);
+        let dial = self.dial_of(&listed);
         let use_kind = permit.use_kind();
-        if !permit.matches(&listed, use_kind) {
+        if !permit.matches(&listed, use_kind) || !place_ok(permit, &listed, &dial, endpoint.kind) {
             return Err(policy_blocked());
         }
-        if endpoint.api_key.is_some() && !key_allowed(endpoint, &listed) {
+        if endpoint.api_key.is_some() && !key_for(endpoint, &listed, &dial) {
             return Err(GatewayFail::KeyDestination);
         }
-        let url = self.resolved_url(&listed);
         let body = crate::client_wire::encode_body(endpoint, request, stream);
-        let wire = crate::client_wire::wire_request(&url, &body, endpoint);
+        let mut wire = crate::client_wire::wire_request(&listed, &body, endpoint);
+        wire.dial = self.dial_addr(&listed);
         let first_wait = first_token_wait(0);
         if stream {
             return self.complete_stream(endpoint, &wire, first_wait).await;
@@ -151,12 +130,22 @@ impl Gateway {
         }
     }
 
-    fn resolved_url(&self, url: &str) -> String {
-        self.name_map.resolve(url).unwrap_or_else(|| url.to_owned())
+    pub(crate) fn dial_addr(&self, url: &str) -> Option<SocketAddr> {
+        let host = host_of(url)?;
+        self.pins
+            .iter()
+            .find(|pin| pin.host == host)
+            .map(|pin| pin.addr)
     }
 
-    pub(crate) fn resolved_url_of(&self, url: &str) -> String {
-        self.resolved_url(url)
+    pub(crate) fn dial_of(&self, url: &str) -> String {
+        let Some(host) = host_of(url) else {
+            return url.to_owned();
+        };
+        let Some(pin) = self.pins.iter().find(|pin| pin.host == host) else {
+            return url.to_owned();
+        };
+        pin_url(url, pin.addr).unwrap_or_else(|| url.to_owned())
     }
 
     async fn complete_stream(
@@ -244,6 +233,49 @@ fn finish_open(
 
 pub(crate) fn chat_url_of(endpoint: &ProviderEndpoint) -> String {
     crate::client_http::chat_url(endpoint)
+}
+
+pub(crate) fn key_for(endpoint: &ProviderEndpoint, listed: &str, dial: &str) -> bool {
+    key_allowed(endpoint, listed) || key_allowed(endpoint, dial)
+}
+
+fn place_ok(
+    permit: &SendPermit,
+    listed: &str,
+    dial: &str,
+    provider: crate::types::ProviderKind,
+) -> bool {
+    let listed_place = classify_url(listed);
+    let dial_place = classify_url(dial);
+    if stricter(dial_place, listed_place) {
+        return permit.allows_url(dial, provider);
+    }
+    true
+}
+
+fn stricter(candidate: RunPlace, baseline: RunPlace) -> bool {
+    place_rank(candidate) > place_rank(baseline)
+}
+
+fn place_rank(place: RunPlace) -> u8 {
+    match place {
+        RunPlace::Local => 0,
+        RunPlace::Lan => 1,
+        RunPlace::Cloud => 2,
+    }
+}
+
+fn host_of(url: &str) -> Option<String> {
+    url::Url::parse(url)
+        .ok()
+        .and_then(|parsed| parsed.host_str().map(str::to_owned))
+}
+
+fn pin_url(url: &str, addr: SocketAddr) -> Option<String> {
+    let mut parsed = url::Url::parse(url).ok()?;
+    parsed.set_ip_host(addr.ip()).ok()?;
+    parsed.set_port(Some(addr.port())).ok()?;
+    Some(parsed.to_string())
 }
 
 fn policy_blocked() -> GatewayFail {

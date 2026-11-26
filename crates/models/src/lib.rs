@@ -52,7 +52,7 @@ pub use capabilities::{
 };
 pub use catalog::{LIST_WAIT_SECS, empty_list_code, list_timeout_code, normalize_ids};
 pub use catalog_fetch::{ListOutcome, fetch_models};
-pub use client::{Gateway, GatewayFail, IdentityResolver, NameResolver};
+pub use client::{Gateway, GatewayFail};
 pub use egress::{
     DataPolicy, JudgeCandidate, ModelUse, SendPermit, allowed, default_policy, pick_judge,
 };
@@ -119,13 +119,4 @@ pub fn gateway_with_proxy(
     proxy: Option<&str>,
 ) -> Result<Gateway, String> {
     Gateway::with_proxy(clock, trusted, proxy)
-}
-
-pub fn gateway_pinned(
-    clock: Arc<dyn Clock>,
-    trusted: &anybot_foundation::TrustedCerts,
-    host: &str,
-    addr: std::net::SocketAddr,
-) -> Result<Gateway, String> {
-    Gateway::with_pinned_host(clock, trusted, host, addr)
 }

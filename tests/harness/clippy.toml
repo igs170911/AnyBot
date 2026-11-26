@@ -23,7 +23,6 @@ disallowed-methods = [
     # sending HTTP requests: only models, mcp, sync, channels, computers, tests/harness
     # reading and writing arbitrary files: only computers, blob, store-client, tests/harness
     # clock and time: every time access goes through the foundation Clock (M4 A.2)
-    { path = "anybot_models::SendPermit::for_endpoint", allow-invalid = true, reason = "ask models only through Session; the policy is the bot policy given when the Session is built" },
 ]
 
 disallowed-types = [

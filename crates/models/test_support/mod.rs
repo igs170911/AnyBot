@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use anybot_foundation::clock::Clock;
-use anybot_models::{
-    Gateway, ProviderEndpoint, ProviderKind, WireFormat, gateway, resolve_endpoint,
-};
+use anybot_models::{Gateway, ProviderEndpoint, ProviderKind, WireFormat, resolve_endpoint};
 use proptest as _;
 use test_harness::{FakeClock, FakeModel, ModelFormat, Step, model_start_with_format};
 
@@ -19,7 +17,7 @@ pub(crate) struct World {
 pub(crate) async fn world(format: ModelFormat) -> Result<World, String> {
     let (model, port) = model_start_with_format(format).await?;
     let clock = FakeClock::new(0);
-    let gateway = gateway(
+    let gateway = anybot_models::gateway(
         share_clock(&clock),
         &anybot_foundation::TrustedCerts::empty(),
     )?;

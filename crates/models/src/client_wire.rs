@@ -56,6 +56,7 @@ pub(crate) fn wire_request(url: &str, body: &Value, endpoint: &ProviderEndpoint)
         url: url.to_owned(),
         headers: auth_headers(endpoint),
         body: encoded,
+        dial: None,
     }
 }
 

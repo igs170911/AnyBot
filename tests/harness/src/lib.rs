@@ -58,9 +58,10 @@ pub use model_hold::arm as arm_model_hold;
 pub use model_https::{HttpsModel, https_client, model_start_https, model_start_with_cert};
 pub use model_script::{
     ErrorBodyKind, HeaderValueKind, KeyMatch, RecordedRequest, Step, ToolCallScript, UsageScript,
-    model_calls_tool, model_cut_off, model_empty_body, model_error_body, model_hold_then_finish,
-    model_list, model_list_silent, model_no_response, model_omit_usage, model_redacted_thinking,
-    model_redirect, model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
+    model_accept_then_delay, model_calls_tool, model_cut_off, model_delay_headers,
+    model_empty_body, model_error_body, model_hold_then_finish, model_list, model_list_silent,
+    model_no_response, model_omit_usage, model_redacted_thinking, model_redirect,
+    model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
     model_stop_reason, model_stream_error, model_think_then_reply, model_think_then_tool,
     model_thinking_block, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,
     model_usage, random_reply,

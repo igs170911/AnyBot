@@ -79,6 +79,7 @@ pub fn pick_judge<'a>(
 pub struct SendPermit {
     destination: String,
     use_kind: ModelUse,
+    policy: DataPolicy,
 }
 
 impl std::fmt::Debug for SendPermit {
@@ -87,6 +88,7 @@ impl std::fmt::Debug for SendPermit {
             .debug_struct("SendPermit")
             .field("destination", &self.destination)
             .field("use_kind", &self.use_kind)
+            .field("policy", &self.policy)
             .finish()
     }
 }
@@ -119,11 +121,16 @@ impl SendPermit {
         Some(Self {
             destination: destination.to_owned(),
             use_kind,
+            policy: policy.clone(),
         })
     }
 
     pub(crate) fn matches(&self, destination: &str, use_kind: ModelUse) -> bool {
         self.destination == destination && self.use_kind == use_kind
+    }
+
+    pub(crate) fn allows_url(&self, url: &str, provider: ProviderKind) -> bool {
+        allowed(&self.policy, url, provider, self.use_kind)
     }
 
     #[must_use]

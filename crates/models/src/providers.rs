@@ -137,12 +137,21 @@ pub fn key_allowed(endpoint: &ProviderEndpoint, destination: &str) -> bool {
     let Ok(target) = url::Url::parse(destination) else {
         return false;
     };
-    same_origin(&base, &target) && under_base(&base, &target)
+    hosts_match(&base, &target) && under_base(&base, &target)
 }
 
-fn same_origin(base: &url::Url, target: &url::Url) -> bool {
-    base.host_str() == target.host_str()
-        && base.port_or_known_default() == target.port_or_known_default()
+fn hosts_match(base: &url::Url, target: &url::Url) -> bool {
+    let Some(registered) = base.host_str() else {
+        return false;
+    };
+    let Some(dialed) = target.host_str() else {
+        return false;
+    };
+    registered.eq_ignore_ascii_case(dialed) && port_matches(base, target)
+}
+
+fn port_matches(base: &url::Url, target: &url::Url) -> bool {
+    base.port_or_known_default() == target.port_or_known_default()
 }
 
 fn under_base(base: &url::Url, target: &url::Url) -> bool {

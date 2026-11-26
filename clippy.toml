@@ -83,6 +83,7 @@ disallowed-methods = [
     { path = "tokio::time::Instant::now", reason = "same (M4 A.2); only foundation SystemClock owns real deadlines" },
     { path = "time::OffsetDateTime::now_utc", reason = "same (M4 A.2); only foundation SystemClock reads the wall clock" },
     { path = "anybot_models::SendPermit::for_endpoint", allow-invalid = true, reason = "ask models only through Session; the policy is the bot policy given when the Session is built" },
+    { path = "anybot_models::Gateway::pin_host", allow-invalid = true, reason = "pinning a name to an address is a test-only dial; product code must connect to the listed URL" },
 ]
 
 disallowed-types = [

@@ -58,8 +58,11 @@ pub async fn https_product_shapes(
     );
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-    let gateway = match anybot_models::gateway_pinned(clock, trusted, host, addr) {
-        Ok(gateway) => gateway,
+    let gateway = match gateway(clock, trusted) {
+        Ok(mut gateway) => {
+            gateway.pin_host(host, addr);
+            gateway
+        }
         Err(message) => return Outcome::partial(Vec::new(), message),
     };
     finish_cases(gateway, endpoint, "live").await

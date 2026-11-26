@@ -178,7 +178,8 @@ async fn ask(
 ) -> Result<anybot_models::TurnResult, String> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    let built = anybot_models::gateway_pinned(clock, trusted, host, addr)?;
+    let mut built = anybot_models::gateway(clock, trusted)?;
+    built.pin_host(host, addr);
     let endpoint = resolve_endpoint(
         ProviderKind::Custom,
         &format!("https://{host}:{port}/v1"),

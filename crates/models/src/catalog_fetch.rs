@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::GatewayFail;
 use crate::catalog::{self, LIST_WAIT_SECS};
 use crate::errors_text::{clip_detail, redact};
-use crate::providers::key_allowed;
+
 use crate::types::ProviderEndpoint;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,11 +24,12 @@ pub async fn fetch_models(
         });
     }
     let listed = format!("{}/models", endpoint.base_url);
-    let url = gateway.resolved_url_of(&listed);
-    if endpoint.api_key.is_some() && !key_allowed(endpoint, &listed) {
+    let dial = gateway.dial_of(&listed);
+    if endpoint.api_key.is_some() && !crate::client::key_for(endpoint, &listed, &dial) {
         return Err(GatewayFail::KeyDestination);
     }
-    let request = crate::client_wire::wire_for(&url, &serde_json::json!({}), endpoint);
+    let mut request = crate::client_wire::wire_for(&listed, &serde_json::json!({}), endpoint);
+    request.dial = gateway.dial_addr(&listed);
     let wait = Duration::from_secs(LIST_WAIT_SECS);
     match gateway.transport_send(&request, wait).await {
         Ok(bytes) if bytes.status >= 400 => Ok(ListOutcome::Failed {

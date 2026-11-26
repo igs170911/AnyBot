@@ -74,7 +74,9 @@ fn completion_message(step: &Step) -> (serde_json::Value, String) {
         | Step::StreamError { .. }
         | Step::EmptyBody
         | Step::Redirect { .. }
-        | Step::ModelList { .. } => (plain_message("", ""), VLLM_TOOL_FINISH.to_owned()),
+        | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. } => (plain_message("", ""), VLLM_TOOL_FINISH.to_owned()),
     }
 }
 
@@ -127,6 +129,8 @@ fn vllm_usage(step: &Step) -> serde_json::Value {
         | Step::EmptyBody
         | Step::Redirect { .. }
         | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. }
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }

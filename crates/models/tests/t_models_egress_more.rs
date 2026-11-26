@@ -16,7 +16,7 @@ use reqwest as _;
 use serde as _;
 use serde_json as _;
 use test_harness::{
-    FakeClock, ModelFormat, NameMap, model_reply_status, model_start_with_format, timeout_real,
+    FakeClock, ModelFormat, model_reply_status, model_start_with_format, timeout_real,
 };
 use tokio as _;
 use url as _;
@@ -26,27 +26,17 @@ mod drive;
 #[path = "../test_support/wire.rs"]
 mod support;
 
-struct MapNames(NameMap);
-
-impl anybot_models::NameResolver for MapNames {
-    fn resolve(&self, url: &str) -> Option<String> {
-        self.0.resolve(url)
-    }
-}
-
 fn cloud_gateway(
     clock: &Arc<FakeClock>,
     cloud_port: u16,
 ) -> Result<anybot_models::Gateway, String> {
-    let mut map = NameMap::new();
-    map.insert(
+    let mut gateway =
+        anybot_models::gateway(share(clock), &anybot_foundation::TrustedCerts::empty())?;
+    gateway.pin_host(
         "api.cloud.test",
         std::net::SocketAddr::from(([127, 0, 0, 1], cloud_port)),
     );
-    Ok(
-        anybot_models::gateway(share(clock), &anybot_foundation::TrustedCerts::empty())?
-            .with_names(Arc::new(MapNames(map))),
-    )
+    Ok(gateway)
 }
 
 fn share(clock: &Arc<FakeClock>) -> Arc<dyn Clock> {
@@ -77,12 +67,12 @@ async fn t_models_egress_2() -> Result<(), String> {
         bot_context: None,
     };
     let fallback = cloud_ref();
-    let mut session = anybot_models::Session::new(
-        cloud_gateway(&clock, cloud_port)?,
-        DataPolicy::LocalOnly,
-        share(&clock),
-        0,
+    let mut gateway = cloud_gateway(&clock, cloud_port)?;
+    gateway.pin_host(
+        "127.0.0.1",
+        std::net::SocketAddr::from(([127, 0, 0, 1], local_port)),
     );
+    let mut session = anybot_models::Session::new(gateway, DataPolicy::LocalOnly, share(&clock), 0);
     let request = support::hi(ThinkingMode::Auto);
     let clock_drive = Arc::clone(&clock);
     let task = tokio::spawn(async move {
@@ -140,8 +130,13 @@ async fn t_models_egress_3() -> Result<(), String> {
         bot_context: None,
     };
     let fallback = cloud_ref();
+    let mut gateway = cloud_gateway(&clock, cloud_port)?;
+    gateway.pin_host(
+        "127.0.0.1",
+        std::net::SocketAddr::from(([127, 0, 0, 1], local_port)),
+    );
     let mut session = anybot_models::Session::new(
-        cloud_gateway(&clock, cloud_port)?,
+        gateway,
         DataPolicy::Cloud {
             allowed: vec![ProviderKind::OpenAi],
         },
@@ -151,19 +146,19 @@ async fn t_models_egress_3() -> Result<(), String> {
     let request = support::hi(ThinkingMode::Auto);
     let clock_drive = Arc::clone(&clock);
     let task = tokio::spawn(async move {
-        session
+        let outcome = session
             .ask(&mut ask_plan(
                 &primary,
                 std::slice::from_ref(&fallback),
                 &request,
                 Audience::Watching,
             ))
-            .await
-            .is_ok()
+            .await;
+        outcome.is_ok()
     });
     drive(&clock_drive, &task).await;
     let ok = task.await.map_err(|err| format!("{err}"))?;
-    assert!(ok);
+    assert!(ok, "cloud recorded {}", cloud.recorded().len());
     assert_eq!(cloud.recorded().len(), 1);
     Ok(())
 }

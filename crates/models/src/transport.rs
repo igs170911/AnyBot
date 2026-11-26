@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 use tokio::sync::mpsc;
 
 use crate::http_wire::{SharedWire, WireBody, WireRequest};
-use crate::where_run::{CONNECT_TIMEOUT, STALL_AFTER_TEXT};
+use crate::where_run::STALL_AFTER_TEXT;
 
 pub(crate) struct HttpBytes {
     pub status: u16,
@@ -80,13 +80,16 @@ impl TimedTransport {
         &self,
         request: &WireRequest,
     ) -> Result<crate::http_wire::WireOpen, TransportFail> {
-        let send = self.wire.open(request);
-        let wait = self.clock.sleep(CONNECT_TIMEOUT);
-        tokio::pin!(send);
-        tokio::select! {
+        let connect = self.wire.connect(request);
+        let wait = self.clock.sleep(crate::where_run::CONNECT_TIMEOUT);
+        tokio::pin!(connect);
+        let connected = tokio::select! {
             biased;
-            outcome = &mut send => outcome,
-            () = wait => Err(TransportFail::ConnectTimeout),
+            outcome = &mut connect => outcome?,
+            () = wait => return Err(TransportFail::ConnectTimeout),
+        };
+        match connected {
+            crate::http_wire::Connected::Ready => self.wire.open(request).await,
         }
     }
 }
