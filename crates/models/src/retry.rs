@@ -57,11 +57,6 @@ pub fn retry_after(header_secs: Option<u64>, fallback: Duration) -> Duration {
 }
 
 #[must_use]
-pub fn may_send(sent: u32, audience: Audience) -> bool {
-    sent < try_limit(audience)
-}
-
-#[must_use]
 pub fn retry_spans(audience: Audience, jitter_milli: i32) -> Vec<Duration> {
     (0..try_limit(audience).saturating_sub(1))
         .map(|attempt| apply_jitter(base_wait(audience, attempt), jitter_milli, audience))

@@ -91,6 +91,14 @@ pub enum Step {
         ids: Vec<String>,
         silent: bool,
     },
+    DelayHeaders {
+        seconds: u64,
+        inner: Box<Step>,
+    },
+    AcceptThenDelay {
+        seconds: u64,
+        inner: Box<Step>,
+    },
     UsageReply {
         text: String,
         usage: UsageScript,
@@ -164,10 +172,10 @@ pub use model_keys::{
 };
 pub use model_steps::model_hold_then_finish;
 pub use model_steps::{
-    ErrorBodyKind, model_calls_tool, model_cut_off, model_empty_body, model_error_body, model_list,
-    model_list_silent, model_no_response, model_omit_usage, model_redacted_thinking,
-    model_redirect, model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
-    model_stop_reason, model_stream_error, model_think_then_reply, model_think_then_tool,
-    model_thinking_block, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,
-    model_usage, random_reply,
+    ErrorBodyKind, model_accept_then_delay, model_calls_tool, model_cut_off, model_delay_headers,
+    model_empty_body, model_error_body, model_list, model_list_silent, model_no_response,
+    model_omit_usage, model_redacted_thinking, model_redirect, model_replies_text,
+    model_reply_status, model_reply_status_retry, model_stall, model_stop_reason,
+    model_stream_error, model_think_then_reply, model_think_then_tool, model_thinking_block,
+    model_tool_calls, model_tool_calls_cut, model_tool_calls_length, model_usage, random_reply,
 };

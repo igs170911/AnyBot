@@ -12,6 +12,7 @@ members = [
     "tools/*",
     "tests/harness",
     "tests/runner-test",
+    "tests/os-certs",
     "tests/live-model",
     "tests/testenv",
 ]
@@ -88,8 +89,14 @@ aes-gcm = { version = "0.11", features = ["zeroize"] }
 base64 = "0.22"
 postgresql_embedded = { version = "0.22", default-features = false, features = ["tokio", "tls-rustls-ring", "theseus"] }
 toml = "1"
-rustls = "0.23"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rustls-pki-types = "1"
+security-framework = "3"
+schannel = "0.1"
+webpki = { package = "rustls-webpki", version = "0.103" }
+x509-parser = "0.18"
+rcgen = "0.14"
+tokio-rustls = "0.26"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

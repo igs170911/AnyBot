@@ -1,4 +1,7 @@
+use rustls as _;
 use std::time::Duration;
+use tokio_rustls as _;
+use trybuild as _;
 
 use anybot_foundation as _;
 use anybot_models::{
@@ -42,17 +45,15 @@ async fn t_models_handoff_1() -> Result<(), String> {
         ),
         bot_context: None,
     };
-    let handle_session = support::session(&world);
+    let handle_session = support::session(&world)?;
     let handle = handle_session.switch_handle();
     let other = std::sync::Arc::clone(&pair.other);
     let task = tokio::spawn(async move {
         let mut session = handle_session;
         let request = support::hi(ThinkingMode::Auto);
-        let policy = DataPolicy::LocalOnly;
         let mut plan = ask_plan(
             &primary,
             std::slice::from_ref(&fallback),
-            &policy,
             &request,
             Audience::Watching,
         );
@@ -129,7 +130,11 @@ async fn ask_switched(
         bot_context: None,
     };
     let mut session = anybot_models::Session::new(
-        anybot_models::gateway(support::share(&claude.clock)),
+        anybot_models::gateway(
+            support::share(&claude.clock),
+            &anybot_foundation::TrustedCerts::empty(),
+        )?,
+        DataPolicy::LocalOnly,
         support::share(&claude.clock),
         0,
     );
@@ -141,19 +146,12 @@ async fn ask_switched(
         support::ask_watching(&mut session, &primary_first, &[], ThinkingMode::Auto).await?;
     let request = kept_request(attachment);
     session.request_switch(&next, SwitchReason::User);
-    let policy = DataPolicy::LocalOnly;
     let primary = anybot_models::ModelRef {
         endpoint: support::endpoint(ProviderKind::Anthropic, claude.port, "claude-opus-5-5", "k"),
         bot_context: None,
     };
     session
-        .ask(&mut ask_plan(
-            &primary,
-            &[],
-            &policy,
-            &request,
-            Audience::Watching,
-        ))
+        .ask(&mut ask_plan(&primary, &[], &request, Audience::Watching))
         .await
         .map_err(|err| format!("{err:?}"))
 }
@@ -184,10 +182,21 @@ async fn t_models_handoff_6() -> Result<(), String> {
         ],
     );
     let endpoint = support::endpoint(ProviderKind::Anthropic, claude.port, "claude-opus-5-5", "k");
-    let first = anybot_models::gateway(support::share(&claude.clock))
-        .complete(&endpoint, &support::hi(ThinkingMode::Auto), false)
-        .await
-        .map_err(|err| format!("{err:?}"))?;
+    let permit = anybot_models::SendPermit::for_endpoint(
+        &DataPolicy::Cloud {
+            allowed: vec![ProviderKind::Anthropic],
+        },
+        &endpoint,
+        anybot_models::ModelUse::Bot,
+    )
+    .ok_or("permit")?;
+    let first = anybot_models::gateway(
+        support::share(&claude.clock),
+        &anybot_foundation::TrustedCerts::empty(),
+    )?
+    .complete(&endpoint, &support::hi(ThinkingMode::Auto), false, &permit)
+    .await
+    .map_err(|err| format!("{err:?}"))?;
     let attachment = first.attachment.ok_or("missing attachment")?;
     let openai = support::world(ModelFormat::OpenAi).await?;
     let outcome = ask_switched(&claude, &openai, attachment).await?;
@@ -223,7 +232,7 @@ async fn t_models_handoff_10() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "m2", "k"),
         bot_context: None,
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let key = anybot_models::model_key(ProviderKind::OpenAi, &next.endpoint.base_url, "m2");
     let mut learned = anybot_models::Learned::new(&key);
     learned.tools = Some(false);
@@ -236,13 +245,7 @@ async fn t_models_handoff_10() -> Result<(), String> {
         parameters: serde_json::json!({}),
     });
     let err = session
-        .ask(&mut ask_plan(
-            &primary,
-            &[],
-            &DataPolicy::LocalOnly,
-            &request,
-            Audience::Watching,
-        ))
+        .ask(&mut ask_plan(&primary, &[], &request, Audience::Watching))
         .await
         .err()
         .ok_or("tools still sent")?;

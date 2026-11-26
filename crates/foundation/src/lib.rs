@@ -1,4 +1,16 @@
+use rustls_pki_types as _;
+
+#[cfg(test)]
+#[path = "certs_fault.rs"]
+mod certs_fault;
+#[cfg(test)]
+#[path = "certs_store.rs"]
+mod certs_store;
+
 pub mod bootstrap;
+pub mod certs;
+mod certs_check;
+mod certs_os;
 pub mod clock;
 pub mod digest;
 pub mod error;
@@ -10,6 +22,7 @@ pub mod startup;
 mod startup_tests;
 
 pub use bootstrap::ServerBootstrap;
+pub use certs::{CertFault, TrustStore, TrustedCerts, classify_tls, classify_tls_error};
 pub use clock::{Clock, ClockExpired, PinBoxFuture, SystemClock, TimestampMs, timeout};
 pub use digest::ContentDigest;
 pub use error::{

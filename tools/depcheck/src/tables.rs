@@ -113,6 +113,10 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
         .collect(),
     );
     m.insert(
+        "os-certs".to_owned(),
+        BTreeSet::from(["anybot-foundation".to_owned()]),
+    );
+    m.insert(
         "api-docs".to_owned(),
         ["anybot-server".to_owned(), "anybot-protocol".to_owned()]
             .into_iter()

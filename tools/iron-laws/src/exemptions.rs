@@ -18,6 +18,7 @@ fn fill_server_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<Strin
         &[
             "std::fs::read_to_string",
             "std::fs::File::open",
+            "std::fs::read_dir",
             "std::env::home_dir",
             "time::OffsetDateTime::now_utc",
             "tokio::time::sleep",
@@ -33,7 +34,7 @@ fn fill_server_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<Strin
         &merge(&[&PROC_M, &HTTP_M, &FS_M]),
         &[CMD_T[0], CMD_T[1], FS_T[0], FS_T[1], FS_T[2], FS_T[3]],
     );
-    insert(m, "anybot-models", &HTTP_M, &[]);
+    insert(m, "anybot-models", &merge(&[&HTTP_M, &PERMIT_M]), &[]);
     insert(m, "anybot-mcp", &HTTP_M, &[]);
     insert(m, "anybot-sync", &HTTP_M, &[]);
     insert(m, "anybot-channels", &HTTP_M, &[]);
@@ -45,10 +46,16 @@ fn fill_client_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<Strin
     insert(
         m,
         "test-harness",
-        &merge(&[&PROC_M, &HTTP_M, &FS_M, &TIME_M]),
+        &merge(&[&PROC_M, &HTTP_M, &FS_M, &TIME_M, &PERMIT_M]),
         &[CMD_T[0], CMD_T[1], FS_T[0], FS_T[1], FS_T[2], FS_T[3]],
     );
-    insert(m, "live-model", &merge(&[&HTTP_M, &FS_M]), &FS_T);
+    insert(m, "live-model", &merge(&[&HTTP_M, &FS_M, &PERMIT_M]), &FS_T);
+    insert(
+        m,
+        "os-certs",
+        &merge(&[&FS_M, &STD_PROC]),
+        &[CMD_T[0], FS_T[0], FS_T[1], FS_T[2]],
+    );
 }
 
 fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>>>) {
@@ -66,6 +73,12 @@ fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>
         &[FS_T[0], FS_T[1], FS_T[2]],
     );
 }
+
+pub(crate) const PERMIT_M: [&str; 3] = [
+    "anybot_models::SendPermit::for_endpoint",
+    "anybot_models::SendPermit::issue",
+    "anybot_models::Gateway::pin_host",
+];
 
 const STD_PROC: [&str; 4] = [
     "std::process::Command::new",

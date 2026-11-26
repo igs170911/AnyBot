@@ -101,7 +101,8 @@ machete:
 	$(CARGO) machete
 
 depcheck:
-	$(CARGO) run --locked -p depcheck
+	$(CARGO) build --locked -p depcheck --target-dir target/depcheck-build
+	./target/depcheck-build/debug/depcheck
 
 spec-trace:
 	$(CARGO) run --locked -p spec-trace -- --against $(SPEC_TRACE_REF)

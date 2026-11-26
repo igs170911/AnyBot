@@ -52,4 +52,4 @@ On macOS the same file is checked with `shasum -a 256 -c SHA256SUMS`.
 
 2. Install only after that line says OK. A mismatch means the file is not the one this release published.
 
-The server image is also unsigned. `docker pull` will not show a signature. The digest above is the commit-scoped multi-arch index (`<commit>` on stable, `dev-<commit>` on dev). It is not the digest of `:latest`: moving `:latest` adds an annotation and creates a new index. Compare the commit-scoped tag with `docker buildx imagetools inspect` before you run the image.
+The server image is also unsigned. `docker pull` will not show a signature. The digest above is the commit-scoped multi-arch index (`<commit>` on stable, `dev-<commit>` on dev). `:latest` is a separate tag pointing at the version tag. Compare the commit-scoped tag with `docker buildx imagetools inspect` before you run the image.

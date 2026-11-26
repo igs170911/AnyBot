@@ -9,6 +9,7 @@ pub(crate) async fn one(
     request: &TurnRequest,
     stream: bool,
     audience: Audience,
+    permit: &crate::egress::SendPermit,
 ) -> Result<TurnResult, GatewayFail> {
     let cap = capabilities::resolve(
         model.endpoint.kind,
@@ -34,12 +35,15 @@ pub(crate) async fn one(
     }
     crate::session_rest::send_tries(
         session,
-        model,
-        request,
-        stream,
-        audience,
-        &calibration,
-        cap.thinking,
+        crate::session_rest::TrySend {
+            model,
+            request,
+            stream,
+            audience,
+            calibration: &calibration,
+            thinking: cap.thinking,
+            permit,
+        },
     )
     .await
 }

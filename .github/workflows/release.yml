@@ -155,12 +155,24 @@ jobs:
           ANYBOT_RELEASE_CHANNEL: ${{ needs.guard.outputs.channel }}
         run: sh deploy/release/tauri-channel.sh target/tauri-channel.json
 
+      - name: stop Spotlight indexing this checkout
+        if: runner.os == 'macOS'
+        shell: bash
+        # Spotlight indexing the checkout is a known cause of hdiutil
+        # "Resource busy" (man mdutil; create-dmg pull 198). Disabling it
+        # does not remove the race, so the bundle step still retries.
+        run: |
+          set -euo pipefail
+          sudo mdutil -i off "$GITHUB_WORKSPACE" || true
+          touch "$GITHUB_WORKSPACE/.metadata_never_index"
+
       - name: bundle the desktop shell
         shell: bash
         run: |
           set -euo pipefail
           cd apps/desktop
-          "${PNPM:-pnpm}" exec tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config ../../target/tauri-channel.json
+          sh ../../deploy/release/dmg-retry.sh \
+            "${PNPM:-pnpm}" exec tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config ../../target/tauri-channel.json
 
       - name: pack the linux archive
         if: runner.os == 'Linux'
@@ -198,6 +210,9 @@ jobs:
             arch: arm64
     runs-on: ${{ matrix.runner }} # pinned in the matrix: ubuntu-24.04, ubuntu-24.04-arm
     timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -234,6 +249,14 @@ jobs:
           # moby/buildkit:v0.35.1 index digest, Docker Hub, 2026-11-26.
           driver-opts: image=moby/buildkit:v0.35.1@sha256:baf6138eb8c37644800c7c913fba051e840ebb9ba13eaf92d92ef9a1712d0b4c
 
+      - name: log in to ghcr.io
+        if: needs.guard.outputs.mode == 'publish'
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: build and load the native image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         env:
@@ -249,13 +272,10 @@ jobs:
             ANYBOT_GIT_DESCRIBE=${{ needs.guard.outputs.describe }}
             SOURCE_DATE_EPOCH=${{ needs.guard.outputs.built_at }}
           tags: ${{ needs.guard.outputs.image }}:${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
-          # Index annotations are rejected when the pushed sources are a Docker
-          # manifest list. load is the docker exporter, whose oci-mediatypes
-          # default is false, so the type is set here.
-          # https://docs.docker.com/build/exporters/oci-docker/
-          # https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/
+          # Local copy for --version only. The docker exporter is not pushed:
+          # docker save/load rewrites OCI media types.
+          # https://docs.docker.com/build/metadata/annotations/
           provenance: false
-          outputs: type=docker,oci-mediatypes=true
 
       - name: run --version inside the image
         env:
@@ -275,24 +295,52 @@ jobs:
             exit 1
           fi
 
-      - name: export the verified image
+      - name: push the verified image by digest
+        if: needs.guard.outputs.mode == 'publish'
+        id: image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
+        with:
+          context: .
+          file: images/server/Dockerfile
+          platforms: ${{ matrix.platform }}
+          load: false
+          push: false
+          build-args: |
+            ANYBOT_RELEASE_CHANNEL=${{ needs.guard.outputs.channel }}
+            ANYBOT_GIT_DESCRIBE=${{ needs.guard.outputs.describe }}
+            SOURCE_DATE_EPOCH=${{ needs.guard.outputs.built_at }}
+          # Same inputs as the loaded build, exported straight to the
+          # registry. OCI media types, digest name only. oci-mediatypes
+          # defaults to false on type=image.
+          # https://docs.docker.com/build/exporters/image-registry/
+          provenance: false
+          outputs: type=image,name=${{ needs.guard.outputs.image }},push-by-digest=true,push=true,oci-mediatypes=true
+
+      - name: record the pushed digest
         if: needs.guard.outputs.mode == 'publish'
         env:
-          IMAGE: ${{ needs.guard.outputs.image }}
-          PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_ATTEMPT: ${{ github.run_attempt }}
+          DIGEST: ${{ steps.image.outputs.digest }}
         run: |
           set -euo pipefail
+          case "$DIGEST" in
+            sha256:*) ;;
+            *)
+              echo "registry push did not return a digest ($DIGEST)" >&2
+              exit 1
+              ;;
+          esac
           mkdir -p target/image-export
-          docker save "${IMAGE}:${ARCH}-${RUN_ID}-${RUN_ATTEMPT}" -o "target/image-export/${PLATFORM##*/}.tar"
+          printf '%s\n' "$DIGEST" > "target/image-export/${ARCH}.digest"
+          echo "pushed ${ARCH} ${DIGEST}"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: needs.guard.outputs.mode == 'publish'
         with:
           name: server-image-${{ matrix.arch }}
-          path: target/image-export/*.tar
+          path: target/image-export/*.digest
           retention-days: 1
 
   publish:
@@ -345,7 +393,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: server-image-*
-          path: target/image-parts
+          path: target/image-digests
           merge-multiple: true
 
       - name: log in to ghcr.io

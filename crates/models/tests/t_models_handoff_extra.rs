@@ -4,10 +4,13 @@ use bytes as _;
 use futures_util as _;
 use proptest::prelude::*;
 use reqwest as _;
+use rustls as _;
 use serde as _;
 use serde_json as _;
 use test_harness::{ModelFormat, model_replies_text};
 use tokio as _;
+use tokio_rustls as _;
+use trybuild as _;
 use url as _;
 
 #[path = "../test_support/session.rs"]
@@ -24,7 +27,7 @@ async fn outside_chain_becomes_primary() -> Result<(), String> {
             model_replies_text("again", false),
         ],
     );
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     session.request_switch(&pair.fallback, SwitchReason::User);
     let first = support::ask_watching(&mut session, &pair.primary, &[], ThinkingMode::Auto).await?;
     assert_eq!(first.result.model, "m2");

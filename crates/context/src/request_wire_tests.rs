@@ -4,7 +4,10 @@ use crate::compile::compile;
 use crate::compile_tests_support as sup;
 use crate::output::Compiled;
 use anybot_foundation::clock::SystemClock;
-use anybot_models::{ProviderKind, ThinkingMode, WireFormat, gateway, resolve_endpoint};
+use anybot_models::{
+    Audience, DataPolicy, ModelRef, ProviderKind, Session, ThinkingMode, WireFormat, ask_plan,
+    gateway, resolve_endpoint,
+};
 use test_harness::{ModelFormat, model_replies_text, model_start_with_format};
 
 const CALL_READ: &str = "00000000-0000-0000-0000-000000000000";
@@ -91,10 +94,15 @@ async fn recorded_body(
         wire,
     );
     let clock: Arc<dyn anybot_foundation::clock::Clock> = Arc::new(SystemClock);
-    gateway(clock)
-        .complete(&endpoint, turn, false)
-        .await
-        .expect("gateway complete");
+    let trusted = anybot_foundation::TrustedCerts::empty();
+    let built = gateway(Arc::clone(&clock), &trusted).expect("gateway");
+    let model = ModelRef {
+        endpoint,
+        bot_context: None,
+    };
+    let mut session = Session::new(built, DataPolicy::LocalOnly, clock, 0);
+    let mut plan = ask_plan(&model, &[], turn, Audience::Watching);
+    session.ask(&mut plan).await.expect("gateway complete");
     fake.recorded()
         .first()
         .expect("recorded request")
