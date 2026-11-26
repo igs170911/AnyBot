@@ -119,6 +119,22 @@ pub fn model_list(ids: Vec<String>) -> Step {
 }
 
 #[must_use]
+pub fn model_accept_then_delay(seconds: u64, inner: Step) -> Step {
+    Step::AcceptThenDelay {
+        seconds,
+        inner: Box::new(inner),
+    }
+}
+
+#[must_use]
+pub fn model_delay_headers(seconds: u64, inner: Step) -> Step {
+    Step::DelayHeaders {
+        seconds,
+        inner: Box::new(inner),
+    }
+}
+
+#[must_use]
 pub fn model_list_silent() -> Step {
     Step::ModelList {
         ids: Vec::new(),

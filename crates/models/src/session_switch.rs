@@ -43,7 +43,7 @@ pub(crate) fn keep_or_stop(
     crate::session_rest::rest(&mut session.resting, &model.endpoint, now);
     mark_failed(
         session,
-        &model.endpoint,
+        model,
         crate::session_step::switch_reason(&classified),
         classified.code,
     );
@@ -59,10 +59,11 @@ pub(crate) fn finish_ask(
     skips: Vec<crate::notice::Notice>,
 ) -> crate::session::AskOutcome {
     let notices = finish_notices(session, result.stop);
+    let handoffs = std::mem::take(&mut session.handoffs);
     crate::session::AskOutcome {
         result,
         notices,
-        handoffs: session.handoffs.clone(),
+        handoffs,
         skips,
     }
 }
@@ -94,27 +95,19 @@ fn finish_notices(
     notices
 }
 
-pub(crate) fn note_active(session: &mut Session, endpoint: &ProviderEndpoint) {
-    let pending = crate::session_io::peek_pending(session);
-    adopt_outside(session, endpoint, pending.as_ref());
-    record_failed(session, endpoint);
-    record_pending(session, endpoint, pending.as_ref());
-    crate::session_io::clear_pending(session);
-    session.active = Some((endpoint.kind, endpoint.model.clone()));
-}
-
-pub(crate) fn note_pending_after(session: &mut Session, endpoint: &ProviderEndpoint) {
-    let pending = crate::session_io::peek_pending(session);
-    record_pending(session, endpoint, pending.as_ref());
+pub(crate) fn note_active(session: &mut Session, model: &crate::session::ModelRef) {
+    record_failed(session, model);
+    consume_pending(session, model);
+    session.active = Some(crate::model_copy::copy_model(model));
 }
 
 pub(crate) fn mark_failed(
     session: &mut Session,
-    endpoint: &ProviderEndpoint,
+    model: &crate::session::ModelRef,
     reason: SwitchReason,
     kind_code: &str,
 ) {
-    session.failed = Some((endpoint.kind, endpoint.model.clone()));
+    session.failed = Some(crate::model_copy::copy_model(model));
     session.failed_reason = Some(reason);
     session.failed_code = Some(kind_code.to_owned());
 }
@@ -129,67 +122,74 @@ pub(crate) fn remember(
     }
 }
 
-fn record_failed(session: &mut Session, endpoint: &ProviderEndpoint) {
-    let Some((kind, model)) = session.failed.take() else {
+fn record_failed(session: &mut Session, sent: &crate::session::ModelRef) {
+    let Some(before) = session.failed.take() else {
         return;
     };
     let reason = match session.failed_reason.take() {
         Some(reason) => reason,
         None => SwitchReason::Fallback,
     };
-    if kind == endpoint.kind && model == endpoint.model {
+    if same_model(&before, sent) {
+        session.failed_code.take();
         return;
     }
-    let (code, params) = handoff::reason_parts(reason, session.failed_code.take().as_deref());
+    let kind_code = session.failed_code.take();
+    push_handoff(session, &before, sent, reason, kind_code.as_deref());
+}
+
+fn consume_pending(session: &mut Session, sent: &crate::session::ModelRef) {
+    let Some((_wanted, reason)) = crate::session_io::take_matching(session, sent) else {
+        note_return(session, sent);
+        return;
+    };
+    if let Some(before) = session.active.as_ref()
+        && !same_model(before, sent)
+    {
+        let before = crate::model_copy::copy_model(before);
+        push_handoff(session, &before, sent, reason, None);
+    }
+    session.adopted = Some(crate::model_copy::copy_model(sent));
+}
+
+fn note_return(session: &mut Session, sent: &crate::session::ModelRef) {
+    let Some(before) = session.active.as_ref() else {
+        return;
+    };
+    if same_model(before, sent) {
+        return;
+    }
+    let Some(adopted) = session.adopted.as_ref() else {
+        return;
+    };
+    if !same_model(adopted, before) || same_model(adopted, sent) {
+        return;
+    }
+    let before = crate::model_copy::copy_model(before);
+    push_handoff(session, &before, sent, SwitchReason::User, None);
+}
+
+fn push_handoff(
+    session: &mut Session,
+    before: &crate::session::ModelRef,
+    sent: &crate::session::ModelRef,
+    reason: SwitchReason,
+    kind_code: Option<&str>,
+) {
+    let (code, params) = handoff::reason_parts(reason, kind_code);
     session.handoffs.push(handoff::record(
-        kind,
-        &model,
-        endpoint.kind,
-        &endpoint.model,
+        before.endpoint.kind,
+        &before.endpoint.model,
+        sent.endpoint.kind,
+        &sent.endpoint.model,
         reason,
         code,
         params,
     ));
 }
 
-fn adopt_outside(
-    session: &mut Session,
-    endpoint: &ProviderEndpoint,
-    pending: Option<&crate::session::ModelRef>,
-) {
-    let Some(pending) = pending else {
-        return;
-    };
-    if endpoint.kind == pending.endpoint.kind && endpoint.model == pending.endpoint.model {
-        session.adopted = Some(crate::model_copy::copy_model(pending));
-    }
-}
-
-fn record_pending(
-    session: &mut Session,
-    _endpoint: &ProviderEndpoint,
-    pending: Option<&crate::session::ModelRef>,
-) {
-    let Some(pending) = pending else {
-        return;
-    };
-    let next_kind = pending.endpoint.kind;
-    let next_model = pending.endpoint.model.clone();
-    let Some((kind, model)) = session.active.clone() else {
-        return;
-    };
-    if kind == next_kind && model == next_model {
-        return;
-    }
-    let reason = crate::session_io::pending_reason(session).unwrap_or(SwitchReason::User);
-    let (code, params) = handoff::reason_parts(reason, None);
-    session.handoffs.push(handoff::record(
-        kind,
-        &model,
-        next_kind,
-        &next_model,
-        reason,
-        code,
-        params,
-    ));
+fn same_model(left: &crate::session::ModelRef, right: &crate::session::ModelRef) -> bool {
+    left.endpoint.kind == right.endpoint.kind
+        && left.endpoint.model == right.endpoint.model
+        && left.endpoint.base_url == right.endpoint.base_url
 }

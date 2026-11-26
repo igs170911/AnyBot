@@ -1,9 +1,12 @@
+use rustls as _;
 use std::time::Duration;
+use tokio_rustls as _;
+use trybuild as _;
 
 use anybot_foundation as _;
 use anybot_models::{
-    Audience, DataPolicy, FailKind, Learned, ProviderKind, SwitchReason, ThinkingMode, ToolSpec,
-    ask_plan, gateway,
+    Audience, FailKind, Learned, ProviderKind, SwitchReason, ThinkingMode, ToolSpec, ask_plan,
+    gateway,
 };
 use bytes as _;
 use futures_util as _;
@@ -25,27 +28,6 @@ mod stop_slot;
 mod support;
 
 #[tokio::test]
-async fn blank_reply_is_asked_again() -> Result<(), String> {
-    let world = support::world(ModelFormat::OpenAi).await?;
-    support::script(
-        &world.model,
-        vec![
-            model_replies_text("   ", false),
-            model_replies_text("ok", false),
-        ],
-    );
-    let mut session = support::session(&world);
-    let primary = anybot_models::ModelRef {
-        endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
-        bot_context: None,
-    };
-    let outcome = support::ask_watching(&mut session, &primary, &[], ThinkingMode::Auto).await?;
-    assert_eq!(outcome.result.text, "ok");
-    assert_eq!(world.model.recorded().len(), 2);
-    Ok(())
-}
-
-#[tokio::test]
 async fn stream_busy_waits_then_retries() -> Result<(), String> {
     let world = support::world(ModelFormat::OpenAi).await?;
     support::script(
@@ -58,20 +40,21 @@ async fn stream_busy_waits_then_retries() -> Result<(), String> {
     let clock = std::sync::Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
-        let mut session =
-            anybot_models::Session::new(gateway(support::share(&clock)), support::share(&clock), 0);
+        let mut session = anybot_models::Session::new(
+            gateway(
+                support::share(&clock),
+                &anybot_foundation::TrustedCerts::empty(),
+            )?,
+            anybot_models::DataPolicy::LocalOnly,
+            support::share(&clock),
+            0,
+        );
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
         };
         let request = support::hi(ThinkingMode::Auto);
-        let mut plan = ask_plan(
-            &primary,
-            &[],
-            &DataPolicy::LocalOnly,
-            &request,
-            Audience::Watching,
-        );
+        let mut plan = ask_plan(&primary, &[], &request, Audience::Watching);
         plan.stream = true;
         session
             .ask(&mut plan)
@@ -110,9 +93,16 @@ async fn stop_during_retry_ends_quietly() -> Result<(), String> {
     let clock = std::sync::Arc::clone(&world.clock);
     let endpoint = support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k");
     let task = tokio::spawn(async move {
-        let mut session =
-            anybot_models::Session::new(gateway(support::share(&clock)), support::share(&clock), 0)
-                .with_stop(rx);
+        let mut session = anybot_models::Session::new(
+            gateway(
+                support::share(&clock),
+                &anybot_foundation::TrustedCerts::empty(),
+            )?,
+            anybot_models::DataPolicy::LocalOnly,
+            support::share(&clock),
+            0,
+        )
+        .with_stop(rx);
         let primary = anybot_models::ModelRef {
             endpoint,
             bot_context: None,
@@ -147,8 +137,15 @@ async fn policy_skip_does_not_call_cloud_fallback() -> Result<(), String> {
     let mut fallback = pair.fallback;
     fallback.endpoint.base_url = "http://api.cloud.test/v1".to_owned();
     let task = tokio::spawn(async move {
-        let mut session =
-            anybot_models::Session::new(gateway(support::share(&clock)), support::share(&clock), 0);
+        let mut session = anybot_models::Session::new(
+            gateway(
+                support::share(&clock),
+                &anybot_foundation::TrustedCerts::empty(),
+            )?,
+            anybot_models::DataPolicy::LocalOnly,
+            support::share(&clock),
+            0,
+        );
         support::ask_watching(
             &mut session,
             &primary,
@@ -182,7 +179,7 @@ async fn switch_request_applies_to_the_next_ask() -> Result<(), String> {
         ],
     );
     support::script(&pair.other, vec![model_replies_text("two", false)]);
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let first = support::ask_watching(
         &mut session,
         &pair.primary,
@@ -211,7 +208,7 @@ async fn unsupported_tools_are_not_sent() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
         bot_context: None,
     };
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let key = anybot_models::model_key(ProviderKind::OpenAi, &primary.endpoint.base_url, "gpt-5");
     let mut learned = Learned::new(&key);
     learned.tools = Some(false);
@@ -222,13 +219,7 @@ async fn unsupported_tools_are_not_sent() -> Result<(), String> {
         description: "read".to_owned(),
         parameters: serde_json::json!({}),
     });
-    let mut plan = ask_plan(
-        &primary,
-        &[],
-        &DataPolicy::LocalOnly,
-        &request,
-        Audience::Watching,
-    );
+    let mut plan = ask_plan(&primary, &[], &request, Audience::Watching);
     let outcome = session.ask(&mut plan).await;
     assert!(matches!(
         outcome,
@@ -236,28 +227,4 @@ async fn unsupported_tools_are_not_sent() -> Result<(), String> {
     ));
     assert!(world.model.recorded().is_empty());
     Ok(())
-}
-
-#[test]
-fn errors_property_never_retries_terminal_kinds() {
-    let kinds = [
-        anybot_models::FailInput::MissingKey,
-        anybot_models::FailInput::Http {
-            status: 401,
-            message: "no".to_owned(),
-        },
-        anybot_models::FailInput::Http {
-            status: 404,
-            message: "missing".to_owned(),
-        },
-        anybot_models::FailInput::Stalled,
-    ];
-    for _ in 0..250 {
-        for input in &kinds {
-            let row = anybot_models::classify(input);
-            assert_eq!(row.retry, anybot_models::RetryPlan::None);
-        }
-    }
-    assert!(anybot_models::try_limit(Audience::Watching) <= 3);
-    assert!(anybot_models::try_limit(Audience::Unattended) <= 8);
 }

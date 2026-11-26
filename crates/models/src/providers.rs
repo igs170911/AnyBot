@@ -131,7 +131,33 @@ pub fn resolve_endpoint(
 
 #[must_use]
 pub fn key_allowed(endpoint: &ProviderEndpoint, destination: &str) -> bool {
-    destination.starts_with(&endpoint.base_url)
+    let Ok(base) = url::Url::parse(&endpoint.base_url) else {
+        return false;
+    };
+    let Ok(target) = url::Url::parse(destination) else {
+        return false;
+    };
+    hosts_match(&base, &target) && under_base(&base, &target)
+}
+
+fn hosts_match(base: &url::Url, target: &url::Url) -> bool {
+    let Some(registered) = base.host_str() else {
+        return false;
+    };
+    let Some(dialed) = target.host_str() else {
+        return false;
+    };
+    registered.eq_ignore_ascii_case(dialed) && port_matches(base, target)
+}
+
+fn port_matches(base: &url::Url, target: &url::Url) -> bool {
+    base.port_or_known_default() == target.port_or_known_default()
+}
+
+fn under_base(base: &url::Url, target: &url::Url) -> bool {
+    let root = base.path().trim_end_matches('/');
+    let path = target.path();
+    path == root || path.starts_with(&format!("{root}/"))
 }
 
 #[must_use]

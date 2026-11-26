@@ -10,6 +10,7 @@ pub struct LiveProfile {
     pub model: String,
     pub ca_pem: String,
     pub key: Secret,
+    pub always_thinks: bool,
 }
 
 #[must_use]
@@ -23,7 +24,8 @@ pub fn load_profile(repo: &Path) -> Result<LiveProfile, String> {
         return Err(format!(
             "missing {PROFILE_REL}: create it with fields base_url (server address, e.g. https://host/v1), \
              model (model name), ca_file (self-signed certificate path, relative to .local/live-model/), \
-             key_file (API key file path, relative to .local/live-model/)"
+             key_file (API key file path, relative to .local/live-model/), \
+             always_thinks (optional bool; when true the model sends thinking on every reply)"
         ));
     }
     let raw =
@@ -47,7 +49,15 @@ pub fn load_profile(repo: &Path) -> Result<LiveProfile, String> {
         model,
         ca_pem,
         key,
+        always_thinks: flag(&table, "always_thinks"),
     })
+}
+
+fn flag(table: &toml::Table, name: &str) -> bool {
+    table
+        .get(name)
+        .and_then(toml::Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn field(table: &toml::Table, name: &str) -> Result<String, String> {

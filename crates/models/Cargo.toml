@@ -11,16 +11,22 @@ reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 bytes = { workspace = true }
-tokio = { workspace = true, features = ["sync", "rt", "macros"] }
+tokio = { workspace = true, features = ["sync", "rt", "macros", "net"] }
 url = { workspace = true }
 futures-util = { workspace = true }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
 test-harness = { workspace = true }
+trybuild = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 serde_json = { workspace = true }
 
+[[test]]
+name = "t_models_permit_fail"
+path = "tests/t_models_permit_fail.rs"
 [[test]]
 name = "t_models_capabilities"
 path = "tests/t_models_capabilities.rs"
@@ -33,6 +39,9 @@ path = "tests/t_models_catalog.rs"
 [[test]]
 name = "t_models_connect"
 path = "tests/t_models_connect.rs"
+[[test]]
+name = "t_models_connect_hold"
+path = "tests/t_models_connect_hold.rs"
 [[test]]
 name = "t_models_egress"
 path = "tests/t_models_egress.rs"
@@ -58,11 +67,11 @@ path = "tests/t_models_handoff_prop.rs"
 name = "t_models_normalize"
 path = "tests/t_models_normalize.rs"
 [[test]]
+name = "t_models_normalize_cut"
+path = "tests/t_models_normalize_cut.rs"
+[[test]]
 name = "t_models_normalize_more"
 path = "tests/t_models_normalize_more.rs"
-[[test]]
-name = "t_models_normalize_prop"
-path = "tests/t_models_normalize_prop.rs"
 [[test]]
 name = "t_models_providers"
 path = "tests/t_models_providers.rs"
@@ -76,6 +85,15 @@ path = "tests/t_models_roundtrip.rs"
 name = "t_models_session"
 path = "tests/t_models_session.rs"
 [[test]]
+name = "t_models_session_bounds"
+path = "tests/t_models_session_bounds.rs"
+[[test]]
+name = "t_models_session_chain"
+path = "tests/t_models_session_chain.rs"
+[[test]]
+name = "t_models_session_kinds"
+path = "tests/t_models_session_kinds.rs"
+[[test]]
 name = "t_models_session_more"
 path = "tests/t_models_session_more.rs"
 [[test]]
@@ -84,6 +102,12 @@ path = "tests/t_models_stall.rs"
 [[test]]
 name = "t_models_where"
 path = "tests/t_models_where.rs"
+[[test]]
+name = "t_models_certs"
+path = "tests/t_models_certs.rs"
+[[test]]
+name = "t_models_proxy"
+path = "tests/t_models_proxy.rs"
 
 [lints]
 workspace = true

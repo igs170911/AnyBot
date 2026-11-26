@@ -198,6 +198,32 @@ mod tests {
     }
 
     #[test]
+    fn test_iron_laws_permit_example_is_compiled_with_the_sync_ban() {
+        let example = include_str!("permit_block.rs");
+        assert!(example.contains("SendPermit::for_endpoint"));
+        assert!(example.contains("clippy.toml"));
+        assert!(example.contains("disallowed_method"));
+    }
+
+    #[test]
+    fn test_iron_laws_permit_mint_outside_models_is_blocked() {
+        let root = parse(
+            "msrv = \"1.98\"\ndisallowed-methods = [ { path = \"anybot_models::SendPermit::for_endpoint\", reason = \"ask models only through Session; the policy is the bot policy given when the Session is built\" } ]\ndisallowed-types = []\n",
+        );
+        let dropped = "msrv = \"1.98\"\ndisallowed-methods = []\ndisallowed-types = []\n";
+        let v = check_lists(
+            &root,
+            &parse(dropped),
+            &BTreeMap::new(),
+            "crates/domain/clippy.toml",
+        );
+        assert!(
+            v.iter().any(|row| row.contains("SendPermit::for_endpoint")),
+            "{v:?}"
+        );
+    }
+
+    #[test]
     fn test_iron_laws_clippy_toml_in_unauthorized_package_is_blocked() {
         let root = parse(&base());
         let v = violations(&root, &[("crates/domain/clippy.toml".to_owned(), base())]);

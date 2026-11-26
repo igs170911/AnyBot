@@ -3,10 +3,13 @@ use bytes as _;
 use futures_util as _;
 use proptest as _;
 use reqwest as _;
+use rustls as _;
 use serde as _;
 use serde_json as _;
 use test_harness::{ModelFormat, model_replies_text};
 use tokio as _;
+use tokio_rustls as _;
+use trybuild as _;
 use url as _;
 
 use anybot_models::{SwitchReason, ThinkingMode};
@@ -23,7 +26,7 @@ async fn switches_between_asks_keep_one_model() -> Result<(), String> {
     }
     support::script(&world.model, steps.clone());
     support::script(&pair.other, steps);
-    let mut session = support::session(&world);
+    let mut session = support::session(&world)?;
     let mut active = "m1";
     for index in 0..1_000 {
         let switching = index % 3 == 1 && active == "m1";

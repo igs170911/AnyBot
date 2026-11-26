@@ -157,7 +157,7 @@ pub(crate) fn decode_stream(events: &[String], model: &str, closed: bool) -> Tur
     let mut usage = Usage::default_zero();
     let mut saw_usage = false;
     for event in events {
-        let Ok(value) = serde_json::from_str::<Value>(event) else {
+        let Some(value) = parse_event(event) else {
             continue;
         };
         match value.get("type").and_then(|t| t.as_str()).unwrap_or("") {
@@ -206,6 +206,15 @@ pub(crate) fn decode_stream(events: &[String], model: &str, closed: bool) -> Tur
         },
         model,
     )
+}
+
+fn parse_event(event: &str) -> Option<Value> {
+    if let Ok(value) = serde_json::from_str::<Value>(event) {
+        return Some(value);
+    }
+    let end = event.rfind('}')?;
+    let prefix = event.get(..=end)?;
+    serde_json::from_str::<Value>(prefix).ok()
 }
 
 fn decode_value(value: &Value, model: &str, closed: bool) -> TurnResult {

@@ -1,0 +1,20 @@
+[package]
+publish = false
+name = "os-certs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Loads the OS trust store so a parent test can set SSL_CERT_FILE and SSL_CERT_DIR"
+
+[[bin]]
+name = "os-certs"
+path = "src/main.rs"
+
+[dependencies]
+anybot-foundation = { workspace = true }
+
+[dev-dependencies]
+rcgen = { workspace = true }
+
+[lints]
+workspace = true

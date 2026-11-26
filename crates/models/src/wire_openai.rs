@@ -4,7 +4,7 @@ use crate::types::{
     Message, ProviderKind, Role, StopKind, ToolArguments, ToolCall, TurnRequest, TurnResult,
     UsageReport,
 };
-use crate::wire_openai_calls::{PartialCall, append_calls};
+use crate::wire_openai_calls::PartialCall;
 use crate::wire_openai_usage::usage_of;
 
 pub(crate) const CHAT_PATH: &str = "/chat/completions";
@@ -121,25 +121,17 @@ pub(crate) fn decode_stream(
     let mut finish = String::new();
     let mut usage = UsageReport::Absent;
     for chunk in chunks {
-        let Ok(value) = serde_json::from_str::<Value>(chunk) else {
+        let Some(value) = crate::wire_openai_text::parse_chunk(chunk) else {
             continue;
         };
-        if let Some(reported) = usage_of(&value) {
-            usage = UsageReport::Present(reported);
-        }
-        let Some(choice) = value.get("choices").and_then(|c| c.get(0)) else {
-            continue;
-        };
-        if let Some(reason) = choice.get("finish_reason").and_then(Value::as_str) {
-            crate::jsonutil::set_owned(&mut finish, reason);
-        }
-        let Some(delta) = choice.get("delta") else {
-            continue;
-        };
-        append_text(&mut text, delta.get("content"));
-        append_text(&mut thinking, delta.get("reasoning"));
-        append_text(&mut thinking, delta.get("reasoning_content"));
-        append_calls(&mut calls, delta.get("tool_calls"));
+        crate::wire_openai_text::apply_openai_chunk(
+            &value,
+            &mut text,
+            &mut thinking,
+            &mut calls,
+            &mut finish,
+            &mut usage,
+        );
     }
     finish_result(
         assemble(calls, &finish, usage, text, thinking, closed),
@@ -167,8 +159,8 @@ fn decode_value(value: &Value, provider: ProviderKind, model: &str, closed: bool
         .unwrap_or("")
         .to_owned();
     let mut thinking = String::new();
-    append_text(&mut thinking, message.get("reasoning"));
-    append_text(&mut thinking, message.get("reasoning_content"));
+    crate::wire_openai_text::append_text(&mut thinking, message.get("reasoning"));
+    crate::wire_openai_text::append_text(&mut thinking, message.get("reasoning_content"));
     let mut calls = Vec::new();
     if let Some(list) = message.get("tool_calls").and_then(|c| c.as_array()) {
         for (index, call) in list.iter().enumerate() {
@@ -282,17 +274,4 @@ fn call_from_object(call: &Value, index: usize) -> ToolCall {
             .to_owned(),
     }
     .finish()
-}
-
-fn append_text(into: &mut String, value: Option<&Value>) {
-    let Some(value) = value else {
-        return;
-    };
-    if let Some(text) = value.as_str() {
-        into.push_str(text);
-        return;
-    }
-    if let Some(text) = value.get("content").and_then(Value::as_str) {
-        into.push_str(text);
-    }
 }

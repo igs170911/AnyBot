@@ -35,6 +35,9 @@ model-quota = 錯誤 { $status }：{ $detail }
 model-rate-limit = 錯誤 { $status }：{ $detail }。模型供應商已超載或用量已達上限。通常是暫時的，請稍後再試。
 model-server = 錯誤 { $status }：{ $detail }。模型供應商目前負載過高。通常是暫時的。
 model-unreachable = 連不上 { $provider }：{ $detail }
+model-cert-untrusted = { $provider } 的憑證不被信任：{ $detail }。可以到「信任的憑證」加入。
+model-cert-name = { $provider } 的憑證名稱或位址對不上：{ $detail }。可以到「信任的憑證」加入對得上的憑證。
+model-cert-expired = { $provider } 的憑證已過期或尚未生效：{ $detail }。可以到「信任的憑證」加入仍在有效期限內的憑證。
 model-ollama-down = 連不上 Ollama：{ $detail }
     請先開啟 Ollama，並用 `ollama pull` 下載模型。
 model-first-token = 模型未能及時開始回應。請重試。

@@ -37,6 +37,8 @@ fn anthropic_usage_of(step: &Step) -> serde_json::Value {
         | Step::EmptyBody
         | Step::Redirect { .. }
         | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. }
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }
@@ -96,7 +98,9 @@ fn content_blocks(step: &Step) -> (Vec<serde_json::Value>, String) {
         | Step::StreamError { .. }
         | Step::EmptyBody
         | Step::Redirect { .. }
-        | Step::ModelList { .. } => (Vec::new(), "end_turn".to_owned()),
+        | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. } => (Vec::new(), "end_turn".to_owned()),
     }
 }
 

@@ -66,6 +66,7 @@ pub fn package_of_path(path: &str) -> Option<String> {
         ("tools", Some(_) | None) => tool_package_name(dir),
         ("tests", Some(_)) if dir == "harness" => Some("test-harness".to_owned()),
         ("tests", Some(_)) if dir == "live-model" => Some("live-model".to_owned()),
+        ("tests", Some(_)) if dir == "os-certs" => Some("os-certs".to_owned()),
         _ => None,
     }
 }
@@ -95,7 +96,7 @@ fn tool_package_name(dir: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::exemptions::clippy_exemptions;
-    use crate::exemptions::merge;
+    use crate::exemptions::{PERMIT_M, merge};
     use std::collections::BTreeSet;
 
     #[test]
@@ -110,6 +111,7 @@ mod tests {
         let want = [
             "std::fs::read_to_string".to_owned(),
             "std::fs::File::open".to_owned(),
+            "std::fs::read_dir".to_owned(),
             "std::env::home_dir".to_owned(),
             "time::OffsetDateTime::now_utc".to_owned(),
             "tokio::time::sleep".to_owned(),
@@ -139,10 +141,16 @@ mod tests {
     #[test]
     fn test_table_harness_exempts_process_http_files_but_not_env() {
         let e = clippy_exemptions();
-        let want = merge(&[&PROC_M[..], &HTTP_M[..], &FS_M[..], &TIME_M[..]])
-            .into_iter()
-            .map(String::from)
-            .collect::<BTreeSet<String>>();
+        let want = merge(&[
+            &PROC_M[..],
+            &HTTP_M[..],
+            &FS_M[..],
+            &TIME_M[..],
+            &PERMIT_M[..],
+        ])
+        .into_iter()
+        .map(String::from)
+        .collect::<BTreeSet<String>>();
         let got = e
             .get("test-harness")
             .and_then(|m| m.get("disallowed-methods"));
@@ -216,6 +224,10 @@ mod tests {
         assert_eq!(
             package_of_path("tests/live-model/src/main.rs").as_deref(),
             Some("live-model")
+        );
+        assert_eq!(
+            package_of_path("tests/os-certs/src/main.rs").as_deref(),
+            Some("os-certs")
         );
         assert_eq!(package_of_path("web/ui/src/shell.tsx"), None);
     }

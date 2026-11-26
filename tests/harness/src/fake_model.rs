@@ -3,11 +3,12 @@ use std::sync::{Arc, Mutex};
 use axum::Router;
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::{HeaderName, HeaderValue, StatusCode};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use tokio::net::TcpListener;
 
+use crate::fake_clock::FakeClock;
 use crate::model_plan;
 use crate::model_script::{
     CODE_MODEL_SCRIPT_EMPTY, RecordedRequest, Script, Step, classify_key, presented_key,
@@ -20,6 +21,7 @@ struct ModelInner {
     recorded: Vec<RecordedRequest>,
     format: ModelFormat,
     expected_key: Option<String>,
+    header_wait: Option<Arc<FakeClock>>,
 }
 
 #[derive(Default)]
@@ -57,6 +59,13 @@ impl FakeModel {
             return;
         };
         inner.format = format;
+    }
+
+    pub fn header_clock(&self, clock: Arc<FakeClock>) {
+        let Ok(mut inner) = self.inner.lock() else {
+            return;
+        };
+        inner.header_wait = Some(clock);
     }
 
     pub fn expect_key(&self, key: &str) {
@@ -107,6 +116,13 @@ impl FakeModel {
         });
     }
 
+    fn header_wait(&self) -> Option<Arc<FakeClock>> {
+        let Ok(inner) = self.inner.lock() else {
+            return None;
+        };
+        inner.header_wait.clone()
+    }
+
     fn take_step(&self) -> Option<Step> {
         let Ok(mut inner) = self.inner.lock() else {
             return None;
@@ -149,12 +165,13 @@ async fn handle_openai(
     headers: axum::http::HeaderMap,
     body: String,
 ) -> Response {
+    let _accepted = tokio::task::yield_now().await;
     model.record("/v1/chat/completions", body.clone(), &headers);
     let format = match model.format() {
         ModelFormat::OpenAi | ModelFormat::Anthropic => ModelFormat::OpenAi,
         ModelFormat::Vllm => ModelFormat::Vllm,
     };
-    respond(&model, &body, format)
+    respond(&model, &body, format).await
 }
 
 async fn handle_anthropic(
@@ -163,7 +180,7 @@ async fn handle_anthropic(
     body: String,
 ) -> Response {
     model.record("/v1/messages", body.clone(), &headers);
-    respond(&model, &body, ModelFormat::Anthropic)
+    respond(&model, &body, ModelFormat::Anthropic).await
 }
 
 async fn handle_models(
@@ -174,6 +191,17 @@ async fn handle_models(
     let Some(step) = model.take_step() else {
         return empty_script_response();
     };
+    let (step, delay) = peel_delay(step);
+    if let Some(seconds) = delay
+        && let Some(clock) = model.header_wait()
+    {
+        tokio::task::yield_now().await;
+        anybot_foundation::clock::Clock::sleep(
+            clock.as_ref(),
+            std::time::Duration::from_secs(seconds),
+        )
+        .await;
+    }
     model_plan::list_response(&step)
 }
 
@@ -186,15 +214,51 @@ pub enum ModelFormat {
 }
 
 #[must_use]
-fn respond(model: &Arc<FakeModel>, request_body: &str, format: ModelFormat) -> Response {
+async fn respond(model: &Arc<FakeModel>, request_body: &str, format: ModelFormat) -> Response {
     let stream = wants_stream(request_body);
     let Some(step) = model.take_step() else {
         return empty_script_response();
     };
+    let (step, delay) = peel_delay(step);
+    if let Some(seconds) = delay
+        && let Some(clock) = model.header_wait()
+    {
+        tokio::task::yield_now().await;
+        anybot_foundation::clock::Clock::sleep(
+            clock.as_ref(),
+            std::time::Duration::from_secs(seconds),
+        )
+        .await;
+    }
     if stream {
         return model_plan::stream_response(step, format, requested_model(request_body));
     }
     model_plan::json_response(step, format, &requested_model(request_body))
+}
+
+fn peel_delay(step: Step) -> (Step, Option<u64>) {
+    match step {
+        Step::DelayHeaders { seconds, inner } | Step::AcceptThenDelay { seconds, inner } => {
+            (*inner, Some(seconds))
+        }
+        other @ (Step::ReplyText { .. }
+        | Step::ThinkThenReply { .. }
+        | Step::CallTool { .. }
+        | Step::NoResponse { .. }
+        | Step::CutOffAfter { .. }
+        | Step::StallAfter { .. }
+        | Step::HoldThenFinish { .. }
+        | Step::ReplyStatus { .. }
+        | Step::StreamError { .. }
+        | Step::EmptyBody
+        | Step::Redirect { .. }
+        | Step::ModelList { .. }
+        | Step::UsageReply { .. }
+        | Step::ThinkingBlock { .. }
+        | Step::StopReason { .. }
+        | Step::ToolCalls { .. }
+        | Step::ThinkThenTool { .. }) => (other, None),
+    }
 }
 
 fn wants_stream(body: &str) -> bool {
@@ -226,21 +290,4 @@ fn empty_script_response() -> Response {
         Body::from(text),
     )
         .into_response()
-}
-
-#[must_use]
-pub fn header_pairs(headers: &axum::http::HeaderMap) -> Vec<(String, String)> {
-    headers
-        .iter()
-        .map(|(name, value)| {
-            (
-                name.as_str().to_owned(),
-                value.to_str().unwrap_or_default().to_owned(),
-            )
-        })
-        .collect()
-}
-
-pub fn find_header(headers: &axum::http::HeaderMap, name: HeaderName) -> Option<HeaderValue> {
-    headers.get(name).cloned()
 }

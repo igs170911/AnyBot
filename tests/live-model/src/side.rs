@@ -40,7 +40,7 @@ pub struct LiveSide {
     pub product: Vec<NeutralShape>,
 }
 
-pub async fn fake_side(model_name: &str) -> Outcome<FakeSide> {
+pub async fn fake_side(model_name: &str, always_thinks: bool) -> Outcome<FakeSide> {
     let started = match model_start_with_format(ModelFormat::Vllm).await {
         Ok(pair) => pair,
         Err(message) => {
@@ -52,13 +52,18 @@ pub async fn fake_side(model_name: &str) -> Outcome<FakeSide> {
         }
     };
     let (model, port) = started;
-    model.script_set(crate::cases::fake_script(model_name));
-    let outcome = fake_side_requests(&model, port, model_name).await;
+    model.script_set(crate::cases::script_for(model_name, always_thinks));
+    let outcome = fake_side_requests(&model, port, model_name, always_thinks).await;
     drop(model);
     outcome
 }
 
-async fn fake_side_requests(_model: &FakeModel, port: u16, model_name: &str) -> Outcome<FakeSide> {
+async fn fake_side_requests(
+    _model: &FakeModel,
+    port: u16,
+    model_name: &str,
+    always_thinks: bool,
+) -> Outcome<FakeSide> {
     let mut side = FakeSide {
         probe: Vec::new(),
         product: Vec::new(),
@@ -74,7 +79,7 @@ async fn fake_side_requests(_model: &FakeModel, port: u16, model_name: &str) -> 
             Err(message) => return Outcome::partial(side, message),
         }
     }
-    let product = crate::product::fake_product_shapes(port, model_name).await;
+    let product = crate::product::fake_product_shapes(port, model_name, always_thinks).await;
     side.product = product.side;
     match product.failed {
         Some(message) => Outcome::partial(side, message),
@@ -112,14 +117,47 @@ pub async fn live_side(profile: &LiveProfile) -> Outcome<LiveSide> {
     }
 }
 
-pub fn write_report(repo: &Path, shapes: &Shapes) -> Result<PathBuf, String> {
+pub fn write_report(repo: &Path, shapes: &Shapes, product: &[String]) -> Result<PathBuf, String> {
     let mut lines = report_lines(shapes);
+    lines.push(String::new());
+    lines.extend(product.iter().cloned());
     lines.push(String::new());
     let text = lines.join("\n");
     let path = repo.join(REPORT_REL);
     std::fs::create_dir_all(profile_dir(repo)).map_err(|e| e.to_string())?;
     std::fs::write(&path, text).map_err(|e| format!("write report failed: {e}"))?;
     Ok(path)
+}
+
+pub async fn compare_fake_formats(model_name: &str) -> Result<Vec<String>, String> {
+    let first = fake_side(model_name, false).await;
+    let second = fake_side(model_name, false).await;
+    if let Some(message) = first.failed.or(second.failed) {
+        return Err(message);
+    }
+    let shapes = Shapes {
+        fake: first.side.probe,
+        live: second.side.probe,
+    };
+    let lines = report_lines(&shapes);
+    let matched = lines
+        .iter()
+        .filter(|line| line.contains("identical format"))
+        .count();
+    if matched != crate::cases::SCENARIOS.len() {
+        return Err(format!("probe formats differ: {lines:?}"));
+    }
+    let product = crate::product::product_lines(&first.side.product, &second.side.product);
+    let product_matched = product
+        .iter()
+        .filter(|line| line.contains("identical structure"))
+        .count();
+    if product_matched != crate::cases::PRODUCT_SCENARIOS.len() {
+        return Err(format!("product structures differ: {product:?}"));
+    }
+    let mut out = lines;
+    out.extend(product);
+    Ok(out)
 }
 
 #[must_use]
@@ -145,6 +183,9 @@ pub fn diff_tokens_public(fake: &[String], live: &[String]) -> Vec<String> {
 }
 
 fn diff_tokens(fake: &[String], live: &[String]) -> Vec<String> {
+    if fake.is_empty() || live.is_empty() {
+        return vec![missing_side(fake.is_empty(), live.is_empty())];
+    }
     let mut out = Vec::new();
     for token in unique_sorted(fake, live) {
         match (count_of(fake, &token) > 0, count_of(live, &token) > 0) {
@@ -157,6 +198,15 @@ fn diff_tokens(fake: &[String], live: &[String]) -> Vec<String> {
         out.push("  identical format".to_owned());
     }
     out
+}
+
+fn missing_side(fake_missing: bool, live_missing: bool) -> String {
+    match (fake_missing, live_missing) {
+        (true, true) => "  missing fake and live".to_owned(),
+        (true, false) => "  missing fake".to_owned(),
+        (false, true) => "  missing live".to_owned(),
+        (false, false) => "  identical format".to_owned(),
+    }
 }
 
 fn unique_sorted(fake: &[String], live: &[String]) -> Vec<String> {

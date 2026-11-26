@@ -57,8 +57,16 @@ pub(crate) async fn pair(format: ModelFormat) -> Result<(World, Pair), String> {
     ))
 }
 
-pub(crate) fn session(world: &World) -> Session {
-    Session::new(gateway(share(&world.clock)), share(&world.clock), 0)
+pub(crate) fn session(world: &World) -> Result<Session, String> {
+    Ok(Session::new(
+        gateway(
+            share(&world.clock),
+            &anybot_foundation::TrustedCerts::empty(),
+        )?,
+        DataPolicy::LocalOnly,
+        share(&world.clock),
+        0,
+    ))
 }
 
 pub(crate) async fn ask_watching(
@@ -68,8 +76,7 @@ pub(crate) async fn ask_watching(
     thinking: ThinkingMode,
 ) -> Result<anybot_models::AskOutcome, String> {
     let request = hi(thinking);
-    let policy = DataPolicy::LocalOnly;
-    let mut plan = ask_plan(primary, fallbacks, &policy, &request, Audience::Watching);
+    let mut plan = ask_plan(primary, fallbacks, &request, Audience::Watching);
     session
         .ask(&mut plan)
         .await

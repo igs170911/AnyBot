@@ -43,6 +43,8 @@ fn usage_of(step: &Step) -> serde_json::Value {
         | Step::EmptyBody
         | Step::Redirect { .. }
         | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. }
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }
@@ -80,7 +82,9 @@ fn completion_message(step: &Step) -> (serde_json::Value, String) {
         | Step::StreamError { .. }
         | Step::EmptyBody
         | Step::Redirect { .. }
-        | Step::ModelList { .. } => (plain_message(""), "stop".to_owned()),
+        | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. } => (plain_message(""), "stop".to_owned()),
     }
 }
 
@@ -99,6 +103,8 @@ fn stop_of(step: &Step) -> String {
         | Step::EmptyBody
         | Step::Redirect { .. }
         | Step::ModelList { .. }
+        | Step::DelayHeaders { .. }
+        | Step::AcceptThenDelay { .. }
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }
         | Step::ToolCalls { .. }
