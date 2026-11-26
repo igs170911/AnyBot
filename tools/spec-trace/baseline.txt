@@ -2343,10 +2343,8 @@ T-task-bot-3
 T-task-bot-4
 T-task-bot-5
 T-task-bot-6
-T-task-budget-6
 T-task-budget-7
 T-task-budget-8
-T-task-budget-9
 T-task-cancel-1
 T-task-cancel-2
 T-task-cancel-3
@@ -2423,7 +2421,6 @@ T-task-state-2
 T-task-state-3
 T-task-state-4
 T-task-state-5
-T-task-state-9
 T-task-sync-1
 T-task-sync-2
 T-task-sync-3
