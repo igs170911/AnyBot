@@ -55,6 +55,7 @@ export type MessageCode =
   "model-list-empty" |
   "model-list-timeout" |
   "model-budget" |
+  "context-source-deleted" |
   "model-refusal" |
   "model-length-note" |
   "model-handoff-user" |
@@ -101,7 +102,8 @@ export type MessageCode =
   "tool-unreadable-eval" |
   "tool-unreadable-quotes" |
   "tool-unreadable-heredoc" |
-  "tool-unreadable-head";
+  "tool-unreadable-head" |
+  "turn-program-note";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -158,6 +160,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-list-empty",
   "model-list-timeout",
   "model-budget",
+  "context-source-deleted",
   "model-refusal",
   "model-length-note",
   "model-handoff-user",
@@ -205,4 +208,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-unreadable-quotes",
   "tool-unreadable-heredoc",
   "tool-unreadable-head",
+  "turn-program-note",
 ];

@@ -26,7 +26,94 @@ pub fn violations(repo: &Path) -> Vec<String> {
             "{NEXTEST_CONFIG_REL}: [profile.default] lacks terminate-after; slow-timeout must terminate runaway tests (AGENTS section 3)"
         )];
     }
-    unknown_shape_violations(&content)
+    let mut out = unknown_shape_violations(&content);
+    out.extend(quick_postgres_violations(repo, &content));
+    out
+}
+
+fn is_rust_source(name: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+}
+
+fn quick_filter(content: &str) -> Option<String> {
+    let body = section_body(content, "[profile.quick]")?;
+    for line in body.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        if key.trim() == "default-filter" {
+            return Some(value.trim().trim_matches('\'').trim_matches('"').to_owned());
+        }
+    }
+    None
+}
+
+fn quick_postgres_violations(repo: &Path, content: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let Some(filter) = quick_filter(content) else {
+        return vec![format!(
+            "{NEXTEST_CONFIG_REL}: [profile.quick] has no default-filter; basic tests must skip pg_ binaries"
+        )];
+    };
+    if !filter.contains("not binary(/^pg_/)") {
+        out.push(format!(
+            "{NEXTEST_CONFIG_REL}: quick profile must exclude binary(/^pg_/) (docs/testing.md)"
+        ));
+    }
+    for root_name in ["tests", "apps", "crates"] {
+        scan_pg_start(&repo.join(root_name), repo, &mut out);
+    }
+    out
+}
+
+fn scan_pg_start(dir: &Path, repo: &Path, out: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if name == "target" || name == "node_modules" {
+                continue;
+            }
+            scan_pg_start(&path, repo, out);
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !is_rust_source(name) || name.starts_with("pg_") {
+            continue;
+        }
+        let Some(parent) = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+        else {
+            continue;
+        };
+        if parent != "tests" {
+            continue;
+        }
+        let Ok(text) = read_file_lossy(&path) else {
+            continue;
+        };
+        if !text.contains("pg_start(") {
+            continue;
+        }
+        let rel = match path.strip_prefix(repo) {
+            Ok(p) => p.display().to_string(),
+            Err(_) => name.to_owned(),
+        };
+        out.push(format!(
+            "{rel}: calls pg_start but is not named pg_*.rs (docs/testing.md)"
+        ));
+    }
 }
 
 fn section_body(content: &str, header: &str) -> Option<String> {
@@ -144,7 +231,7 @@ mod tests {
         let repo = scratch_repo("iron-nextest-serial");
         std::fs::write(
             repo.join(".config").join("nextest.toml"),
-            "[profile.default]\nslow-timeout = { period = \"30s\", terminate-after = 4 }\n\n[[profile.default.serial]]\nparallelism = 1\n",
+            "[profile.default]\nslow-timeout = { period = \"30s\", terminate-after = 4 }\n\n[[profile.default.serial]]\nparallelism = 1\n[profile.quick]\ndefault-filter = 'not binary(/^pg_/)'\n",
         )
         .unwrap();
         let v = violations(&repo);
@@ -157,7 +244,7 @@ mod tests {
         let repo = scratch_repo("iron-nextest-group-key");
         std::fs::write(
             repo.join(".config").join("nextest.toml"),
-            "[profile.default]\nslow-timeout = { period = \"30s\", terminate-after = 4 }\n\n[[profile.default.overrides]]\nfilter = 'test(x)'\ngroup = \"pg\"\n",
+            "[profile.default]\nslow-timeout = { period = \"30s\", terminate-after = 4 }\n\n[[profile.default.overrides]]\nfilter = 'test(x)'\ngroup = \"pg\"\n[profile.quick]\ndefault-filter = 'not binary(/^pg_/)'\n",
         )
         .unwrap();
         let v = violations(&repo);
@@ -170,13 +257,32 @@ mod tests {
         let repo = scratch_repo("iron-nextest-profile-groups");
         std::fs::write(
             repo.join(".config").join("nextest.toml"),
-            "[profile.default]\nslow-timeout = { period = \"30s\", terminate-after = 4 }\n[profile.default.test-groups]\nparallelism = 1\n",
+            "[profile.default]\nslow-timeout = { period = \"30s\", terminate-after = 4 }\n[profile.default.test-groups]\nparallelism = 1\n[profile.quick]\ndefault-filter = 'not binary(/^pg_/)'\n",
         )
         .unwrap();
         let v = violations(&repo);
         assert_eq!(v.len(), 1);
         assert!(
             v.first().is_some_and(|x| x.contains("[test-groups]")),
+            "{v:?}"
+        );
+    }
+
+    #[test]
+    fn test_nextest_config_gate_blocks_pg_start_outside_pg_file() {
+        let repo = scratch_repo("iron-nextest-pg-name");
+        std::fs::write(
+            repo.join(".config").join("nextest.toml"),
+            "[profile.default]\nslow-timeout = { period = \"30s\", terminate-after = 4 }\n[profile.quick]\ndefault-filter = 'not binary(/^pg_/)'\n",
+        )
+        .unwrap();
+        let dir = repo.join("tests").join("harness").join("tests");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("socket.rs"), "fn t() { pg_start(&base); }\n").unwrap();
+        let v = violations(&repo);
+        assert!(
+            v.iter()
+                .any(|x| x.contains("socket.rs") && x.contains("pg_start")),
             "{v:?}"
         );
     }

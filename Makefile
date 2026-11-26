@@ -18,19 +18,19 @@ endef
 # spec-trace baseline compare ref: locally compares against HEAD; CI compares against the commit pushed to before the push on dev and main, otherwise the merge base of origin/dev (K111; CI sets this variable).
 SPEC_TRACE_REF ?= HEAD
 
-.PHONY: check check-fast fmt clippy test test-fast live-model-check deny machete depcheck spec-trace spec-baseline \
-	ironlaws gitleaks ts-install ts-biome ts-typecheck ts-test ts-build \
+.PHONY: check check-fast fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline \
+	ironlaws gitleaks versions actionlint ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
-	_test-body _test-fast-body _e2e-body gate-selftest \
-	locale locale-refresh
+	_test-body _test-fast-body _test-basic-body _e2e-body gate-selftest \
+	locale locale-refresh release-selftest
 
-check: fmt clippy gate-selftest test deny machete depcheck spec-trace ironlaws gitleaks locale \
+check: fmt clippy gate-selftest test deny machete depcheck spec-trace ironlaws gitleaks versions actionlint locale release-selftest \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
 # fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
-check-fast: fmt clippy gate-selftest test-fast depcheck ironlaws locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
+check-fast: fmt clippy gate-selftest test-fast depcheck ironlaws versions locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -65,6 +65,20 @@ gate-selftest:
 	bash tools/test-gate.sh expect-fail target/gate-selftest.log bash -c 'echo "ignoring unknown configuration keys" >&2; exit 0'
 	bash tools/test-gate.sh expect-pass target/gate-selftest.log bash -c 'echo clean gate output'
 
+# Windows and macOS CI (K111): compile is a separate workflow step. This target runs the
+# Rust and TypeScript tests that do not need PostgreSQL or a browser.
+test-basic:
+	$(call locked,$(MAKE) --no-print-directory _test-basic-body)
+
+_test-basic-body:
+	@mkdir -p target
+ifdef NEXTTEST
+	bash tools/test-gate.sh run target/nextest-basic.log $(CARGO) nextest run --workspace --profile quick
+else
+	$(CARGO) test --workspace
+endif
+	$(PNPM) -r --no-bail test | tee target/pnpm-test.log
+
 # check-fast Rust tests: everything except the postgres group (spec/09 K90 real DB, slow) and e2e (separate target).
 test-fast:
 	$(call locked,$(MAKE) --no-print-directory _test-fast-body)
@@ -95,10 +109,16 @@ spec-trace:
 ironlaws:
 	$(CARGO) run --locked -p iron-laws
 
+versions:
+	$(CARGO) run --locked -p anybot-versions
+
 # locale gates (spec/09 K91): CJK scan of source files plus translation consistency
 # plus generated-code freshness (locale-gen check).
 locale:
 	$(CARGO) run --locked -p locale-gen -- check
+
+release-selftest:
+	sh deploy/release/release-selftest.sh
 
 # explicit command: regenerate the committed message code tables (CI does not run it).
 locale-refresh:
@@ -107,6 +127,13 @@ locale-refresh:
 # key scan: the whole repo including git history (spec/09 K79).
 gitleaks:
 	gitleaks detect --source . --no-banner --exit-code 1
+
+# Workflow syntax (spec/09 K110). actionlint 1.7.12, sha256 from the release checksums file.
+actionlint:
+	@mkdir -p target/tools
+	@test -x target/tools/actionlint || bash tools/install-actionlint.sh target/tools/actionlint
+	target/tools/actionlint -color .github/workflows/*.yml
+	bash tools/actionlint-selftest.sh target/tools/actionlint
 
 # explicit command: regenerate the spec-trace baseline (CI does not run it; only when a person regenerates).
 spec-baseline:
@@ -123,7 +150,8 @@ ts-typecheck:
 	$(PNPM) -r --no-bail typecheck
 
 ts-test:
-	$(PNPM) -r --no-bail test
+	@mkdir -p target
+	$(PNPM) -r --no-bail test | tee target/pnpm-test.log
 
 ts-build:
 	$(PNPM) -r --no-bail build

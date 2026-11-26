@@ -123,6 +123,7 @@ dependencies = [
 name = "anybot-app-agent"
 version = "0.1.0"
 dependencies = [
+ "anybot-foundation",
  "anybot-messages",
  "clap",
 ]
@@ -131,6 +132,7 @@ dependencies = [
 name = "anybot-app-cli"
 version = "0.1.0"
 dependencies = [
+ "anybot-foundation",
  "anybot-messages",
  "clap",
 ]
@@ -149,13 +151,13 @@ name = "anybot-app-desktop-context"
 version = "0.1.0"
 dependencies = [
  "tauri",
- "tauri-build",
 ]
 
 [[package]]
 name = "anybot-app-runner-service"
 version = "0.1.0"
 dependencies = [
+ "anybot-foundation",
  "anybot-messages",
  "clap",
 ]
@@ -204,6 +206,22 @@ version = "0.1.0"
 dependencies = [
  "anybot-protocol",
  "anybot-trust",
+]
+
+[[package]]
+name = "anybot-context"
+version = "0.1.0"
+dependencies = [
+ "anybot-domain",
+ "anybot-foundation",
+ "anybot-models",
+ "anybot-protocol",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "test-harness",
+ "tokio",
 ]
 
 [[package]]
@@ -392,6 +410,13 @@ dependencies = [
  "anybot-protocol",
  "proptest",
  "trybuild",
+]
+
+[[package]]
+name = "anybot-versions"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

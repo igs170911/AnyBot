@@ -58,6 +58,7 @@ pub enum MessageCode {
     ModelListEmpty,
     ModelListTimeout,
     ModelBudget,
+    ContextSourceDeleted,
     ModelRefusal,
     ModelLengthNote,
     ModelHandoffUser,
@@ -105,6 +106,7 @@ pub enum MessageCode {
     ToolUnreadableQuotes,
     ToolUnreadableHeredoc,
     ToolUnreadableHead,
+    TurnProgramNote,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -218,6 +220,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::ModelListEmpty, "model-list-empty"),
     (MessageCode::ModelListTimeout, "model-list-timeout"),
     (MessageCode::ModelBudget, "model-budget"),
+    (MessageCode::ContextSourceDeleted, "context-source-deleted"),
     (MessageCode::ModelRefusal, "model-refusal"),
     (MessageCode::ModelLengthNote, "model-length-note"),
     (MessageCode::ModelHandoffUser, "model-handoff-user"),
@@ -283,6 +286,7 @@ const TABLE: &[(MessageCode, &str)] = &[
         "tool-unreadable-heredoc",
     ),
     (MessageCode::ToolUnreadableHead, "tool-unreadable-head"),
+    (MessageCode::TurnProgramNote, "turn-program-note"),
 ];
 
 impl MessageCode {

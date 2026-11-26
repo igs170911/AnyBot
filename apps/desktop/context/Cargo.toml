@@ -9,11 +9,6 @@ description = "small crate that generates the Tauri context: only it skips the e
 [dependencies]
 tauri = { version = "2", default-features = false, features = ["wry", "tray-icon"] }
 
-[build-dependencies]
-tauri-build = { version = "2", features = [] }
-
-
-
 [lints.rust]
 unsafe_code = "forbid"
 unused_crate_dependencies = "warn"
