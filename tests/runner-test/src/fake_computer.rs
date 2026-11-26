@@ -2,10 +2,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
+use crate::fake_helpers::{
+    MISSING_FILE_REASON, NO_SCRIPT_REASON, TIMEOUT_EXIT_CODE, UNREACHABLE_REASON, apply_writes,
+    edit_rejection, target_kind, write_outcome,
+};
 use anybot_foundation::ContentDigest;
 use anybot_protocol::{
-    ActualResult, BeforeDigest, CommandOutcome, ComputerCaps, ComputerFailure, PathOutcome,
-    ReadOutcome, TargetKind, WriteOutcome,
+    ActualResult, CommandOutcome, ComputerCaps, ComputerFailure, PathOutcome, ReadOutcome,
+    TargetKind,
 };
 use anybot_trust::{ActionKey, GatedComputer, OpRejection, Pass, normalize_command};
 use test_harness::FakeClock;
@@ -13,11 +17,6 @@ use test_harness::FakeClock;
 use crate::fake_builder::FakeComputerBuilder;
 use crate::fake_files::{FileTree, digest_text};
 use crate::fake_scripts::{CommandScript, ScriptTable};
-
-pub const TIMEOUT_EXIT_CODE: i32 = 124;
-pub const NO_SCRIPT_REASON: &str = "the fake computer has no script for this command";
-pub const MISSING_FILE_REASON: &str = "no such file on the fake computer";
-pub const UNREACHABLE_REASON: &str = "the fake computer is set unreachable";
 
 pub struct FakeComputer {
     pub(crate) name: String,
@@ -73,7 +72,7 @@ impl FakeComputer {
         self.scripts.insert(command, script);
     }
 
-    fn guard<T>(cell: &Mutex<T>) -> MutexGuard<'_, T> {
+    pub(crate) fn guard<T>(cell: &Mutex<T>) -> MutexGuard<'_, T> {
         cell.lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
@@ -117,6 +116,25 @@ impl FakeComputer {
         let elapsed = finished.saturating_sub(started);
         let code = timed_out_code(script, billed, timeout_ms);
         (elapsed, code, wakes)
+    }
+    fn apply_edit(
+        &self,
+        path: &str,
+        old_text: &str,
+        new_text: &str,
+    ) -> Result<String, OpRejection> {
+        let current = if old_text.is_empty() {
+            Self::guard(&self.tree).read(path)
+        } else {
+            Some(Self::guard(&self.tree).read(path).ok_or_else(|| {
+                OpRejection::from_failure(ComputerFailure::operation(
+                    MISSING_FILE_REASON.to_owned(),
+                ))
+            })?)
+        };
+        let applied = anybot_trust::apply_edit(current.as_deref(), old_text, new_text)
+            .map_err(|e| edit_rejection(&e))?;
+        Ok(applied.content)
     }
 }
 
@@ -201,6 +219,22 @@ impl GatedComputer for FakeComputer {
         Ok(ActualResult::Write(outcome))
     }
 
+    fn edit_file(
+        &self,
+        pass: &Pass,
+        path: &str,
+        old_text: &str,
+        new_text: &str,
+    ) -> Result<ActualResult, OpRejection> {
+        self.record(format!("edit_file {path}"));
+        Self::authorize(pass, &Self::file_key(pass, "edit", path))?;
+        self.reachable()?;
+        let before = Self::guard(&self.tree).digest(path);
+        let content = self.apply_edit(path, old_text, new_text)?;
+        let outcome = write_outcome(&self.tree, path, &content, before);
+        Ok(ActualResult::Write(outcome))
+    }
+
     fn path_info(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection> {
         self.record(format!("path_info {path}"));
         Self::authorize(pass, &Self::file_key(pass, "path", path))?;
@@ -218,44 +252,4 @@ impl GatedComputer for FakeComputer {
     fn resolve_target(&self, path: &str) -> Option<String> {
         Some(Self::guard(&self.tree).canonical(path))
     }
-}
-
-fn write_outcome(
-    tree: &Mutex<FileTree>,
-    path: &str,
-    content: &str,
-    before: Option<ContentDigest>,
-) -> WriteOutcome {
-    let canonical = {
-        let guard = FakeComputer::guard(tree);
-        guard.canonical(path)
-    };
-    let outcome = WriteOutcome {
-        path: canonical,
-        before: match before {
-            Some(digest) => BeforeDigest::Present(digest),
-            None => BeforeDigest::Absent,
-        },
-        after: digest_text(content),
-        size: content.len() as u64,
-    };
-    FakeComputer::guard(tree).write(path, content);
-    outcome
-}
-
-fn apply_writes(tree: &Mutex<FileTree>, writes: &[(String, String)]) {
-    let mut guard = FakeComputer::guard(tree);
-    for (path, content) in writes {
-        guard.write(path, content);
-    }
-}
-
-fn target_kind(tree: &FileTree, path: &str) -> Option<TargetKind> {
-    if tree.is_directory(path) {
-        return Some(TargetKind::Directory);
-    }
-    if tree.exists(path) {
-        return Some(TargetKind::File);
-    }
-    None
 }

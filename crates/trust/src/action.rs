@@ -29,19 +29,67 @@ impl PathView {
             return canonical.clone();
         }
         if self.raw.starts_with('/') {
-            return self.raw.clone();
+            return normalize(&self.raw);
         }
         let base = workdir.trim_end_matches('/');
-        format!("{base}/{}", self.raw)
+        normalize(&format!("{base}/{}", self.raw))
+    }
+}
+
+fn normalize(path: &str) -> String {
+    let absolute = path.starts_with('/');
+    let mut parts: Vec<&str> = Vec::new();
+    for segment in path.split('/') {
+        if segment.is_empty() || segment == "." {
+            continue;
+        }
+        if segment == ".." {
+            if let Some(last) = parts.last()
+                && *last != ".."
+            {
+                parts.pop();
+                continue;
+            }
+            if absolute {
+                continue;
+            }
+            parts.push("..");
+            continue;
+        }
+        parts.push(segment);
+    }
+    let joined = parts.join("/");
+    if absolute {
+        format!("/{joined}")
+    } else {
+        if joined.is_empty() {
+            return ".".to_owned();
+        }
+        joined
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ActionSubject {
-    Command { line: String, timeout_ms: u64 },
-    ReadFile { path: PathView },
-    WriteFile { path: PathView, content: String },
-    PathCheck { path: PathView },
+    Command {
+        line: String,
+        timeout_ms: u64,
+    },
+    ReadFile {
+        path: PathView,
+    },
+    WriteFile {
+        path: PathView,
+        content: String,
+    },
+    EditFile {
+        path: PathView,
+        old_text: String,
+        new_text: String,
+    },
+    PathCheck {
+        path: PathView,
+    },
     Capabilities,
 }
 
@@ -53,6 +101,7 @@ impl ActionSubject {
         match self {
             ActionSubject::ReadFile { path }
             | ActionSubject::WriteFile { path, content: _ }
+            | ActionSubject::EditFile { path, .. }
             | ActionSubject::PathCheck { path } => vec![path],
             ActionSubject::Command { .. } | ActionSubject::Capabilities => Vec::new(),
         }
@@ -77,6 +126,26 @@ impl GateAction {
                 timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
             },
             extra_paths,
+            workdir: workdir.to_owned(),
+        }
+    }
+
+    #[must_use]
+    pub fn edit_file(
+        tool: &str,
+        path: PathView,
+        old_text: &str,
+        new_text: &str,
+        workdir: &str,
+    ) -> Self {
+        GateAction {
+            tool: tool.to_owned(),
+            subject: ActionSubject::EditFile {
+                path,
+                old_text: old_text.to_owned(),
+                new_text: new_text.to_owned(),
+            },
+            extra_paths: Vec::new(),
             workdir: workdir.to_owned(),
         }
     }
@@ -107,6 +176,7 @@ impl GateAction {
             ActionSubject::Command { line, .. } => normalize_command(line),
             ActionSubject::ReadFile { path } => format!("read:{}", path.raw),
             ActionSubject::WriteFile { path, content: _ } => format!("write:{}", path.raw),
+            ActionSubject::EditFile { path, .. } => format!("edit:{}", path.raw),
             ActionSubject::PathCheck { path } => format!("path:{}", path.raw),
             ActionSubject::Capabilities => "capabilities".to_owned(),
         };

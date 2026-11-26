@@ -262,7 +262,7 @@ pub fn finish(
 fn status_token(evidence: Option<&EvidenceRecord>) -> &'static str {
     match evidence.map(|e| e.outcome) {
         Some(ActionOutcome::Completed) => crate::message_codes::CODE_TURN_COMPLETED,
-        Some(ActionOutcome::Failed) => crate::message_codes::CODE_TURN_FAILED,
+        Some(ActionOutcome::Failed) => crate::message_codes::CODE_TURN_TOOL_FAILED,
         Some(ActionOutcome::Rejected) => crate::message_codes::CODE_TURN_REJECTED,
         Some(ActionOutcome::NotExecuted) | None => crate::message_codes::CODE_TURN_NOT_EXECUTED,
     }
@@ -281,7 +281,9 @@ fn action_label(subject: &ActionSubject) -> String {
     match subject {
         ActionSubject::Command { line, .. } => line.clone(),
         ActionSubject::ReadFile { path } => format!("read {}", path.raw),
-        ActionSubject::WriteFile { path, .. } => format!("write {}", path.raw),
+        ActionSubject::WriteFile { path, .. } | ActionSubject::EditFile { path, .. } => {
+            format!("write {}", path.raw)
+        }
         ActionSubject::PathCheck { path } => format!("path {}", path.raw),
         ActionSubject::Capabilities => "capabilities".to_owned(),
     }

@@ -46,6 +46,9 @@ pub(crate) fn verify(
         ActionSubject::WriteFile { path, content } => {
             Some(reread_verification(pass, &path.raw, content, computer))
         }
+        ActionSubject::EditFile { path, .. } => {
+            Some(after_digest_verification(pass, &path.raw, result, computer))
+        }
         ActionSubject::Command { .. } => Some(exit_code_verification(result)),
         ActionSubject::ReadFile { .. }
         | ActionSubject::PathCheck { .. }
@@ -64,6 +67,42 @@ fn reread_verification(
             result: digest_match(outcome.digest.hex(), content),
             source: JudgementSource::ProgramCheck,
             detail: format!("reread digest of {path}"),
+        },
+        Ok(other) => VerificationRecord {
+            result: VerificationResult::Failed,
+            source: JudgementSource::ProgramCheck,
+            detail: format!("reread of {path} returned {other:?}"),
+        },
+        Err(rejection) => VerificationRecord {
+            result: VerificationResult::Failed,
+            source: JudgementSource::ProgramCheck,
+            detail: rejection.reason.clone(),
+        },
+    }
+}
+
+fn after_digest_verification(
+    pass: &Pass,
+    path: &str,
+    result: &ActualResult,
+    computer: &dyn GatedComputer,
+) -> VerificationRecord {
+    let ActualResult::Write(outcome) = result else {
+        return VerificationRecord {
+            result: VerificationResult::Failed,
+            source: JudgementSource::ProgramCheck,
+            detail: "the edit result is not a write".to_owned(),
+        };
+    };
+    match computer.read_file(pass, path) {
+        Ok(ActualResult::Read(reread)) => VerificationRecord {
+            result: if reread.digest == outcome.after {
+                VerificationResult::Passed
+            } else {
+                VerificationResult::Failed
+            },
+            source: JudgementSource::ProgramCheck,
+            detail: format!("reread digest of {path} against the written digest"),
         },
         Ok(other) => VerificationRecord {
             result: VerificationResult::Failed,
@@ -126,6 +165,11 @@ pub(crate) fn perform(
         }
         ActionSubject::ReadFile { path } => computer.read_file(pass, &path.raw),
         ActionSubject::WriteFile { path, content } => computer.write_file(pass, &path.raw, content),
+        ActionSubject::EditFile {
+            path,
+            old_text,
+            new_text,
+        } => computer.edit_file(pass, &path.raw, old_text, new_text),
         ActionSubject::PathCheck { path } => computer.path_info(pass, &path.raw),
         ActionSubject::Capabilities => computer.capabilities(pass),
     }

@@ -1,0 +1,49 @@
+pub const CODE_TOOL_EDIT_CREATED: &str = "tool-edit-created";
+pub const CODE_TOOL_EDIT_OVERWRITTEN: &str = "tool-edit-overwritten";
+pub const CODE_TOOL_EDIT_MODIFIED: &str = "tool-edit-modified";
+pub const CODE_TOOL_EDIT_NOT_FOUND: &str = "tool-edit-not-found";
+pub const CODE_TOOL_EDIT_MULTIPLE: &str = "tool-edit-multiple";
+pub const CODE_TOOL_EDIT_FILE_MISSING: &str = "tool-edit-file-missing";
+pub const CODE_TOOL_READ_TOO_BIG: &str = "tool-read-too-big";
+pub const CODE_TOOL_READ_NOT_TEXT: &str = "tool-read-not-text";
+pub const CODE_TOOL_READ_DIRECTORY: &str = "tool-read-directory";
+pub const CODE_TOOL_READ_LINES: &str = "tool-read-lines";
+pub const CODE_TOOL_SHELL_NO_OUTPUT: &str = "tool-shell-no-output";
+pub const CODE_TOOL_SHELL_FAILED: &str = "tool-shell-failed";
+pub const CODE_TOOL_SHELL_TRIMMED: &str = "tool-shell-trimmed";
+pub const CODE_TOOL_SHELL_TIMED_OUT: &str = "tool-shell-timed-out";
+
+#[must_use]
+pub fn all_tool_codes() -> [&'static str; 14] {
+    [
+        CODE_TOOL_EDIT_CREATED,
+        CODE_TOOL_EDIT_OVERWRITTEN,
+        CODE_TOOL_EDIT_MODIFIED,
+        CODE_TOOL_EDIT_NOT_FOUND,
+        CODE_TOOL_EDIT_MULTIPLE,
+        CODE_TOOL_EDIT_FILE_MISSING,
+        CODE_TOOL_READ_TOO_BIG,
+        CODE_TOOL_READ_NOT_TEXT,
+        CODE_TOOL_READ_DIRECTORY,
+        CODE_TOOL_READ_LINES,
+        CODE_TOOL_SHELL_NO_OUTPUT,
+        CODE_TOOL_SHELL_FAILED,
+        CODE_TOOL_SHELL_TRIMMED,
+        CODE_TOOL_SHELL_TIMED_OUT,
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tool_message_codes_are_unique() {
+        let mut seen: Vec<&str> = Vec::new();
+        for code in all_tool_codes() {
+            assert!(!seen.contains(&code), "duplicate code {code}");
+            seen.push(code);
+        }
+        assert_eq!(seen.len(), all_tool_codes().len());
+    }
+}

@@ -75,13 +75,28 @@ export type MessageCode =
   "gate-pass-not-authorized" |
   "turn-completed" |
   "turn-failed" |
+  "turn-tool-failed" |
   "turn-rejected" |
   "turn-not-executed" |
   "turn-awaiting-approval" |
   "tool-empty" |
   "tool-operation-failed" |
   "tool-computer-unreachable" |
-  "tool-execution-failed";
+  "tool-execution-failed" |
+  "tool-edit-created" |
+  "tool-edit-overwritten" |
+  "tool-edit-modified" |
+  "tool-edit-not-found" |
+  "tool-edit-multiple" |
+  "tool-edit-file-missing" |
+  "tool-read-too-big" |
+  "tool-read-not-text" |
+  "tool-read-directory" |
+  "tool-read-lines" |
+  "tool-shell-no-output" |
+  "tool-shell-failed" |
+  "tool-shell-trimmed" |
+  "tool-shell-timed-out";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -158,6 +173,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "gate-pass-not-authorized",
   "turn-completed",
   "turn-failed",
+  "turn-tool-failed",
   "turn-rejected",
   "turn-not-executed",
   "turn-awaiting-approval",
@@ -165,4 +181,18 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-operation-failed",
   "tool-computer-unreachable",
   "tool-execution-failed",
+  "tool-edit-created",
+  "tool-edit-overwritten",
+  "tool-edit-modified",
+  "tool-edit-not-found",
+  "tool-edit-multiple",
+  "tool-edit-file-missing",
+  "tool-read-too-big",
+  "tool-read-not-text",
+  "tool-read-directory",
+  "tool-read-lines",
+  "tool-shell-no-output",
+  "tool-shell-failed",
+  "tool-shell-trimmed",
+  "tool-shell-timed-out",
 ];

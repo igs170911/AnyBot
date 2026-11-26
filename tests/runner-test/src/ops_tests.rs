@@ -164,7 +164,7 @@ fn test_fake_computer_command_without_a_script_reports_an_operation_failure() {
     let run = run(&computer, &command_request("pwd", &clock)).into_run();
     assert_eq!(run.model.code, "tool-execution-failed");
     assert_eq!(run.evidence.first().unwrap().outcome, ActionOutcome::Failed);
-    assert_eq!(run.summary.status.code, "turn-failed");
+    assert_eq!(run.summary.status.code, "turn-tool-failed");
     assert!(computer.logged().iter().any(|e| e == "run_command pwd"));
 }
 
@@ -227,7 +227,7 @@ fn test_command_with_a_nonzero_exit_code_is_recorded_as_failed() {
     };
     assert_eq!(exit_code, Some(3));
     assert_eq!(record.outcome, ActionOutcome::Failed);
-    assert_eq!(run.summary.status.code, "turn-failed");
+    assert_eq!(run.summary.status.code, "turn-tool-failed");
     assert_eq!(record.verification.as_ref().unwrap().detail, "exit code 3");
 }
 

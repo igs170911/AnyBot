@@ -9,7 +9,7 @@ pub mod startup;
 mod startup_tests;
 
 pub use bootstrap::ServerBootstrap;
-pub use clock::{Clock, ClockExpired, PinBoxFuture, SystemClock, TimestampMs};
+pub use clock::{Clock, ClockExpired, PinBoxFuture, SystemClock, TimestampMs, timeout};
 pub use digest::ContentDigest;
 pub use error::{
     CODE_BOOTSTRAP_CREDENTIALS_MISSING, CODE_BOOTSTRAP_DATABASE_MISSING,

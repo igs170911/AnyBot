@@ -102,12 +102,10 @@ pub fn floor_view(action: &GateAction, caps: &ComputerCaps) -> FloorAction {
             bot_machine,
             has_sandbox: caps.command_sandbox.yes(),
         },
-        ActionSubject::ReadFile { path } | ActionSubject::WriteFile { path, content: _ } => {
-            FloorAction::FilePath {
-                path: path.raw.clone(),
-            }
-        }
-        ActionSubject::PathCheck { path } => FloorAction::FilePath {
+        ActionSubject::ReadFile { path }
+        | ActionSubject::WriteFile { path, content: _ }
+        | ActionSubject::EditFile { path, .. }
+        | ActionSubject::PathCheck { path } => FloorAction::FilePath {
             path: path.raw.clone(),
         },
         ActionSubject::Capabilities => FloorAction::FilePath {
@@ -172,6 +170,7 @@ fn floor_denied_token(action: &GateAction, bot_machine: bool) -> Option<&'static
         ActionSubject::Command { line, .. } => crate::sandbox_deny::deny_token(line, bot_machine),
         ActionSubject::ReadFile { .. }
         | ActionSubject::WriteFile { .. }
+        | ActionSubject::EditFile { .. }
         | ActionSubject::PathCheck { .. }
         | ActionSubject::Capabilities => None,
     }
@@ -181,6 +180,7 @@ fn path_label(action: &GateAction) -> String {
     match &action.subject {
         ActionSubject::ReadFile { path }
         | ActionSubject::WriteFile { path, .. }
+        | ActionSubject::EditFile { path, .. }
         | ActionSubject::PathCheck { path } => path.effective(&action.workdir),
         ActionSubject::Command { .. } | ActionSubject::Capabilities => String::new(),
     }

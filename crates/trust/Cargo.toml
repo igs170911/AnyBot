@@ -12,4 +12,5 @@ anybot-domain = { workspace = true }
 [lints]
 workspace = true
 [dev-dependencies]
+trybuild = { workspace = true }
 proptest = { workspace = true }

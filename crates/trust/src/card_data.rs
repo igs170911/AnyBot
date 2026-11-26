@@ -35,10 +35,12 @@ fn card_specs(action: &GateAction, computer: String) -> Vec<ActionSpec> {
             command: line.clone(),
             computer,
         }],
-        ActionSubject::WriteFile { path, content: _ } => vec![ActionSpec::EditFile {
-            computer,
-            path: file_target(action, path),
-        }],
+        ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
+            vec![ActionSpec::EditFile {
+                computer,
+                path: file_target(action, path),
+            }]
+        }
         ActionSubject::ReadFile { path } | ActionSubject::PathCheck { path } => {
             vec![ActionSpec::ReadFile {
                 computer,
@@ -65,6 +67,7 @@ fn card_classes(action: &GateAction) -> Vec<String> {
             .collect(),
         ActionSubject::ReadFile { .. }
         | ActionSubject::WriteFile { .. }
+        | ActionSubject::EditFile { .. }
         | ActionSubject::PathCheck { .. }
         | ActionSubject::Capabilities => Vec::new(),
     }
@@ -85,7 +88,9 @@ fn reason_base(action: &GateAction) -> &'static str {
         ActionSubject::Command { .. } => "run-command",
         ActionSubject::ReadFile { path } => outside_word(path, action, "read"),
         ActionSubject::PathCheck { path } => outside_word(path, action, "path"),
-        ActionSubject::WriteFile { path, content: _ } => outside_word(path, action, "write"),
+        ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
+            outside_word(path, action, "write")
+        }
         ActionSubject::Capabilities => "read-capabilities",
     }
 }

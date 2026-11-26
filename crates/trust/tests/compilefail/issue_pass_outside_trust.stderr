@@ -1,0 +1,10 @@
+error[E0624]: associated function `issue` is private
+  --> tests/compilefail/issue_pass_outside_trust.rs:15:22
+   |
+15 |     let pass = Pass::issue(key, record, anybot_foundation::TimestampMs::from_millis(1));
+   |                      ^^^^^ private associated function
+   |
+  ::: src/pass.rs
+   |
+   |     pub(crate) fn issue(key: ActionKey, gate: GateRecord, issued_at: TimestampMs) -> Self {
+   |     ------------------------------------------------------------------------------------- private associated function defined here

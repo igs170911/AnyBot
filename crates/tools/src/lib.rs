@@ -1,3 +1,20 @@
+pub mod arguments;
+pub mod calls;
+pub mod edit;
+pub mod message_codes;
+pub mod read;
+pub mod registry;
+pub mod shell;
+
+pub use arguments::{ArgsRejection, EditArgs, ReadArgs, ShellArgs, ToolArgs, parse_call};
+pub use calls::{
+    DEFAULT_SHELL_TIMEOUT_MS, MAX_SHELL_TIMEOUT_MS, build_request, clamp_timeout, subject_of,
+};
+pub use registry::{
+    TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL, ToolLevel, is_known_tool, level_of, registry,
+    tool_list,
+};
+
 use anybot_domain::TaskStatus;
 
 use anybot_foundation::{Clock, TimestampMs};

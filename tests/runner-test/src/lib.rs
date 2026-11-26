@@ -1,6 +1,7 @@
 pub mod fake_builder;
 pub mod fake_computer;
 pub mod fake_files;
+pub mod fake_helpers;
 pub mod fake_scripts;
 
 pub use fake_builder::FakeComputerBuilder;

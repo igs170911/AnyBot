@@ -10,6 +10,7 @@ pub const CODE_GATE_ASK_PENDING: &str = "gate-ask-pending";
 pub const CODE_GATE_PASS_NOT_AUTHORIZED: &str = "gate-pass-not-authorized";
 pub const CODE_TURN_COMPLETED: &str = "turn-completed";
 pub const CODE_TURN_FAILED: &str = "turn-failed";
+pub const CODE_TURN_TOOL_FAILED: &str = "turn-tool-failed";
 pub const CODE_TURN_REJECTED: &str = "turn-rejected";
 pub const CODE_TURN_NOT_EXECUTED: &str = "turn-not-executed";
 pub const CODE_TURN_AWAITING_APPROVAL: &str = "turn-awaiting-approval";
@@ -19,7 +20,7 @@ pub const CODE_TOOL_COMPUTER_UNREACHABLE: &str = "tool-computer-unreachable";
 pub const CODE_TOOL_EXECUTION_FAILED: &str = "tool-execution-failed";
 
 #[must_use]
-pub fn all_codes() -> [&'static str; 19] {
+pub fn all_codes() -> [&'static str; 20] {
     [
         CODE_GATE_COMMAND_DENIED,
         CODE_GATE_PRIVATE_FILE,
@@ -33,6 +34,7 @@ pub fn all_codes() -> [&'static str; 19] {
         CODE_GATE_PASS_NOT_AUTHORIZED,
         CODE_TURN_COMPLETED,
         CODE_TURN_FAILED,
+        CODE_TURN_TOOL_FAILED,
         CODE_TURN_REJECTED,
         CODE_TURN_NOT_EXECUTED,
         CODE_TURN_AWAITING_APPROVAL,
@@ -55,6 +57,6 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), 19);
+        assert_eq!(seen.len(), 20);
     }
 }

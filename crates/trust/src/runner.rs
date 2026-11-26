@@ -79,6 +79,14 @@ pub trait GatedComputer: Send + Sync {
         content: &str,
     ) -> Result<ActualResult, OpRejection>;
 
+    fn edit_file(
+        &self,
+        pass: &Pass,
+        path: &str,
+        old_text: &str,
+        new_text: &str,
+    ) -> Result<ActualResult, OpRejection>;
+
     fn path_info(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection>;
 
     fn resolve_target(&self, path: &str) -> Option<String>;

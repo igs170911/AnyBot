@@ -8,17 +8,17 @@ pub struct Pass {
     key: ActionKey,
     gate: GateRecord,
     issued_at: TimestampMs,
-    reread_subject: Option<String>,
+    companion_subjects: Vec<String>,
 }
 
 impl Pass {
     pub(crate) fn issue(key: ActionKey, gate: GateRecord, issued_at: TimestampMs) -> Self {
-        let reread_subject = write_subject_reread(&key);
+        let companion_subjects = companion_of(&key);
         Pass {
             key,
             gate,
             issued_at,
-            reread_subject,
+            companion_subjects,
         }
     }
 
@@ -37,13 +37,13 @@ impl Pass {
         if &self.key == key {
             return true;
         }
-        self.matches_reread(key)
+        self.matches_companion(key)
     }
 
-    fn matches_reread(&self, key: &ActionKey) -> bool {
+    fn matches_companion(&self, key: &ActionKey) -> bool {
         let (tool, subject) = key.parts();
         let (own_tool, _) = self.key.parts();
-        tool == own_tool && self.reread_subject.as_deref() == Some(subject)
+        tool == own_tool && self.companion_subjects.iter().any(|s| s == subject)
     }
 
     #[must_use]
@@ -52,11 +52,15 @@ impl Pass {
     }
 }
 
-fn write_subject_reread(key: &ActionKey) -> Option<String> {
-    key.parts()
-        .1
-        .strip_prefix("write:")
-        .map(|path| format!("read:{path}"))
+fn companion_of(key: &ActionKey) -> Vec<String> {
+    let subject = key.parts().1;
+    if let Some(path) = subject.strip_prefix("write:") {
+        return vec![format!("read:{path}")];
+    }
+    if let Some(path) = subject.strip_prefix("edit:") {
+        return vec![format!("read:{path}"), format!("write:{path}")];
+    }
+    Vec::new()
 }
 
 #[cfg(test)]
@@ -88,5 +92,29 @@ mod tests {
         assert_eq!(pass.issued_at.millis(), 10);
         assert_eq!(pass.gate().rule, "bot-machine-command");
         assert_eq!(pass.tool(), "shell");
+    }
+
+    #[test]
+    fn test_pass_of_an_edit_authorizes_the_reread_and_the_write_of_the_same_file() {
+        let pass = Pass::issue(
+            ActionKey::file("edit_file", "edit", "notes.md"),
+            allow_gate(),
+            TimestampMs::from_millis(10),
+        );
+        assert!(pass.authorizes(&ActionKey::file("edit_file", "read", "notes.md")));
+        assert!(pass.authorizes(&ActionKey::file("edit_file", "write", "notes.md")));
+        assert!(!pass.authorizes(&ActionKey::file("edit_file", "read", "other.md")));
+        assert!(!pass.authorizes(&ActionKey::file("read_file", "read", "notes.md")));
+    }
+
+    #[test]
+    fn test_pass_of_a_write_authorizes_only_the_reread_of_the_same_file() {
+        let pass = Pass::issue(
+            ActionKey::file("edit_file", "write", "notes.md"),
+            allow_gate(),
+            TimestampMs::from_millis(10),
+        );
+        assert!(pass.authorizes(&ActionKey::file("edit_file", "read", "notes.md")));
+        assert!(!pass.authorizes(&ActionKey::file("edit_file", "write", "other.md")));
     }
 }

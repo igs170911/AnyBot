@@ -2,6 +2,14 @@ use anybot_domain::TaskStatus;
 use anybot_foundation::Secret;
 use anybot_protocol::RunEvent;
 #[cfg(test)]
+mod compilefail_tests {
+    #[test]
+    fn test_trust_compilefail_pass_api_is_closed_outside_trust() {
+        trybuild::TestCases::new().compile_fail("tests/compilefail/*.rs");
+    }
+}
+
+#[cfg(test)]
 use proptest as _;
 
 pub mod action;
@@ -10,6 +18,7 @@ pub mod card_data;
 pub mod claim_levels;
 pub mod command_key;
 pub mod command_target;
+pub mod edit_rule;
 pub mod evidence;
 pub mod evidence_payload;
 pub mod gate_engine;
@@ -35,6 +44,9 @@ pub use card_data::{CardData, build_card};
 pub use claim_levels::{Claim, ClaimLevel, EvidenceKind, Link, Scope, Verification};
 pub use command_key::{command_action_key, command_tokens};
 pub use command_target::command_target_paths;
+pub use edit_rule::{
+    EditApplied, EditKind, EditRejection, apply_edit, line_count, occurrences, replace_once,
+};
 pub use evidence::ActionContext;
 pub use gate_engine::{GateLayer, LayerCall, Opinion, Outcome, precedence_decision};
 pub use gate_flow::{GateConfig, GateVerdict, judge, rule_code};
@@ -46,7 +58,8 @@ pub use message_codes::{
     CODE_GATE_OUTSIDE_WRITE_DENIED, CODE_GATE_PASS_NOT_AUTHORIZED, CODE_GATE_PRIVATE_FILE,
     CODE_GATE_USER_REJECTED, CODE_TOOL_COMPUTER_UNREACHABLE, CODE_TOOL_EMPTY,
     CODE_TOOL_EXECUTION_FAILED, CODE_TOOL_OPERATION_FAILED, CODE_TURN_AWAITING_APPROVAL,
-    CODE_TURN_COMPLETED, CODE_TURN_FAILED, CODE_TURN_NOT_EXECUTED, CODE_TURN_REJECTED, all_codes,
+    CODE_TURN_COMPLETED, CODE_TURN_FAILED, CODE_TURN_NOT_EXECUTED, CODE_TURN_REJECTED,
+    CODE_TURN_TOOL_FAILED, all_codes,
 };
 pub use pass::Pass;
 pub use pipeline::{ActionRequest, AskTicket, GateAnswer, answer_ask, run_action};
