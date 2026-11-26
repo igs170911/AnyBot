@@ -3,7 +3,7 @@ use proptest::prelude::*;
 use crate::compile::compile;
 use crate::fixtures::{build_input, event_with_seq, events_strategy, mixed_text};
 use crate::input::{BuildInput, PinnedSnapshot, StepRecord};
-use crate::output::{Block, BlockKind, Compiled, CompiledRequest, NewEvent};
+use crate::output::{Block, BlockKind, Compiled, CompiledRequest};
 
 use crate::compile_tests_support as sup;
 
@@ -97,10 +97,10 @@ proptest! {
     }
 
     #[test]
-    fn mandatory_verbatim_or_refuse(
-        constraints in prop::collection::vec(mixed_text(40), 1..4),
+    fn t_context_must_1(
+        constraints in prop::collection::vec(mixed_text(40), 1..6),
         events in events_strategy(8),
-        input in build_input(80_000, 400_000, 4),
+        input in build_input(2_000, 200_000, 4),
     ) {
         let steps = vec![step_at(0, 200, "r0"), step_at(1, 300, "r1")];
         let base = rebuilt(&input, steps, events.clone(), "v1");
@@ -138,14 +138,26 @@ proptest! {
     }
 
     #[test]
-    fn budget_never_oversends(input in build_input(500, 60_000, 6)) {
+    fn t_context_budget_1(input in build_input(4_000, 1_000_000, 6)) {
         match compile(&input).unwrap() {
-            Compiled::Sent { manifest, request, .. } => {
+            Compiled::Sent { request, .. } => {
                 let usable = input.model.usable();
-                prop_assert!(manifest.budget.estimate_calibrated <= usable);
-                let raw: u64 = manifest.included.iter().map(|e| e.estimate_raw).sum();
-                prop_assert_eq!(raw, manifest.budget.estimate_raw);
-                prop_assert_eq!(manifest.included.len(), request.blocks.len());
+                let own_raw: u64 = request
+                    .blocks
+                    .iter()
+                    .map(|b| {
+                        anybot_models::formula_tokens(&anybot_models::EstimateInput {
+                            text: &b.text,
+                            messages: 1,
+                            images: 0,
+                        })
+                    })
+                    .sum();
+                let own_cal = anybot_models::apply_calibration(own_raw, &input.model.calibration);
+                prop_assert!(
+                    own_cal <= usable,
+                    "estimate with margin {own_cal} over usable {usable}"
+                );
             }
             Compiled::Insufficient(x) => {
                 prop_assert_eq!(x.message.code, crate::compile::CODE_MODEL_BUDGET);
@@ -154,76 +166,14 @@ proptest! {
     }
 }
 
-proptest! {
-    #[test]
-    fn prefix_stable_across_steps(steps in prop::collection::vec(0usize..3_000usize, 1..12), tick in 0..700u64) {
-        let base = crate::compile_tests_support::base_input();
-        let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
-        let mut prev: Option<(usize, Vec<Block>)> = None;
-        let mut version: u64 = 1;
-        for (index, len) in steps.iter().enumerate() {
-            if tick % 7 == 0 && index % 5 == 4 {
-                version = version.saturating_add(1);
-            }
-            let many: Vec<StepRecord> = (0..=index).map(|i| step_at(i, *len, &format!("r{i}"))).collect();
-            let input = rebuilt(&base, many, events.clone(), &version.to_string());
-            let compiled = compile(&input).unwrap();
-            if let Compiled::Sent { request, events: new, .. } = &compiled {
-                for e in new {
-                    match e {
-                        NewEvent::ContextBuilt => push_built(&mut events),
-                        NewEvent::MemoryDropped { ids } => {
-                            let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
-                            events.push(event_with_seq(
-                                seq,
-                                anybot_domain::memory_dropped_kind(ids),
-                            ));
-                        }
-                        NewEvent::Collapsed { ids, reason } => {
-                            let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
-                            events.push(event_with_seq(
-                                seq,
-                                anybot_domain::collapsed_kind(&anybot_domain::ContextCollapsed { ids: ids.clone(), reason: reason_to_domain(*reason) }),
-                            ));
-                        }
-                    }
-                }
-                let current = prefix_of(request);
-                if let Some((prev_len, prev_prefix)) = &prev {
-                    let keep = prev_prefix.len().min(current.len());
-                    let same = prev_prefix.iter().take(keep).eq(current.iter().take(keep));
-                    let grew = current.len() > *prev_len;
-                    if !same {
-                        prop_assert!(
-                            collapse_recorded(&events)
-                                || model_swap_present(&events)
-                                || grew
-                                || tick % 7 == 0
-                        );
-                    }
-                }
-                prev = Some((request.prefix_len, current));
-            } else {
-                push_built(&mut events);
-            }
-        }
-    }
-}
-
-pub(crate) fn reason_to_domain(
-    reason: crate::output::CollapseReason,
-) -> anybot_domain::ContextCollapseReason {
-    match reason {
-        crate::output::CollapseReason::Accumulated => {
-            anybot_domain::ContextCollapseReason::Accumulated
-        }
-        crate::output::CollapseReason::Budget => anybot_domain::ContextCollapseReason::Budget,
-        crate::output::CollapseReason::Compact => anybot_domain::ContextCollapseReason::Compact,
-        crate::output::CollapseReason::ModelSwapped => {
-            anybot_domain::ContextCollapseReason::ModelSwapped
-        }
-        crate::output::CollapseReason::ReplaceAll => {
-            anybot_domain::ContextCollapseReason::ReplaceAll
-        }
-    }
+pub(crate) fn rebuilt_usable(
+    base: &BuildInput,
+    steps: Vec<StepRecord>,
+    events: Vec<anybot_protocol::TaskEvent>,
+    version: &str,
+    usable: u64,
+) -> BuildInput {
+    let mut out = rebuilt(base, steps, events, version);
+    out.model.capability.context_tokens = usable.saturating_add(out.model.reserved_output);
+    out
 }

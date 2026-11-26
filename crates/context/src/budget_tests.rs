@@ -42,7 +42,7 @@ fn with_turns(
 }
 
 #[test]
-fn swap_model_masks_and_restores() {
+fn t_context_budget_3() {
     let steps: Vec<StepRecord> = (0..30)
         .map(|i| sup::step_len(i, 1_500, &format!("r{i}")))
         .collect();
@@ -199,7 +199,7 @@ fn budget_drops_oldest_steps_first() {
 }
 
 #[test]
-fn old_chat_keeps_head_and_reference() {
+fn t_context_budget_4() {
     let prior: Vec<crate::input::ChatRecord> = (0..400)
         .map(|i| {
             sup::record(

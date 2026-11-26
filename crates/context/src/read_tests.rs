@@ -37,12 +37,15 @@ fn window(from: usize, chars: usize, text: &str) -> (usize, usize, usize, String
 }
 
 #[test]
-fn read_find_returns_position_and_context() {
-    let text = format!("{}ERROR 42{}", "a".repeat(31_000), "b".repeat(19_000));
+fn t_context_ref_1() {
+    let text = format!("{}ERROR 42{}", "a".repeat(31_000), "b".repeat(18_992));
     let (at, context) = find("ERROR 42", &text);
     assert_eq!(at, 31_000);
     assert!(context.contains("ERROR 42"));
     assert!(context.chars().count() <= 440);
+    let w = window(30_000, 2_000, &text);
+    assert_eq!((w.0, w.1, w.2), (30_000, 32_000, 50_000));
+    assert_eq!(w.3.chars().count(), 2_000);
 }
 
 #[test]
@@ -61,7 +64,7 @@ fn read_window_clips_past_the_end() {
 }
 
 #[test]
-fn read_full_returns_the_whole_record() {
+fn t_context_ref_2() {
     let store = store_with("hello");
     assert_eq!(
         read_result(&store, "r1", &ReadQuery::Full),
@@ -81,7 +84,7 @@ fn read_missing_id_reports_not_found() {
 }
 
 #[test]
-fn read_deleted_source_reports_the_code() {
+fn t_context_ref_3() {
     let mut records = BTreeMap::new();
     records.insert("r1".to_owned(), "hello".to_owned());
     let mut deleted = BTreeSet::new();

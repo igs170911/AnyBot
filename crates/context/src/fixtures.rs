@@ -1,17 +1,14 @@
 use proptest::prelude::*;
 use proptest::string::string_regex;
 
+pub(crate) use crate::fixtures_extra::{memory, model_plan, tool_spec_at};
 use anybot_foundation::{CallId, EventId, SystemClock, TimestampMs};
-use anybot_models::{Calibration, Capability, ProviderKind, TokenizerKind, ToolSpec, WireFormat};
 use anybot_protocol::{
     BudgetItem, CheckSource, Criterion, DoneWhenChange, KnownTaskEventKind, Proposer, TaskEvent,
     TaskEventKind, ToolEffect,
 };
 
-use crate::input::{
-    BuildInput, ChatRecord, MemoryRecord, MemorySource, ModelPlan, PinnedSnapshot, StepOutcomeKind,
-    StepRecord,
-};
+use crate::input::{BuildInput, ChatRecord, PinnedSnapshot, StepOutcomeKind, StepRecord};
 
 pub(crate) fn mixed_text(max_len: usize) -> BoxedStrategy<String> {
     let n = max_len.to_string();
@@ -36,13 +33,28 @@ pub(crate) fn long_chat_record(prefix: &'static str, index: usize) -> BoxedStrat
 }
 
 pub(crate) fn chat_record(prefix: &'static str, index: usize) -> BoxedStrategy<ChatRecord> {
-    mixed_text(400)
-        .prop_map(move |text| ChatRecord {
-            seq: 1,
+    (0u64..400, mixed_text(400))
+        .prop_map(move |(extra, text)| ChatRecord {
+            seq: u64::try_from(index)
+                .unwrap_or(0)
+                .saturating_add(1)
+                .saturating_add(extra),
             record_id: format!("{prefix}-{index}"),
             text,
         })
         .boxed()
+}
+
+pub(crate) fn renumbered(records: Vec<ChatRecord>) -> Vec<ChatRecord> {
+    records
+        .into_iter()
+        .enumerate()
+        .map(|(index, mut r)| {
+            r.seq = u64::try_from(index).unwrap_or(0).saturating_add(1);
+            r.record_id = format!("{}-{index}", r.record_id);
+            r
+        })
+        .collect()
 }
 
 pub(crate) fn unique_step_refs(steps: Vec<StepRecord>) -> Vec<StepRecord> {
@@ -61,24 +73,23 @@ pub(crate) fn step_record(index: usize) -> BoxedStrategy<StepRecord> {
     (
         mixed_text(50),
         prop_oneof![
-            4 => Just(StepOutcomeKind::Completed),
-            2 => Just(StepOutcomeKind::Failed),
-            1 => Just(StepOutcomeKind::Unknown),
-            1 => Just(StepOutcomeKind::Pending),
+            Just(StepOutcomeKind::Completed),
+            Just(StepOutcomeKind::Failed),
+            Just(StepOutcomeKind::Unknown),
+            Just(StepOutcomeKind::Pending)
         ],
         prop_oneof![
             Just(ToolEffect::ReadOnly),
             Just(ToolEffect::Repeatable),
             Just(ToolEffect::Irreversible)
         ],
-        0usize..9_000usize,
+        mixed_text(9_000),
         0usize..2usize,
         0usize..4usize,
         prop::bool::ANY,
     )
         .prop_map(
-            move |(args, outcome, level, len, exit, errors, unconfirmed)| {
-                let content = "x".repeat(len);
+            move |(args, outcome, level, content, exit, errors, unconfirmed)| {
                 let width = content.chars().count();
                 let divisors: [usize; 4] = [2, 3, 4, 5];
                 let error_at: Vec<usize> = divisors
@@ -119,31 +130,34 @@ fn criterion() -> BoxedStrategy<Criterion> {
     .boxed()
 }
 
+fn ev(kind: KnownTaskEventKind) -> TaskEventKind {
+    TaskEventKind::Known(kind)
+}
+
 fn known_event() -> BoxedStrategy<TaskEventKind> {
+    use KnownTaskEventKind::{
+        ActionVerified, BudgetUsage, CardShown, ContextBuilt, CriterionFailed, CriterionPassed,
+        EvidenceAdded, ModelSwapped, OutcomeUnknown, ToolIntent, TurnText,
+    };
     prop_oneof![
-        3 => criterion().prop_map(|c| TaskEventKind::Known(KnownTaskEventKind::DoneWhenChange {
+        3 => criterion().prop_map(|c| ev(KnownTaskEventKind::DoneWhenChange {
             by: Proposer::User,
             change: DoneWhenChange::SetItems { items: vec![c] },
             before: Vec::new(),
             after: Vec::new(),
             reason: "r".to_owned(),
         })),
-        10 => Just(TaskEventKind::Known(KnownTaskEventKind::TurnText { text: "t".to_owned() })),
-        6 => (0usize..3usize).prop_map(|i| TaskEventKind::Known(KnownTaskEventKind::ToolIntent {
-            call_id: CallId::generate(&SystemClock),
-            name: format!("e{i}"),
-            args_summary: "a".to_owned(),
-            level: ToolEffect::ReadOnly,
-        })),
-        4 => Just(TaskEventKind::Known(KnownTaskEventKind::EvidenceAdded { summary: "e".to_owned() })),
-        2 => Just(TaskEventKind::Known(KnownTaskEventKind::CardShown { action: "q?".to_owned() })),
-        2 => Just(TaskEventKind::Known(KnownTaskEventKind::OutcomeUnknown { call_id: CallId::generate(&SystemClock) })),
-        1 => Just(TaskEventKind::Known(KnownTaskEventKind::ActionVerified { call_id: CallId::generate(&SystemClock), source: CheckSource::Program })),
-        1 => Just(TaskEventKind::Known(KnownTaskEventKind::BudgetUsage { item: BudgetItem::Tokens, delta: 5 })),
-        1 => (0usize..3).prop_map(|i| TaskEventKind::Known(KnownTaskEventKind::CriterionPassed { index: i, source: CheckSource::Program })),
-        1 => (0usize..3).prop_map(|i| TaskEventKind::Known(KnownTaskEventKind::CriterionFailed { index: i, source: CheckSource::Program, observed: "o".to_owned() })),
-        1 => Just(TaskEventKind::Known(KnownTaskEventKind::ModelSwapped { from: "a".to_owned(), to: "b".to_owned(), reason: "r".to_owned() })),
-        1 => Just(TaskEventKind::Known(KnownTaskEventKind::ContextBuilt)),
+        10 => Just(ev(TurnText { text: "t".to_owned() })),
+        6 => (0usize..3usize).prop_map(|i| ev(ToolIntent { call_id: CallId::generate(&SystemClock), name: format!("e{i}"), args_summary: "a".to_owned(), level: ToolEffect::ReadOnly })),
+        4 => mixed_text(24).prop_map(|summary| ev(EvidenceAdded { summary })),
+        2 => Just(ev(CardShown { action: "q?".to_owned() })),
+        2 => Just(ev(OutcomeUnknown { call_id: CallId::generate(&SystemClock) })),
+        1 => Just(ev(ActionVerified { call_id: CallId::generate(&SystemClock), source: CheckSource::Program })),
+        1 => Just(ev(BudgetUsage { item: BudgetItem::Tokens, delta: 5 })),
+        1 => (0usize..3).prop_map(|i| ev(CriterionPassed { index: i, source: CheckSource::Program })),
+        1 => (0usize..3).prop_map(|i| ev(CriterionFailed { index: i, source: CheckSource::Program, observed: "o".to_owned() })),
+        1 => Just(ev(ModelSwapped { from: "a".to_owned(), to: "b".to_owned(), reason: "r".to_owned() })),
+        1 => Just(ev(ContextBuilt)),
     ]
     .boxed()
 }
@@ -193,41 +207,6 @@ pub(crate) fn events_strategy(max_len: usize) -> BoxedStrategy<Vec<TaskEvent>> {
         .boxed()
 }
 
-pub(crate) fn memory(index: usize) -> BoxedStrategy<MemoryRecord> {
-    (0u32..100, prop::bool::ANY)
-        .prop_map(move |(relevance, candidate)| MemoryRecord {
-            id: format!("m{index}"),
-            content: format!("memory {index}"),
-            relevance,
-            source: MemorySource::ModelInference,
-            candidate,
-        })
-        .boxed()
-}
-
-pub(crate) fn model_plan(context_low: u64, context_high: u64) -> BoxedStrategy<ModelPlan> {
-    (context_low..context_high, 0u64..1_000)
-        .prop_map(|(context, reserved)| ModelPlan {
-            capability: Capability {
-                provider: ProviderKind::OpenAi,
-                model: "m".to_owned(),
-                format: WireFormat::OpenAiCompatible,
-                context_tokens: context,
-                max_output_tokens: 4_000,
-                tools: true,
-                stream: true,
-                thinking: false,
-                vision: false,
-                cache: true,
-                tokenizer: TokenizerKind::Formula,
-                source: "t".to_owned(),
-            },
-            calibration: Calibration::new(),
-            reserved_output: reserved,
-        })
-        .boxed()
-}
-
 pub(crate) fn build_input(
     context_low: u64,
     context_high: u64,
@@ -263,8 +242,8 @@ pub(crate) fn build_input(
                 BuildInput {
                     view_limit: crate::numbers::K114_2_DEFAULT_RESULT_CHARS,
                     events,
-                    user_turns: users,
-                    bot_turns: bots,
+                    user_turns: renumbered(users),
+                    bot_turns: renumbered(bots),
                     steps,
                     constraints,
                     open_questions: questions,
@@ -275,19 +254,11 @@ pub(crate) fn build_input(
                         items: vec!["pin".to_owned()],
                     },
                     memories,
-                    prior_chat: prior,
+                    prior_chat: renumbered(prior),
                     model,
                     compact_requested: compact,
                 }
             },
         )
         .boxed()
-}
-
-pub(crate) fn tool_spec_at(index: usize) -> ToolSpec {
-    ToolSpec {
-        name: format!("spec{index}"),
-        description: format!("spec {index} description"),
-        parameters: serde_json::json!({ "type": "object" }),
-    }
 }

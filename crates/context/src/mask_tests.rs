@@ -20,12 +20,12 @@ fn big_step(len: usize, unconfirmed: bool, outcome: crate::input::StepOutcomeKin
 }
 
 #[test]
-fn long_output_head_tail_error() {
+fn t_context_mask_3() {
     let content = line(5_000, "filler");
     let error_line = "line 3000 ERROR boom\n".to_owned();
     let positions: Vec<usize> = content
         .char_indices()
-        .nth(2_999)
+        .nth(3_000 * 13)
         .map(|(idx, _)| vec![idx])
         .unwrap_or_default();
     let step = StepRecord {
@@ -42,10 +42,16 @@ fn long_output_head_tail_error() {
         error_at: positions,
     };
     let view = render_view(&step, K114_2_DEFAULT_RESULT_CHARS);
+
     assert!(view.starts_with("line 0 filler"));
     assert!(view.contains("line 3000"));
     assert!(view.contains("ERROR boom"));
-    assert!(view.contains("elided"));
+    assert!(view.contains("line 4999"));
+    assert_eq!(
+        view.matches("elided").count(),
+        2,
+        "two elision markers around error window"
+    );
     assert!(view.contains("ref-5000"));
     let summary = crate::mask::result_summary(&step);
     assert!(summary.contains("status=fail"));
@@ -53,7 +59,7 @@ fn long_output_head_tail_error() {
 }
 
 #[test]
-fn duplicate_result_shown_once() {
+fn t_context_mask_4() {
     let mut base = sup::base_input();
     let shared = "same content here".repeat(30);
     let mut first = sup::step_len(0, shared.chars().count(), "ra");
@@ -123,7 +129,7 @@ fn long_user_turn_becomes_reference() {
 }
 
 #[test]
-fn rebuild_identical_after_collapse_event() {
+fn t_context_mask_5() {
     let mut base = sup::base_input();
     base.events = vec![sup::known(
         1,

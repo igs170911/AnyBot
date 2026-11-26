@@ -36,7 +36,7 @@ fn step_input(
 }
 
 #[test]
-fn recent_ten_full_and_old_masked() {
+fn t_context_mask_1() {
     let usable: u64 = 32_000;
     let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
     let mut final_request: Option<crate::output::CompiledRequest> = None;
@@ -83,6 +83,13 @@ fn recent_ten_full_and_old_masked() {
         assert!(!recent.contains(id), "only old results masked");
     }
     assert!(!masked.is_empty(), "masking happened");
+    let in_request = |id: &String| id.as_str().starts_with("result-");
+    assert_eq!(
+        masked.iter().filter(|i| in_request(i)).count()
+            + fulls.iter().filter(|i| in_request(i)).count(),
+        40,
+        "every step result is present in the request"
+    );
     let collapsed_count = events
         .iter()
         .filter(|e| (anybot_domain::parse_collapsed(&e.kind).unwrap()).is_some())
@@ -91,6 +98,7 @@ fn recent_ten_full_and_old_masked() {
 }
 
 proptest! {
+    #![proptest_config(ProptestConfig::with_cases(150))]
     #[test]
     fn accumulate_margin_between_collapse_events(
         lens in prop::collection::vec(step_record(0).prop_map(|s| s.content.chars().count()), 12..22),

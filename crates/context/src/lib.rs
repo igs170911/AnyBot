@@ -10,6 +10,8 @@ pub mod digest;
 pub mod estimate;
 #[cfg(test)]
 mod fixtures;
+#[cfg(test)]
+pub(crate) mod fixtures_extra;
 pub mod input;
 pub mod mask;
 pub mod numbers;
@@ -49,12 +51,22 @@ pub use state_render::{StateSummary, fit_summary};
 #[path = "budget_extra_tests.rs"]
 mod budget_extra_tests;
 #[cfg(test)]
+#[cfg(test)]
+#[path = "budget_prop_tests.rs"]
+mod budget_prop_tests;
+#[cfg(test)]
+#[path = "budget_seq_tests.rs"]
+mod budget_seq_tests;
+#[cfg(test)]
 #[path = "budget_tests.rs"]
 mod budget_tests;
 #[cfg(test)]
+#[path = "build2_run_tests.rs"]
+mod build2_run_tests;
+#[cfg(test)]
 #[path = "build_tests.rs"]
 mod build_tests;
-
+#[cfg(test)]
 #[cfg(test)]
 #[path = "build_unit_tests.rs"]
 mod build_unit_tests;
@@ -62,8 +74,17 @@ mod build_unit_tests;
 #[path = "compile_tests.rs"]
 mod compile_tests;
 #[cfg(test)]
+#[path = "manifest_run_tests.rs"]
+mod manifest_run_tests;
+#[cfg(test)]
 #[path = "manifest_tests.rs"]
 mod manifest_tests;
+#[cfg(test)]
+#[path = "mask2_run_tests.rs"]
+mod mask2_run_tests;
+#[cfg(test)]
+#[path = "mask_accum_tests.rs"]
+mod mask_accum_tests;
 #[cfg(test)]
 #[path = "mask_pair_tests.rs"]
 mod mask_pair_tests;

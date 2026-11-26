@@ -5,7 +5,7 @@ use crate::input::StepRecord;
 use crate::output::{Block, BlockKind, Compiled, ExcludedReason};
 
 #[test]
-fn rebuild_is_deterministic_with_forty_steps() {
+fn t_context_build_3() {
     let mut base = sup::base_input();
     base.steps = (0..40usize)
         .map(|i| sup::step_len(i, 300, &format!("r{i}")))

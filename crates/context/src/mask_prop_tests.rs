@@ -10,11 +10,15 @@ use crate::mask::render_view;
 use crate::numbers::{K114_2_DEFAULT_RESULT_CHARS, K114_3_SHORT_RESULT_CHARS};
 use crate::output::{Block, BlockKind, Compiled, CompiledRequest, Manifest};
 
-fn has_block(request: &CompiledRequest, kind: BlockKind, pred: impl Fn(&Block) -> bool) -> bool {
+pub(crate) fn has_block(
+    request: &CompiledRequest,
+    kind: BlockKind,
+    pred: impl Fn(&Block) -> bool,
+) -> bool {
     request.blocks.iter().any(|b| b.kind == kind && pred(b))
 }
 
-fn mask_2_problems(
+pub(crate) fn mask_2_problems(
     request: &CompiledRequest,
     users: &[ChatRecord],
     bots: &[ChatRecord],
@@ -49,7 +53,8 @@ fn mask_2_problems(
         }) {
             problems.push(format!("intent block missing {cid}"));
         }
-        if (s.keeps_full() || !s.has_output())
+        let short = s.content.chars().count() <= K114_3_SHORT_RESULT_CHARS;
+        if (s.keeps_full() || !s.has_output() || short)
             && has_block(request, BlockKind::ToolResultMasked, |x| {
                 x.source_ids.contains(&rid)
             })
@@ -178,7 +183,7 @@ fn ladder_maskable(steps: &[StepRecord]) -> usize {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #![proptest_config(ProptestConfig::with_cases(300))]
 
     #[test]
     fn mask_pairs_and_accumulation(

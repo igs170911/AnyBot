@@ -70,7 +70,7 @@ pub(crate) fn id_tail_number(id: &str) -> u64 {
 pub(crate) fn step_len(idx: usize, len: usize, ref_id: &str) -> StepRecord {
     StepRecord {
         seq: u64::try_from(idx).unwrap_or(0).saturating_add(1),
-        call_id: CallId::generate(&SystemClock),
+        call_id: CallId::parse(&format!("00000000-0000-0000-0000-{idx:012x}")).unwrap(),
         tool: format!("tool{idx}"),
         args_summary: format!("args{idx}"),
         level: ToolEffect::ReadOnly,

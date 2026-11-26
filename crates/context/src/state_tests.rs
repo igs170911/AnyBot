@@ -20,13 +20,24 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn state_is_pure_function_of_events(events in events_strategy(24)) {
+    fn t_context_state_1(events in events_strategy(24)) {
         let a = fit_summary(&build_state(&events));
         let b = fit_summary(&build_state(&events));
         prop_assert_eq!(&a, &b);
         let seqs: Vec<u64> = events.iter().map(|e| e.seq).collect();
         for item in &a.items {
             prop_assert!(seqs.contains(&item.source_seq));
+        }
+        for e in &events {
+            if let anybot_protocol::TaskEventKind::Known(
+                anybot_protocol::KnownTaskEventKind::EvidenceAdded { summary },
+            ) = &e.kind
+            {
+                prop_assert!(
+                    a.items.iter().any(|i| i.text.contains(summary) && i.source_seq == e.seq),
+                    "evidence item does not carry the event summary verbatim",
+                );
+            }
         }
         let compress = render(&build_state(&events), true);
         prop_assert!(compress.items.len() <= a.items.len());
@@ -76,7 +87,7 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
 }
 
 #[test]
-fn state_tracks_evidence_and_exit_code() {
+fn t_context_state_2() {
     let mut base = sup::base_input();
     base.events = state_2_events();
     match compile(&base).unwrap() {
@@ -105,7 +116,7 @@ fn state_tracks_evidence_and_exit_code() {
 }
 
 #[test]
-fn bot_claims_are_not_state() {
+fn t_context_state_3() {
     let mut base = sup::base_input();
     let mut events = base.events.clone();
     events.push(sup::known(
@@ -145,16 +156,13 @@ fn bot_claims_are_not_state() {
     }
 }
 
-#[test]
-fn plan_compression_over_token_limit() {
-    let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
+fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut Vec<String>) {
     events.push(sup::known(
         1,
         anybot_protocol::KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
         },
     ));
-    let mut open_ids: Vec<String> = Vec::new();
     for i in 0..300u64 {
         let call = sup::step_len(usize::try_from(i).unwrap_or(0), 10, "x").call_id;
         let seq = i.saturating_add(2);
@@ -184,6 +192,13 @@ fn plan_compression_over_token_limit() {
             },
         ));
     }
+}
+
+#[test]
+fn t_context_state_4() {
+    let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
+    let mut open_ids: Vec<String> = Vec::new();
+    seed_plan_events(&mut events, &mut open_ids);
     let summary = render(&build_state(&events), true);
     let text: String = summary
         .items
@@ -198,6 +213,10 @@ fn plan_compression_over_token_limit() {
     for q in 0..20 {
         assert!(text.contains(&format!("question {q}")));
     }
+    assert!(
+        text.contains("step ") && text.contains(" open"),
+        "open current steps listed in summary",
+    );
     let tokens = crate::estimate::text_tokens(&text);
     assert!(
         tokens <= K114_7_STATE_MAX_TOKENS,
