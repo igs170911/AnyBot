@@ -64,6 +64,7 @@ pub enum MessageCode {
     ModelListEmpty,
     ModelListTimeout,
     ModelBudget,
+    ContextSourceDeleted,
     ModelRefusal,
     ModelLengthNote,
     ModelHandoffUser,
@@ -94,6 +95,7 @@ pub enum MessageCode {
     ServerCliPasswordConfirmPrompt,
     ServerCliResetPasswordDone,
     ServerConfigInvalid,
+    TurnProgramNote,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -225,6 +227,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::ModelListEmpty, "model-list-empty"),
     (MessageCode::ModelListTimeout, "model-list-timeout"),
     (MessageCode::ModelBudget, "model-budget"),
+    (MessageCode::ContextSourceDeleted, "context-source-deleted"),
     (MessageCode::ModelRefusal, "model-refusal"),
     (MessageCode::ModelLengthNote, "model-length-note"),
     (MessageCode::ModelHandoffUser, "model-handoff-user"),
@@ -291,6 +294,7 @@ const TABLE: &[(MessageCode, &str)] = &[
         "server-cli-reset-password-done",
     ),
     (MessageCode::ServerConfigInvalid, "server-config-invalid"),
+    (MessageCode::TurnProgramNote, "turn-program-note"),
 ];
 
 impl MessageCode {

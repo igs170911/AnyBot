@@ -61,6 +61,7 @@ export type MessageCode =
   "model-list-empty" |
   "model-list-timeout" |
   "model-budget" |
+  "context-source-deleted" |
   "model-refusal" |
   "model-length-note" |
   "model-handoff-user" |
@@ -90,7 +91,8 @@ export type MessageCode =
   "server-cli-password-prompt" |
   "server-cli-password-confirm-prompt" |
   "server-cli-reset-password-done" |
-  "server-config-invalid";
+  "server-config-invalid" |
+  "turn-program-note";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -153,6 +155,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-list-empty",
   "model-list-timeout",
   "model-budget",
+  "context-source-deleted",
   "model-refusal",
   "model-length-note",
   "model-handoff-user",
@@ -183,4 +186,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-cli-password-confirm-prompt",
   "server-cli-reset-password-done",
   "server-config-invalid",
+  "turn-program-note",
 ];
