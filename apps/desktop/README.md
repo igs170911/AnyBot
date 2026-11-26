@@ -16,7 +16,7 @@ Per `spec/06` section 2.4 and `spec/07` sections 2, 3:
 pnpm install
 cargo install --locked tauri-cli   # development tool allowed by AGENTS.md
 cargo tauri dev                    # frontend vite (port 1420) + the Tauri window
-cargo tauri build                  # packaging (bundle.active=false in tauri.conf.json for now)
+cargo tauri build                  # local packaging stays off (bundle.active=false); CI turns it on
 ```
 
 `make check` does not include Tauri packaging: the Rust part of the desktop

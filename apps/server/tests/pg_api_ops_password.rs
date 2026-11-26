@@ -56,7 +56,10 @@ fn startup_line_of(db: &anybot_app_test::ServerDb) -> Result<String, String> {
     anybot_app_test::english(
         &mut Catalog::new(),
         anybot_messages::MessageCode::ServerStartupListening,
-        &startup_params(env!("CARGO_PKG_VERSION"), db.listen_port),
+        &startup_params(
+            anybot_foundation::log_version(&anybot_foundation::version_string()),
+            db.listen_port,
+        ),
     )
 }
 

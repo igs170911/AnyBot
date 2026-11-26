@@ -1,4 +1,5 @@
 # CI-1 (spec/09 K110, K111): pushes to every branch and pull requests targeting dev run `make check` on Linux.
+# A push to `dev` calls the release workflow only after Linux, Windows, and macOS are green.
 name: CI
 on:
   push:
@@ -8,30 +9,37 @@ on:
   pull_request:
     branches:
       - dev
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# No workflow-level cancel. A workflow group cancels the whole run, including a
+# publish that has already started. Check jobs cancel each other below.
+# https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency
 
 env:
-  RUSTUP_HOME: /home/runner/.rustup
-  CARGO_HOME: /home/runner/.cargo
   # CI starts from a fresh checkout every time: incremental compilation data only bloats the cache.
   CARGO_INCREMENTAL: "0"
 
 jobs:
   check:
+    concurrency:
+      group: ci-check-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      # Linux runner homes only. Windows and macOS cannot create /home/runner.
+      RUSTUP_HOME: /home/runner/.rustup
+      CARGO_HOME: /home/runner/.cargo
     steps:
       # every pin below is the commit its tag points at, read from https://api.github.com/repos/<owner>/<action>/git/refs/tags/<tag>.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # the spec-trace baseline compare and gitleaks need the full history.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: spec-trace baseline ref
         env:
@@ -107,6 +115,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$CARGO_HOME/bin"
           out="$CARGO_HOME/bin/cargo-nextest"
+          rm -f "$out" "$CARGO_HOME/bin/cargo-deny" "$CARGO_HOME/bin/cargo-machete"
           if [ ! -x "$out" ]; then
           url="https://get.nexte.st/0.9.152/linux"
           curl -sLf "$url" -o nextest.tar.gz
@@ -200,7 +209,7 @@ jobs:
             librsvg2-dev
 
       - name: pnpm
-        run: sudo npm install -g pnpm@12.23.0
+        run: sh tools/install-pnpm.sh
 
       - name: install the web workspace
         run: pnpm install --frozen-lockfile
@@ -209,7 +218,10 @@ jobs:
         run: pnpm --filter=@anybot/e2e exec playwright install --with-deps chromium webkit
 
       - name: make check
-        run: make check
+        run: |
+          set -euo pipefail
+          make check
+          sh tools/test-count.sh linux target/nextest.log target/pnpm-test.log
 
       - name: upload e2e evidence on failure
         if: failure()
@@ -229,3 +241,214 @@ jobs:
             target
             !target/pg-install
           key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+
+  # K111 ②: Windows and macOS compile plus the basic tests.
+  # dev and main, plus ws/rel-* so a rehearsal sees them before merge.
+  # Other work branches and pull requests stay on the Linux `check` job.
+  build-windows:
+    concurrency:
+      group: ci-windows-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/rel-'))
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: cache rust toolchains and cargo downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.cargo/registry
+            ~/.cargo/bin
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: rust toolchain
+        run: rustup component add rustfmt clippy
+
+      - name: install pinned cargo tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.cargo\bin" | Out-Null
+          function Install-Pinned($Name, $Url, $Sha, $Archive, $Inner) {
+            $dest = Join-Path "$env:USERPROFILE\.cargo\bin" $Name
+            if (Test-Path $dest) { Remove-Item $dest -Force }
+            Invoke-WebRequest -Uri $Url -OutFile $Archive
+            $got = (Get-FileHash -Algorithm SHA256 $Archive).Hash.ToLower()
+            if ($got -ne $Sha) { throw "$Name sha256 mismatch: $got" }
+            $extract = Join-Path $env:RUNNER_TEMP "expand-$Name"
+            if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
+            New-Item -ItemType Directory -Force -Path $extract | Out-Null
+            if ($Archive.EndsWith(".zip")) { Expand-Archive $Archive -DestinationPath $extract }
+            else { tar -xzf $Archive -C $extract }
+            $leaf = Split-Path $Inner -Leaf
+            $found = @(Get-ChildItem -Path $extract -Recurse -File -Filter $leaf)
+            if ($found.Count -ne 1) { throw "expected one $leaf under $extract, found $($found.Count)" }
+            Move-Item $found[0].FullName $dest
+            Remove-Item $Archive, $extract -Recurse -Force
+          }
+          Install-Pinned "cargo-nextest.exe" "https://get.nexte.st/0.9.152/windows" "cc6bf4b6a7ac18e462cd6c9bae67e26921b888249c2988c6acabf3df387ed9d6" "nextest.zip" "cargo-nextest.exe"
+          Install-Pinned "cargo-deny.exe" "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-x86_64-pc-windows-msvc.tar.gz" "b8d7e473f54c328cc528ef8aea221c40b5ccac3d63844aa056f86ed0886800a2" "deny.tar.gz" "cargo-deny-0.22.1-x86_64-pc-windows-msvc/cargo-deny.exe"
+          Install-Pinned "cargo-machete.exe" "https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-x86_64-pc-windows-msvc.tar.gz" "64bd4ceae7680af1d1468cc1edbe09c9bea6221f4f525231c8213666eb01fa5a" "machete.tar.gz" "cargo-machete-v0.10.1-x86_64-pc-windows-msvc/cargo-machete.exe"
+
+      - name: compile the product
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+          # Skip list is the windows-skip block in docs/testing.md (WIN-1).
+          # --lib --bins skips apps/*/tests and crates/*/tests, which pull in the harness.
+          # -D warnings: a Windows-only unused import failed the rehearsal as a warning.
+          bash tools/windows-skip.sh compile
+          $skip = @(bash tools/windows-skip.sh compile)
+          if ($skip.Count -lt 1) { throw "windows skip list is empty" }
+          # cargo build does not take rustc flags after --. CARGO_BUILD_WARNINGS
+          # denies lint warnings in local packages only (Cargo config, since 1.97).
+          # It does not replace build.rustflags. Dependencies stay under --cap-lints.
+          $env:CARGO_BUILD_WARNINGS = "deny"
+          cargo build --locked --workspace @($skip | ForEach-Object { "--exclude"; $_ }) --lib --bins
+
+      - name: pnpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh tools/install-pnpm.sh
+          if ! command -v pnpm >/dev/null 2>&1 && command -v pnpm.cmd >/dev/null 2>&1; then
+            printf 'PNPM=pnpm.cmd\n' >> "$GITHUB_ENV"
+            pnpm.cmd --version
+          else
+            command -v pnpm
+            pnpm --version
+          fi
+
+      - name: install the web workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          "${PNPM:-pnpm}" install --frozen-lockfile
+
+      - name: basic tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          # windows-2025's image readme lists Git, Rust, Node, and jq. It does not
+          # list GNU make, so this step runs the same commands as `make test-basic`
+          # without invoking make. Cargo and npm are not always on Git Bash PATH.
+          export PATH="$HOME/.cargo/bin:${APPDATA:-}/npm:$PATH"
+          command -v bash
+          command -v cargo
+          command -v cargo-nextest
+          if ! command -v pnpm >/dev/null 2>&1 && command -v pnpm.cmd >/dev/null 2>&1; then
+            export PNPM=pnpm.cmd
+          fi
+          command -v "${PNPM:-pnpm}"
+          mkdir -p target
+          # Unit tests of product packages whose dev-dependencies do not pull in
+          # the harness. Both lists are docs/testing.md. One --exclude per name.
+          set --
+          sh tools/windows-skip.sh compile > target/windows-skip.txt
+          sh tools/windows-skip.sh test >> target/windows-skip.txt
+          while IFS= read -r name; do
+            set -- "$@" --exclude "$name"
+          done < target/windows-skip.txt
+          bash tools/test-gate.sh run target/nextest-basic.log cargo nextest run --locked --workspace "$@" --lib --bins --profile quick
+          "${PNPM:-pnpm}" -r --no-bail test | tee target/pnpm-test.log
+          sh tools/test-count.sh windows target/nextest-basic.log target/pnpm-test.log
+
+  build-macos:
+    concurrency:
+      group: ci-macos-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/rel-'))
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: cache rust toolchains and cargo downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.cargo/registry
+            ~/.cargo/bin
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: rust toolchain
+        run: rustup component add rustfmt clippy
+
+      - name: install pinned cargo tools
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.cargo/bin"
+          out="$HOME/.cargo/bin/cargo-nextest"
+          rm -f "$out" "$HOME/.cargo/bin/cargo-deny" "$HOME/.cargo/bin/cargo-machete"
+          if [ ! -x "$out" ]; then
+            curl -sLf "https://get.nexte.st/0.9.152/mac" -o nextest.tar.gz
+            echo "2fadf57df4243e691f088ee3bff4f4ab9af16da0c95a1db84b5cb1685e098a76  nextest.tar.gz" | shasum -a 256 -c -
+            tar -xzf nextest.tar.gz
+            mv cargo-nextest "$out"
+            rm nextest.tar.gz
+          fi
+          if [ "$(uname -m)" = "arm64" ]; then
+            curl -sLf "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.22.1/cargo-deny-0.22.1-aarch64-apple-darwin.tar.gz" -o deny.tar.gz
+            echo "2afa2d672d2b2ee012835528d0c2acb73693ee973a8dc377db0e09d7d8dee9a2  deny.tar.gz" | shasum -a 256 -c -
+            tar -xzf deny.tar.gz
+            mv cargo-deny-0.22.1-aarch64-apple-darwin/cargo-deny "$HOME/.cargo/bin/cargo-deny"
+            rm -r deny.tar.gz cargo-deny-0.22.1-aarch64-apple-darwin
+          fi
+          url="https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-aarch64-apple-darwin.tar.gz"
+          sha="0659860970e26179d730d1a2e99fc6513e41fea122ad5451d7ae43234fc1ebab"
+          if [ "$(uname -m)" = "x86_64" ]; then
+            url="https://github.com/bnjbvr/cargo-machete/releases/download/v0.10.1/cargo-machete-v0.10.1-x86_64-apple-darwin.tar.gz"
+            sha="19c7384d636a27032ff0b4695b67e79b75a366e5c0573b220bd12bc71b59b435"
+          fi
+          curl -sLf "$url" -o machete.tar.gz
+          echo "$sha  machete.tar.gz" | shasum -a 256 -c -
+          tar -xzf machete.tar.gz
+          find . -name cargo-machete -type f -exec mv {} "$HOME/.cargo/bin/cargo-machete" \;
+          rm -rf machete.tar.gz cargo-machete-v0.10.1-*
+
+      - name: pnpm
+        run: sh tools/install-pnpm.sh
+
+      - name: install the web workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: compile the workspace
+        run: cargo build --workspace --locked --all-targets
+
+      - name: basic tests
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          command -v make
+          command -v cargo
+          command -v cargo-nextest
+          command -v pnpm
+          make test-basic
+          sh tools/test-count.sh macos target/nextest-basic.log target/pnpm-test.log
+
+  # Visible sequence, not a poll: this job starts only after the three checks succeed.
+  # A job that calls another workflow cannot set timeout-minutes (GitHub docs:
+  # "Supported keywords for jobs that call a reusable workflow"). Timeouts stay
+  # on the jobs inside release.yml. secrets: inherit is omitted: the called
+  # workflow uses only the automatic GITHUB_TOKEN.
+  # No concurrency here. A caller job in the cancelling group is cancelled with
+  # that run, which would cancel the called publish. Check jobs cancel each other.
+  release-dev:
+    needs: [check, build-windows, build-macos]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.check.result == 'success' && needs.build-windows.result == 'success' && needs.build-macos.result == 'success'
+    uses: ./.github/workflows/release.yml
+    with:
+      mode: dev
+      commit: ${{ github.sha }}
+    permissions:
+      contents: write
+      packages: write

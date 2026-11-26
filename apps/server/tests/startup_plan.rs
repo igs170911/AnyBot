@@ -235,8 +235,8 @@ fn parse_launch_prints_help_and_version_text_with_success() -> Result<(), String
         Ok(Parsed::Printed(text)) => text,
         other => return Err(format!("expected printed version, got {other:?}")),
     };
-    if !version.contains("anybot-server") {
-        return Err(format!("missing anybot-server in {version}"));
+    if !version.contains("anybot-server") && !version.starts_with('v') {
+        return Err(format!("missing version text in {version}"));
     }
     Ok(())
 }
@@ -255,7 +255,7 @@ fn help_and_version_print_to_stdout_with_zero_exit() -> Result<(), String> {
     if version.code != 0 {
         return Err(format!("version exit {}", version.code));
     }
-    if !version.stdout.contains("anybot-server 0") {
+    if !version.stdout.starts_with('v') || !version.stdout.contains(" · ") {
         return Err(format!("unexpected version output {version:?}"));
     }
     Ok(())

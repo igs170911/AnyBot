@@ -1,0 +1,65 @@
+# Publish docs/wiki to this repo's wiki (a separate git repo, branch master).
+# Contents that are already identical produce no commit. Pages absent from docs/wiki are deleted.
+name: Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/wiki/**"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Concurrency stays on the job. A workflow-level group would cancel a main
+# publish when a manual run starts from another ref, even if that job is skipped.
+# https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency
+
+jobs:
+  publish:
+    concurrency:
+      group: wiki-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: false
+    # A manual run from a work branch would replace the whole wiki from that branch.
+    # Push already only fires on main. A manual run must be on main too.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: checkout the source wiki pages
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: checkout the wiki repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+          ref: master
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: replace wiki pages from docs/wiki
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          find wiki -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R source/docs/wiki/. wiki/
+          cd wiki
+          git add -A
+          if git diff --cached --quiet; then
+            echo "wiki already matches docs/wiki; no commit"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Publish docs/wiki from ${SOURCE_SHA}"
+          git push origin HEAD:master

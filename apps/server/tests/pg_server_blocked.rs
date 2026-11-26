@@ -211,7 +211,11 @@ async fn serve_online(db: &ServerDb, capture: &Arc<Capture>) -> Result<(), Strin
     let want = startup_want(db)?;
     let mut ctx = ctx_with_capture(capture);
     let staged =
-        anybot_app_server::server_run::stage_serve(&launched, env!("CARGO_PKG_VERSION"), &mut ctx)
+        anybot_app_server::server_run::stage_serve(
+            &launched,
+            anybot_foundation::log_version(&anybot_foundation::version_string()),
+            &mut ctx,
+        )
             .await;
     let staged = match staged {
         Ok(staged) => staged,
@@ -239,7 +243,10 @@ fn startup_want(db: &ServerDb) -> Result<String, String> {
         &mut Catalog::new(),
         MessageCode::ServerStartupListening,
         &Params::new()
-            .with_text("version", env!("CARGO_PKG_VERSION"))
+            .with_text(
+                "version",
+                anybot_foundation::log_version(&anybot_foundation::version_string()),
+            )
             .with_text(
                 "addresses",
                 &format!("127.0.0.1:{}, [::1]:{}", db.listen_port, db.listen_port),
