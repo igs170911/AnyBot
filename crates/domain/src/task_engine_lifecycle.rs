@@ -1,6 +1,4 @@
-use anybot_protocol::{
-    BudgetItem, CardAnswer, DeviceReportKind, KnownTaskEventKind, TaskDetail, TaskStatus,
-};
+use anybot_protocol::{CardAnswer, DeviceReportKind, KnownTaskEventKind, TaskDetail, TaskStatus};
 
 use crate::task_gate::finish_turn;
 use crate::task_view::TaskView;
@@ -154,9 +152,7 @@ pub(crate) fn advance_turn(view: &mut TaskView, event: &KnownTaskEventKind) -> b
     match event {
         KnownTaskEventKind::TurnStarted => {
             wake(view);
-            view.budget.add_usage(BudgetItem::Turns, 1);
-            view.evidence.turn_reply = false;
-            crate::task_budget::refresh_budget_status(view);
+            crate::task_budget::begin_turn(view);
             true
         }
         KnownTaskEventKind::TurnEnded { reply_delivered } => {
@@ -198,7 +194,10 @@ pub(crate) fn advance_turn(view: &mut TaskView, event: &KnownTaskEventKind) -> b
 }
 
 pub(crate) fn wake(view: &mut TaskView) {
-    if view.status == TaskStatus::Cancelled || view.status == TaskStatus::Completed {
+    if matches!(
+        view.status,
+        TaskStatus::Cancelled | TaskStatus::Completed | TaskStatus::Unaccepted
+    ) {
         let step = view.goal.clone();
         view.set_running(TaskDetail::CurrentStep { step });
     }
