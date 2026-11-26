@@ -5,6 +5,7 @@ slow-timeout = { period = "30s", terminate-after = 4 }
 pg = { max-threads = 1 }
 ports = { max-threads = 1 }
 net = { max-threads = 1 }
+prop = { max-threads = 1 }
 scratch = { max-threads = 1 }
 timing = { max-threads = 1 }
 
@@ -27,6 +28,11 @@ test-group = "ports"
 [[profile.default.overrides]]
 filter = 'test(netctl_)'
 test-group = "net"
+
+[[profile.default.overrides]]
+filter = 'test(/(t_turn_loop_1|t_turn_loop_9|turn_intent_record_precedes_computer_operation)/)'
+test-group = "prop"
+slow-timeout = { period = "300s", terminate-after = 2 }
 
 [[profile.default.overrides]]
 filter = 'test(t_account_login_4) or test(t_account_login_9) or test(t_safety_n10_2) or test(t_safety_n10_6)'
