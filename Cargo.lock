@@ -202,10 +202,7 @@ dependencies = [
 name = "anybot-computers"
 version = "0.1.0"
 dependencies = [
- "anybot-domain",
- "anybot-foundation",
- "anybot-protocol",
- "reqwest 0.12.28",
+ "anybot-trust",
 ]
 
 [[package]]
@@ -4171,6 +4168,16 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "runner-test"
+version = "0.1.0"
+dependencies = [
+ "anybot-foundation",
+ "anybot-protocol",
+ "anybot-trust",
+ "test-harness",
 ]
 
 [[package]]

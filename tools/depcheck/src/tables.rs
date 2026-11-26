@@ -18,9 +18,9 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
     add("domain", &CORE);
     add("trust", &CORE);
     add("models", &CORE);
-    add("tools", &CORE);
-    add("computers", &CORE);
-    add("mcp", &CORE);
+    add("tools", &["foundation", "protocol", "domain", "trust"]);
+    add("computers", &["foundation", "protocol", "domain", "trust"]);
+    add("mcp", &["foundation", "protocol", "domain", "trust"]);
     add("blob", &["foundation"]);
     add("bus", &["foundation"]);
     add("store-server", &CORE);
@@ -86,6 +86,17 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
             "test-harness".to_owned(),
             "anybot-foundation".to_owned(),
             "anybot-server".to_owned(),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    m.insert(
+        "runner-test".to_owned(),
+        [
+            "test-harness".to_owned(),
+            "anybot-foundation".to_owned(),
+            "anybot-protocol".to_owned(),
+            "anybot-trust".to_owned(),
         ]
         .into_iter()
         .collect(),

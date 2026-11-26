@@ -8,14 +8,17 @@ pub struct Pass {
     key: ActionKey,
     gate: GateRecord,
     issued_at: TimestampMs,
+    reread_subject: Option<String>,
 }
 
 impl Pass {
     pub(crate) fn issue(key: ActionKey, gate: GateRecord, issued_at: TimestampMs) -> Self {
+        let reread_subject = write_subject_reread(&key);
         Pass {
             key,
             gate,
             issued_at,
+            reread_subject,
         }
     }
 
@@ -31,13 +34,29 @@ impl Pass {
 
     #[must_use]
     pub fn authorizes(&self, key: &ActionKey) -> bool {
-        &self.key == key
+        if &self.key == key {
+            return true;
+        }
+        self.matches_reread(key)
+    }
+
+    fn matches_reread(&self, key: &ActionKey) -> bool {
+        let (tool, subject) = key.parts();
+        let (own_tool, _) = self.key.parts();
+        tool == own_tool && self.reread_subject.as_deref() == Some(subject)
     }
 
     #[must_use]
     pub fn tool(&self) -> &str {
         self.key.parts().0
     }
+}
+
+fn write_subject_reread(key: &ActionKey) -> Option<String> {
+    key.parts()
+        .1
+        .strip_prefix("write:")
+        .map(|path| format!("read:{path}"))
 }
 
 #[cfg(test)]

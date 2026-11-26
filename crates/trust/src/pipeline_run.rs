@@ -1,10 +1,11 @@
 use crate::action::ActionSubject;
 use crate::evidence::{
-    ActionContext, approved_evidence, build_evidence, rejected_evidence, rejection_reason,
+    ActionContext, approved_evidence, failed_evidence, rejected_evidence, rejection_reason,
 };
 use crate::gate_flow::{GateVerdict, rule_code};
 use crate::pass::Pass;
 use crate::pipeline::{ActionRequest, AskTicket, GateAnswer};
+use crate::pipeline_verify::{perform, verified_evidence, verify};
 use crate::runner::{GatedComputer, OpRejection, OpRejectionKind};
 use anybot_foundation::Clock;
 use anybot_protocol::{
@@ -77,7 +78,7 @@ impl RunStep {
             RunStep::Ask(ticket) => ActionRun {
                 gate: ticket.gate,
                 evidence: Vec::new(),
-                model: OutcomeText::of("gate-ask-pending", Vec::new()),
+                model: OutcomeText::of(crate::message_codes::CODE_GATE_ASK_PENDING, Vec::new()),
                 summary: pending_summary(&ticket.request),
             },
         }
@@ -86,10 +87,13 @@ impl RunStep {
 
 fn pending_summary(request: &ActionRequest) -> Summary {
     Summary {
-        status: OutcomeText::of("turn-awaiting-approval", Vec::new()),
+        status: OutcomeText::of(
+            crate::message_codes::CODE_TURN_AWAITING_APPROVAL,
+            Vec::new(),
+        ),
         action: request.context.tool.clone(),
         location: request.context.computer.clone(),
-        result: OutcomeText::of("tool-empty", Vec::new()),
+        result: OutcomeText::of(crate::message_codes::CODE_TOOL_EMPTY, Vec::new()),
         verification: None,
         evidence_numbers: Vec::new(),
     }
@@ -133,7 +137,7 @@ pub fn user_rejected_run(
 ) -> ActionRun {
     let params = vec![("action".to_owned(), action_label(&request.subject))];
     let reason = ReasonPayload {
-        code: "gate-user-rejected".to_owned(),
+        code: crate::message_codes::CODE_GATE_USER_REJECTED.to_owned(),
         params: params.clone(),
     };
     let evidence = rejected_evidence(&request.context, &gate, reason, clock);
@@ -175,27 +179,12 @@ pub fn executed_run(
     let op = perform(pass, &request.subject, computer);
     match op {
         Ok(result) => {
-            let evidence = build_evidence(&request.context, &gate, &result, clock);
+            let verification = verify(pass, &request.subject, &result, computer);
+            let evidence = verified_evidence(&request.context, &gate, &result, verification, clock);
             let model = view.result_text(&request.context.tool, &result);
             finish(gate, vec![evidence], model, &request.context)
         }
         Err(rejection) => failed_run(request, gate, &rejection, view, clock),
-    }
-}
-
-fn perform(
-    pass: &Pass,
-    subject: &ActionSubject,
-    computer: &dyn GatedComputer,
-) -> Result<ActualResult, OpRejection> {
-    match subject {
-        ActionSubject::Command { line, timeout_ms } => {
-            computer.run_command(pass, line, *timeout_ms)
-        }
-        ActionSubject::ReadFile { path } => computer.read_file(pass, &path.raw),
-        ActionSubject::WriteFile { path, content } => computer.write_file(pass, &path.raw, content),
-        ActionSubject::PathCheck { path } => computer.path_info(pass, &path.raw),
-        ActionSubject::Capabilities => computer.capabilities(pass),
     }
 }
 
@@ -210,7 +199,7 @@ fn failed_run(
         return unreachable_run(request, &gate, rejection, view);
     }
     let reason = rejection_reason(rejection);
-    let evidence = rejected_evidence(&request.context, &gate, reason.clone(), clock);
+    let evidence = failed_evidence(&request.context, &gate, reason.clone(), clock);
     let model = view.failure_text(rejection);
     finish(gate, vec![evidence], model, &request.context)
 }
@@ -223,7 +212,7 @@ fn unreachable_run(
 ) -> ActionRun {
     let summary = Summary {
         status: OutcomeText::of(
-            "turn-not-executed",
+            crate::message_codes::CODE_TURN_NOT_EXECUTED,
             vec![
                 (
                     "reason".to_owned(),
@@ -234,7 +223,7 @@ fn unreachable_run(
         ),
         action: action_label(&request.subject),
         location: request.context.computer.clone(),
-        result: OutcomeText::of("tool-empty", Vec::new()),
+        result: OutcomeText::of(crate::message_codes::CODE_TOOL_EMPTY, Vec::new()),
         verification: None,
         evidence_numbers: Vec::new(),
     };
@@ -272,10 +261,10 @@ pub fn finish(
 
 fn status_token(evidence: Option<&EvidenceRecord>) -> &'static str {
     match evidence.map(|e| e.outcome) {
-        Some(ActionOutcome::Completed) => "turn-completed",
-        Some(ActionOutcome::Failed) => "turn-failed",
-        Some(ActionOutcome::Rejected) => "turn-rejected",
-        Some(ActionOutcome::NotExecuted) | None => "turn-not-executed",
+        Some(ActionOutcome::Completed) => crate::message_codes::CODE_TURN_COMPLETED,
+        Some(ActionOutcome::Failed) => crate::message_codes::CODE_TURN_FAILED,
+        Some(ActionOutcome::Rejected) => crate::message_codes::CODE_TURN_REJECTED,
+        Some(ActionOutcome::NotExecuted) | None => crate::message_codes::CODE_TURN_NOT_EXECUTED,
     }
 }
 

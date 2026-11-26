@@ -16,6 +16,7 @@ pub mod lints;
 pub mod makefile_recipes;
 pub mod makefile_scan;
 pub mod nextest_config;
+pub mod passguard;
 pub mod redocly;
 pub mod suppressions;
 pub mod table;
@@ -41,6 +42,7 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
     out.extend(compiled::violations_at_repo(repo));
     out.extend(licensing::violations(repo));
     out.extend(nextest_config::violations(repo));
+    out.extend(passguard::violations(&files));
     out.extend(redocly::violations(repo));
     out.extend(workflows::violations(repo));
     out.extend(makefile_recipes::violations(repo));

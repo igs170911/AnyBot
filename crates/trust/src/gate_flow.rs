@@ -189,12 +189,16 @@ fn path_label(action: &GateAction) -> String {
 #[must_use]
 pub fn rule_code(rule: &str) -> String {
     match rule {
-        "sandbox-deny" => "gate-command-denied".to_owned(),
-        "private-file" => "gate-private-file".to_owned(),
-        "computer-no-sandbox" | "user-machine-no-sandbox" => "gate-no-sandbox".to_owned(),
-        "bot-machine-outside" => "gate-bot-machine-outside".to_owned(),
-        "user-machine-outside-write" => "gate-outside-write-denied".to_owned(),
-        _ => "gate-denied-by-rule".to_owned(),
+        "sandbox-deny" => crate::message_codes::CODE_GATE_COMMAND_DENIED.to_owned(),
+        "private-file" => crate::message_codes::CODE_GATE_PRIVATE_FILE.to_owned(),
+        "computer-no-sandbox" | "user-machine-no-sandbox" => {
+            crate::message_codes::CODE_GATE_NO_SANDBOX.to_owned()
+        }
+        "bot-machine-outside" => crate::message_codes::CODE_GATE_BOT_MACHINE_OUTSIDE.to_owned(),
+        "user-machine-outside-write" => {
+            crate::message_codes::CODE_GATE_OUTSIDE_WRITE_DENIED.to_owned()
+        }
+        _ => crate::message_codes::CODE_GATE_DENIED_BY_RULE.to_owned(),
     }
 }
 

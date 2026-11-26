@@ -66,6 +66,25 @@ pub enum MessageCode {
     ModelHandoffUnreachable,
     PushPayloadShort,
     PushKeyBase64,
+    GateCommandDenied,
+    GatePrivateFile,
+    GateNoSandbox,
+    GateBotMachineOutside,
+    GateOutsideWriteDenied,
+    GateDeniedByRule,
+    GateDenied,
+    GateUserRejected,
+    GateAskPending,
+    GatePassNotAuthorized,
+    TurnCompleted,
+    TurnFailed,
+    TurnRejected,
+    TurnNotExecuted,
+    TurnAwaitingApproval,
+    ToolEmpty,
+    ToolOperationFailed,
+    ToolComputerUnreachable,
+    ToolExecutionFailed,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -190,6 +209,37 @@ const TABLE: &[(MessageCode, &str)] = &[
     ),
     (MessageCode::PushPayloadShort, "push-payload-short"),
     (MessageCode::PushKeyBase64, "push-key-base64"),
+    (MessageCode::GateCommandDenied, "gate-command-denied"),
+    (MessageCode::GatePrivateFile, "gate-private-file"),
+    (MessageCode::GateNoSandbox, "gate-no-sandbox"),
+    (
+        MessageCode::GateBotMachineOutside,
+        "gate-bot-machine-outside",
+    ),
+    (
+        MessageCode::GateOutsideWriteDenied,
+        "gate-outside-write-denied",
+    ),
+    (MessageCode::GateDeniedByRule, "gate-denied-by-rule"),
+    (MessageCode::GateDenied, "gate-denied"),
+    (MessageCode::GateUserRejected, "gate-user-rejected"),
+    (MessageCode::GateAskPending, "gate-ask-pending"),
+    (
+        MessageCode::GatePassNotAuthorized,
+        "gate-pass-not-authorized",
+    ),
+    (MessageCode::TurnCompleted, "turn-completed"),
+    (MessageCode::TurnFailed, "turn-failed"),
+    (MessageCode::TurnRejected, "turn-rejected"),
+    (MessageCode::TurnNotExecuted, "turn-not-executed"),
+    (MessageCode::TurnAwaitingApproval, "turn-awaiting-approval"),
+    (MessageCode::ToolEmpty, "tool-empty"),
+    (MessageCode::ToolOperationFailed, "tool-operation-failed"),
+    (
+        MessageCode::ToolComputerUnreachable,
+        "tool-computer-unreachable",
+    ),
+    (MessageCode::ToolExecutionFailed, "tool-execution-failed"),
 ];
 
 impl MessageCode {

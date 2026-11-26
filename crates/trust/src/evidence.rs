@@ -71,7 +71,25 @@ pub fn rejected_evidence(
         clock,
         EvidenceKind::Approved,
         ActionOutcome::Rejected,
-        JudgementSource::You,
+        gate.source,
+        EvidencePayload::Rejected { reason },
+    )
+}
+
+#[must_use]
+pub fn failed_evidence(
+    context: &ActionContext,
+    gate: &GateRecord,
+    reason: ReasonPayload,
+    clock: &dyn Clock,
+) -> EvidenceRecord {
+    base_record(
+        context,
+        gate,
+        clock,
+        EvidenceKind::Approved,
+        ActionOutcome::Failed,
+        JudgementSource::ProgramCheck,
         EvidencePayload::Rejected { reason },
     )
 }
@@ -129,9 +147,15 @@ pub fn ungated_evidence(
 #[must_use]
 pub fn rejection_reason(rejection: &OpRejection) -> ReasonPayload {
     let code = match rejection.kind {
-        crate::runner::OpRejectionKind::PassNotAuthorized => "gate-pass-not-authorized",
-        crate::runner::OpRejectionKind::Unreachable => "tool-computer-unreachable",
-        crate::runner::OpRejectionKind::Operation => "tool-operation-failed",
+        crate::runner::OpRejectionKind::PassNotAuthorized => {
+            crate::message_codes::CODE_GATE_PASS_NOT_AUTHORIZED
+        }
+        crate::runner::OpRejectionKind::Unreachable => {
+            crate::message_codes::CODE_TOOL_COMPUTER_UNREACHABLE
+        }
+        crate::runner::OpRejectionKind::Operation => {
+            crate::message_codes::CODE_TOOL_OPERATION_FAILED
+        }
     };
     ReasonPayload {
         code: code.to_owned(),

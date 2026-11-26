@@ -62,7 +62,26 @@ export type MessageCode =
   "model-handoff-fallback" |
   "model-handoff-unreachable" |
   "push-payload-short" |
-  "push-key-base64";
+  "push-key-base64" |
+  "gate-command-denied" |
+  "gate-private-file" |
+  "gate-no-sandbox" |
+  "gate-bot-machine-outside" |
+  "gate-outside-write-denied" |
+  "gate-denied-by-rule" |
+  "gate-denied" |
+  "gate-user-rejected" |
+  "gate-ask-pending" |
+  "gate-pass-not-authorized" |
+  "turn-completed" |
+  "turn-failed" |
+  "turn-rejected" |
+  "turn-not-executed" |
+  "turn-awaiting-approval" |
+  "tool-empty" |
+  "tool-operation-failed" |
+  "tool-computer-unreachable" |
+  "tool-execution-failed";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -127,4 +146,23 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-handoff-unreachable",
   "push-payload-short",
   "push-key-base64",
+  "gate-command-denied",
+  "gate-private-file",
+  "gate-no-sandbox",
+  "gate-bot-machine-outside",
+  "gate-outside-write-denied",
+  "gate-denied-by-rule",
+  "gate-denied",
+  "gate-user-rejected",
+  "gate-ask-pending",
+  "gate-pass-not-authorized",
+  "turn-completed",
+  "turn-failed",
+  "turn-rejected",
+  "turn-not-executed",
+  "turn-awaiting-approval",
+  "tool-empty",
+  "tool-operation-failed",
+  "tool-computer-unreachable",
+  "tool-execution-failed",
 ];

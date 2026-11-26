@@ -164,3 +164,39 @@ fn test_depcheck_allows_harness_to_depend_on_foundation() {
     let m = meta(vec![pkg("test-harness", &["anybot-foundation"])]);
     assert_eq!(check_metadata_value(&m), Vec::<String>::new());
 }
+
+#[test]
+fn test_depcheck_blocks_runner_test_dependence_on_product_crates() {
+    let m = meta(vec![
+        pkg(
+            "runner-test",
+            &[
+                "test-harness",
+                "anybot-foundation",
+                "anybot-protocol",
+                "anybot-trust",
+                "anybot-runner",
+            ],
+        ),
+        pkg("anybot-runner", &["anybot-foundation"]),
+        pkg("anybot-trust", &["anybot-foundation"]),
+        pkg("anybot-protocol", &["anybot-foundation"]),
+        pkg("anybot-foundation", &[]),
+        pkg("test-harness", &["anybot-foundation"]),
+    ]);
+    let v = check_metadata_value(&m);
+    assert_eq!(v.len(), 2, "{v:?}");
+    assert!(
+        v.iter()
+            .any(|s| s.contains("runner-test depends on anybot-runner: the fake computer helper"))
+    );
+    assert!(v.iter().any(|s| s.contains("not in the allow list")));
+}
+
+#[test]
+fn test_depcheck_blocks_runner_test_as_a_normal_dependency() {
+    let m = meta(vec![pkg("anybot-trust", &["runner-test"])]);
+    let v = check_metadata_value(&m);
+    assert_eq!(v.len(), 1, "{v:?}");
+    assert!(v.iter().any(|s| s.contains("only as a dev dependency")));
+}
