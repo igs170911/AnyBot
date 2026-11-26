@@ -63,37 +63,57 @@ fn quick_postgres_violations(repo: &Path, content: &str) -> Vec<String> {
         ));
     }
     for root_name in ["tests", "apps", "crates"] {
-        let root = repo.join(root_name);
-        let Ok(entries) = std::fs::read_dir(&root) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let tests_dir = entry.path().join("tests");
-            let Ok(files) = std::fs::read_dir(&tests_dir) else {
-                continue;
-            };
-            for file in files.flatten() {
-                let Some(name) = file.file_name().to_str().map(str::to_owned) else {
-                    continue;
-                };
-                if !is_rust_source(&name) || name.starts_with("pg_") {
-                    continue;
-                }
-                let Ok(text) = read_file_lossy(&file.path()) else {
-                    continue;
-                };
-                if !text.contains("pg_start(") {
-                    continue;
-                }
-                let parent = entry.file_name();
-                let parent = parent.to_str().unwrap_or("?");
-                out.push(format!(
-                    "{root_name}/{parent}/tests/{name}: calls pg_start but is not named pg_*.rs (docs/testing.md)"
-                ));
-            }
-        }
+        scan_pg_start(&repo.join(root_name), repo, &mut out);
     }
     out
+}
+
+fn scan_pg_start(dir: &Path, repo: &Path, out: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if name == "target" || name == "node_modules" {
+                continue;
+            }
+            scan_pg_start(&path, repo, out);
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !is_rust_source(name) || name.starts_with("pg_") {
+            continue;
+        }
+        let Some(parent) = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+        else {
+            continue;
+        };
+        if parent != "tests" {
+            continue;
+        }
+        let Ok(text) = read_file_lossy(&path) else {
+            continue;
+        };
+        if !text.contains("pg_start(") {
+            continue;
+        }
+        let rel = match path.strip_prefix(repo) {
+            Ok(p) => p.display().to_string(),
+            Err(_) => name.to_owned(),
+        };
+        out.push(format!(
+            "{rel}: calls pg_start but is not named pg_*.rs (docs/testing.md)"
+        ));
+    }
 }
 
 fn section_body(content: &str, header: &str) -> Option<String> {

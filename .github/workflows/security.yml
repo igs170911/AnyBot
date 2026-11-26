@@ -44,7 +44,7 @@ jobs:
           cargo deny check advisories
 
       - name: pnpm
-        run: sudo npm install -g pnpm@12.23.0
+        run: sudo sh tools/install-pnpm.sh
 
       - name: install the web workspace
         run: pnpm install --frozen-lockfile

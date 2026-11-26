@@ -128,7 +128,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install -g pnpm@12.23.0
+          sh tools/install-pnpm.sh
           if ! command -v pnpm >/dev/null 2>&1 && command -v pnpm.cmd >/dev/null 2>&1; then
             printf 'PNPM=pnpm.cmd\n' >> "$GITHUB_ENV"
             pnpm.cmd --version

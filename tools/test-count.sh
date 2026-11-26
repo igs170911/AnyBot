@@ -22,7 +22,11 @@ if [ -z "$rust" ]; then
 fi
 pnpm_out="${3:-}"
 web=0
-if [ -n "$pnpm_out" ] && [ -f "$pnpm_out" ]; then
+if [ -n "$pnpm_out" ]; then
+  if [ ! -f "$pnpm_out" ]; then
+    echo "tests ran: missing web log $pnpm_out" >&2
+    exit 1
+  fi
   web="$(grep -E 'Tests +[0-9]+ passed' "$pnpm_out" | sed -n 's/.*Tests  *\([0-9][0-9]*\) passed.*/\1/p' | awk 'BEGIN { s = 0 } { s += $1 } END { print s + 0 }')"
 fi
 total=$((rust + web))

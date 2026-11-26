@@ -138,7 +138,7 @@ fn top_level_permission_violations(
 }
 
 fn permission_is_write(text: &str) -> bool {
-    text == "write"
+    text == "write" || text == "write-all"
 }
 
 fn permissions_grant_write(permissions: &serde_json::Value) -> bool {
@@ -218,7 +218,7 @@ fn script_injection_violations(
 }
 
 fn script_embeds_event_text(script: &str) -> bool {
-    const NEEDLES: [&str; 7] = [
+    const NEEDLES: [&str; 14] = [
         "github.event.pull_request.title",
         "github.event.pull_request.body",
         "github.event.comment.body",
@@ -226,6 +226,13 @@ fn script_embeds_event_text(script: &str) -> bool {
         "github.event.head_commit.message",
         "github.head_ref",
         "github.event.pull_request.head.ref",
+        "github.ref_name",
+        "github.event.ref",
+        "github.event.release.tag_name",
+        "github.event.workflow_dispatch.inputs",
+        "github.event.inputs",
+        "inputs.",
+        "github.event.workflow_call.inputs",
     ];
     for chunk in script.split("${{") {
         let Some(expr) = chunk.split("}}").next() else {
@@ -242,6 +249,12 @@ fn script_embeds_event_text(script: &str) -> bool {
 #[must_use]
 pub fn violations(repo: &Path) -> Vec<String> {
     let mut out = Vec::new();
+    if !repo.join(WORKFLOWS_REL).is_dir() {
+        out.push(format!(
+            "{WORKFLOWS_REL}: missing; workflow pins cannot be checked (spec/09 K110)"
+        ));
+        return out;
+    }
     for rel in workflow_rels(repo) {
         let Ok(text) = read_file_lossy(&repo.join(&rel)) else {
             out.push(format!("{rel}: cannot be read"));

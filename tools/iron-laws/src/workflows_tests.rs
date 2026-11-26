@@ -234,6 +234,34 @@ fn test_workflows_gate_accepts_event_text_passed_through_env() {
 }
 
 #[test]
+fn test_workflows_gate_blocks_write_all() {
+    let repo = scratch_repo("iron-workflows-write-all");
+    let body = "name: CI\non:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  check:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    permissions: write-all\n    steps:\n      - run: echo ok\n";
+    write_workflow(&repo, body);
+    let v = violations(&repo);
+    assert!(v.iter().any(|x| x.contains("write")), "{v:?}");
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
+fn test_workflows_gate_blocks_release_tag_name_in_run() {
+    let repo = scratch_repo("iron-workflows-tag-name");
+    let body = "name: CI\non:\n  release:\npermissions:\n  contents: read\njobs:\n  check:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n      - run: echo ${{ github.event.release.tag_name }}\n";
+    write_workflow(&repo, body);
+    let v = violations(&repo);
+    assert!(v.iter().any(|x| x.contains("title")), "{v:?}");
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
+fn test_workflows_gate_fails_when_workflows_dir_is_missing() {
+    let repo = scratch_repo("iron-workflows-missing-dir");
+    std::fs::remove_dir_all(repo.join(WORKFLOWS_REL)).unwrap();
+    let v = violations(&repo);
+    assert!(v.iter().any(|x| x.contains("missing")), "{v:?}");
+}
+
+#[test]
 fn test_workflows_real_repo_is_clean() {
     let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let v = violations(&repo);
