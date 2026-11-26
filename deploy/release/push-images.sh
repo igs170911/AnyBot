@@ -1,10 +1,14 @@
 #!/bin/sh
-# Push each native image by digest, then build the multi-arch tag from those digests.
+# Build the multi-arch index from digests the image jobs already pushed.
+# Those jobs use the registry exporter with oci-mediatypes=true. This script
+# does not docker load or docker push: save/load rewrites OCI to a Docker
+# manifest list, and index annotations are then rejected.
+# https://docs.docker.com/build/metadata/annotations/
+# https://docs.docker.com/build/exporters/image-registry/
 # Dev and stable never share a tag: dev names are dev- and dev-<commit>.
 # This script does not move :dev. The caller moves it only after the page swap.
 # Shared arch-* and :verify tags are not used: two publishes can overwrite them.
-# ANYBOT_DOCKER replaces docker in tests. Digests may be injected the same way.
-# Annotations require an OCI index. Docker manifest lists reject them.
+# ANYBOT_DOCKER replaces docker in tests.
 # https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/
 set -eu
 docker="${ANYBOT_DOCKER:-docker}"
@@ -22,53 +26,36 @@ if [ "${CHANNEL:-}" = "dev" ]; then
       ;;
   esac
 fi
-dir="${IMAGE_DIR:-target/image-parts}"
-amd64="$(find "$dir" -name 'amd64.tar' -type f | head -n 1)"
-arm64="$(find "$dir" -name 'arm64.tar' -type f | head -n 1)"
-if [ -z "$amd64" ] || [ -z "$arm64" ]; then
-  echo "missing a native image tar (amd64=$amd64 arm64=$arm64)" >&2
-  exit 1
-fi
+dir="${IMAGE_DIR:-target/image-digests}"
 
-push_one() {
-  tar="$1"
+read_digest() {
+  arch="$1"
   injected="$2"
-  name="$3"
   if [ -n "$injected" ]; then
     printf '%s\n' "$injected"
     return
   fi
-  # The tar keeps the runner-local tag from the build job. Retag to a name that
-  # includes this commit, push that, and keep only the digest the registry returns.
-  loaded="$("$docker" load -i "$tar")"
-  ref="$(printf '%s\n' "$loaded" | sed -n 's/^Loaded image: //p' | head -n 1)"
-  if [ -z "$ref" ]; then
-    ref="$(printf '%s\n' "$loaded" | sed -n 's/^Loaded image ID: //p' | head -n 1)"
-  fi
-  if [ -z "$ref" ]; then
-    echo "docker load did not name an image" >&2
+  file="$(find "$dir" -name "${arch}.digest" -type f | head -n 1)"
+  if [ -z "$file" ]; then
+    echo "missing ${arch} digest file" >&2
     exit 1
   fi
-  "$docker" tag "$ref" "$name"
-  # Quiet mode is not documented to print the digest. The normal line is
-  # "<tag>: digest: sha256:..." (docs.docker.com/reference/cli/docker/image/push).
-  pushed="$("$docker" push "$name")"
-  printf '%s\n' "$pushed" | sed -n 's/.*digest: //p' | awk '{print $1; exit}'
+  tr -d '[:space:]' < "$file"
 }
 
-amd64_digest="$(push_one "$amd64" "${AMD64_DIGEST:-}" "${image}:${prefix}amd64-${short}")"
-arm64_digest="$(push_one "$arm64" "${ARM64_DIGEST:-}" "${image}:${prefix}arm64-${short}")"
+amd64_digest="$(read_digest amd64 "${AMD64_DIGEST:-}")"
+arm64_digest="$(read_digest arm64 "${ARM64_DIGEST:-}")"
 case "$amd64_digest" in
   sha256:*) ;;
   *)
-    echo "amd64 push did not return a digest ($amd64_digest)" >&2
+    echo "amd64 digest is not sha256 ($amd64_digest)" >&2
     exit 1
     ;;
 esac
 case "$arm64_digest" in
   sha256:*) ;;
   *)
-    echo "arm64 push did not return a digest ($arm64_digest)" >&2
+    echo "arm64 digest is not sha256 ($arm64_digest)" >&2
     exit 1
     ;;
 esac
@@ -79,10 +66,9 @@ index_tag="${image}:${prefix}${short}"
 # Dev does not apply :dev here. The caller moves it only after the page swap.
 # Stable applies the version tag in this same create, so the draft's image
 # exists before anyone publishes the Release. :latest stays with the caller.
-# Sources must already be OCI. A Docker manifest list rejects index annotations
-# (docs.docker.com/reference/cli/docker/buildx/imagetools/create/). The image
-# job sets oci-mediatypes=true on the docker exporter. imagetools create has
-# no format flag. Repeating --tag attaches every name to one index.
+# Sources must already be OCI. A Docker manifest list rejects index annotations.
+# imagetools create has no format flag. Repeating --tag attaches every name
+# to one index.
 version_tag=""
 if [ -z "$prefix" ]; then
   case "$moving" in
@@ -114,4 +100,4 @@ esac
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
 fi
-echo "pushed ${index_tag} ${digest}"
+echo "indexed ${index_tag} ${digest}"
