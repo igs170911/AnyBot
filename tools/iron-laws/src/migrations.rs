@@ -1,15 +1,26 @@
 use std::path::Path;
 
 use crate::collect::read_file_lossy;
+use crate::migrations_rules::statement_violations;
+use crate::migrations_text::statements;
+use crate::migrations_text::strip_sql_comments;
 
-pub const SERVER_MIGRATIONS_REL: &str = "migrations/server";
+pub const MIGRATION_DIRS: [&str; 2] = ["migrations/server", "migrations/client"];
 
 #[must_use]
 pub fn violations(repo: &Path) -> Vec<String> {
-    let dir = repo.join(SERVER_MIGRATIONS_REL);
+    let mut out = Vec::new();
+    for rel_dir in MIGRATION_DIRS {
+        out.extend(dir_violations(repo, rel_dir));
+    }
+    out
+}
+
+fn dir_violations(repo: &Path, rel_dir: &str) -> Vec<String> {
+    let dir = repo.join(rel_dir);
     let Ok(entries) = std::fs::read_dir(&dir) else {
         return vec![format!(
-            "{SERVER_MIGRATIONS_REL}: cannot be read; server migrations must stay additive"
+            "{rel_dir}: cannot be read; migrations must stay additive (spec/09 K118 6)"
         )];
     };
     let mut files = Vec::new();
@@ -25,101 +36,21 @@ pub fn violations(repo: &Path) -> Vec<String> {
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        let rel = format!("{SERVER_MIGRATIONS_REL}/{name}");
-        let Ok(content) = read_file_lossy(&path) else {
-            out.push(format!("{rel}: cannot be read"));
-            continue;
-        };
-        out.extend(file_violations(&rel, &content));
+        let rel = format!("{rel_dir}/{name}");
+        match read_file_lossy(&path) {
+            Ok(content) => out.extend(file_violations(&rel, &content)),
+            Err(e) => out.push(e),
+        }
     }
     out
 }
 
 #[must_use]
 pub fn file_violations(rel: &str, content: &str) -> Vec<String> {
-    let mut out = Vec::new();
     let stripped = strip_sql_comments(content);
-    for (index, line) in stripped.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let number = index.saturating_add(1);
-        if is_drop(trimmed) {
-            out.push(format!(
-                "{rel}:{number}: migration drops an object; migrations only add (server-boot S3)"
-            ));
-        }
-        if alters_column_type(trimmed) {
-            out.push(format!(
-                "{rel}:{number}: migration changes a column type; migrations only add (server-boot S3)"
-            ));
-        }
-        if required_column_without_default(trimmed) {
-            out.push(format!(
-                "{rel}:{number}: new required column has no default; old servers could not write it (server-boot S3)"
-            ));
-        }
-    }
-    out
-}
-
-fn is_drop(line: &str) -> bool {
-    let upper = line.to_ascii_uppercase();
-    upper
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .any(|word| word == "DROP")
-}
-
-fn alters_column_type(line: &str) -> bool {
-    let upper = line.to_ascii_uppercase();
-    upper.contains("ALTER") && (upper.contains(" TYPE ") || upper.contains(" SET DATA TYPE"))
-}
-
-fn required_column_without_default(line: &str) -> bool {
-    let upper = line.to_ascii_uppercase();
-    if !upper.contains("ADD") || !upper.contains("COLUMN") || !upper.contains("NOT NULL") {
-        return false;
-    }
-    if upper.contains("PRIMARY KEY") {
-        return false;
-    }
-    !upper.contains("DEFAULT")
-}
-
-fn strip_sql_comments(content: &str) -> String {
-    let mut out = String::with_capacity(content.len());
-    let bytes = content.as_bytes();
-    let mut i = 0usize;
-    while i < bytes.len() {
-        if bytes.get(i) == Some(&b'-') && bytes.get(i.saturating_add(1)) == Some(&b'-') {
-            while bytes.get(i).is_some_and(|b| *b != b'\n') {
-                i = i.saturating_add(1);
-            }
-            continue;
-        }
-        if bytes.get(i) == Some(&b'\'') {
-            out.push('\'');
-            i = i.saturating_add(1);
-            while let Some(b) = bytes.get(i) {
-                out.push(char::from(*b));
-                i = i.saturating_add(1);
-                if *b == b'\'' {
-                    if bytes.get(i) == Some(&b'\'') {
-                        out.push('\'');
-                        i = i.saturating_add(1);
-                        continue;
-                    }
-                    break;
-                }
-            }
-            continue;
-        }
-        let Some(byte) = bytes.get(i) else {
-            break;
-        };
-        out.push(char::from(*byte));
-        i = i.saturating_add(1);
+    let mut out = Vec::new();
+    for statement in statements(&stripped) {
+        out.extend(statement_violations(rel, &statement));
     }
     out
 }
@@ -130,57 +61,121 @@ mod tests {
 
     use super::*;
 
-    fn scratch_repo(name: &str) -> PathBuf {
+    fn scratch_repo(name: &str, rel_dir: &str) -> PathBuf {
         let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../target/scratch")
             .join(name);
-        std::fs::create_dir_all(repo.join(SERVER_MIGRATIONS_REL)).unwrap();
+        std::fs::create_dir_all(repo.join(rel_dir)).unwrap();
         repo
     }
 
-    #[test]
-    fn test_migration_gate_reads_sql_files_in_the_server_dir() {
-        let repo = scratch_repo("iron-migrations-drop");
-        let sql = repo.join(SERVER_MIGRATIONS_REL).join("0009_drops.sql");
-        std::fs::write(&sql, "ALTER TABLE notes DROP COLUMN kept;\n").unwrap();
-        let found = violations(&repo);
-        let _removed = std::fs::remove_dir_all(&repo);
-        assert_eq!(found.len(), 1, "{found:?}");
-        assert!(found.iter().any(|line| line.contains("drops")), "{found:?}");
-    }
-
-    #[test]
-    fn test_migration_gate_blocks_drop_type_change_and_required_column() {
-        let sql = "\
-ALTER TABLE idempotency DROP CONSTRAINT idempotency_pkey;
-ALTER TABLE auth_events ALTER COLUMN at_ms TYPE BIGINT;
-ALTER TABLE idempotency ADD COLUMN scope TEXT NOT NULL;
--- DROP TABLE kept_in_comment
-CREATE TABLE notes (id BIGINT PRIMARY KEY);
-";
+    fn blocked(reason: &str, sql: &str) {
         let found = file_violations("migrations/server/fixture.sql", sql);
-        assert_eq!(found.len(), 3, "{found:?}");
-        assert!(found.iter().any(|line| line.contains("drops")), "{found:?}");
         assert!(
-            found.iter().any(|line| line.contains("column type")),
+            found.iter().any(|line| line.contains(reason)),
+            "expected {reason} in {found:?}"
+        );
+    }
+
+    #[test]
+    fn test_migration_gate_reads_sql_files_in_both_dirs() {
+        let repo = scratch_repo("iron-migrations-dirs", "migrations/client");
+        let sql = repo.join("migrations/client").join("0009_drops.sql");
+        std::fs::write(&sql, "DROP TABLE notes;\n").unwrap();
+        let found = violations(&repo);
+        assert!(
+            found
+                .iter()
+                .any(|line| line.contains("migrations/client/0009_drops.sql")),
             "{found:?}"
         );
         assert!(
-            found.iter().any(|line| line.contains("no default")),
+            found.iter().any(|line| line.contains("migrations/server")),
             "{found:?}"
         );
     }
 
     #[test]
-    fn test_migration_gate_allows_additive_statements() {
+    fn test_migration_gate_blocks_every_forbidden_shape() {
+        blocked("drops an object", "ALTER TABLE t DROP COLUMN c;\n");
+        blocked("drops an object", "DROP INDEX t_i;\n");
+        blocked("drops an object", "ALTER TABLE t DROP CONSTRAINT t_c;\n");
+        blocked(
+            "drops an object",
+            "ALTER TABLE t ALTER COLUMN c DROP DEFAULT;\n",
+        );
+        blocked(
+            "drops an object",
+            "ALTER TABLE t ALTER COLUMN c DROP NOT NULL;\n",
+        );
+        blocked("renames", "ALTER TABLE t RENAME TO u;\n");
+        blocked("renames", "ALTER TABLE t RENAME COLUMN a TO b;\n");
+        blocked(
+            "changes a column type",
+            "ALTER TABLE t ALTER COLUMN c TYPE BIGINT;\n",
+        );
+        blocked(
+            "changes a column type",
+            "ALTER TABLE t ALTER COLUMN c SET DATA TYPE TEXT;\n",
+        );
+        blocked(
+            "required column with no default",
+            "ALTER TABLE t ADD COLUMN c TEXT NOT NULL;\n",
+        );
+        blocked(
+            "makes an existing column required",
+            "ALTER TABLE t ALTER COLUMN c SET NOT NULL;\n",
+        );
+        blocked("constraint", "ALTER TABLE t ADD CONSTRAINT u UNIQUE (a);\n");
+        blocked("constraint", "ALTER TABLE t ADD PRIMARY KEY (a);\n");
+        blocked("constraint", "ALTER TABLE t ADD UNIQUE (a);\n");
+        blocked(
+            "constraint",
+            "ALTER TABLE t ADD COLUMN b BIGINT REFERENCES u (id) NOT NULL DEFAULT 0;\n",
+        );
+        blocked("constraint", "ALTER TABLE t ADD CHECK (a > 0);\n");
+        blocked(
+            "constraint",
+            "ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u (id);\n",
+        );
+        blocked(
+            "constraint",
+            "ALTER TABLE t ADD COLUMN b BIGINT REFERENCES u (id);\n",
+        );
+        blocked("unique index", "CREATE UNIQUE INDEX t_a_idx ON t (a);\n");
+        blocked("removes data", "UPDATE t SET a = 1;\n");
+        blocked("removes data", "DELETE FROM t WHERE a = 1;\n");
+        blocked("removes data", "TRUNCATE TABLE t;\n");
+        blocked("allow list", "CREATE SEQUENCE t_seq;\n");
+        blocked("allow list", "GRANT SELECT ON t TO anyone;\n");
+        blocked("non-adding clause", "ALTER TABLE t OWNER TO admin;\n");
+    }
+
+    #[test]
+    fn test_migration_gate_allows_the_permitted_shapes() {
         let sql = "\
-CREATE TABLE auth_events (
-    id BIGSERIAL PRIMARY KEY,
-    kind TEXT NOT NULL,
-    address TEXT NOT NULL
+CREATE TABLE notes (
+    id BIGINT PRIMARY KEY,
+    kind TEXT NOT NULL UNIQUE,
+    owner BIGINT REFERENCES accounts (id) CHECK (kind <> ''),
+    type TEXT
 );
-ALTER TABLE idempotency ADD COLUMN scope TEXT NOT NULL DEFAULT '';
-CREATE INDEX auth_events_account_order_idx ON auth_events (kind, account, id);
+CREATE INDEX notes_kind_idx ON notes (kind);
+ALTER TABLE notes ADD COLUMN note TEXT;
+ALTER TABLE notes ADD COLUMN note2 TEXT NOT NULL DEFAULT '';
+INSERT INTO notes (id, kind) VALUES (1, 'seed');
+INSERT INTO notes (id, kind) VALUES (2, 'drop table is just text');
+";
+        let found = file_violations("migrations/server/0001_init.sql", sql);
+        assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn test_migration_gate_ignores_words_in_comments_and_strings() {
+        let sql = "\
+-- DROP TABLE notes
+/* UPDATE notes SET x = 1 */
+INSERT INTO notes (id, kind) VALUES (1, 'DELETE FROM notes');
 ";
         let found = file_violations("migrations/server/0001_init.sql", sql);
         assert!(found.is_empty(), "{found:?}");

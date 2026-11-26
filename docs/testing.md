@@ -101,6 +101,7 @@ anybot-context
 anybot-models
 anybot-server
 api-docs
+api-compat
 anybot-versions
 depcheck
 iron-laws

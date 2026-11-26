@@ -77,6 +77,7 @@ fn runner_deps() -> Vec<&'static str> {
 fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert("depcheck".to_owned(), BTreeSet::new());
     m.insert("spec-trace".to_owned(), BTreeSet::new());
+    m.insert("api-compat".to_owned(), BTreeSet::new());
     m.insert("iron-laws".to_owned(), BTreeSet::new());
     m.insert(
         "test-harness".to_owned(),
@@ -189,6 +190,7 @@ pub fn packages_allowed_exemptions() -> BTreeSet<String> {
         "anybot-store-client",
         "depcheck",
         "spec-trace",
+        "api-compat",
         "iron-laws",
         "api-docs",
         "locale-gen",

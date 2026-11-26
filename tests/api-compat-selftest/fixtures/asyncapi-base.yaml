@@ -1,0 +1,14 @@
+asyncapi: "3.0.0"
+info:
+  title: fixture protocol
+  version: "1"
+channels:
+  info:
+    messages:
+      info:
+        payload:
+          content:
+            application/json:
+              properties:
+                text:
+                  type: string

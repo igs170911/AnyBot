@@ -17,7 +17,8 @@ fn repo_root() -> PathBuf {
 }
 
 fn main() -> ExitCode {
-    let violations = iron_laws::run(&repo_root());
+    let git_ref = std::env::args().nth(1).unwrap_or_else(|| "HEAD".to_owned());
+    let violations = iron_laws::run(&repo_root(), &git_ref);
     let mut stdout = std::io::stdout();
     for v in &violations {
         if writeln!(stdout, "{v}").is_err() {

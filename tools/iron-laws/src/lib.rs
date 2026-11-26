@@ -17,6 +17,9 @@ pub mod lints;
 pub mod makefile_recipes;
 pub mod makefile_scan;
 pub mod migrations;
+pub mod migrations_committed;
+pub mod migrations_rules;
+pub mod migrations_text;
 pub mod nextest_config;
 pub mod permit_block;
 pub mod redocly;
@@ -30,7 +33,7 @@ pub mod workflows;
 use std::path::Path;
 
 #[must_use]
-pub fn all_violations(repo: &Path) -> Vec<String> {
+pub fn all_violations(repo: &Path, git_ref: &str) -> Vec<String> {
     let files = collect::source_files(repo);
     let mut out = suppressions::violations(&files);
     out.extend(comments::violations(&files));
@@ -53,11 +56,12 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
     out.extend(workflows::violations(repo));
     out.extend(makefile_recipes::violations(repo));
     out.extend(migrations::violations(repo));
+    out.extend(migrations_committed::violations(repo, git_ref));
     out.sort();
     out
 }
 
 #[must_use]
-pub fn run(repo: &Path) -> Vec<String> {
-    all_violations(repo)
+pub fn run(repo: &Path, git_ref: &str) -> Vec<String> {
+    all_violations(repo, git_ref)
 }

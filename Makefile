@@ -6,6 +6,7 @@ CARGO ?= cargo
 PNPM ?= pnpm
 SHELL := /bin/bash -o pipefail
 NEXTTEST := $(shell command -v cargo-nextest 2>/dev/null)
+OASDIFF := $(shell command -v oasdiff 2>/dev/null)
 
 # sqlx compile-time queries build from the committed .sqlx metadata; the live database url reaches sqlx-cli only through the sqlx-prepare target.
 export SQLX_OFFLINE := true
@@ -23,17 +24,17 @@ SPEC_TRACE_REF ?= HEAD
 
 .PHONY: check check-fast fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline sqlx-prepare sqlx-check \
 	ironlaws gitleaks versions actionlint ts-install ts-biome ts-typecheck ts-test ts-build \
-	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
+	api-docs api-lint api-client api-html api-compat api-compat-selftest api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
 	_test-body _test-fast-body _test-basic-body _e2e-body gate-selftest \
 	locale locale-refresh release-selftest
 
 check: fmt clippy gate-selftest test deny machete depcheck sqlx-check spec-trace ironlaws gitleaks versions actionlint locale release-selftest \
-	api-docs api-lint api-client api-html api-compat api-lint-selftest \
+	api-docs api-lint api-client api-html api-compat api-compat-selftest api-lint-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
 # fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
-check-fast: fmt clippy gate-selftest test-fast depcheck sqlx-check ironlaws versions locale api-docs api-lint api-client api-html api-lint-selftest ts-licenses ts-biome
+check-fast: fmt clippy gate-selftest test-fast depcheck sqlx-check ironlaws versions locale api-docs api-lint api-client api-html api-compat api-compat-selftest api-lint-selftest ts-licenses ts-biome
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -117,7 +118,7 @@ spec-trace:
 	$(CARGO) run --locked -p spec-trace -- --against $(SPEC_TRACE_REF)
 
 ironlaws:
-	$(CARGO) run --locked -p iron-laws
+	$(CARGO) run --locked -p iron-laws -- $(SPEC_TRACE_REF)
 
 versions:
 	$(CARGO) run --locked -p anybot-versions
@@ -229,11 +230,21 @@ api-html:
 	$(PNPM) exec redocly build-docs api/asyncapi.yaml -o target/api/docs/asyncapi.html
 	diff api/docs/asyncapi.html target/api/docs/asyncapi.html
 
-# compatibility check (spec/02 section 8): compare against the committed version in git; breaking changes block.
+# compatibility check (spec/02 section 8, spec/09 K118 6): compare the committed baselines
+# with the comparison ref; breaking changes block; a regenerated baseline must carry a dated
+# record of the destructive change and its reason in api/breaking-changes.log.
 api-compat:
 	mkdir -p target/api
-	@if git cat-file -e $(SPEC_TRACE_REF):api/openapi.yaml 2>/dev/null; then \
-		git show $(SPEC_TRACE_REF):api/openapi.yaml > target/api/baseline.yaml \
-		&& $(CARGO) run --locked -p api-docs -- openapi target/api/fresh.yaml \
-		&& oasdiff breaking target/api/baseline.yaml target/api/fresh.yaml -o ERR; \
-	fi
+ifdef OASDIFF
+	$(CARGO) run --locked -p api-docs -- openapi target/api/fresh.yaml
+	$(CARGO) run --locked -p api-docs -- asyncapi target/api/fresh-asyncapi.yaml
+	@oasdiff breaking target/api/fresh.yaml api/openapi.yaml --format markdown || true
+	@oasdiff breaking target/api/fresh-asyncapi.yaml api/asyncapi.yaml --format markdown || true
+endif
+	$(CARGO) run --locked -p api-compat -- --against $(SPEC_TRACE_REF) --repo .
+
+# selftest of the gate above: fixtures cover breaking changes, regenerated baselines
+# without a record, and a record that matches (spec/09 K86).
+api-compat-selftest:
+	@mkdir -p target
+	@bash tests/api-compat-selftest/selftest.sh

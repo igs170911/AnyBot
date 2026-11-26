@@ -1,0 +1,22 @@
+[package]
+publish = false
+name = "api-compat"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "API and protocol compatibility gate against the committed baselines (spec/05 section 2, spec/09 K118 6)"
+
+[[bin]]
+name = "api-compat"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+yaml_serde = { workspace = true }
+
+[lints]
+workspace = true
+

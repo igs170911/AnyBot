@@ -69,6 +69,7 @@ fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>
     let tool_types = &[CMD_T[0], FS_T[0], FS_T[1], FS_T[2]];
     insert(m, "depcheck", &tool_methods, tool_types);
     insert(m, "spec-trace", &tool_methods, tool_types);
+    insert(m, "api-compat", &tool_methods, tool_types);
     insert(m, "iron-laws", &tool_methods, tool_types);
     insert(m, "locale-gen", &tool_methods, tool_types);
     insert(m, "api-docs", &FS_STD_M, &[FS_T[0], FS_T[1], FS_T[2]]);
