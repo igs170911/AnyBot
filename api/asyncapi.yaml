@@ -290,6 +290,7 @@ components:
       type: string
     BudgetItem:
       enum:
+      - steps
       - tool_calls
       - turns
       - elapsed

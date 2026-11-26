@@ -7,7 +7,7 @@ use anybot_protocol::{TaskEvent, TaskEventKind};
 use crate::task_engine::advance;
 use crate::task_view::{TaskView, initial_view};
 
-pub const SNAPSHOT_FORMAT_VERSION: u32 = 1;
+pub const SNAPSHOT_FORMAT_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReplayGap {
@@ -27,6 +27,7 @@ pub fn fold(view: &mut TaskView, events: &[TaskEvent], seen: &mut BTreeSet<Strin
             continue;
         }
         if let TaskEventKind::Known(known) = &event.kind {
+            crate::task_budget::note_time(view, event.at_ms, known);
             advance(view, known);
         }
     }

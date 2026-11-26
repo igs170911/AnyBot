@@ -7,13 +7,11 @@ use crate::task_view::{CriterionItem, PendingProposal, TaskView};
 pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
     match event {
         KnownTaskEventKind::BudgetUsage { item, delta } => {
-            view.budget.add_usage(*item, *delta);
-            crate::task_budget::refresh_budget_status(view);
+            crate::task_budget::note_usage(view, *item, *delta);
             true
         }
         KnownTaskEventKind::BudgetLimit { item, limit } => {
-            view.budget.limits.insert(*item, *limit);
-            crate::task_budget::refresh_budget_status(view);
+            crate::task_budget::apply_limit(view, *item, *limit);
             true
         }
         KnownTaskEventKind::TaskCreated { .. }
