@@ -88,20 +88,31 @@ testenv
 live-model
 -->
 
-**編了，但不跑測試。** 產品套件，編譯那一步照樣編（`--lib --bins`，本機套件的 lint 警告用 `CARGO_BUILD_WARNINGS=deny` 當錯誤）。它們的測試相依有 `test-harness`，cargo 跑單元測試時一定會把測試工具編進來，所以 Windows 上不跑它們的測試。`--lib --bins` 也不跑 `apps/*/tests/`、`crates/*/tests/` 的整合測試。
+**編了，但不跑測試。** 編譯那一步照樣編（`--lib --bins`，本機套件的 lint 警告用 `CARGO_BUILD_WARNINGS=deny` 當錯誤）。兩類：
+
+- 產品套件（`crates/`、`apps/`）的相依圖（正式相依或開發相依，含間接）連得到 `test-harness`。cargo 跑單元測試時一定會把測試工具編進來，所以 Windows 上不跑它們的測試。
+- `tools/` 底下的規則檢查程式。它們不是產品，只在 Linux 的完整檢查裡跑。Windows 上編得過（編譯那一步要抓 Windows 專用的警告），但測試會用路徑分隔符號找檔案而失敗。不要為了 Windows 去改這些工具的路徑處理。
+
+`--lib --bins` 也不跑 `apps/*/tests/`、`crates/*/tests/` 的整合測試。
 
 <!-- windows-no-test
 anybot-app-server
 anybot-models
 anybot-server
+api-docs
+anybot-versions
+depcheck
+iron-laws
+locale-gen
+spec-trace
 -->
 
-iron-laws 對第二份清單：產品套件的 `[dev-dependencies]` 有 `test-harness` 卻不在清單裡 → 擋；清單裡的套件沒有那個相依 → 也擋。
+iron-laws 對第二份清單：用 `cargo metadata` 的套件相依圖算，不讀 `Cargo.toml` 文字。產品套件連得到 `test-harness` 卻不在清單裡 → 擋；清單裡的產品套件連不到 → 也擋。`tools/` 的每個套件都必須在清單裡。點號寫法、子表、只在某個平台的區段、經過 `testenv` 或 `live-model` 的間接相依，都算在圖裡。
 
 | 跑 | 不跑 |
 |---|---|
-| `crates/` 全部、`apps/` 全部的函式庫和執行檔 | `windows-skip` 裡的套件 |
-| 測試相依沒有測試工具的產品套件的單元測試 | `windows-no-test` 裡的套件的測試，以及整合測試 |
+| `crates/`、`apps/`、`tools/` 的函式庫和執行檔 | `windows-skip` 裡的套件 |
+| 相依圖連不到測試工具的產品套件的單元測試 | `windows-no-test` 裡的套件的測試，以及整合測試 |
 | `pnpm -r test` | Playwright、需要 PostgreSQL 的測試 |
 
 macOS 和 Linux 的基本測試仍是 `make test-basic`：`quick` 設定（不含 `pg_` 開頭的測試）加 `pnpm -r test`。Linux 的 `make check` 跑全部，包括 PostgreSQL。
