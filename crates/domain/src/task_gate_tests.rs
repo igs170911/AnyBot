@@ -1,8 +1,8 @@
 use anybot_foundation::CallId;
 use anybot_foundation::SystemClock;
 use anybot_protocol::{
-    BudgetItem, CheckSource, Criterion, DoneWhenChange, KnownTaskEventKind, Proposer, TaskDetail,
-    TaskStatus, ToolEffect,
+    CheckSource, Criterion, DoneWhenChange, KnownTaskEventKind, Proposer, TaskDetail, TaskStatus,
+    ToolEffect,
 };
 
 use crate::task_engine::advance;
@@ -174,47 +174,39 @@ fn t_task_done_gate_5() {
 
 #[test]
 fn t_task_done_gate_6() {
-    let mut view = initial_view();
-    advance(
-        &mut view,
-        &KnownTaskEventKind::TaskCreated {
+    let set = DoneWhenChange::SetItems {
+        items: vec![
+            Criterion::FileExists {
+                path: "a".to_owned(),
+            },
+            Criterion::FileExists {
+                path: "b".to_owned(),
+            },
+        ],
+    };
+    let view = drive(&[
+        KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
         },
-    );
-    advance(
-        &mut view,
-        &KnownTaskEventKind::BudgetLimit {
-            item: BudgetItem::ToolCalls,
-            limit: 10,
+        KnownTaskEventKind::DoneWhenChange {
+            by: Proposer::User,
+            change: set,
+            before: vec![],
+            after: vec![],
+            reason: "set".to_owned(),
         },
-    );
-    for _ in 0..10 {
-        let c = call();
-        advance(
-            &mut view,
-            &KnownTaskEventKind::ToolIntent {
-                call_id: c,
-                name: "n".to_owned(),
-                args_summary: "a".to_owned(),
-                level: ToolEffect::ReadOnly,
+        KnownTaskEventKind::DoneWhenChange {
+            by: Proposer::Bot,
+            change: DoneWhenChange::AddItem {
+                item: Criterion::CommandExitZero {
+                    command: "make test".to_owned(),
+                },
             },
-        );
-        advance(&mut view, &KnownTaskEventKind::ToolStarted { call_id: c });
-    }
-    assert_eq!(view.status, TaskStatus::Stuck);
-    advance(
-        &mut view,
-        &KnownTaskEventKind::BudgetLimit {
-            item: BudgetItem::ToolCalls,
-            limit: 12,
+            before: vec![],
+            after: vec![],
+            reason: "more checks".to_owned(),
         },
-    );
-    assert_eq!(view.status, TaskStatus::Running);
-    advance(
-        &mut view,
-        &KnownTaskEventKind::TurnEnded {
-            reply_delivered: true,
-        },
-    );
-    assert_eq!(view.status, TaskStatus::Completed);
+    ]);
+    assert_eq!(view.criteria.len(), 3);
+    assert!(view.pending_proposals.is_empty());
 }

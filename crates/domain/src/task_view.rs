@@ -22,20 +22,73 @@ pub struct PendingProposal {
     pub reason: String,
 }
 
+pub const DEFAULT_STEPS_LIMIT: u64 = 300;
+pub const DEFAULT_TOOL_CALLS_LIMIT: u64 = 600;
+pub const DEFAULT_ELAPSED_SECS_LIMIT: u64 = 4 * 3600;
+pub const TURN_STEP_GUARD: u64 = 50_000;
+pub const UNLIMITED: u64 = u64::MAX;
+pub const ROUND_ITEMS: [BudgetItem; 3] = [
+    BudgetItem::Steps,
+    BudgetItem::ToolCalls,
+    BudgetItem::Elapsed,
+];
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BudgetOver {
+    pub item: BudgetItem,
+    pub used: u64,
+    pub limit: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BudgetState {
+    #[serde(default = "default_limits")]
     pub limits: BTreeMap<BudgetItem, u64>,
+    #[serde(default)]
     pub usage: BTreeMap<BudgetItem, u64>,
+    #[serde(default)]
+    pub explicit: BTreeSet<BudgetItem>,
+    #[serde(default)]
+    pub over: Option<BudgetOver>,
+    #[serde(default)]
+    pub round_baseline: BTreeMap<BudgetItem, u64>,
+    #[serde(default)]
+    pub turn_steps: u64,
+    #[serde(default)]
     pub step_fails: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub turn_start_ms: Option<u64>,
+    #[serde(default)]
+    pub turn_paused_ms: u64,
+    #[serde(default)]
+    pub card_start_ms: Option<u64>,
+    #[serde(default)]
+    pub last_ms: u64,
+}
+
+fn default_limits() -> BTreeMap<BudgetItem, u64> {
+    let mut limits = BTreeMap::new();
+    limits.insert(BudgetItem::Steps, DEFAULT_STEPS_LIMIT);
+    limits.insert(BudgetItem::ToolCalls, DEFAULT_TOOL_CALLS_LIMIT);
+    limits.insert(BudgetItem::Elapsed, DEFAULT_ELAPSED_SECS_LIMIT);
+    limits
 }
 
 impl BudgetState {
     #[must_use]
     pub fn new() -> Self {
         BudgetState {
-            limits: BTreeMap::new(),
+            limits: default_limits(),
             usage: BTreeMap::new(),
+            explicit: BTreeSet::new(),
+            over: None,
+            round_baseline: BTreeMap::new(),
+            turn_steps: 0,
             step_fails: BTreeMap::new(),
+            turn_start_ms: None,
+            turn_paused_ms: 0,
+            card_start_ms: None,
+            last_ms: 0,
         }
     }
 
@@ -51,28 +104,11 @@ impl BudgetState {
     }
 
     #[must_use]
-    pub fn over_item(&self, item: BudgetItem) -> Option<(u64, u64)> {
-        let limit = self.limits.get(&item).copied()?;
-        let used = self.used(item);
-        if used >= limit {
-            return Some((used, limit));
-        }
-        None
-    }
-
-    #[must_use]
-    pub fn first_over(&self) -> Option<(BudgetItem, u64, u64)> {
-        for item in self.usage.keys() {
-            if let Some((used, limit)) = self.over_item(*item) {
-                return Some((*item, used, limit));
-            }
-        }
-        None
-    }
-
-    #[must_use]
     pub fn step_fail_limit(&self) -> u64 {
-        self.limits.get(&BudgetItem::Retries).copied().unwrap_or(3)
+        self.limits
+            .get(&BudgetItem::Retries)
+            .copied()
+            .unwrap_or(UNLIMITED)
     }
 }
 
@@ -117,6 +153,8 @@ pub struct TaskView {
     pub gate: GateFlags,
     pub evidence: EvidenceFlags,
     pub report: ReportFlags,
+    #[serde(default)]
+    pub goal_task: bool,
 }
 
 #[must_use]
@@ -146,7 +184,12 @@ pub fn initial_view() -> TaskView {
         report: ReportFlags {
             user_confirmed: false,
         },
+        goal_task: false,
     }
+}
+
+pub fn mark_goal_task(view: &mut TaskView) {
+    view.goal_task = true;
 }
 
 impl TaskView {
@@ -178,7 +221,7 @@ impl TaskView {
         self.criteria_all_passed()
             && self.evidence.claims_ok
             && self.unresolved_unknowns.is_empty()
-            && self.budget.first_over().is_none()
+            && self.budget.over.is_none()
             && !self.gate.acceptance_unavailable
     }
 
