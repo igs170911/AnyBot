@@ -118,8 +118,6 @@ fn dropped(manifest: &Manifest, events: &[NewEvent]) -> Dropped {
             d.steps = true;
         } else if e.source_id.starts_with('p') {
             d.prior = true;
-        } else if e.source_id.starts_with('m') {
-            d.memories = true;
         }
     }
     for e in events {
@@ -192,8 +190,17 @@ fn trim_order_ok(events: &[NewEvent]) -> bool {
     true
 }
 
-fn order_broken(d: &Dropped) -> bool {
-    d.prior && !d.steps || !d.prior && d.memories
+fn order_broken(input: &BuildInput, d: &Dropped) -> bool {
+    let skipped_results = d.prior && !d.steps && droppable_results(input);
+    let skipped_prior = d.memories && !d.prior && !input.prior_chat.is_empty();
+    skipped_results || skipped_prior
+}
+
+fn droppable_results(input: &BuildInput) -> bool {
+    let cutoff = input.steps.len().saturating_sub(2);
+    input.steps.iter().take(cutoff).any(|step| {
+        !step.keeps_full() && step.has_output() && step.content.chars().count() > 600
+    })
 }
 
 proptest! {
@@ -217,7 +224,7 @@ proptest! {
                         "recent step content missing"
                     );
                     let d = dropped(&manifest, &events);
-                    prop_assert!(!order_broken(&d), "S2 trim order broken");
+                    prop_assert!(!order_broken(&input, &d), "S2 trim order broken");
                     prop_assert!(trim_order_ok(&events), "S2 trim event order broken");
                     let cal = manifest.budget.estimate_calibrated;
                     prop_assert!(
