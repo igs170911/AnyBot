@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO record_streams (id, kind, owner, bot_id, created_at_ms) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "bdcaafaedc1fa56373051d56e5cd48692cda59dc3408ad8b8af6c83811b537fc"
+}

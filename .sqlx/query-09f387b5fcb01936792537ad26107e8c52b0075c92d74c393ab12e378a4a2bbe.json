@@ -1,0 +1,123 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT stream_id, seq, device_id, kind, content, created_at_ms, offline_sent, task_id, task_seq, purged FROM records WHERE stream_id = $1 AND device_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stream_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "stream_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "device_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "created_at_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "offline_sent",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "offline_sent"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "task_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "task_seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "task_seq"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "purged",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "purged"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Text"]
+    },
+    "nullable": [false, false, false, false, false, false, false, true, true, false]
+  },
+  "hash": "09f387b5fcb01936792537ad26107e8c52b0075c92d74c393ab12e378a4a2bbe"
+}

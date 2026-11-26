@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO task_counters (task_id) VALUES ($1) ON CONFLICT (task_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": []
+  },
+  "hash": "c399bb7fada9a48966358f905a5156981a16b8c714663e2968664e17f98cef47"
+}

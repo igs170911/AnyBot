@@ -1151,6 +1151,273 @@ paths:
                 type: https://anybot.test/problems/internal
       security:
       - {}
+  /v1/streams/after:
+    get:
+      tags:
+      - streams
+      summary: Records after sequence N on one stream
+      description: Carries N and the device id of record N; replies with the next page in order. A stream the caller cannot read is refused.
+      operationId: get_streams_after
+      parameters:
+      - name: stream
+        in: query
+        description: 'stream key: account/{owner} or bot/{id}'
+        required: true
+        schema:
+          type: string
+      - name: after
+        in: query
+        description: last sequence the client has
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: device_at
+        in: query
+        description: device id of record N
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Page of records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterPage'
+              example:
+                has_more: false
+                max_seq: 3
+                records:
+                - content:
+                    text: hi
+                  created_at_ms: 1700000000100
+                  device_id: 018f-uuidv7
+                  kind: message
+                  offline_sent: false
+                  seq: 3
+                stream: account
+        '400':
+          description: Bad stream key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-bad-request
+                params: {}
+                status: 400
+                title: The request was malformed.
+                type: https://anybot.test/problems/bad-request
+        '403':
+          description: No permission for this stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-no-permission
+                params: {}
+                status: 403
+                title: You cannot write this stream.
+                type: https://anybot.test/problems/record_no_permission
+        '409':
+          description: Client is ahead of the server
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: sync-after-ahead
+                params:
+                  max_seq: 45
+                status: 409
+                title: 'This device is ahead of the server (max_seq 45): please reset the stream.'
+                type: https://anybot.test/problems/sync_after_ahead
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - bearer: []
+  /v1/streams/append:
+    post:
+      tags:
+      - streams
+      summary: Append records to one stream
+      description: |-
+        Carries up to 1000 records with the device id each one was born with. The server assigns one sequence per record, rejects forbidden kinds, and answers the same for a replay of the same key.
+        The Idempotency-Key header is required: the fingerprint covers the stream key and the sorted device ids of the batch.
+      operationId: post_streams_append
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: UUID of this batch
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppendRequest'
+            example:
+              items:
+              - content:
+                  text: hi
+                created_at_ms: 1700000000100
+                device_id: 018f-uuidv7
+                kind: message
+                offline_sent: false
+              stream: account
+        required: true
+      responses:
+        '200':
+          description: Per-item results in request order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppendReply'
+              example:
+                results:
+                - result: accepted
+                  seq: 1
+                - result: duplicate
+                  seq: 1
+                - code: record-id-conflict
+                  result: rejected
+                stream: account
+        '400':
+          description: Bad body or missing idempotency key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-bad-request
+                params: {}
+                status: 400
+                title: The request was malformed.
+                type: https://anybot.test/problems/bad-request
+        '403':
+          description: Not allowed to write this stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-no-permission
+                params: {}
+                status: 403
+                title: You cannot write this stream.
+                type: https://anybot.test/problems/record_no_permission
+        '409':
+          description: Same key with a different fingerprint
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-conflict
+                params: {}
+                status: 409
+                title: This idempotency key was already used for a different request.
+                type: https://anybot.test/problems/account_idempotency_conflict
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - bearer: []
+  /v1/streams/notifications:
+    get:
+      tags:
+      - streams
+      summary: Notification stream of one record stream (SSE)
+      description: 'Stays open: the first event is progress carrying the current max seq of this stream; then new-records and progress events; a heartbeat line every 15 seconds; and one final stream-progress event with the current max seq when the server closes the stream. init_seq replays the records after it. X-Accel-Buffering is set to no.'
+      operationId: get_streams_notifications
+      parameters:
+      - name: stream
+        in: query
+        description: 'stream key: account/{owner} or bot/{id}'
+        required: true
+        schema:
+          type: string
+      - name: init_seq
+        in: query
+        description: replay records after this sequence
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: event stream
+          content:
+            text/event-stream:
+              example: |+
+                event: progress
+                data: {"streams":[{"stream":"account","seq":45}]}
+
+                :hb
+
+                event: new-records
+                data: {"stream":"account","seq":46,"device_id":"018f-uuidv7"}
+
+        '400':
+          description: Bad stream key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-bad-request
+                params: {}
+                status: 400
+                title: The request was malformed.
+                type: https://anybot.test/problems/bad-request
+        '403':
+          description: No permission for this stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-no-permission
+                params: {}
+                status: 403
+                title: You cannot write this stream.
+                type: https://anybot.test/problems/record_no_permission
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - bearer: []
 components:
   schemas:
     ActionAck:
@@ -1161,6 +1428,70 @@ components:
         ok:
           type: boolean
           example: true
+    AfterPage:
+      type: object
+      required:
+      - stream
+      - records
+      - has_more
+      - max_seq
+      properties:
+        has_more:
+          type: boolean
+          example: false
+        max_seq:
+          type: integer
+          format: int64
+          example: 45
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoredRecord'
+        stream:
+          $ref: '#/components/schemas/StreamSelector'
+    AppendReply:
+      type: object
+      required:
+      - stream
+      - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppendResult'
+        stream:
+          $ref: '#/components/schemas/StreamSelector'
+    AppendRequest:
+      type: object
+      required:
+      - stream
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordItem'
+        stream:
+          $ref: '#/components/schemas/StreamSelector'
+    AppendResult:
+      type: object
+      required:
+      - result
+      properties:
+        code:
+          type:
+          - string
+          - 'null'
+          example: record-id-conflict
+        result:
+          type: string
+          example: accepted
+        seq:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          example: 1
     HealthResponse:
       type: object
       required:
@@ -1284,6 +1615,34 @@ components:
         public_url:
           type: string
           example: https://bot.example.test
+    RecordItem:
+      type: object
+      required:
+      - device_id
+      - kind
+      - content
+      - created_at_ms
+      - offline_sent
+      properties:
+        content: {}
+        created_at_ms:
+          type: integer
+          format: int64
+          example: 1700000000100
+        device_id:
+          type: string
+          example: 018f-uuidv7
+        kind:
+          type: string
+          example: message
+        offline_sent:
+          type: boolean
+          example: false
+        task_id:
+          type:
+          - string
+          - 'null'
+          example: 018f-task-uuidv7
     RegisterAck:
       type: object
       required:
@@ -1351,6 +1710,62 @@ components:
         version:
           type: string
           example: 0.1.0
+    StoredRecord:
+      type: object
+      required:
+      - seq
+      - device_id
+      - kind
+      - content
+      - created_at_ms
+      - offline_sent
+      properties:
+        content: {}
+        created_at_ms:
+          type: integer
+          format: int64
+          example: 1700000000100
+        device_id:
+          type: string
+          example: 018f-uuidv7
+        kind:
+          type: string
+          example: message
+        offline_sent:
+          type: boolean
+          example: false
+        seq:
+          type: integer
+          format: int64
+          example: 3
+        task_id:
+          type:
+          - string
+          - 'null'
+          example: 018f-task-uuidv7
+        task_seq:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          example: 7
+    StreamSelector:
+      oneOf:
+      - type: string
+        enum:
+        - account
+      - type: object
+        required:
+        - bot
+        properties:
+          bot:
+            type: object
+            required:
+            - id
+            properties:
+              id:
+                type: string
+                example: 018f-bot-uuidv7
   securitySchemes:
     bearer:
       type: http
@@ -1364,3 +1779,5 @@ tags:
   description: accounts, sessions and passwords
 - name: admin
   description: admin-only server operations
+- name: streams
+  description: 'record streams: append and replay after N'

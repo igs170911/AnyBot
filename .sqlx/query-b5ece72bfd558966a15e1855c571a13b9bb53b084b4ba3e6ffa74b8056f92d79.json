@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE task_counters SET next_seq = next_seq + 1 WHERE task_id = $1 RETURNING next_seq - 1 AS task_seq",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "task_seq",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [null]
+  },
+  "hash": "b5ece72bfd558966a15e1855c571a13b9bb53b084b4ba3e6ffa74b8056f92d79"
+}

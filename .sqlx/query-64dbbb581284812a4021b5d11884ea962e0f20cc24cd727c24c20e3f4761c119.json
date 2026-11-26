@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, kind, owner, bot_id, next_seq FROM record_streams WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "record_streams",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "record_streams",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "owner",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "record_streams",
+            "name": "owner"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "bot_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "record_streams",
+            "name": "bot_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "next_seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "record_streams",
+            "name": "next_seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [false, false, false, true, false]
+  },
+  "hash": "64dbbb581284812a4021b5d11884ea962e0f20cc24cd727c24c20e3f4761c119"
+}

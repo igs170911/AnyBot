@@ -7,6 +7,7 @@ pub mod conn_auth;
 pub mod goal_brake;
 pub mod goal_followup;
 pub mod invite;
+pub mod record_rules;
 pub mod session_term;
 pub mod settings_merge;
 pub mod source_addr;
@@ -30,6 +31,9 @@ pub mod window;
 #[cfg(test)]
 mod conn_auth_tests;
 #[cfg(test)]
+#[cfg(test)]
+mod record_rules_tests;
+#[cfg(test)]
 mod settings_merge_lists_tests;
 #[cfg(test)]
 mod settings_merge_proptest;
@@ -37,13 +41,14 @@ mod settings_merge_proptest;
 pub mod settings_merge_shared;
 #[cfg(test)]
 mod settings_merge_tests;
-#[cfg(test)]
-#[cfg(test)]
-mod version_release_tests;
 
 pub use anybot_foundation::{DeviceId, TimestampMs};
 pub use anybot_protocol::TaskStatus;
 pub use invite::{INVITE_ALPHABET, alphabet_len, format_invite, is_valid_invite};
+pub use record_rules::{
+    AcceptContext, AcceptOutcome, BotState, DedupFields, decide_accept, dedup_same,
+    is_device_forbidden,
+};
 pub use settings_merge::{
     CorrectedTimeError, FieldEdit, FieldKey, SettingsState, agreed, corrected_time,
 };

@@ -264,6 +264,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/streams/after": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Records after sequence N on one stream
+         * @description Carries N and the device id of record N; replies with the next page in order. A stream the caller cannot read is refused.
+         */
+        get: operations["get_streams_after"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/streams/append": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Append records to one stream
+         * @description Carries up to 1000 records with the device id each one was born with. The server assigns one sequence per record, rejects forbidden kinds, and answers the same for a replay of the same key.
+         *     The Idempotency-Key header is required: the fingerprint covers the stream key and the sorted device ids of the batch.
+         */
+        post: operations["post_streams_append"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/streams/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Notification stream of one record stream (SSE)
+         * @description Stays open: the first event is progress carrying the current max seq of this stream; then new-records and progress events; a heartbeat line every 15 seconds; and one final stream-progress event with the current max seq when the server closes the stream. init_seq replays the records after it. X-Accel-Buffering is set to no.
+         */
+        get: operations["get_streams_notifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -271,6 +332,36 @@ export interface components {
         ActionAck: {
             /** @example true */
             ok: boolean;
+        };
+        AfterPage: {
+            /** @example false */
+            has_more: boolean;
+            /**
+             * Format: int64
+             * @example 45
+             */
+            max_seq: number;
+            records: components["schemas"]["StoredRecord"][];
+            stream: components["schemas"]["StreamSelector"];
+        };
+        AppendReply: {
+            results: components["schemas"]["AppendResult"][];
+            stream: components["schemas"]["StreamSelector"];
+        };
+        AppendRequest: {
+            items: components["schemas"]["RecordItem"][];
+            stream: components["schemas"]["StreamSelector"];
+        };
+        AppendResult: {
+            /** @example record-id-conflict */
+            code?: string | null;
+            /** @example accepted */
+            result: string;
+            /**
+             * Format: int64
+             * @example 1
+             */
+            seq?: number | null;
         };
         HealthResponse: {
             /** @example 2026-01-01T00:00:00Z */
@@ -336,6 +427,22 @@ export interface components {
             /** @example https://bot.example.test */
             public_url: string;
         };
+        RecordItem: {
+            content: unknown;
+            /**
+             * Format: int64
+             * @example 1700000000100
+             */
+            created_at_ms: number;
+            /** @example 018f-uuidv7 */
+            device_id: string;
+            /** @example message */
+            kind: string;
+            /** @example false */
+            offline_sent: boolean;
+            /** @example 018f-task-uuidv7 */
+            task_id?: string | null;
+        };
         RegisterAck: {
             /** @example true */
             admin: boolean;
@@ -374,6 +481,38 @@ export interface components {
             uptime_ms: number;
             /** @example 0.1.0 */
             version: string;
+        };
+        StoredRecord: {
+            content: unknown;
+            /**
+             * Format: int64
+             * @example 1700000000100
+             */
+            created_at_ms: number;
+            /** @example 018f-uuidv7 */
+            device_id: string;
+            /** @example message */
+            kind: string;
+            /** @example false */
+            offline_sent: boolean;
+            /**
+             * Format: int64
+             * @example 3
+             */
+            seq: number;
+            /** @example 018f-task-uuidv7 */
+            task_id?: string | null;
+            /**
+             * Format: int64
+             * @example 7
+             */
+            task_seq?: number | null;
+        };
+        StreamSelector: "account" | {
+            bot: {
+                /** @example 018f-bot-uuidv7 */
+                id: string;
+            };
         };
     };
     responses: never;
@@ -1914,6 +2053,348 @@ export interface operations {
                 };
             };
             /** @description The server hit an internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    get_streams_after: {
+        parameters: {
+            query: {
+                /** @description stream key: account/{owner} or bot/{id} */
+                stream: string;
+                /** @description last sequence the client has */
+                after: number;
+                /** @description device id of record N */
+                device_at?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of records */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "has_more": false,
+                     *       "max_seq": 3,
+                     *       "records": [
+                     *         {
+                     *           "content": {
+                     *             "text": "hi"
+                     *           },
+                     *           "created_at_ms": 1700000000100,
+                     *           "device_id": "018f-uuidv7",
+                     *           "kind": "message",
+                     *           "offline_sent": false,
+                     *           "seq": 3
+                     *         }
+                     *       ],
+                     *       "stream": "account"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AfterPage"];
+                };
+            };
+            /** @description Bad stream key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The request was malformed.",
+                     *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No permission for this stream */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "You cannot write this stream.",
+                     *       "type": "https://anybot.test/problems/record_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Client is ahead of the server */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "sync-after-ahead",
+                     *       "params": {
+                     *         "max_seq": 45
+                     *       },
+                     *       "status": 409,
+                     *       "title": "This device is ahead of the server (max_seq 45): please reset the stream.",
+                     *       "type": "https://anybot.test/problems/sync_after_ahead"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_streams_append: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID of this batch */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "items": [
+                 *         {
+                 *           "content": {
+                 *             "text": "hi"
+                 *           },
+                 *           "created_at_ms": 1700000000100,
+                 *           "device_id": "018f-uuidv7",
+                 *           "kind": "message",
+                 *           "offline_sent": false
+                 *         }
+                 *       ],
+                 *       "stream": "account"
+                 *     }
+                 */
+                "application/json": components["schemas"]["AppendRequest"];
+            };
+        };
+        responses: {
+            /** @description Per-item results in request order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "results": [
+                     *         {
+                     *           "result": "accepted",
+                     *           "seq": 1
+                     *         },
+                     *         {
+                     *           "result": "duplicate",
+                     *           "seq": 1
+                     *         },
+                     *         {
+                     *           "code": "record-id-conflict",
+                     *           "result": "rejected"
+                     *         }
+                     *       ],
+                     *       "stream": "account"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AppendReply"];
+                };
+            };
+            /** @description Bad body or missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The request was malformed.",
+                     *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not allowed to write this stream */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "You cannot write this stream.",
+                     *       "type": "https://anybot.test/problems/record_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Same key with a different fingerprint */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This idempotency key was already used for a different request.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    get_streams_notifications: {
+        parameters: {
+            query: {
+                /** @description stream key: account/{owner} or bot/{id} */
+                stream: string;
+                /** @description replay records after this sequence */
+                init_seq?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description event stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example event: progress
+                     *     data: {"streams":[{"stream":"account","seq":45}]}
+                     *
+                     *     :hb
+                     *
+                     *     event: new-records
+                     *     data: {"stream":"account","seq":46,"device_id":"018f-uuidv7"}
+                     */
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Bad stream key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The request was malformed.",
+                     *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No permission for this stream */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "You cannot write this stream.",
+                     *       "type": "https://anybot.test/problems/record_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
             500: {
                 headers: {
                     [name: string]: unknown;

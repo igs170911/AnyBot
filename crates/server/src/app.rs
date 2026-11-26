@@ -31,6 +31,7 @@ pub struct AppState {
     pub pass_hash: Arc<tokio::sync::OnceCell<Arc<PassHash>>>,
     pub listen_ports: Arc<Vec<u16>>,
     pub releases: Arc<anybot_domain::version_release::ReleaseTable>,
+    pub bus: anybot_bus::SharedBus,
 }
 
 impl AppState {
@@ -62,6 +63,7 @@ impl AppState {
             config: Arc::new(tokio::sync::Mutex::new(ServerConfig::default())),
             shutdown: Arc::new(Notify::new()),
             started_at_ms,
+            bus: anybot_bus::shared_memory_bus(),
         }
     }
 
@@ -115,6 +117,15 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/account/logout", post(logout))
         .route("/v1/account/logout-all", post(logout_all))
         .route("/v1/account/password", post(change_password))
+        .route(
+            "/v1/streams/append",
+            post(crate::api_streams_append::append),
+        )
+        .route("/v1/streams/after", get(crate::api_streams_after::after))
+        .route(
+            "/v1/streams/notifications",
+            get(crate::api_streams_sse::notifications),
+        )
         .route("/v1/admin/invite", get(invite))
         .route("/v1/admin/invite/rotate", post(rotate_invite))
         .route("/v1/admin/public-url", post(set_public_url))

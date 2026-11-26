@@ -10,6 +10,9 @@ pub mod idempotency;
 pub mod migrate;
 pub mod rows;
 pub mod sessions;
+pub mod streams;
+pub mod streams_bots;
+pub use streams_bots as bots;
 
 pub use config::{
     clear_config_keys, delete_config_row, read_config_rows, set_config_rows, write_config_row,
@@ -20,6 +23,11 @@ pub use migrate::{Migrator, SchemaError, ensure_schema, product_migrations};
 pub use rows::{
     account_count, max_applied_version, min_applied_version, public_tables, schema_marker_present,
 };
+pub use streams::{
+    RecordRow, StreamRow, ensure_stream, find_record_by_device, insert_record, list_after,
+    list_streams_of, load_stream, max_seq,
+};
+pub use streams_bots::{BotRow, ensure_bot, list_bots, load_bot, rename_bot, set_bot_deleted};
 
 pub type Pool = sqlx::PgPool;
 

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE bots SET deleted = $2 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Bool"]
+    },
+    "nullable": []
+  },
+  "hash": "473347e9c9a683a9a79dc035aeaae73bce06ebf2443fbc1f29f1990ba5d7ed33"
+}

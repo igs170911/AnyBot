@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO bots (id, account, name, created_at_ms) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "a60f60a5c961c11c215867ea20f83c7bc915721e286b556222a8a1624c7533b6"
+}

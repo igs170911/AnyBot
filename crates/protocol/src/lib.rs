@@ -6,6 +6,8 @@ pub mod events;
 pub mod evidence_record;
 pub mod gate_record;
 pub mod known_task_event_kind;
+pub mod sse_api;
+pub mod streams_api;
 pub mod task_detail;
 pub mod task_events;
 pub mod turn_records;
@@ -36,6 +38,15 @@ pub use evidence_record::{
 };
 pub use gate_record::{GateNo, GateOutcome, GateRecord, JudgementSource, RuleLayer};
 pub use known_task_event_kind::KnownTaskEventKind;
+pub use sse_api::{
+    HEARTBEAT_INTERVAL_SECS, NewRecordsEvent, ProgressEvent, SSE_EVENT_NEW_RECORDS,
+    SSE_EVENT_PROGRESS, SseStreamProgress, StreamProgress, sse_data_line, sse_event_line,
+    sse_heartbeat_line,
+};
+pub use streams_api::{
+    AfterPage, AfterRequest, AppendReply, AppendRequest, AppendResult, MAX_AFTER_PAGE,
+    MAX_APPEND_ITEMS, RecordItem, StoredRecord, StreamSelector, selector_from_key, selector_key,
+};
 pub use task_detail::{TaskDetail, TaskStatus, detail_matches_status};
 pub use task_events::{
     BudgetItem, CardAnswer, CheckSource, Criterion, DeviceReportKind, DoneWhenChange, Proposer,

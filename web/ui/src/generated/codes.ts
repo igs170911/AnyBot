@@ -150,7 +150,13 @@ export type MessageCode =
   "turn-tool-not-wired" |
   "turn-model-failed" |
   "model-blank" |
-  "install-version-old";
+  "install-version-old" |
+  "record-no-permission" |
+  "record-id-conflict" |
+  "record-bot-deleted" |
+  "append-kind-forbidden" |
+  "stream-bot-missing" |
+  "sync-after-ahead";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -303,4 +309,10 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "turn-model-failed",
   "model-blank",
   "install-version-old",
+  "record-no-permission",
+  "record-id-conflict",
+  "record-bot-deleted",
+  "append-kind-forbidden",
+  "stream-bot-missing",
+  "sync-after-ahead",
 ];

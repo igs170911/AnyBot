@@ -44,11 +44,21 @@ impl Modify for BearerAuth {
         crate::api_admin_accounts::disable_account,
         crate::api_admin_accounts::enable_account,
         crate::api_admin_reset::reset_password,
+        crate::api_streams_append::append,
+        crate::api_streams_after::after,
+        crate::api_streams_sse::notifications,
     ),
     components(schemas(
         crate::health::HealthResponse,
         crate::status::StatusResponse,
         anybot_protocol::ActionAck,
+        anybot_protocol::AfterPage,
+                        anybot_protocol::AppendReply,
+        anybot_protocol::AppendRequest,
+        anybot_protocol::AppendResult,
+        anybot_protocol::RecordItem,
+                                        anybot_protocol::StreamSelector,
+        anybot_protocol::StoredRecord,
         anybot_protocol::InviteResponse,
         anybot_protocol::LoginRequest,
         anybot_protocol::LoginSession,
@@ -68,7 +78,8 @@ impl Modify for BearerAuth {
     tags(
         (name = "system", description = "the server itself: health, status, stop"),
         (name = "account", description = "accounts, sessions and passwords"),
-        (name = "admin", description = "admin-only server operations")
+        (name = "admin", description = "admin-only server operations"),
+        (name = "streams", description = "record streams: append and replay after N")
     )
 )]
 pub struct ApiDoc;

@@ -212,6 +212,7 @@ name = "anybot-bus"
 version = "0.1.0"
 dependencies = [
  "anybot-foundation",
+ "tokio",
 ]
 
 [[package]]
@@ -399,6 +400,7 @@ dependencies = [
  "anybot-store-server",
  "argon2",
  "axum",
+ "futures-util",
  "getrandom 0.4.3",
  "http-body-util",
  "serde",
@@ -409,6 +411,8 @@ dependencies = [
  "test-harness",
  "time",
  "tokio",
+ "tokio-stream",
+ "tracing",
  "url",
  "utoipa",
  "uuid",

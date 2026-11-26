@@ -20,13 +20,16 @@
 - **M7d-4**：收尾、完成閘門（last_write_ok）、交付報告（trust::report 純函式）、T-turn-loop-2/12、T-task-done-gate-7、描述性測試四份。
 - **M7d 補漏**：「要做什麼」早於假電腦操作的性質測試（500 組，turn_intent_prop.rs）；重型性質測試排在 nextest 的 `prop` 群（依序跑，逾時放寬到 300 秒×2）。
 - **M6b-1 第 1–2 段**：相容檢查基準化、遷移檢查 sqlparser、設定合併搬 domain＋修正（在 ws/m6b-1 上，已合進 huskyVer）。
+- **M6b-1 第 3 段（網路控制補洞）**、**第 4 段（憑證/防跨站 T-conn-auth-1～6）**：已做完並 commit。
+- **M6b-1 第 5 段（版本檢查 T-install-n25、伺服器時間）**：domain 版本表＋中介層＋整合測試 6 個全過，收束 commit（K86 改名、同碼雙裝置測）。
+- **M6b-1 第 6 段（Bot 和紀錄流）**：append/after/SSE 三個端點（T-sync-append、T-sync-id、T-conn-sse）。整合測試 24 個（append 11＋after 7＋SSE 6）全過；openapi/lint/client/html/相容基準同步更新。
 
-驗證數字：`make check-fast` 875/875 全綠、depcheck/iron-laws/locale/spec-trace/api-lint/biome 全過；spec-trace tested 139。
+驗證數字：`make check-fast` 899/899 全綠（含新增 24 個串流測試）；depcheck/iron-laws/locale(156)/spec-trace/api-lint/api-compat/biome 全過。
 
 ## 還沒做的（接續順序）
 
 1. **把 huskyVer 合進 dev**（雲端檢查全綠後由監督者做）。
-2. **M6b-1 第 3 段起**：網路控制補洞 → 憑證/防跨站 → 版本檢查 → Bot 和紀錄流 → SSE 心跳 → B 段（刪除、設定、任務事件、裁判）。25 個編號一個都未驗。
+2. **M6b-1 第 7 段起（B 段）**：刪除/清除/恢復（§8）、設定（§9）、任務事件與裁判（§10）。
 3. **M6b-2a**：主鑰匙、秘密加密、2FA、救回碼（無分支）。
 4. **M6b-2b**：裝置、配對、在線偵測、信箱、runner-service 憑證（無分支）。
 5. **M6c**：客戶端同步（store-client 是空殼）。
@@ -39,4 +42,4 @@
 - `FakeComputer.set_mutate_after_write(true)` 用來模擬驗收重讀雜湊不相符。
 - GateResult 的 `Ask` 判定也會給模型結果（context_steps 的 result_entry），不然上下文配對失敗。
 - 交付報告在 `crates/trust/src/report.rs`（純函式，不看時鐘）；runner 端 emit 在 `report_out.rs`。
-- 代碼數 25（新增 report-summary-missing、turn-answer-empty）。
+- 代碼數 156（§6 串流新增 6 個代碼）。

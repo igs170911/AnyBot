@@ -7,5 +7,6 @@ license.workspace = true
 description = "AnyBot bus skeleton crate (spec/07 section 2)"
 [dependencies]
 anybot-foundation = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 [lints]
 workspace = true

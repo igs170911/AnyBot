@@ -154,6 +154,12 @@ pub enum MessageCode {
     TurnModelFailed,
     ModelBlank,
     InstallVersionOld,
+    RecordNoPermission,
+    RecordIdConflict,
+    RecordBotDeleted,
+    AppendKindForbidden,
+    StreamBotMissing,
+    SyncAfterAhead,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -441,6 +447,12 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::TurnModelFailed, "turn-model-failed"),
     (MessageCode::ModelBlank, "model-blank"),
     (MessageCode::InstallVersionOld, "install-version-old"),
+    (MessageCode::RecordNoPermission, "record-no-permission"),
+    (MessageCode::RecordIdConflict, "record-id-conflict"),
+    (MessageCode::RecordBotDeleted, "record-bot-deleted"),
+    (MessageCode::AppendKindForbidden, "append-kind-forbidden"),
+    (MessageCode::StreamBotMissing, "stream-bot-missing"),
+    (MessageCode::SyncAfterAhead, "sync-after-ahead"),
 ];
 
 impl MessageCode {
