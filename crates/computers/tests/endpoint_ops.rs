@@ -83,7 +83,7 @@ fn changed_of(step: &RunStep) -> Result<(BeforeDigest, anybot_foundation::Conten
 }
 
 #[test]
-fn t_computer_ops_2() -> Result<(), String> {
+fn write_a_new_file_records_the_before_and_after_digests() -> Result<(), String> {
     let c = computer("ops2")?;
     let first = run(
         &c,
@@ -117,7 +117,7 @@ fn t_computer_ops_2() -> Result<(), String> {
 }
 
 #[test]
-fn t_computer_ops_3() -> Result<(), String> {
+fn reading_a_file_records_a_seen_digest_and_a_missing_file_fails() -> Result<(), String> {
     let c = computer("ops3")?;
     let deep = run(
         &c,
@@ -163,7 +163,8 @@ fn t_computer_ops_3() -> Result<(), String> {
 }
 
 #[test]
-fn t_computer_ops_4() -> Result<(), String> {
+fn a_command_records_its_exit_code_and_a_timeout_reports_the_operation_failed() -> Result<(), String>
+{
     let c = computer("ops4")?;
     let done = run(
         &c,
@@ -213,7 +214,7 @@ fn t_computer_ops_4() -> Result<(), String> {
 }
 
 #[test]
-fn t_computer_ops_5() -> Result<(), String> {
+fn paths_outside_the_workspace_and_symlink_escapes_are_denied() -> Result<(), String> {
     let c = computer("ops5")?;
     let outside = run(
         &c,

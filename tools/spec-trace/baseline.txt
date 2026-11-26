@@ -1123,7 +1123,6 @@ T-files-shell-3
 T-files-shell-4
 T-files-shell-5
 T-files-shell-6
-T-files-shell-7
 T-files-shell-8
 T-files-shell-9
 T-files-terminal-1
