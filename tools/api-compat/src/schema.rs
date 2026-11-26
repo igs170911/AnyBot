@@ -28,20 +28,17 @@ fn walk(path: &str, baseline: &Value, current: &Value, out: &mut Vec<String>) {
                     Some(new) => walk(&format!("{path}/{key}"), old, new, out),
                 }
             }
-            for (key, new) in b {
-                if !a.contains_key(key) && key == "required" {
-                    out.push(format!("{path}/{key}: added"));
-                }
-                let _: &Value = new;
-            }
         }
         (Value::Array(a), Value::Array(b)) => {
+            if path.ends_with("/required") && b.len() > a.len() {
+                out.push(format!("{path}: required list grew"));
+            }
             if b.len() < a.len() {
                 out.push(format!("{path}: array shrank"));
             }
         }
         (a, b) => {
-            if a != b {
+            if a != b && !path.ends_with("/description") && !path.ends_with("/examples") {
                 out.push(format!("{path}: value changed"));
             }
         }

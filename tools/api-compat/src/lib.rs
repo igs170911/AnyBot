@@ -8,7 +8,9 @@ extern crate yaml_serde as _;
 
 pub mod compat;
 #[cfg(test)]
-mod compat_tests;
+pub mod compat_tests;
 pub mod log;
+#[cfg(test)]
+mod release_tests;
 pub mod schema;
 pub mod sha;

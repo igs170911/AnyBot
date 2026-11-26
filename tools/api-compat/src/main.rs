@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use api_compat::{compat, schema, sha};
+use api_compat::{compat, schema};
 
 use clap as _;
 use serde_json as _;
@@ -37,8 +37,21 @@ fn repo_root() -> PathBuf {
 fn main() -> ExitCode {
     let args = Args::parse();
     let repo = args.repo.unwrap_or_else(repo_root);
-    let violations = compat::violations(&repo, &args.against, &sha::baseline, &schema::breaking);
+    let inputs = compat::Inputs {
+        repo: &repo,
+        git_ref: &args.against,
+        read_ref: &compat::read_ref,
+        tracked: &compat::changelog_tracked,
+        release_tags: &compat::release_tags,
+        breaking_of: &schema::breaking,
+    };
+    let (violations, notes) = compat::violations_with_notes(&inputs);
     let mut stdout = std::io::stdout();
+    for note in &notes {
+        if writeln!(stdout, "info: {note}").is_err() {
+            return ExitCode::FAILURE;
+        }
+    }
     for v in &violations {
         if writeln!(stdout, "{v}").is_err() {
             return ExitCode::FAILURE;
