@@ -132,9 +132,9 @@ async fn dispatch(
 }
 
 #[tokio::test]
-async fn t_install_n25_6() -> Result<(), String> {
+async fn newer_and_replaced_logins_accepted() -> Result<(), String> {
     let table = releases(&[("0.2.0", BASE_MS + 30 * DAY_MS)]);
-    let served = serve_start_with("t_install_n25_6", &table).await?;
+    let served = serve_start_with("n25_6_logins", &table).await?;
     let base = served.base_url();
     anybot_app_test::serve::boot_pair(&served).await?;
     let newer = bearer_login(
@@ -188,11 +188,21 @@ async fn bearer_login(
 }
 
 #[tokio::test]
-async fn version_too_old_login_blocked_with_no_writes() -> Result<(), String> {
+async fn two_clients_blocked_with_same_code() -> Result<(), String> {
     let table = releases(&[("0.2.0", BASE_MS)]);
-    let served = serve_start_with("version_too_old", &table).await?;
+    let served = serve_start_with("n25_5_two", &table).await?;
     let base = served.base_url();
     anybot_app_test::serve::boot_pair(&served).await?;
+    let first = bearer_login(
+        &served,
+        &base,
+        "alice",
+        "alicepassword",
+        "k-live",
+        Some("0.2.0"),
+    )
+    .await?;
+    assert_eq!(first.status, 200, "seed login: {}", first.json);
     walk_past_release(&served)?;
     let old = bearer_login(
         &served,
@@ -203,18 +213,41 @@ async fn version_too_old_login_blocked_with_no_writes() -> Result<(), String> {
         Some("0.1.0"),
     )
     .await?;
-    assert_eq!(old.status, 403, "old client login: {}", old.json);
-    assert_eq!(code_of(&old), OLD_CODE, "old login code");
     let no_version = bearer_login(&served, &base, "bob", "bobpassword", "k-bare", None).await?;
+    assert_eq!(old.status, 403, "old client login: {}", old.json);
     assert_eq!(
         no_version.status, 403,
         "versionless login: {}",
         no_version.json
     );
+    assert_eq!(code_of(&old), OLD_CODE, "old login code");
     assert_eq!(code_of(&no_version), OLD_CODE, "versionless code");
+    let report = password_change_step(&base, &first, "0.1.0").await?;
+    assert_eq!(report.status, 403, "runner report: {}", report.json);
+    assert_eq!(code_of(&report), OLD_CODE, "report code");
     let sessions = anybot_server_test::count_sessions(&served).await?;
-    assert_eq!(sessions, 0, "no sessions created by blocked logins");
+    assert_eq!(sessions, 1, "blocked writes add no sessions");
     served.stop().await
+}
+
+async fn password_change_step(
+    base: &str,
+    login: &ResponseSpec,
+    version: &str,
+) -> Result<ResponseSpec, String> {
+    let origin = format!("{base}/");
+    let token = login.bearer()?;
+    let spec = RequestSpec::new(&pw_body())
+        .with_key("k-report")
+        .with_header("AnyBot-Client-Version", version)
+        .with_header("Origin", &origin)
+        .with_header("AnyBot-CSRF", "1")
+        .with_bearer(&token);
+    post(base, "/v1/account/password", &spec).await
+}
+
+fn pw_body() -> String {
+    json!({"old": "alicepassword", "new": "newlongenough"}).to_string()
 }
 
 #[tokio::test]

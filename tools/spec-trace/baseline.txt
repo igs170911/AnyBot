@@ -1254,12 +1254,8 @@ T-install-n23-1
 T-install-n23-2
 T-install-n23-3
 T-install-n24-1
-T-install-n25-1
-T-install-n25-2
 T-install-n25-3
 T-install-n25-4
-T-install-n25-5
-T-install-n25-6
 T-install-n26-1
 T-install-n26-2
 T-install-n27-1
