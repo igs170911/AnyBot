@@ -51,7 +51,7 @@ mod tests {
     }
 
     #[test]
-    fn test_secret_serialization_is_a_compile_failure() {
+    fn test_secret_serialization_compile_fail() {
         trybuild::TestCases::new().compile_fail("tests/compilefail/*.rs");
     }
 }

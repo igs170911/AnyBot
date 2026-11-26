@@ -24,5 +24,9 @@ slow-timeout = { period = "90s", terminate-after = 4 }
 
 # Basic tests (make test-basic, Windows and macOS CI). A test that starts
 # PostgreSQL lives in a file named pg_*.rs. That file is the nextest binary name.
+# A test that compiles a fresh crate (trybuild, or cargo/rustc/clippy-driver)
+# is named *_compile_fail. Those have no build cache on CI, so basic tests skip
+# them. Linux make check still runs them. The name mark is the suffix so a test
+# that only mentions the rule still runs here.
 [profile.quick]
-default-filter = 'not binary(/^pg_/)'
+default-filter = 'not (binary(/^pg_/) | test(/_compile_fail$/))'

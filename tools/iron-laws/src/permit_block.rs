@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn test_iron_laws_permit_mint_is_rejected_by_clippy() {
+    fn test_iron_laws_permit_mint_rejected_compile_fail() {
         let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let repo = manifest.join("../..");
         let found = violations(&repo);
