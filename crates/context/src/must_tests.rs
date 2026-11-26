@@ -31,7 +31,7 @@ fn input_with(
 }
 
 #[test]
-fn t_context_must_5() {
+fn twelve_user_lines_stay_verbatim_after_eighty_steps() {
     let base = sup::base_input();
     let users: Vec<crate::input::ChatRecord> = (0..12)
         .map(|i| sup::record(&format!("u{i}"), &format!("user line {i}")))
@@ -56,7 +56,7 @@ fn t_context_must_5() {
 }
 
 #[test]
-fn t_context_must_4() {
+fn long_user_line_becomes_a_reference() {
     let base = sup::base_input();
     let text = "w".repeat(50_000);
     let input = input_with(&base, Vec::new(), vec![sup::record("ubig", &text)], 32_000);
@@ -126,7 +126,7 @@ fn must_docs_and_pending_actions_are_mandatory() {
 }
 
 #[test]
-fn t_context_must_3() {
+fn larger_model_sends_the_full_criterion() {
     let base = sup::base_input();
     let mut input = input_with(&base, Vec::new(), Vec::new(), 32_000);
     input.constraints = vec!["m".to_owned(); 400];
@@ -163,7 +163,7 @@ fn t_context_must_3() {
 }
 
 #[test]
-fn t_context_must_2() {
+fn oversized_must_items_refuse_without_a_request() {
     let base = sup::base_input();
     let mut input = input_with(&base, Vec::new(), Vec::new(), 4_000);
     input.constraints = vec!["m".to_owned(); 400];

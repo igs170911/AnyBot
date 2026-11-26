@@ -6,7 +6,7 @@ use crate::output::Compiled;
 use crate::budget_tests::assemble_input;
 
 #[test]
-fn t_context_budget_5() {
+fn budget_trims_are_far_fewer_than_steps() {
     let mut events: Vec<anybot_protocol::TaskEvent> = vec![sup::known(
         1,
         anybot_protocol::KnownTaskEventKind::TaskCreated {
@@ -56,7 +56,7 @@ fn t_context_budget_5() {
 }
 
 #[test]
-fn t_context_build_4() {
+fn each_sent_build_records_one_context_built() {
     let mut events: Vec<anybot_protocol::TaskEvent> = vec![sup::known(
         1,
         anybot_protocol::KnownTaskEventKind::TaskCreated {

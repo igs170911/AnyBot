@@ -20,7 +20,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_context_state_1(events in events_strategy(24)) {
+    fn state_summary_is_stable_and_cites_event_seqs(events in events_strategy(24)) {
         let a = fit_summary(&build_state(&events));
         let b = fit_summary(&build_state(&events));
         prop_assert_eq!(&a, &b);
@@ -87,7 +87,7 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
 }
 
 #[test]
-fn t_context_state_2() {
+fn compiled_request_has_one_state_summary() {
     let mut base = sup::base_input();
     base.events = state_2_events();
     match compile(&base).unwrap() {
@@ -116,7 +116,7 @@ fn t_context_state_2() {
 }
 
 #[test]
-fn t_context_state_3() {
+fn model_reply_does_not_enter_state_summary() {
     let mut base = sup::base_input();
     let mut events = base.events.clone();
     events.push(sup::known(
@@ -195,7 +195,7 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
 }
 
 #[test]
-fn t_context_state_4() {
+fn long_plan_summary_counts_done_steps() {
     let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
     let mut open_ids: Vec<String> = Vec::new();
     seed_plan_events(&mut events, &mut open_ids);

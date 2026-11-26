@@ -104,7 +104,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_context_manifest_1(input in build_input(1_000, 200_000, 8)) {
+    fn manifest_entries_match_request_blocks(input in build_input(1_000, 200_000, 8)) {
         if let Compiled::Sent { request, manifest, .. } = compile(&input).unwrap() {
             prop_assert!(entries_match(&request, &manifest).is_none());
             prop_assert!(verbatim_ok(&request).is_none());

@@ -200,7 +200,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_context_budget_2(
+    fn shrinking_usable_drops_old_results_then_chat_then_memory(
         base in cheap_input(58_000, 62_000, 8),
         shrinks in prop::collection::vec(5_000usize..55_000usize, 3..6),
     ) {

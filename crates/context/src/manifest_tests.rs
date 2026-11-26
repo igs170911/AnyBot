@@ -3,7 +3,7 @@ use crate::compile_tests_support as sup;
 use crate::output::{Compiled, ExcludedReason};
 
 #[test]
-fn t_context_manifest_2() {
+fn manifest_json_omits_secret_shaped_text() {
     let mut base = sup::base_input();
     base.model = sup::plan(50_000);
     base.memories = vec![sup::memory("m0", 90, false)];
@@ -24,7 +24,7 @@ fn t_context_manifest_2() {
 }
 
 #[test]
-fn t_context_manifest_3() {
+fn manifest_can_store_reported_usage_and_delta() {
     let mut base = sup::base_input();
     base.steps = vec![sup::step_len(0, 300, "r0")];
     match compile(&base).unwrap() {

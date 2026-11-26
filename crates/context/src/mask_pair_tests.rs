@@ -36,7 +36,7 @@ fn step_input(
 }
 
 #[test]
-fn t_context_mask_1() {
+fn old_long_results_collapse_once_past_accumulate_margin() {
     let usable: u64 = 32_000;
     let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
     let mut final_request: Option<crate::output::CompiledRequest> = None;

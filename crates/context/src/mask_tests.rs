@@ -20,7 +20,7 @@ fn big_step(len: usize, unconfirmed: bool, outcome: crate::input::StepOutcomeKin
 }
 
 #[test]
-fn t_context_mask_3() {
+fn five_thousand_line_result_keeps_head_tail_and_error() {
     let content = line(5_000, "filler");
     let error_line = "line 3000 ERROR boom\n".to_owned();
     let positions: Vec<usize> = content
@@ -33,6 +33,7 @@ fn t_context_mask_3() {
         call_id: sup::step_len(0, 0, "r").call_id,
         tool: "cmd".to_owned(),
         args_summary: "run".to_owned(),
+        arguments: serde_json::json!({ "cmd": "run" }),
         level: anybot_protocol::ToolEffect::ReadOnly,
         unconfirmed: false,
         outcome: crate::input::StepOutcomeKind::Failed,
@@ -59,7 +60,7 @@ fn t_context_mask_3() {
 }
 
 #[test]
-fn t_context_mask_4() {
+fn duplicate_result_points_at_first_step() {
     let mut base = sup::base_input();
     let shared = "same content here".repeat(30);
     let mut first = sup::step_len(0, shared.chars().count(), "ra");
@@ -129,7 +130,7 @@ fn long_user_turn_becomes_reference() {
 }
 
 #[test]
-fn t_context_mask_5() {
+fn two_collapse_events_replay_the_same_request() {
     let mut base = sup::base_input();
     base.events = vec![sup::known(
         1,

@@ -97,7 +97,7 @@ proptest! {
     }
 
     #[test]
-    fn t_context_must_1(
+    fn must_items_are_verbatim_or_the_build_is_refused(
         constraints in prop::collection::vec(mixed_text(40), 1..6),
         events in events_strategy(8),
         input in build_input(2_000, 200_000, 4),

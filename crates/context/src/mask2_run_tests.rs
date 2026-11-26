@@ -16,7 +16,7 @@ fn short_chat(prefix: &'static str, index: usize) -> BoxedStrategy<ChatRecord> {
 }
 
 #[test]
-fn t_context_mask_2() {
+fn paired_calls_keep_user_text_and_space_collapse_events() {
     let strategy = (
         prop::collection::vec(0usize..FIXED_LENS.len(), 16..22),
         prop::collection::vec(short_chat("u", 0), 1..3),

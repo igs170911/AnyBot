@@ -42,7 +42,7 @@ fn with_turns(
 }
 
 #[test]
-fn t_context_budget_3() {
+fn smaller_model_collapses_more_then_larger_restores_recent() {
     let steps: Vec<StepRecord> = (0..30)
         .map(|i| sup::step_len(i, 1_500, &format!("r{i}")))
         .collect();
@@ -199,7 +199,7 @@ fn budget_drops_oldest_steps_first() {
 }
 
 #[test]
-fn t_context_budget_4() {
+fn prior_chat_keeps_recent_and_records_budget_drop() {
     let prior: Vec<crate::input::ChatRecord> = (0..400)
         .map(|i| {
             sup::record(

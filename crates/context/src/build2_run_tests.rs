@@ -118,7 +118,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_context_build_2(
+    fn prefix_bytes_hold_unless_collapse_model_or_snapshot(
         lens in prop::collection::vec(1_500usize..3_000usize, 11..16),
         swap_at in 0usize..12,
         update_at in 0usize..12,

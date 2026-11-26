@@ -5,7 +5,7 @@ use crate::input::StepRecord;
 use crate::output::{Block, BlockKind, Compiled, ExcludedReason};
 
 #[test]
-fn t_context_build_3() {
+fn rebuild_from_same_inputs_matches_bytes() {
     let mut base = sup::base_input();
     base.steps = (0..40usize)
         .map(|i| sup::step_len(i, 300, &format!("r{i}")))
