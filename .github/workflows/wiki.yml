@@ -20,6 +20,9 @@ concurrency:
 
 jobs:
   publish:
+    # A manual run from a work branch would replace the whole wiki from that branch.
+    # Push already only fires on main. A manual run must be on main too.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
