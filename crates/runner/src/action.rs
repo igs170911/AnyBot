@@ -35,7 +35,7 @@ async fn run_one(
         return Ok(false);
     };
     let context = crate::action_record::action_context(runner, ctx, request)?;
-    let view = view_of(runner.lang, &args);
+    let view = view_of(runner.lang, &args).with_computer(&context.computer);
     let areq = anybot_tools::build_request(&request.tool, args, context);
     let computer = Arc::clone(&runner.gated);
     let config = computer.gate_config();

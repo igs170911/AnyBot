@@ -10,6 +10,7 @@ pub(crate) struct ActionView {
     edit_lines: u32,
     read_from: u32,
     read_to: u32,
+    computer: String,
     output: std::sync::Mutex<Option<String>>,
 }
 
@@ -21,6 +22,7 @@ impl ActionView {
             edit_lines: 0,
             read_from: 1,
             read_to: 0,
+            computer: String::new(),
             output: std::sync::Mutex::new(None),
         }
     }
@@ -32,6 +34,11 @@ impl ActionView {
     }
 
     #[must_use]
+    pub(crate) fn with_computer(mut self, computer: &str) -> Self {
+        computer.clone_into(&mut self.computer);
+        self
+    }
+
     pub(crate) fn with_read_range(mut self, from: u32, to: u32) -> Self {
         self.read_from = from;
         self.read_to = to;
@@ -73,7 +80,10 @@ impl ModelResultView for ActionView {
     }
 
     fn rejection_text(&self, gate: &GateRecord, params: &[(String, String)]) -> OutcomeText {
-        let mut all = vec![("rule".to_owned(), gate.rule.clone())];
+        let mut all = vec![
+            ("computer".to_owned(), self.computer.clone()),
+            ("rule".to_owned(), gate.rule.clone()),
+        ];
         all.extend(params.iter().map(|(k, v)| (k.clone(), v.clone())));
         OutcomeText::of("gate-denied", all)
     }
