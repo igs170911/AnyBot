@@ -166,7 +166,7 @@ fn user_command_rule(line: &str) -> RuleVerdict {
 
 #[must_use]
 pub fn inside_workdir(path: &PathView, workdir: &str) -> bool {
-    if !path.resolvable {
+    if !path.is_resolvable() {
         return false;
     }
     let base = workdir.trim_end_matches('/');

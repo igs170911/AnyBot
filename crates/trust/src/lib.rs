@@ -35,6 +35,7 @@ pub mod message_codes;
 pub mod op_ticket;
 #[cfg(test)]
 mod op_ticket_computer_tests;
+mod path_resolve;
 pub mod pipeline;
 pub(crate) mod pipeline_exec;
 pub mod pipeline_run;
@@ -72,7 +73,7 @@ pub use message_codes::{
     CODE_TURN_REJECTED, CODE_TURN_TOOL_FAILED, all_codes,
 };
 pub use op_ticket::{OpKind, OpTicket};
-pub use pipeline::{ActionRequest, AskTicket, GateAnswer, answer_ask, run_action};
+pub use pipeline::{ActionRequest, AskTicket, GateAnswer, RequestedAction, answer_ask, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
 pub use runner::{GatedComputer, OpRejection, OpRejectionKind};
 pub use safety_always::{ActionSpec, concrete_actions};

@@ -59,6 +59,10 @@ impl FileTree {
         self.files.insert(canonical, content.to_owned());
     }
 
+    pub fn write_exact(&mut self, path: &str, content: &str) {
+        self.files.insert(path.to_owned(), content.to_owned());
+    }
+
     #[must_use]
     pub fn read(&self, path: &str) -> Option<String> {
         self.files.get(&self.canonical(path)).cloned()

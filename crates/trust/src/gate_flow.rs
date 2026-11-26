@@ -132,7 +132,7 @@ pub fn floor_view(action: &GateAction, caps: &ComputerCaps) -> FloorAction {
         | ActionSubject::WriteFile { path, content: _ }
         | ActionSubject::EditFile { path, .. }
         | ActionSubject::PathCheck { path } => FloorAction::FilePath {
-            path: path.raw.clone(),
+            path: path.effective(&action.workdir),
         },
         ActionSubject::Capabilities => FloorAction::FilePath {
             path: String::new(),

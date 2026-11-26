@@ -1,4 +1,3 @@
-use crate::action::ActionSubject;
 use crate::evidence::ActionContext;
 use crate::evidence::{failed_evidence, rejection_reason};
 use crate::op_ticket::OpTicket;
@@ -119,14 +118,13 @@ fn not_executed_word(reason: NotExecutedReason) -> &'static str {
     }
 }
 
-pub(crate) fn action_label(subject: &ActionSubject) -> String {
+pub(crate) fn action_label(subject: &crate::pipeline::RequestedAction) -> String {
     match subject {
-        ActionSubject::Command { line, .. } => line.clone(),
-        ActionSubject::ReadFile { path } => format!("read {}", path.raw),
-        ActionSubject::WriteFile { path, .. } | ActionSubject::EditFile { path, .. } => {
-            format!("write {}", path.raw)
-        }
-        ActionSubject::PathCheck { path } => format!("path {}", path.raw),
-        ActionSubject::Capabilities => "capabilities".to_owned(),
+        crate::pipeline::RequestedAction::Command { line, .. } => line.clone(),
+        crate::pipeline::RequestedAction::ReadFile { path }
+        | crate::pipeline::RequestedAction::WriteFile { path, .. }
+        | crate::pipeline::RequestedAction::EditFile { path, .. }
+        | crate::pipeline::RequestedAction::PathCheck { path } => path.clone(),
+        crate::pipeline::RequestedAction::Capabilities => "capabilities".to_owned(),
     }
 }

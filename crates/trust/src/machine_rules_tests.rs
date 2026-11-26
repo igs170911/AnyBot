@@ -222,7 +222,7 @@ fn delete_command(line: &str) -> GateAction {
             tool: "shell".to_owned(),
             classes: Vec::new(),
         },
-        subject: ActionSubject::Command {
+        subject: crate::pipeline::RequestedAction::Command {
             line: line.to_owned(),
             timeout_ms: 1000,
         },

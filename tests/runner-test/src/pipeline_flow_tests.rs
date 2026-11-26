@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use anybot_protocol::{EvidencePayload, GateOutcome, JudgementSource};
 use anybot_trust::GatedComputer;
-use anybot_trust::{
-    ActionSubject, GateAnswer, GateConfig, PathView, RunStep, answer_ask, run_action,
-};
+use anybot_trust::{GateAnswer, GateConfig, RequestedAction, RunStep, answer_ask, run_action};
 use test_harness::FakeClock;
 
 use crate::fake_builder::FakeComputerBuilder;
@@ -12,6 +10,97 @@ use crate::fake_computer::FakeComputer;
 use crate::fake_scripts::CommandScript;
 use crate::ops_tests::{command_request, fresh_clock, run};
 use crate::test_view::TestView;
+
+#[test]
+fn test_a_forged_resolved_path_cannot_hide_the_path_the_computer_uses() {
+    let clock = fresh_clock();
+    let computer = FakeComputerBuilder::default()
+        .bot_machine()
+        .clock(Arc::clone(&clock))
+        .build();
+    let request = anybot_trust::ActionRequest {
+        context: crate::ops_tests::context("edit_file", &clock),
+        subject: RequestedAction::WriteFile {
+            path: "/Users/me/.zshrc".to_owned(),
+            content: "alias".to_owned(),
+        },
+    };
+    let step = run_action(
+        &request,
+        &computer,
+        &GateConfig::plain(),
+        &TestView,
+        clock.as_ref(),
+    );
+    assert!(matches!(step, RunStep::Denied(_)));
+    assert!(computer.file_content("/Users/me/.zshrc").is_none());
+    assert_eq!(computer.logged().len(), 0);
+}
+
+#[test]
+fn test_a_workspace_symlink_to_the_outside_is_judged_as_outside() {
+    let clock = fresh_clock();
+    let computer = FakeComputerBuilder::default()
+        .bot_machine()
+        .clock(Arc::clone(&clock))
+        .link("/workspace/notes.md", "/Users/me/.zshrc")
+        .build();
+    let request = anybot_trust::ActionRequest {
+        context: crate::ops_tests::context("edit_file", &clock),
+        subject: RequestedAction::WriteFile {
+            path: "notes.md".to_owned(),
+            content: "alias".to_owned(),
+        },
+    };
+    let step = run_action(
+        &request,
+        &computer,
+        &GateConfig::plain(),
+        &TestView,
+        clock.as_ref(),
+    );
+    assert!(matches!(step, RunStep::Denied(_)));
+    assert!(computer.file_content("/Users/me/.zshrc").is_none());
+}
+
+#[test]
+fn test_a_symlink_swapped_between_gate_and_execution_is_refused() {
+    let clock = fresh_clock();
+    let computer = FakeComputerBuilder::default()
+        .user_machine()
+        .files()
+        .clock(Arc::clone(&clock))
+        .link("/workspace/notes.md", "/workspace/notes.md")
+        .build();
+    let request = anybot_trust::ActionRequest {
+        context: crate::ops_tests::context("edit_file", &clock),
+        subject: RequestedAction::WriteFile {
+            path: "notes.md".to_owned(),
+            content: "kept".to_owned(),
+        },
+    };
+    let step = run_action(
+        &request,
+        &computer,
+        &GateConfig::plain(),
+        &TestView,
+        clock.as_ref(),
+    );
+    let RunStep::Ask(ticket) = step else {
+        panic!("the write must ask before the link moves");
+    };
+    computer.retarget_link("/workspace/notes.md", "/Users/me/.zshrc");
+    let run = answer_ask(
+        *ticket,
+        GateAnswer::Allow,
+        &computer,
+        &TestView,
+        clock.as_ref(),
+    );
+    assert_eq!(run.gate.outcome, GateOutcome::Deny);
+    assert!(computer.file_content("/Users/me/.zshrc").is_none());
+    assert!(computer.logged().is_empty());
+}
 
 fn push_computer(clock: &Arc<FakeClock>) -> FakeComputer {
     FakeComputerBuilder::default()
@@ -102,8 +191,8 @@ fn test_a_denied_action_produces_no_answer_ticket() {
         .build();
     let request = anybot_trust::ActionRequest {
         context: crate::ops_tests::context("edit_file", &clock),
-        subject: ActionSubject::WriteFile {
-            path: PathView::raw("/tmp/outside.md"),
+        subject: RequestedAction::WriteFile {
+            path: "/tmp/outside.md".to_owned(),
             content: "x".to_owned(),
         },
     };

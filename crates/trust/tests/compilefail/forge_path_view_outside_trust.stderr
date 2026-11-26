@@ -1,0 +1,10 @@
+error[E0624]: associated function `resolved` is private
+ --> tests/compilefail/forge_path_view_outside_trust.rs:2:40
+  |
+2 |     let path = anybot_trust::PathView::resolved("/Users/me/.zshrc", "/workspace/notes.md");
+  |                                        ^^^^^^^^ private associated function
+  |
+ ::: src/action.rs
+  |
+  |     pub(crate) fn resolved(raw: &str, canonical: &str) -> Self {
+  |     ---------------------------------------------------------- private associated function defined here

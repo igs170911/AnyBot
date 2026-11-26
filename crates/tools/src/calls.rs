@@ -1,4 +1,4 @@
-use anybot_trust::{ActionContext, ActionRequest, ActionSubject, PathView};
+use anybot_trust::{ActionContext, ActionRequest, RequestedAction};
 
 use crate::arguments::{ReadArgs, ShellArgs, ToolArgs};
 use crate::registry::{TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL};
@@ -15,21 +15,19 @@ pub fn clamp_timeout(requested: Option<u64>) -> u64 {
 }
 
 #[must_use]
-pub fn subject_of(tool: &str, args: ToolArgs) -> ActionSubject {
+pub fn subject_of(tool: &str, args: ToolArgs) -> RequestedAction {
     match (tool, args) {
-        (TOOL_EDIT_FILE, ToolArgs::Edit(edit)) => ActionSubject::EditFile {
-            path: PathView::raw(&edit.path),
+        (TOOL_EDIT_FILE, ToolArgs::Edit(edit)) => RequestedAction::EditFile {
+            path: edit.path,
             old_text: edit.old_text,
             new_text: edit.new_text,
         },
-        (TOOL_READ_FILE, ToolArgs::Read(read)) => ActionSubject::ReadFile {
-            path: PathView::raw(&read.path),
-        },
-        (TOOL_SHELL, ToolArgs::Shell(shell)) => ActionSubject::Command {
+        (TOOL_READ_FILE, ToolArgs::Read(read)) => RequestedAction::ReadFile { path: read.path },
+        (TOOL_SHELL, ToolArgs::Shell(shell)) => RequestedAction::Command {
             line: shell.line,
             timeout_ms: clamp_timeout(shell.timeout_ms),
         },
-        _ => ActionSubject::Capabilities,
+        _ => RequestedAction::Capabilities,
     }
 }
 
@@ -74,7 +72,7 @@ mod tests {
                 new_text: "hello".to_owned(),
             }),
         );
-        let ActionSubject::EditFile {
+        let RequestedAction::EditFile {
             path,
             old_text,
             new_text,
@@ -82,7 +80,7 @@ mod tests {
         else {
             panic!("edit subject missing: {subject:?}");
         };
-        assert_eq!(path.raw, "notes.md");
+        assert_eq!(path, "notes.md");
         assert_eq!(old_text, "");
         assert_eq!(new_text, "hello");
     }

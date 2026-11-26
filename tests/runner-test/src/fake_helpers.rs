@@ -20,10 +20,7 @@ pub(crate) fn write_outcome(
     content: &str,
     before: Option<ContentDigest>,
 ) -> WriteOutcome {
-    let canonical = {
-        let guard = FakeComputer::guard(tree);
-        guard.canonical(path)
-    };
+    let canonical = path.to_owned();
     let outcome = WriteOutcome {
         path: canonical,
         before: match before {
@@ -33,7 +30,7 @@ pub(crate) fn write_outcome(
         after: digest_text(content),
         size: content.len() as u64,
     };
-    FakeComputer::guard(tree).write(path, content);
+    FakeComputer::guard(tree).write_exact(path, content);
     outcome
 }
 

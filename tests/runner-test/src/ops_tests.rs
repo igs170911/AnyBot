@@ -5,7 +5,7 @@ use anybot_protocol::{
     ActionOutcome, BeforeDigest, ComputerPlatform, EvidencePayload, VerificationResult,
 };
 use anybot_trust::{
-    ActionContext, ActionRequest, ActionSubject, GateConfig, GatedComputer, PathView, RunStep,
+    ActionContext, ActionRequest, GateConfig, GatedComputer, RequestedAction, RunStep,
 };
 use test_harness::FakeClock;
 
@@ -30,7 +30,7 @@ pub(crate) fn context(tool: &str, clock: &Arc<FakeClock>) -> ActionContext {
     }
 }
 
-fn request(tool: &str, subject: ActionSubject, clock: &Arc<FakeClock>) -> ActionRequest {
+fn request(tool: &str, subject: RequestedAction, clock: &Arc<FakeClock>) -> ActionRequest {
     ActionRequest {
         context: context(tool, clock),
         subject,
@@ -60,8 +60,8 @@ fn bot_computer(clock: &Arc<FakeClock>) -> FakeComputer {
 fn write_request(content: &str, clock: &Arc<FakeClock>) -> ActionRequest {
     request(
         "edit_file",
-        ActionSubject::WriteFile {
-            path: PathView::raw("notes.md"),
+        RequestedAction::WriteFile {
+            path: "notes.md".to_owned(),
             content: content.to_owned(),
         },
         clock,
@@ -71,8 +71,8 @@ fn write_request(content: &str, clock: &Arc<FakeClock>) -> ActionRequest {
 fn read_request(path: &str, clock: &Arc<FakeClock>) -> ActionRequest {
     request(
         "read_file",
-        ActionSubject::ReadFile {
-            path: PathView::raw(path),
+        RequestedAction::ReadFile {
+            path: path.to_owned(),
         },
         clock,
     )
@@ -81,7 +81,7 @@ fn read_request(path: &str, clock: &Arc<FakeClock>) -> ActionRequest {
 pub(crate) fn command_request(line: &str, clock: &Arc<FakeClock>) -> ActionRequest {
     request(
         "shell",
-        ActionSubject::Command {
+        RequestedAction::Command {
             line: line.to_owned(),
             timeout_ms: 30_000,
         },
@@ -177,7 +177,10 @@ fn test_fake_computer_unreachable_produces_no_evidence_and_no_operations() {
         .build();
     let run = run(&computer, &write_request("hello", &clock)).into_run();
     assert_eq!(run.evidence.len(), 0);
-    assert_eq!(computer.logged(), vec!["write_file notes.md".to_owned()]);
+    assert_eq!(
+        computer.logged(),
+        vec!["write_file /workspace/notes.md".to_owned()]
+    );
     assert_eq!(run.summary.status.code, "turn-not-executed");
     assert_eq!(
         run.summary.status.params.first().map(|(_, v)| v.as_str()),
@@ -259,7 +262,7 @@ fn test_fake_computer_records_operations_in_the_order_it_receives_them() {
     assert_eq!(
         computer.logged(),
         vec![
-            "read_file a.txt".to_owned(),
+            "read_file /workspace/a.txt".to_owned(),
             "run_command cat a.txt".to_owned(),
             "run_command done wakes 0".to_owned(),
         ],

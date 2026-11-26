@@ -54,6 +54,10 @@ impl FakeComputer {
         self.unreachable.store(on, Ordering::SeqCst);
     }
 
+    pub fn retarget_link(&self, path: &str, target: &str) {
+        Self::guard(&self.tree).link(path, target);
+    }
+
     #[must_use]
     pub fn file_digest(&self, path: &str) -> Option<ContentDigest> {
         Self::guard(&self.tree).digest(path)
@@ -102,6 +106,16 @@ impl FakeComputer {
         Ok(())
     }
 
+    fn accept_path(&self, ticket: &OpTicket, name: &str, kind: OpKind) -> Result<(), OpRejection> {
+        Self::accept(ticket, name, kind)?;
+        if self.bound_path_still(ticket) {
+            return Ok(());
+        }
+        Err(OpRejection::mismatch(
+            "the path no longer resolves to the path on the ticket".to_owned(),
+        ))
+    }
+
     fn ticket_path(ticket: &OpTicket) -> Result<&str, OpRejection> {
         ticket
             .path()
@@ -117,7 +131,7 @@ impl FakeComputer {
         let code = timed_out_code(script, billed, timeout_ms);
         (elapsed, code, wakes)
     }
-    fn apply_edit(
+    fn apply_edit_exact(
         &self,
         path: &str,
         old_text: &str,
@@ -186,7 +200,7 @@ impl GatedComputer for FakeComputer {
     }
 
     fn read_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
-        Self::accept(&ticket, &self.name, OpKind::Read)?;
+        self.accept_path(&ticket, &self.name, OpKind::Read)?;
         let path = Self::ticket_path(&ticket)?;
         self.record(format!("read_file {path}"));
         self.reachable()?;
@@ -204,10 +218,10 @@ impl GatedComputer for FakeComputer {
     }
 
     fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
-        Self::accept(&ticket, &self.name, OpKind::Write)?;
+        self.accept_path(&ticket, &self.name, OpKind::Write)?;
         let path = Self::ticket_path(&ticket)?.to_owned();
         let content = ticket.content().unwrap_or("").to_owned();
-        self.record(format!("write_file {path}"));
+        self.record(format!("write_file {}", ticket.path().unwrap_or(&path)));
         self.reachable()?;
         let before = Self::guard(&self.tree).digest(&path);
         let outcome = write_outcome(&self.tree, &path, &content, before);
@@ -215,19 +229,19 @@ impl GatedComputer for FakeComputer {
     }
 
     fn edit_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
-        Self::accept(&ticket, &self.name, OpKind::Edit)?;
+        self.accept_path(&ticket, &self.name, OpKind::Edit)?;
         let path = Self::ticket_path(&ticket)?.to_owned();
         let (old_text, new_text) = ticket.texts().unwrap_or(("", ""));
         self.record(format!("edit_file {path}"));
         self.reachable()?;
         let before = Self::guard(&self.tree).digest(&path);
-        let content = self.apply_edit(&path, old_text, new_text)?;
+        let content = self.apply_edit_exact(&path, old_text, new_text)?;
         let outcome = write_outcome(&self.tree, &path, &content, before);
         Ok(ActualResult::Write(outcome))
     }
 
     fn path_info(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
-        Self::accept(&ticket, &self.name, OpKind::Path)?;
+        self.accept_path(&ticket, &self.name, OpKind::Path)?;
         let path = Self::ticket_path(&ticket)?;
         self.record(format!("path_info {path}"));
         self.reachable()?;

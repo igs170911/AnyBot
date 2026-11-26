@@ -2,14 +2,28 @@ use crate::sandbox_deny::normalize_command;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathView {
-    pub raw: String,
-    pub resolved: Option<String>,
-    pub resolvable: bool,
+    raw: String,
+    resolved: Option<String>,
+    resolvable: bool,
 }
 
 impl PathView {
     #[must_use]
-    pub fn raw(path: &str) -> Self {
+    pub fn raw_text(&self) -> &str {
+        &self.raw
+    }
+
+    #[must_use]
+    pub fn is_resolvable(&self) -> bool {
+        self.resolvable
+    }
+
+    #[must_use]
+    pub fn resolved_text(&self) -> Option<&str> {
+        self.resolved.as_deref()
+    }
+
+    pub(crate) fn raw(path: &str) -> Self {
         PathView {
             raw: path.to_owned(),
             resolved: None,
@@ -17,8 +31,7 @@ impl PathView {
         }
     }
 
-    #[must_use]
-    pub fn unresolvable(path: &str) -> Self {
+    pub(crate) fn unresolvable(path: &str) -> Self {
         PathView {
             raw: path.to_owned(),
             resolved: None,
@@ -26,8 +39,7 @@ impl PathView {
         }
     }
 
-    #[must_use]
-    pub fn resolved(raw: &str, canonical: &str) -> Self {
+    pub(crate) fn resolved(raw: &str, canonical: &str) -> Self {
         PathView {
             raw: raw.to_owned(),
             resolved: Some(canonical.to_owned()),
@@ -145,7 +157,7 @@ impl GateAction {
     #[must_use]
     pub fn edit_file(
         tool: &str,
-        path: PathView,
+        path: &str,
         old_text: &str,
         new_text: &str,
         workdir: &str,
@@ -153,7 +165,7 @@ impl GateAction {
         GateAction {
             tool: tool.to_owned(),
             subject: ActionSubject::EditFile {
-                path,
+                path: PathView::raw(path),
                 old_text: old_text.to_owned(),
                 new_text: new_text.to_owned(),
             },
@@ -163,11 +175,11 @@ impl GateAction {
     }
 
     #[must_use]
-    pub fn edit(tool: &str, path: PathView, content: &str, workdir: &str) -> Self {
+    pub fn edit(tool: &str, path: &str, content: &str, workdir: &str) -> Self {
         GateAction {
             tool: tool.to_owned(),
             subject: ActionSubject::WriteFile {
-                path,
+                path: PathView::raw(path),
                 content: content.to_owned(),
             },
             extra_paths: Vec::new(),
@@ -186,10 +198,10 @@ impl GateAction {
     pub fn key(&self) -> ActionKey {
         let subject = match &self.subject {
             ActionSubject::Command { line, .. } => normalize_command(line),
-            ActionSubject::ReadFile { path } => format!("read:{}", path.raw),
-            ActionSubject::WriteFile { path, content: _ } => format!("write:{}", path.raw),
-            ActionSubject::EditFile { path, .. } => format!("edit:{}", path.raw),
-            ActionSubject::PathCheck { path } => format!("path:{}", path.raw),
+            ActionSubject::ReadFile { path } => format!("read:{}", path.raw_text()),
+            ActionSubject::WriteFile { path, content: _ } => format!("write:{}", path.raw_text()),
+            ActionSubject::EditFile { path, .. } => format!("edit:{}", path.raw_text()),
+            ActionSubject::PathCheck { path } => format!("path:{}", path.raw_text()),
             ActionSubject::Capabilities => "capabilities".to_owned(),
         };
         ActionKey {

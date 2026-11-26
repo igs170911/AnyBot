@@ -14,9 +14,33 @@ use anybot_protocol::{ComputerCaps, GateOutcome, JudgementSource};
 use crate::action::ActionSubject;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestedAction {
+    Command {
+        line: String,
+        timeout_ms: u64,
+    },
+    ReadFile {
+        path: String,
+    },
+    WriteFile {
+        path: String,
+        content: String,
+    },
+    EditFile {
+        path: String,
+        old_text: String,
+        new_text: String,
+    },
+    PathCheck {
+        path: String,
+    },
+    Capabilities,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActionRequest {
     pub context: ActionContext,
-    pub subject: ActionSubject,
+    pub subject: RequestedAction,
 }
 
 impl ActionRequest {
@@ -24,7 +48,7 @@ impl ActionRequest {
     pub fn gate_action(&self) -> GateAction {
         GateAction {
             tool: self.context.tool.clone(),
-            subject: self.subject.clone(),
+            subject: subject_of(&self.subject),
             extra_paths: Vec::new(),
             workdir: self.context.workdir.clone(),
         }
@@ -32,7 +56,7 @@ impl ActionRequest {
 
     #[must_use]
     pub fn delete_targets(&self) -> Vec<PathView> {
-        let ActionSubject::Command { line, .. } = &self.subject else {
+        let RequestedAction::Command { line, .. } = &self.subject else {
             return Vec::new();
         };
         if !classes_of_command(line).contains(&ActionClass::Delete) {
@@ -42,6 +66,35 @@ impl ActionRequest {
             .into_iter()
             .map(|target| view_of_target(&target))
             .collect()
+    }
+}
+
+fn subject_of(requested: &RequestedAction) -> ActionSubject {
+    match requested {
+        RequestedAction::Command { line, timeout_ms } => ActionSubject::Command {
+            line: line.clone(),
+            timeout_ms: *timeout_ms,
+        },
+        RequestedAction::ReadFile { path } => ActionSubject::ReadFile {
+            path: PathView::raw(path),
+        },
+        RequestedAction::WriteFile { path, content } => ActionSubject::WriteFile {
+            path: PathView::raw(path),
+            content: content.clone(),
+        },
+        RequestedAction::EditFile {
+            path,
+            old_text,
+            new_text,
+        } => ActionSubject::EditFile {
+            path: PathView::raw(path),
+            old_text: old_text.clone(),
+            new_text: new_text.clone(),
+        },
+        RequestedAction::PathCheck { path } => ActionSubject::PathCheck {
+            path: PathView::raw(path),
+        },
+        RequestedAction::Capabilities => ActionSubject::Capabilities,
     }
 }
 
@@ -86,7 +139,11 @@ pub fn run_action(
             computer.name(),
         ))),
         GateOutcome::Allow => {
-            let Some(ticket) = verdict.ticket(&action, computer.name(), clock.now_ms()) else {
+            let fresh = prepared_action(request, computer);
+            if fresh.subject != action.subject {
+                return RunStep::Denied(denied_run(request, &verdict, &gate, view, clock));
+            }
+            let Some(ticket) = verdict.ticket(&fresh, computer.name(), clock.now_ms()) else {
                 return RunStep::Denied(denied_run(request, &verdict, &gate, view, clock));
             };
             RunStep::Executed(executed_run(request, ticket, computer, view, clock))
@@ -183,9 +240,22 @@ impl AskTicket {
                 crate::pipeline_run::user_rejected_run(&self.request, gate, view, clock)
             }
             GateAnswer::Allow => {
+                let action = prepared_action(&self.request, computer);
+                if action.subject != self.action.subject {
+                    let gate =
+                        prepared_gate(&self.gate, GateAnswer::Deny, JudgementSource::ProgramCheck);
+                    return crate::pipeline_run::ask_computer_mismatch_run(
+                        &self.request,
+                        gate,
+                        &self.computer,
+                        computer.name(),
+                        view,
+                        clock,
+                    );
+                }
                 let ticket = OpTicket::issue(
-                    &self.action.subject,
-                    self.action.key(),
+                    &action.subject,
+                    action.key(),
                     gate.clone(),
                     computer.name(),
                     clock.now_ms(),
@@ -219,25 +289,9 @@ fn prepared_action(request: &ActionRequest, computer: &dyn GatedComputer) -> Gat
     let mut action = request.gate_action();
     let base = computer.declared_workdir();
     action.workdir = base;
-    action.extra_paths = resolved_targets(&request.delete_targets(), computer, &action.workdir);
+    action.subject =
+        crate::path_resolve::resolve_subject(action.subject, computer, &action.workdir);
+    action.extra_paths =
+        crate::path_resolve::resolved_targets(&request.delete_targets(), computer, &action.workdir);
     action
-}
-
-fn resolved_targets(
-    raw: &[PathView],
-    computer: &dyn GatedComputer,
-    workdir: &str,
-) -> Vec<PathView> {
-    raw.iter()
-        .map(|view| {
-            if !view.resolvable {
-                return view.clone();
-            }
-            let effective = view.effective(workdir);
-            match computer.resolve_target(&effective) {
-                Some(canonical) => PathView::resolved(&view.raw, &canonical),
-                None => PathView::unresolvable(&view.raw),
-            }
-        })
-        .collect()
 }

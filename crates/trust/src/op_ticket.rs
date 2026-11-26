@@ -98,11 +98,16 @@ impl OpTicket {
 
     #[must_use]
     pub fn path(&self) -> Option<&str> {
+        self.bound_path()
+    }
+
+    #[must_use]
+    pub fn bound_path(&self) -> Option<&str> {
         match &self.subject {
             ActionSubject::ReadFile { path }
             | ActionSubject::WriteFile { path, .. }
             | ActionSubject::EditFile { path, .. }
-            | ActionSubject::PathCheck { path } => Some(path.raw.as_str()),
+            | ActionSubject::PathCheck { path } => path.resolved_text().or(Some(path.raw_text())),
             ActionSubject::Command { .. } | ActionSubject::Capabilities => None,
         }
     }

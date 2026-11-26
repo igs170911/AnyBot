@@ -56,6 +56,13 @@ pub trait GatedComputer: Send + Sync {
 
     fn resolve_target(&self, path: &str) -> Option<String>;
 
+    fn bound_path_still(&self, ticket: &OpTicket) -> bool {
+        let Some(bound) = ticket.bound_path() else {
+            return true;
+        };
+        self.resolve_target(bound).as_deref() == Some(bound)
+    }
+
     fn declared_workdir(&self) -> String;
 }
 
