@@ -1,161 +1,157 @@
-use crate::migrations_text::Statement;
+use sqlparser::ast::{AlterTableOperation, ColumnOption, Statement};
 
-const DROP_WORDS: [&str; 1] = ["DROP"];
-const RENAME_WORDS: [&str; 1] = ["RENAME"];
-const REMOVE_DATA_WORDS: [&str; 3] = ["UPDATE", "DELETE", "TRUNCATE"];
-const EXISTING_TABLE_CONSTRAINT_WORDS: [&str; 6] = [
-    "CONSTRAINT",
-    "PRIMARY",
-    "UNIQUE",
-    "CHECK",
-    "FOREIGN",
-    "REFERENCES",
-];
+use crate::migrations_insert::insert_violations;
 
-#[must_use]
-pub fn statement_violations(rel: &str, statement: &Statement) -> Vec<String> {
-    let upper = statement.text.to_ascii_uppercase();
-    let words: Vec<&str> = upper
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .filter(|w| !w.is_empty())
-        .collect();
-    if words.is_empty() {
-        return vec![];
+#[must_use = "each statement decides whether the migration file stays on the allow list"]
+pub fn statement_violations(rel: &str, line: usize, statement: &Statement) -> Vec<String> {
+    if !is_allow_listed(statement) {
+        return vec![violation(
+            rel,
+            line,
+            &format!("is not on the migration allow list: {statement}"),
+        )];
     }
-    let create_table = starts_with(&words, &["CREATE", "TABLE"]);
     let mut out = Vec::new();
-    push_word_violations(rel, statement, create_table, &mut out);
-    push_clause_violations(rel, statement, &upper, &words, &mut out);
-    push_head_violations(rel, statement, &words, &mut out);
+    if let Statement::CreateTable(created) = statement {
+        out.extend(create_table_violations(rel, line, created));
+    }
+    if let Statement::CreateIndex(index) = statement
+        && index.unique
+    {
+        out.push(violation(rel, line, "creates a unique index"));
+    }
+    if let Statement::AlterTable { operations, .. } = statement {
+        out.extend(alter_violations(rel, line, operations));
+    }
+    if let Statement::Insert(insert) = statement {
+        out.extend(insert_violations(rel, line, insert));
+    }
     out
 }
 
-fn push_word_violations(
+#[must_use = "the allow list is the set of shapes a migration file may contain"]
+fn is_allow_listed(statement: &Statement) -> bool {
+    matches!(
+        statement,
+        Statement::CreateTable(_)
+            | Statement::CreateIndex(_)
+            | Statement::AlterTable { .. }
+            | Statement::Insert(_)
+    )
+}
+
+fn create_table_violations(
     rel: &str,
-    statement: &Statement,
-    create_table: bool,
-    out: &mut Vec<String>,
-) {
-    if let Some(at) = find_word_line(statement, DROP_WORDS) {
-        out.push(violation_at(rel, at, "drops an object"));
+    line: usize,
+    created: &sqlparser::ast::CreateTable,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    if created.query.is_some() {
+        out.push(violation(rel, line, "creates a table from a query"));
     }
-    if let Some(at) = find_word_line(statement, RENAME_WORDS) {
-        out.push(violation_at(rel, at, "renames an object"));
+    if created.like.is_some() || created.clone.is_some() {
+        out.push(violation(rel, line, "creates a table by copying another"));
     }
-    if let Some(at) = find_word_line(statement, REMOVE_DATA_WORDS) {
-        out.push(violation_at(rel, at, "removes data"));
+    if created.columns.is_empty() && created.constraints.is_empty() {
+        out.push(violation(rel, line, "creates a table with no columns"));
     }
-    let add_constraint = "adds a constraint to an existing table";
-    if !create_table && let Some(at) = find_word_line(statement, EXISTING_TABLE_CONSTRAINT_WORDS) {
-        out.push(violation_at(rel, at, add_constraint));
-    }
+    out
 }
 
-fn find_word_line<const N: usize>(statement: &Statement, banned: [&str; N]) -> Option<usize> {
-    find_word_line_long(statement, &banned)
-}
-
-fn find_word_line_long(statement: &Statement, banned: &[&str]) -> Option<usize> {
-    let upper = statement.text.to_ascii_uppercase();
-    let mut line = statement.start_line;
-    let mut token = String::new();
-    for ch in upper.chars() {
-        if ch == '\n' {
-            if is_banned(&token, banned) {
-                return Some(line);
-            }
-            token.clear();
-            line = line.saturating_add(1);
-            continue;
-        }
-        if ch.is_ascii_alphanumeric() {
-            token.push(ch);
-        } else if is_banned(&token, banned) {
-            return Some(line);
+fn alter_violations(rel: &str, line: usize, operations: &[AlterTableOperation]) -> Vec<String> {
+    let mut out = Vec::new();
+    for operation in operations {
+        if let AlterTableOperation::AddColumn { column_def, .. } = operation {
+            out.extend(add_column_violations(rel, line, column_def));
         } else {
-            token.clear();
+            out.push(violation(
+                rel,
+                line,
+                &format!("alters a table in a non-adding clause: {operation}"),
+            ));
         }
     }
-    if is_banned(&token, banned) {
-        return Some(line);
-    }
-    None
+    out
 }
 
-fn is_banned(token: &str, banned: &[&str]) -> bool {
-    !token.is_empty() && banned.contains(&token)
-}
-
-fn push_clause_violations(
+fn add_column_violations(
     rel: &str,
-    statement: &Statement,
-    upper: &str,
-    words: &[&str],
-    out: &mut Vec<String>,
-) {
-    if !words.contains(&"ALTER") {
-        return;
+    line: usize,
+    column: &sqlparser::ast::ColumnDef,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut required = false;
+    let mut has_default = false;
+    for option in &column.options {
+        if let Some(reason) = non_additive_reason(&option.option) {
+            out.push(violation(rel, line, reason));
+        }
+        if matches!(option.option, ColumnOption::NotNull) {
+            required = true;
+        }
+        if matches!(option.option, ColumnOption::Default(_)) {
+            has_default = true;
+        }
     }
-    if upper.contains("ALTER COLUMN") && (upper.contains("TYPE") || upper.contains("SET DATA")) {
-        out.push(violation(rel, statement, "changes a column type"));
-    }
-    if upper.contains("SET NOT NULL") {
+    if required && !has_default {
         out.push(violation(
             rel,
-            statement,
-            "makes an existing column required",
-        ));
-    }
-    if upper.contains("ADD COLUMN")
-        && upper.contains("NOT NULL")
-        && !upper.contains("PRIMARY KEY")
-        && !upper.contains("DEFAULT")
-    {
-        out.push(violation(
-            rel,
-            statement,
+            line,
             "adds a required column with no default",
         ));
     }
+    out
 }
 
-fn push_head_violations(rel: &str, statement: &Statement, words: &[&str], out: &mut Vec<String>) {
-    if starts_with(words, &["CREATE", "TABLE"]) || starts_with(words, &["INSERT"]) {
-        return;
+#[must_use = "the reason names the column option that breaks the additive rule"]
+fn non_additive_reason(option: &ColumnOption) -> Option<&'static str> {
+    if matches!(
+        option,
+        ColumnOption::Null
+            | ColumnOption::NotNull
+            | ColumnOption::Default(_)
+            | ColumnOption::Materialized(_)
+            | ColumnOption::Ephemeral(_)
+            | ColumnOption::Alias(_)
+            | ColumnOption::DialectSpecific(_)
+    ) {
+        return None;
     }
-    if starts_with(words, &["CREATE", "INDEX"]) {
-        return;
-    }
-    if starts_with(words, &["CREATE", "UNIQUE", "INDEX"]) {
-        out.push(violation(rel, statement, "creates a unique index"));
-        return;
-    }
-    if starts_with(words, &["ALTER", "TABLE"]) {
-        if !words.contains(&"ADD") || !words.contains(&"COLUMN") {
-            out.push(violation(
-                rel,
-                statement,
-                "alters a table in a non-adding clause",
-            ));
+    match option {
+        ColumnOption::Unique { is_primary, .. } => {
+            if *is_primary {
+                Some("adds a primary key column")
+            } else {
+                Some("adds a unique column")
+            }
         }
-        return;
+        ColumnOption::ForeignKey { .. } => Some("adds a foreign key column"),
+        ColumnOption::Check(_) => Some("adds a check constraint"),
+        ColumnOption::Generated { .. } | ColumnOption::Identity(_) => {
+            Some("adds a generated column")
+        }
+        ColumnOption::CharacterSet(_) => Some("adds a character set"),
+        ColumnOption::Collation(_) => Some("adds a collation"),
+        ColumnOption::Comment(_) => Some("adds a comment clause"),
+        ColumnOption::OnUpdate(_) => Some("adds an on-update clause"),
+        ColumnOption::OnConflict(_) => Some("adds an on-conflict clause"),
+        ColumnOption::Options(_) => Some("adds table options"),
+        ColumnOption::Policy(_) => Some("adds a column policy"),
+        ColumnOption::Tags(_) => Some("adds column tags"),
+        other @ (ColumnOption::Null
+        | ColumnOption::NotNull
+        | ColumnOption::Default(_)
+        | ColumnOption::Materialized(_)
+        | ColumnOption::Ephemeral(_)
+        | ColumnOption::Alias(_)
+        | ColumnOption::DialectSpecific(_)) => {
+            std::hint::black_box(other);
+            None
+        }
     }
-    out.push(violation(
-        rel,
-        statement,
-        "is not on the additive allow list",
-    ));
 }
 
-fn starts_with(words: &[&str], prefix: &[&str]) -> bool {
-    words.len() >= prefix.len() && words.iter().zip(prefix.iter()).all(|(w, p)| w == p)
-}
-
-fn violation(rel: &str, statement: &Statement, reason: &str) -> String {
-    violation_at(rel, statement.start_line, reason)
-}
-
-fn violation_at(rel: &str, line: usize, reason: &str) -> String {
+fn violation(rel: &str, line: usize, reason: &str) -> String {
     format!(
         "{rel}:{line}: migration statement {reason}; migrations only add (spec/05 section 2, spec/09 K118 6)"
     )

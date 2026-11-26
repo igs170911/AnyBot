@@ -28,26 +28,42 @@ fn dir_violations(repo: &Path, git_ref: &str, rel_dir: &str) -> Vec<String> {
         if !crate::table::has_extension(line, "sql") {
             continue;
         }
-        let mut spec = git_ref.to_owned();
-        spec.push(':');
-        spec.push_str(line);
-        let committed = match git_output(repo, &["show", &spec]) {
-            Ok(text) => text.into_bytes(),
-            Err(e) => return vec![e],
-        };
-        let Ok(current) = std::fs::read(repo.join(line)) else {
+        if !repo.join(line).exists() {
             out.push(format!(
                 "{line}: a committed migration is missing locally; committed migrations never change"
             ));
-            continue;
-        };
-        if current != committed {
-            out.push(format!(
-                "{line}: a committed migration changed content; committed migrations never change (spec/09 K118 6)"
-            ));
         }
     }
+    out.extend(diff_violations(repo, git_ref, rel_dir));
     out
+}
+
+fn diff_violations(repo: &Path, git_ref: &str, rel_dir: &str) -> Vec<String> {
+    match git_diff_quiet(repo, git_ref, rel_dir) {
+        Ok(()) => vec![],
+        Err(e) => vec![e],
+    }
+}
+
+fn git_diff_quiet(repo: &Path, git_ref: &str, rel_dir: &str) -> Result<(), String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["diff", "--quiet", git_ref, "--", rel_dir])
+        .output()
+        .map_err(|e| format!("git diff failed to run: {e}"))?;
+    if out.status.success() {
+        return Ok(());
+    }
+    if out.status.code() == Some(1) {
+        return Err(format!(
+            "{rel_dir}: committed migration content changed against {git_ref}; committed migrations never change (spec/09 K118 6)"
+        ));
+    }
+    Err(format!(
+        "{rel_dir}: git diff against {git_ref} failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    ))
 }
 
 fn git_output(repo: &Path, args: &[&str]) -> Result<String, String> {
@@ -65,7 +81,6 @@ fn git_output(repo: &Path, args: &[&str]) -> Result<String, String> {
     }
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
-
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -118,13 +133,31 @@ mod tests {
         std::fs::write(&file, "CREATE TABLE a (id BIGINT PRIMARY KEY);\n").unwrap();
         commit(&repo);
         let found = violations(&repo, "HEAD~1");
-        assert_eq!(found.len(), 1, "{found:?}");
         assert!(
-            found
-                .first()
-                .is_some_and(|line| line.contains("0001_init.sql")),
+            found.iter().any(|line| line.contains("never change")),
             "{found:?}"
         );
+    }
+
+    #[test]
+    fn test_committed_migration_gate_blocks_uncommitted_content_edits_at_the_merge_base() {
+        let repo = scratch_repo("iron-migrations-committed-mergebase");
+        let file = repo.join("migrations/server/0001_init.sql");
+        std::fs::write(&file, "CREATE TABLE a (id BIGINT);\n").unwrap();
+        commit(&repo);
+        git(&repo, &["branch", "dev"]);
+        git(&repo, &["checkout", "-b", "ws/fixture"]);
+        std::fs::write(&file, "CREATE TABLE a (id BIGINT PRIMARY KEY);\n").unwrap();
+        let base = merge_base(&repo).trim().to_owned();
+        let found = violations(&repo, &base);
+        assert!(
+            found.iter().any(|line| line.contains("never change")),
+            "{found:?}"
+        );
+    }
+
+    fn merge_base(repo: &Path) -> String {
+        git_output(repo, &["merge-base", "HEAD", "dev"]).unwrap()
     }
 
     #[test]
@@ -161,11 +194,8 @@ mod tests {
         commit(&repo);
         std::fs::remove_file(repo.join("migrations/server/0001_init.sql")).unwrap();
         let found = violations(&repo, "HEAD");
-        assert_eq!(found.len(), 1, "{found:?}");
         assert!(
-            found
-                .first()
-                .is_some_and(|line| line.contains("missing locally")),
+            found.iter().any(|line| line.contains("missing locally")),
             "{found:?}"
         );
     }
