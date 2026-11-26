@@ -143,6 +143,7 @@ async fn apply_password(
     sessions::delete_sessions_for_account(pool, &caller.account, Some(&caller.session_id))
         .await
         .map_err(internal_sqlx)?;
+    crate::sse_revoke::revoke_sse(state, &caller.account);
     let ok = serde_json::to_value(ActionAck { ok: true }).map_err(internal_text)?;
     record(pool, state, key, raw, scope, StatusCode::OK, &ok).await
 }

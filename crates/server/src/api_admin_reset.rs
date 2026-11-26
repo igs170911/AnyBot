@@ -119,6 +119,7 @@ async fn apply_reset(
     sessions::delete_sessions_for_account(pool, &row.account, None)
         .await
         .map_err(internal_sqlx)?;
+    crate::sse_revoke::revoke_sse(state, &row.account);
     value_of(&ActionAck { ok: true })
 }
 

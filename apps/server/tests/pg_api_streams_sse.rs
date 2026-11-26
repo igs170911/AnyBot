@@ -80,19 +80,27 @@ async fn seed(base: &str, token: &str, count: usize) -> Result<(), String> {
 
 async fn open_account(base: &str, token: &str, init: Option<i64>) -> Result<SseOpen, String> {
     let query = match init {
-        Some(at) => format!("stream=account%2Falice&init_seq={at}"),
-        None => "stream=account%2Falice".to_owned(),
+        Some(at) => format!("init_seq={at}"),
+        None => String::new(),
     };
     open_sse(base, "/v1/streams/notifications", token, &query).await
 }
 
 fn progress_seq(json: &Value) -> Result<i64, String> {
-    json.get("streams")
-        .and_then(Value::as_array)
-        .and_then(|rows| rows.first())
-        .and_then(|row| row.get("seq"))
+    stream_row(json, "account/alice")?
+        .get("seq")
         .and_then(Value::as_i64)
-        .ok_or(format!("no stream progress in {json}"))
+        .ok_or(format!("no account seq in {json}"))
+}
+
+fn stream_row<'a>(json: &'a Value, key: &str) -> Result<&'a Value, String> {
+    let rows = json
+        .get("streams")
+        .and_then(Value::as_array)
+        .ok_or(format!("no streams in {json}"))?;
+    rows.iter()
+        .find(|row| row.get("stream").and_then(Value::as_str) == Some(key))
+        .ok_or(format!("no row for {key} in {json}"))
 }
 
 #[tokio::test]
@@ -110,6 +118,7 @@ async fn sse_first_event_is_progress_with_the_max() -> Result<(), String> {
     );
     let json = data_json(&block)?;
     assert_eq!(progress_seq(&json)?, 5, "head max: {json}");
+    stream.close();
     served.stop().await
 }
 
@@ -138,6 +147,7 @@ async fn sse_pushes_new_records_after_an_append() -> Result<(), String> {
         json.get("device_id").and_then(Value::as_str),
         Some("dev-new")
     );
+    stream.close();
     served.stop().await
 }
 
@@ -161,40 +171,7 @@ async fn sse_init_seq_replays_the_missed_records() -> Result<(), String> {
         .and_then(Value::as_i64)
         .ok_or(format!("no seq in {json}"))?;
     assert_eq!(seq, 3, "replay starts at 3: {json}");
-    served.stop().await
-}
-
-#[tokio::test]
-async fn sse_of_a_foreign_stream_is_refused() -> Result<(), String> {
-    let served = serve_start_with("sse_foreign", &ReleaseTable::empty()).await?;
-    let base = served.base_url();
-    let token = login_bearer(&served).await?;
-    let create = vec![item(
-        "dev-a",
-        "bots_create",
-        &json!({"bot_id": "bot-sse", "name": "helper"}),
-    )];
-    let _landed = append(&base, &token, "k-sse-bot", &append_body(&create)).await?;
-    let bob_body = json!({
-        "account": "bob",
-        "password": "bobpassword",
-        "label": "test-device",
-        "credential": "bearer",
-    })
-    .to_string();
-    let spec = RequestSpec::new(&bob_body).with_key("k-sse-bob");
-    let mut walker = ClockWalker::start(&served.clock);
-    let landed = post(&base, "/v1/account/login", &spec).await;
-    walker.stop().await?;
-    let bob = landed?.bearer()?;
-    let opened = open_sse(
-        &base,
-        "/v1/streams/notifications",
-        &bob,
-        "stream=bot%2Fbot-sse",
-    )
-    .await;
-    assert!(opened.is_err(), "foreign sse must refuse: {opened:?}");
+    stream.close();
     served.stop().await
 }
 
@@ -206,8 +183,47 @@ async fn sse_heartbeats_arrive_every_fifteen_seconds() -> Result<(), String> {
     seed(&base, &token, 1).await?;
     let mut stream = open_account(&base, &token, None).await?;
     let _head = stream.recv_block().await?;
+    let mut walker = ClockWalker::start(&served.clock);
     let seen = stream.count_heartbeats(2).await?;
+    walker.stop().await?;
     assert!(seen >= 2, "heartbeats: {seen}");
+    stream.close();
+    served.stop().await
+}
+
+async fn post_ok(
+    base: &str,
+    token: &str,
+    key: &str,
+    path: &str,
+    body: &str,
+) -> Result<ResponseSpec, String> {
+    let spec = RequestSpec::new(body).with_key(key).with_bearer(token);
+    post(base, path, &spec).await
+}
+
+#[tokio::test]
+async fn sse_closes_within_five_seconds_when_credentials_are_revoked() -> Result<(), String> {
+    let served = serve_start_with("sse_revoke", &ReleaseTable::empty()).await?;
+    let base = served.base_url();
+    let token = login_bearer(&served).await?;
+    seed(&base, &token, 1).await?;
+    let mut stream = open_account(&base, &token, None).await?;
+    let _head = stream.recv_block().await?;
+    let logout = post_ok(
+        &base,
+        &token,
+        "k-sse-logout",
+        "/v1/account/logout",
+        r#"{"ok": true}"#,
+    )
+    .await?;
+    assert_eq!(logout.status, 200, "logout: {}", logout.json);
+    let mut walker = ClockWalker::start(&served.clock);
+    let ended = stream.recv_ended(std::time::Duration::from_secs(5)).await;
+    walker.stop().await?;
+    ended.map_err(|e| format!("revoked sse must end: {e}"))?;
+    stream.close();
     served.stop().await
 }
 
@@ -225,6 +241,6 @@ async fn sse_carries_the_accel_buffering_header() -> Result<(), String> {
         .map(|v| v.to_str().unwrap_or_default().to_owned())
         .collect::<Vec<String>>();
     assert_eq!(values, vec!["no".to_owned()], "accel header: {values:?}");
-    drop(stream);
+    stream.close();
     served.stop().await
 }

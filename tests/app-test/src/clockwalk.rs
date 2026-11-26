@@ -5,7 +5,7 @@ use tokio::task::JoinHandle;
 
 use test_harness::FakeClock;
 
-pub const STEP_FAKE: Duration = Duration::from_millis(100);
+pub const STEP_FAKE: Duration = Duration::from_millis(1000);
 pub const STEP_REAL: Duration = Duration::from_millis(10);
 
 pub struct ClockWalker {

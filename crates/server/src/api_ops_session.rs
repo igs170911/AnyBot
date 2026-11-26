@@ -61,6 +61,7 @@ pub async fn logout(
     sessions::delete_sessions(pool, &[&caller.session_id])
         .await
         .map_err(internal_sqlx)?;
+    crate::sse_revoke::revoke_sse(&state, &caller.account);
     let value = ack_value(&body)?;
     let answer = record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await?;
     Ok(clear_cookie(answer, &state, &caller).await)
@@ -132,6 +133,7 @@ pub async fn logout_all(
     sessions::delete_sessions_for_account(pool, &caller.account, None)
         .await
         .map_err(internal_sqlx)?;
+    crate::sse_revoke::revoke_sse(&state, &caller.account);
     let value = ack_value(&body)?;
     record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }

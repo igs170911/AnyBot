@@ -38,7 +38,20 @@ pub fn stream_note(stream_id: &str) -> String {
 
 #[must_use]
 pub fn stream_id_of_note(kind: &str) -> Option<&str> {
-    kind.strip_prefix("stream:")
+    kind.strip_prefix(STREAM_NOTE_PREFIX)
+}
+
+pub const STREAM_NOTE_PREFIX: &str = "stream:";
+pub const REVOKE_NOTE_PREFIX: &str = "revoked:";
+
+#[must_use]
+pub fn revoke_note(account: &str) -> String {
+    format!("{REVOKE_NOTE_PREFIX}{account}")
+}
+
+#[must_use]
+pub fn account_of_revoke(kind: &str) -> Option<&str> {
+    kind.strip_prefix(REVOKE_NOTE_PREFIX)
 }
 
 pub trait Bus: Send + Sync {

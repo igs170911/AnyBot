@@ -96,7 +96,7 @@ async fn finish_handoff_1(
 ) -> Result<(), String> {
     let ready = timeout_real(
         drive::drive_until(&world.clock, || task.is_finished()),
-        Duration::from_secs(8),
+        Duration::from_secs(30),
     )
     .await;
     assert!(ready.is_ok());

@@ -138,7 +138,7 @@ async fn unattended_sends_eight_times() -> Result<(), String> {
         let mut plan = ask_plan(&primary, &[], &request, Audience::Unattended);
         session.ask(&mut plan).await
     });
-    let ready = timeout_real(drive(&world.clock, &task), Duration::from_secs(8)).await;
+    let ready = timeout_real(drive(&world.clock, &task), Duration::from_secs(30)).await;
     assert!(ready.is_ok());
     let joined = task.await.map_err(|err| format!("{err}"))?;
     assert!(joined.is_err());

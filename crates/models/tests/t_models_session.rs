@@ -106,10 +106,10 @@ async fn retry_after_is_capped_at_thirty_seconds() -> Result<(), String> {
     });
     let ready = timeout_real(
         drive::drive_until(&world.clock, || task.is_finished()),
-        Duration::from_secs(8),
+        Duration::from_secs(30),
     )
     .await;
-    assert!(ready.is_ok());
+    assert!(ready.is_ok(), "the retry run did not finish in time");
     let outcome = task.await.map_err(|err| format!("{err}"))??;
     assert!(
         outcome

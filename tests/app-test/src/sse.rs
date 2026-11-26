@@ -58,9 +58,19 @@ impl SseOpen {
         Err("no data block between heartbeats".to_owned())
     }
 
-    pub fn close(&self) {
-        let (tx, _rx) = mpsc::channel::<()>(1);
-        drop(tx);
+    pub async fn recv_ended(&mut self, within: Duration) -> Result<(), String> {
+        let got = tokio::time::timeout(within, self.rx.recv())
+            .await
+            .map_err(|_| "the sse stream stayed open past the deadline".to_owned())?;
+        if got.is_some() {
+            let rest = within.checked_sub(SSE_DEADLINE).unwrap_or(Duration::ZERO);
+            return Box::pin(self.recv_ended(rest)).await;
+        }
+        Ok(())
+    }
+
+    pub fn close(self) {
+        drop(self.rx);
     }
 }
 

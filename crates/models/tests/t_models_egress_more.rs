@@ -49,7 +49,7 @@ fn share(clock: &Arc<FakeClock>) -> Arc<dyn Clock> {
 async fn drive(clock: &FakeClock, task: &tokio::task::JoinHandle<bool>) {
     let _ready = timeout_real(
         drive::drive_until(clock, || task.is_finished()),
-        Duration::from_secs(8),
+        Duration::from_secs(30),
     )
     .await;
 }

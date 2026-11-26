@@ -19,6 +19,7 @@ pub mod api_streams_after;
 pub mod api_streams_append;
 pub mod api_streams_bot;
 pub mod api_streams_sse;
+pub mod api_streams_sse_drive;
 pub mod api_streams_util;
 pub mod app;
 pub mod auth_credential;
@@ -44,6 +45,7 @@ pub mod req_write;
 pub mod run;
 pub mod serve_all;
 pub mod session_key;
+pub mod sse_revoke;
 pub mod startup;
 pub mod status;
 

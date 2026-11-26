@@ -313,8 +313,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Notification stream of one record stream (SSE)
-         * @description Stays open: the first event is progress carrying the current max seq of this stream; then new-records and progress events; a heartbeat line every 15 seconds; and one final stream-progress event with the current max seq when the server closes the stream. init_seq replays the records after it. X-Accel-Buffering is set to no.
+         * Notification stream of every record stream the caller can see (SSE)
+         * @description Stays open and carries notifications for every stream this caller can see, never record content. The first event is progress: for each stream the current seq and which record that seq is. Then new-records events for whichever stream gained records. A heartbeat line every 15 seconds. One final stream-progress event with the current seq of every stream when the server closes the stream, including when credentials stop working. There is no N on the request and no Last-Event-ID: data is fetched with GET /v1/streams/after. X-Accel-Buffering is set to no.
          */
         get: operations["get_streams_notifications"];
         put?: never;
@@ -2328,10 +2328,8 @@ export interface operations {
     };
     get_streams_notifications: {
         parameters: {
-            query: {
-                /** @description stream key: account/{owner} or bot/{id} */
-                stream: string;
-                /** @description replay records after this sequence */
+            query?: {
+                /** @description replay account records after this sequence */
                 init_seq?: number;
             };
             header?: never;
@@ -2348,17 +2346,17 @@ export interface operations {
                 content: {
                     /**
                      * @example event: progress
-                     *     data: {"streams":[{"stream":"account","seq":45}]}
+                     *     data: {"streams":[{"stream":"account/alice","seq":45,"device_id":"018f-uuidv7"}]}
                      *
                      *     :hb
                      *
                      *     event: new-records
-                     *     data: {"stream":"account","seq":46,"device_id":"018f-uuidv7"}
+                     *     data: {"stream":"account/alice","seq":46,"device_id":"018f-uuidv7"}
                      */
                     "text/event-stream": unknown;
                 };
             };
-            /** @description Bad stream key */
+            /** @description Bad query */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2371,24 +2369,6 @@ export interface operations {
                      *       "status": 400,
                      *       "title": "The request was malformed.",
                      *       "type": "https://anybot.test/problems/bad-request"
-                     *     }
-                     */
-                    "application/problem+json": components["schemas"]["ProblemJson"];
-                };
-            };
-            /** @description No permission for this stream */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "record-no-permission",
-                     *       "params": {},
-                     *       "status": 403,
-                     *       "title": "You cannot write this stream.",
-                     *       "type": "https://anybot.test/problems/record_no_permission"
                      *     }
                      */
                     "application/problem+json": components["schemas"]["ProblemJson"];

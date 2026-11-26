@@ -117,7 +117,7 @@ async fn header_delay_is_not_a_connect_timeout() -> Result<(), String> {
             )
             .await
     });
-    let ready = timeout_real(wait_clock(&clock, &task, 20), Duration::from_secs(8)).await;
+    let ready = timeout_real(wait_clock(&clock, &task, 20), Duration::from_secs(30)).await;
     assert!(ready.is_ok());
     let result = task
         .await

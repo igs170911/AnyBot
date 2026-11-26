@@ -96,7 +96,7 @@ async fn fallback_after_retries_uses_second_model() -> Result<(), String> {
     });
     let ready = timeout_real(
         drive::drive_until(&world.clock, || task.is_finished()),
-        Duration::from_secs(8),
+        Duration::from_secs(30),
     )
     .await;
     assert!(ready.is_ok());

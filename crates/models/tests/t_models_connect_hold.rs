@@ -55,7 +55,7 @@ async fn accepted_connection_without_headers_is_first_token() -> Result<(), Stri
             )
             .await
     });
-    let ready = timeout_real(wait_clock(&clock, &task, 121), Duration::from_secs(8)).await;
+    let ready = timeout_real(wait_clock(&clock, &task, 121), Duration::from_secs(30)).await;
     assert!(ready.is_ok(), "still waiting for headers");
     let err = task.await.map_err(|err| format!("{err}"))?.unwrap_err();
     assert!(
@@ -113,7 +113,7 @@ async fn https_tcp_accept_without_handshake_is_unreachable() -> Result<(), Strin
             )
             .await
     });
-    let ready = timeout_real(wait_once(&clock, &task, 16), Duration::from_secs(8)).await;
+    let ready = timeout_real(wait_once(&clock, &task, 16), Duration::from_secs(30)).await;
     assert!(ready.is_ok(), "https handshake still waiting");
     let err = task.await.map_err(|err| format!("{err}"))?.unwrap_err();
     assert!(

@@ -92,6 +92,7 @@ pub async fn disable_account(
     accounts::set_disabled(pool, &target, true)
         .await
         .map_err(internal_sqlx)?;
+    crate::sse_revoke::revoke_sse(&state, &target);
     sessions::delete_sessions_for_account(pool, &target, None)
         .await
         .map_err(internal_sqlx)?;
@@ -167,6 +168,7 @@ pub async fn enable_account(
     accounts::set_disabled(pool, &target, false)
         .await
         .map_err(internal_sqlx)?;
+    crate::sse_revoke::revoke_sse(&state, &target);
     let value = value_of(&body)?;
     record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }

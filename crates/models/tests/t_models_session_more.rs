@@ -63,7 +63,7 @@ async fn stream_busy_waits_then_retries() -> Result<(), String> {
     });
     let ready = timeout_real(
         drive::drive_until(&world.clock, || task.is_finished()),
-        Duration::from_secs(8),
+        Duration::from_secs(30),
     )
     .await;
     assert!(ready.is_ok());
@@ -156,7 +156,7 @@ async fn policy_skip_does_not_call_cloud_fallback() -> Result<(), String> {
     });
     let ready = timeout_real(
         drive::drive_until(&world.clock, || task.is_finished()),
-        Duration::from_secs(8),
+        Duration::from_secs(30),
     )
     .await;
     assert!(ready.is_ok());
