@@ -60,7 +60,7 @@ fn start_running(db: &ServerDb) -> Result<Running, String> {
 }
 
 #[tokio::test]
-async fn t_install_n22_1() -> Result<(), String> {
+async fn bootstrap_start_does_not_print_the_database_password() -> Result<(), String> {
     let db = db_start("install_n22_1").await?;
     let mut running = start_running(&db)?;
     let result = running.kill();

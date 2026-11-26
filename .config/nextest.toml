@@ -36,4 +36,4 @@ filter = 'test(t_install|t_server|postgres)'
 slow-timeout = { period = "120s", terminate-after = 4 }
 
 [profile.quick]
-default-filter = 'not test(/(postgres_(dropped|install|migration|restart|stop|two)|::pg_|(t_server|t_account|t_safety|t_conn|t_install|pg_|cli_reset|run_against|run_after|startup_logs|health_endpoint|second_server|sequential_registration|concurrent_registration|config_defaults|idempotency_records|hourly_cleanup))/)'
+default-filter = 'not binary(/^pg_/)'

@@ -21,7 +21,7 @@ use anybot_server::KEY_TRUST_PROXY;
 use anybot_server::limits::KIND_LOGIN_FAIL;
 
 const WAVE: usize = 30;
-const VERIFY_MAX: usize = 10;
+const VERIFY_MAX: usize = 8;
 const EXTRA: usize = 50;
 const DEADLINE: std::time::Duration = std::time::Duration::from_secs(15);
 const FAST_MS: u128 = 1000;

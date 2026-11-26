@@ -87,7 +87,7 @@ pub use netctl::{
     net_down, net_hang_connect, net_idle_cut, net_mode, net_restore, net_restore_target, net_slow,
     net_source_addr, net_start,
 };
-pub use ports::{bind_pair, bind_v4, bind_v6, port_is_free};
+pub use ports::{bind_pair, bind_v4, bind_v6, first_lan_ipv4, port_is_free};
 pub use postgres::{
     PgInstance, migration_fixture, pg_install_cache_dir, pg_migrations_dir, pg_ready,
     pg_socket_path, pg_start, pg_stop,

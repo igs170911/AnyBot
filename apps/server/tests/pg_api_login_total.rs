@@ -155,6 +155,7 @@ fn ghost_passwords() -> Vec<String> {
         "trustno1",
         "sunshine",
         "princess",
+        "master",
     ]
     .into_iter()
     .map(str::to_owned)
@@ -164,7 +165,7 @@ fn ghost_passwords() -> Vec<String> {
 async fn timed_sides(base: &std::sync::Arc<str>) -> Result<(Vec<u128>, Vec<u128>), String> {
     let mut ghost_times = Vec::new();
     let mut alice_times = Vec::new();
-    for (round, password) in ghost_passwords().into_iter().enumerate().take(19) {
+    for (round, password) in ghost_passwords().into_iter().enumerate() {
         let pair = run_pair(base, round, &password).await?;
         ghost_times.push(pair.0);
         alice_times.push(pair.1);

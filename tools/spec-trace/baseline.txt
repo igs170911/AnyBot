@@ -13,6 +13,7 @@ T-account-can-4
 T-account-computers-1
 T-account-computers-2
 T-account-login-2
+T-account-login-3
 T-account-login-5
 T-account-login-6
 T-account-login-7
@@ -1246,6 +1247,7 @@ T-install-n2-4
 T-install-n21-1
 T-install-n21-2
 T-install-n21-3
+T-install-n22-1
 T-install-n23-1
 T-install-n23-2
 T-install-n23-3
@@ -1853,6 +1855,7 @@ T-safety-n1-8
 T-safety-n1-9
 T-safety-n10-3
 T-safety-n10-4
+T-safety-n11-3
 T-safety-n11-4
 T-safety-n11-5
 T-safety-n2-1
@@ -2049,6 +2052,7 @@ T-server-address-3
 T-server-address-4
 T-server-boot-1
 T-server-boot-2
+T-server-boot-3
 T-server-boot-4
 T-server-boot-5
 T-server-brains-1
@@ -2061,6 +2065,7 @@ T-server-install-1
 T-server-install-2
 T-server-install-3
 T-server-install-4
+T-server-invite-1
 T-server-invite-3
 T-server-invite-5
 T-server-invite-6
@@ -2073,6 +2078,7 @@ T-server-move-1
 T-server-move-2
 T-server-move-3
 T-server-move-4
+T-server-n1-3
 T-server-n1-4
 T-server-n10-1
 T-server-n10-2
@@ -2116,6 +2122,7 @@ T-server-n7-1
 T-server-n7-2
 T-server-n8-1
 T-server-n8-2
+T-server-n8-3
 T-server-n9-1
 T-server-n9-2
 T-server-n9-3

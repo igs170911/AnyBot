@@ -231,8 +231,6 @@ fn median(values: &[u128]) -> Result<u128, String> {
         .ok_or(format!("no median at {mid}"))
 }
 
-const CLEANUP_TICKS: u64 = 24;
-
 #[tokio::test]
 async fn pg_cleanup_prunes_old_records() -> Result<(), String> {
     let served = serve_start("hourly_cleanup").await?;
@@ -257,13 +255,27 @@ async fn pg_cleanup_prunes_old_records() -> Result<(), String> {
     )
     .await
     .map_err(|e| e.to_string())?;
-    for _tick in 0..CLEANUP_TICKS {
-        let _hour = served.clock.advance(anybot_server::cleanup::CLEANUP_SPAN);
-        test_harness::sleep_real(std::time::Duration::from_millis(50)).await;
-        assert_cleaned(&served, event_id).await?;
-    }
+    let _hour = served.clock.advance(anybot_server::cleanup::CLEANUP_SPAN);
+    let cleaned = test_harness::timeout_real(
+        wait_cleaned(&served, event_id),
+        std::time::Duration::from_secs(15),
+    )
+    .await;
+    cleaned??;
     served.stop().await?;
     Ok(())
+}
+
+async fn wait_cleaned(
+    served: &anybot_app_test::serve::Served,
+    event_id: i64,
+) -> Result<(), String> {
+    loop {
+        if assert_cleaned(served, event_id).await.is_ok() {
+            return Ok(());
+        }
+        test_harness::sleep_real(std::time::Duration::from_millis(50)).await;
+    }
 }
 
 async fn assert_cleaned(

@@ -26,7 +26,8 @@ fn register_body(account: &str, password: &str, invite: &str, key: &str) -> Requ
 }
 
 #[tokio::test]
-async fn t_server_invite_1() -> Result<(), String> {
+async fn fresh_boot_rejects_a_missing_or_wrong_invite_and_accepts_the_first_admin()
+-> Result<(), String> {
     let served = serve_start("t_server_invite_1").await?;
     assert_eq!(served.started.account_count, 0);
     let invite = served
@@ -197,7 +198,8 @@ async fn register_task(
 }
 
 #[tokio::test]
-async fn t_account_login_3() -> Result<(), String> {
+async fn register_rejects_a_one_character_name_a_space_and_a_short_password() -> Result<(), String>
+{
     let served = serve_start("t_account_login_3").await?;
     let invite = served
         .started
@@ -224,7 +226,7 @@ async fn t_account_login_3() -> Result<(), String> {
     let short_pass = post(
         &served.base_url(),
         "/v1/account/register",
-        &register_body("validname", "7chars", &invite, "k-pass"),
+        &register_body("validname", "1234567", &invite, "k-pass"),
     )
     .await?;
     assert_eq!(short_pass.status, 400);

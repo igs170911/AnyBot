@@ -20,17 +20,24 @@ use anybot_app_test::http::{RequestSpec, post};
 use anybot_app_test::n106::{login_spec, register};
 mod pg_install_shared;
 
-use pg_install_shared::{
-    Running, bootstrap_args, check_both, check_second, db_start, english, get_status, server_bin,
-    start_live, startup_line_of, stop_live,
+use anybot_app_test::{
+    bootstrap_args, check_both, check_second, get_status, public_url_check, start_live, stop_live,
 };
+use pg_install_shared::{db_start, english, server_bin, startup_line_of};
+use test_harness::Running;
+
+#[test]
+fn public_url_check_rejects_a_body_without_the_url() {
+    let missing = public_url_check("{\"public_url\":null}");
+    assert!(missing.is_err(), "{missing:?}");
+}
 
 use test_harness::{pg_stop, run_program, test_dir, write_file_with_mode};
 
 #[tokio::test]
 async fn t_server_n14_1() -> Result<(), String> {
     let db = db_start("server_n14_1").await?;
-    let mut first = start_live(&db).await?;
+    let mut first = start_live(&server_bin(), &db, &startup_line_of(&db)?).await?;
     let invite = drawn_invite_of(&mut first)?;
     let base = format!("http://127.0.0.1:{}", db.listen_port);
     let _created = register(&base, "dana", "danapassword", &invite, "k-reg").await?;
@@ -54,10 +61,10 @@ async fn t_server_n14_1() -> Result<(), String> {
         "admin public-url body {0}",
         changed.json
     );
-    stop_live(first, db.listen_port).await.map(|_running| ())?;
-    let second = start_live(&db).await?;
+    stop_live(first).await.map(|_running| ())?;
+    let second = start_live(&server_bin(), &db, &startup_line_of(&db)?).await?;
     let body = get_status(&db).await;
-    let result = stop_live(second, db.listen_port).await.map(|_running| ());
+    let result = stop_live(second).await.map(|_running| ());
     let stopped = pg_stop(&db.pg).await;
     match check_both(body, result, stopped) {
         Ok(()) => Ok(()),
@@ -164,9 +171,9 @@ async fn t_server_n14_2() -> Result<(), String> {
 #[tokio::test]
 async fn public_url_server_reserves_the_port_for_the_first() -> Result<(), String> {
     let db = db_start("public_url_port_taken").await?;
-    let first = start_live(&db).await?;
+    let first = start_live(&server_bin(), &db, &startup_line_of(&db)?).await?;
     let second = run_program(&server_bin().program(db.args()), &db.dir)?;
     check_second(&second, db.listen_port)?;
-    stop_live(first, db.listen_port).await.map(|_running| ())?;
+    stop_live(first).await.map(|_running| ())?;
     pg_stop(&db.pg).await
 }

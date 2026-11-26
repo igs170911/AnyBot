@@ -23,7 +23,8 @@ fn server_bin() -> ServerProgram {
 }
 
 #[tokio::test]
-async fn t_server_n8_3() -> Result<(), String> {
+async fn foreign_database_exits_and_a_blocked_database_retries_on_a_fake_clock()
+-> Result<(), String> {
     let first = run_against_foreign_database().await;
     let second = run_after_database_comes_online().await;
     match first {

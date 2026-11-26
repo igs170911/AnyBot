@@ -153,10 +153,7 @@ fn health_shapes(
 }
 
 fn lan_addr() -> Result<String, String> {
-    let socket = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
-    socket.connect(("8.8.8.8", 53)).map_err(|e| e.to_string())?;
-    let local = socket.local_addr().map_err(|e| e.to_string())?;
-    Ok(local.ip().to_string())
+    test_harness::first_lan_ipv4()
 }
 
 async fn lan_unreachable(port: u16) -> Result<bool, String> {

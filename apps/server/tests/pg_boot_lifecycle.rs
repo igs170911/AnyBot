@@ -29,7 +29,7 @@ fn server_bin() -> ServerProgram {
 }
 
 #[tokio::test]
-async fn t_server_boot_3() -> Result<(), String> {
+async fn additive_fixture_survives_a_boot_back_to_the_product_migrations() -> Result<(), String> {
     let db = db_start("server_boot_3").await?;
     let pool = open_pool(&db).await?;
     let clock = Arc::new(SystemClock);

@@ -9,10 +9,16 @@ use test_harness::{Program, Running, migration_fixture, pg_start, pg_stop};
 
 pub mod clockwalk;
 pub mod http;
+pub mod install_live;
 pub mod n106;
 pub mod serve;
 pub mod serverdb;
 pub mod startup;
+
+pub use install_live::{
+    bootstrap_args, check_both, check_second, finish_running, get_status, public_url_check,
+    start_live, startup_params, stop_live, wait_health,
+};
 
 pub use clockwalk::{ClockWalker, WAVE_FAKE_STEP, WAVE_INSERT_STEP, settle_handles};
 pub use serverdb::{ServerDb, db_start};

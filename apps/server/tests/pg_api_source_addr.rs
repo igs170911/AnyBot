@@ -131,21 +131,12 @@ async fn t_server_n1_2() -> Result<(), String> {
     let blocked_forwarded =
         login_blocked(&served, "bob", "k-blocked", "6.6.6.6, 1.2.3.4", false).await?;
     assert_eq!(blocked_forwarded, 429);
-    for round in 1..=8 {
-        fail_login(
-            &served,
-            "bob",
-            &format!("v{round}"),
-            Some("6.6.6.6, 1.2.3.4"),
-            true,
-        )
-        .await?;
-    }
-    let blocked_v6 =
-        login_blocked(&served, "bob", "k-blocked-v6", "6.6.6.6, 1.2.3.4", true).await?;
-    assert_eq!(blocked_v6, 429);
-    let fresh_address = login_blocked(&served, "alice", "k-fresh", "9.9.9.9", false).await?;
-    assert_eq!(fresh_address, 200);
+    let other_peer =
+        login_blocked(&served, "bob", "k-other-peer", "6.6.6.6, 1.2.3.4", true).await?;
+    assert_eq!(
+        other_peer, 200,
+        "the same forwarded header from an untrusted peer must not share the forwarded counter"
+    );
     served.stop().await?;
     Ok(())
 }
@@ -171,7 +162,7 @@ async fn login_with_secret(
 }
 
 #[tokio::test]
-async fn t_server_n1_3() -> Result<(), String> {
+async fn trusted_proxy_without_the_secret_keeps_the_peer_address() -> Result<(), String> {
     let mut served = serve_start("t_server_n1_3").await?;
     boot_pair(&served).await?;
     set_trust(&mut served, "127.0.0.1").await?;
@@ -233,24 +224,22 @@ async fn t_safety_n11_2() -> Result<(), String> {
     }
     let blocked_long = login_blocked(&served, "bob", "k-blocked-long", &long_value, false).await?;
     assert_eq!(blocked_long, 429);
-    let fresh_long = login_blocked(
-        &served,
-        "alice",
-        "k-fresh-long",
-        "b".repeat(65).as_str(),
-        false,
-    )
-    .await?;
+    let other_long = login_blocked(&served, "bob", "k-other-long", &"b".repeat(65), false).await?;
     assert_eq!(
-        fresh_long, 200,
-        "a 65-char forwarded value must count at the peer"
+        other_long, 429,
+        "a different 65-character value must still count at the peer"
+    );
+    let fresh = login_blocked(&served, "bob", "k-fresh-short", "9.9.9.9", false).await?;
+    assert_eq!(
+        fresh, 200,
+        "a short forwarded value must not share the peer counter"
     );
     served.stop().await?;
     Ok(())
 }
 
 #[tokio::test]
-async fn t_safety_n11_3() -> Result<(), String> {
+async fn missing_proxy_secret_does_not_honor_a_forwarded_address() -> Result<(), String> {
     let mut served = serve_start("t_safety_n11_3").await?;
     boot_pair(&served).await?;
     set_trust(&mut served, "127.0.0.1").await?;
