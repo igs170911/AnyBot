@@ -153,6 +153,7 @@ impl TurnRunner {
             match run_step(self, ctx).await? {
                 StepFlow::Continue => {}
                 StepFlow::Ended(reason) => {
+                    crate::report_out::emit_report(self, ctx).await?;
                     return Ok(TurnOutcome {
                         task,
                         turn: ctx.turn,

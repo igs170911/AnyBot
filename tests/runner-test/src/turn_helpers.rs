@@ -98,7 +98,19 @@ pub fn state_of(
     world.task_state(*task)
 }
 
-#[must_use]
+pub fn delivery_of(
+    world: &TurnWorld,
+    task: TaskId,
+) -> Result<anybot_protocol::DeliveryReportRecord, String> {
+    let mut out: Option<Box<anybot_protocol::DeliveryReportRecord>> = None;
+    for kind in task_kinds(world, &task) {
+        if let KnownTaskEventKind::DeliveryReport { report } = kind {
+            out = Some(report);
+        }
+    }
+    out.map(|r| *r).ok_or("no delivery report".to_owned())
+}
+
 pub fn probe_of(record: &MemoryRecord, task: &TaskId, name: &str, index: usize) -> Option<usize> {
     let mut seen = 0usize;
     for (row, probe) in record.entries() {

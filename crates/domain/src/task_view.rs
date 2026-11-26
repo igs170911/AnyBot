@@ -123,6 +123,7 @@ pub struct GateFlags {
     pub step_rejected: bool,
     pub step_failed: bool,
     pub acceptance_unavailable: bool,
+    pub last_write_ok: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -150,6 +151,8 @@ pub struct TaskView {
     pub pending_actions: BTreeSet<String>,
     pub verified_actions: BTreeSet<String>,
     pub unresolved_unknowns: BTreeSet<String>,
+    #[serde(default)]
+    pub write_calls: BTreeSet<String>,
     pub gate: GateFlags,
     pub evidence: EvidenceFlags,
     pub report: ReportFlags,
@@ -170,10 +173,12 @@ pub fn initial_view() -> TaskView {
         pending_actions: BTreeSet::new(),
         verified_actions: BTreeSet::new(),
         unresolved_unknowns: BTreeSet::new(),
+        write_calls: BTreeSet::new(),
         gate: GateFlags {
             step_rejected: false,
             step_failed: false,
             acceptance_unavailable: false,
+            last_write_ok: None,
         },
         evidence: EvidenceFlags {
             actions_taken: false,

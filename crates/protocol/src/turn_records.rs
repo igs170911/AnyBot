@@ -2,6 +2,8 @@ use anybot_foundation::{CallId, DeviceId};
 use serde::{Deserialize, Serialize};
 
 use crate::computer_caps::ComputerPlatform;
+use crate::task_detail::{TaskDetail, TaskStatus};
+use crate::task_events::CheckSource;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
@@ -110,6 +112,52 @@ pub enum TurnEndReason {
     Answered,
     ContextBudget { deficit_tokens: Option<u64> },
     ModelFailed { code: String },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ReportOutcome {
+    Completed,
+    Failed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ReportSummary {
+    Text(String),
+    Missing { code: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+pub struct ReportAttention {
+    pub tool: String,
+    pub args_summary: String,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+pub struct ReportStep {
+    pub name: String,
+    pub args_summary: String,
+    pub outcome: ReportOutcome,
+    #[cfg_attr(feature = "schema", schema(value_type = Vec<String>, format = "uuid"))]
+    pub evidence_ids: Vec<anybot_foundation::EvidenceId>,
+    pub verify_source: Option<CheckSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+pub struct DeliveryReportRecord {
+    pub goal: String,
+    pub status: TaskStatus,
+    pub detail: Option<TaskDetail>,
+    pub summary: ReportSummary,
+    pub attention: Vec<ReportAttention>,
+    pub steps: Vec<ReportStep>,
 }
 
 #[cfg(test)]

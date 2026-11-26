@@ -3,6 +3,45 @@ use anybot_protocol::{BudgetItem, KnownTaskEventKind, ReconcileOutcome};
 use crate::task_view::TaskView;
 
 pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
+    if let KnownTaskEventKind::ToolFailed {
+        call_id,
+        name,
+        args_summary,
+        ..
+    } = event
+    {
+        step_failed(view, name, args_summary);
+        note_write(view, &call_id.as_str(), false);
+        return true;
+    }
+    if let KnownTaskEventKind::ToolCompleted { call_id, .. } = event {
+        note_write(view, &call_id.as_str(), true);
+        return true;
+    }
+    if let KnownTaskEventKind::GateResult { call_id, gate } = event {
+        gate_write(view, call_id, gate);
+        return true;
+    }
+    action_core(view, event)
+}
+
+fn gate_write(
+    view: &mut TaskView,
+    call_id: &anybot_foundation::CallId,
+    gate: &anybot_protocol::GateRecord,
+) {
+    if !gate.read_only {
+        view.write_calls.insert(call_id.as_str());
+    }
+}
+
+pub(crate) fn note_write(view: &mut TaskView, call_id: &str, ok: bool) {
+    if view.write_calls.contains(call_id) {
+        view.gate.last_write_ok = Some(ok);
+    }
+}
+
+fn action_core(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
     match event {
         KnownTaskEventKind::ToolIntent { call_id, level, .. } => {
             crate::task_budget::note_action_attempt(view);
@@ -11,12 +50,6 @@ pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) ->
         }
         KnownTaskEventKind::ToolStarted { call_id } => {
             started(view, call_id);
-            true
-        }
-        KnownTaskEventKind::ToolFailed {
-            name, args_summary, ..
-        } => {
-            step_failed(view, name, args_summary);
             true
         }
         KnownTaskEventKind::OutcomeUnknown { call_id } => {
@@ -32,6 +65,7 @@ pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) ->
             true
         }
         KnownTaskEventKind::ToolCompleted { .. }
+        | KnownTaskEventKind::ToolFailed { .. }
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::EvidenceAdded { .. }
         | KnownTaskEventKind::GateResult { .. } => true,
@@ -59,6 +93,7 @@ pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
     }
@@ -117,6 +152,7 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
     }

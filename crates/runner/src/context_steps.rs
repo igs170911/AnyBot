@@ -78,7 +78,9 @@ fn result_entry(
     gates: &[(GateNo, ReasonPayload)],
 ) -> Result<Option<(CallId, CallResult)>, TurnError> {
     if let KnownTaskEventKind::GateResult { call_id, gate } = kind {
-        if gate.outcome != anybot_protocol::GateOutcome::Deny {
+        if gate.outcome != anybot_protocol::GateOutcome::Deny
+            && gate.outcome != anybot_protocol::GateOutcome::Ask
+        {
             return Ok(None);
         }
         let text = denied_text(lang, gate, gates)?;

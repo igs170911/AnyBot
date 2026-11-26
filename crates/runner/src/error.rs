@@ -21,4 +21,8 @@ pub enum TurnError {
     UnknownMessageCode { code: String },
     #[error("tool request {call_id} has no result in the record")]
     UnpairedToolRequest { call_id: CallId },
+    #[error("replay gap {0:?}")]
+    Replay(anybot_domain::ReplayGap),
+    #[error(transparent)]
+    Report(#[from] anybot_trust::ReportFail),
 }

@@ -9,6 +9,7 @@ description = "AnyBot trust skeleton crate (spec/07 section 2)"
 anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-domain = { workspace = true }
+thiserror = { workspace = true }
 [lints]
 workspace = true
 [dev-dependencies]

@@ -79,12 +79,19 @@ pub fn answer_kind(
     native: Option<NativeRef>,
 ) -> KnownTaskEventKind {
     KnownTaskEventKind::ModelAnswer {
-        text: result.text.clone(),
+        text: answer_text_of(result),
         thinking: thinking_of(&result.thinking),
         tool_requests: requests.to_vec(),
         finish: finish_of(result.stop),
         native,
     }
+}
+
+fn answer_text_of(result: &anybot_models::TurnResult) -> String {
+    if result.text.is_empty() {
+        return anybot_trust::CODE_TURN_ANSWER_EMPTY.to_owned();
+    }
+    result.text.clone()
 }
 
 #[must_use]

@@ -25,6 +25,11 @@ pub fn finish_turn(view: &mut TaskView) {
         view.detail = Some(TaskDetail::StepRejected);
         return;
     }
+    if view.gate.last_write_ok == Some(false) && view.criteria.is_empty() {
+        view.status = TaskStatus::Unaccepted;
+        view.detail = Some(TaskDetail::AcceptanceFailed);
+        return;
+    }
     if view.unverified_actions() {
         view.status = TaskStatus::Unaccepted;
         view.detail = Some(TaskDetail::UnverifiedActions);

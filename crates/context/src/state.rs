@@ -154,6 +154,7 @@ fn apply_criteria(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::GoalPaused { .. }
@@ -210,6 +211,7 @@ fn apply_steps(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::GoalPaused { .. }

@@ -48,6 +48,7 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
         | KnownTaskEventKind::ActionVerified { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::GoalPaused { .. }

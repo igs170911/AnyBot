@@ -46,6 +46,7 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
     }
@@ -98,6 +99,7 @@ pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKi
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
     }
@@ -150,7 +152,8 @@ pub(crate) fn advance_done_when(view: &mut TaskView, event: &KnownTaskEventKind)
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
-        | KnownTaskEventKind::DeviceReport { .. } => {}
+        | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. } => {}
     }
 }
 

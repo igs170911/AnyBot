@@ -43,6 +43,7 @@ pub(crate) fn advance_goal(view: &mut TaskView, event: &KnownTaskEventKind) -> b
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
     }
@@ -89,6 +90,7 @@ pub(crate) fn advance_cancel(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
     }
@@ -149,6 +151,7 @@ pub(crate) fn advance_lifecycle(view: &mut TaskView, event: &KnownTaskEventKind)
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
     }
@@ -199,6 +202,7 @@ pub(crate) fn advance_turn(view: &mut TaskView, event: &KnownTaskEventKind) -> b
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
         | KnownTaskEventKind::ToolNotRun { .. } => false,

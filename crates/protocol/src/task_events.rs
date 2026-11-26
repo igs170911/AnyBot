@@ -192,6 +192,7 @@ impl KnownTaskEventKind {
             KnownTaskEventKind::CardShown { .. } => "card_shown",
             KnownTaskEventKind::CardAnswered { .. } => "card_answered",
             KnownTaskEventKind::DeviceReport { .. } => "device_report",
+            KnownTaskEventKind::DeliveryReport { .. } => "delivery_report",
             KnownTaskEventKind::ModelUnreachable => "model_unreachable",
             KnownTaskEventKind::ComputerOffline => "computer_offline",
             KnownTaskEventKind::GoalPaused { .. } => "goal_paused",

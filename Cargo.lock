@@ -457,6 +457,7 @@ dependencies = [
  "anybot-foundation",
  "anybot-protocol",
  "proptest",
+ "thiserror 2.0.21",
  "trybuild",
 ]
 

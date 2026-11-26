@@ -83,14 +83,15 @@ async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
-            "turn_ended"
+            "turn_ended",
+            "delivery_report"
         ]
     );
     check_call_ids(&world, &task)?;
     check_tool_messages(&world)?;
     assert!(kind_names(&world, &task).contains(&"tool_started".to_owned()));
     let state = state_of(&world, &task)?;
-    assert_eq!(state.0, anybot_protocol::TaskStatus::Completed);
+    assert_eq!(state.0, anybot_protocol::TaskStatus::Unaccepted);
     Ok(())
 }
 

@@ -163,6 +163,7 @@ impl FakeComputerBuilder {
             unresolvable: self.unresolvable,
             workdir: Mutex::new(self.workdir),
             shift_declaration: AtomicBool::new(false),
+            mutate_after_write: AtomicBool::new(false),
             log: Mutex::new(Vec::new()),
         }
     }

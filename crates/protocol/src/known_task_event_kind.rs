@@ -157,6 +157,9 @@ pub enum KnownTaskEventKind {
         kind: DeviceReportKind,
         file: String,
     },
+    DeliveryReport {
+        report: Box<crate::turn_records::DeliveryReportRecord>,
+    },
     ModelUnreachable,
     ComputerOffline,
     GoalPaused {

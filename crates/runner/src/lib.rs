@@ -10,6 +10,7 @@ pub mod ending;
 pub mod error;
 pub mod fixed_blocks;
 pub mod record;
+pub mod report_out;
 pub mod runner;
 pub mod step;
 pub mod view;

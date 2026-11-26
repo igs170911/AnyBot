@@ -42,7 +42,8 @@ pub use task_events::{
     RawTaskEventKind, ReconcileOutcome, TaskEvent, TaskEventKind, ToolEffect, effect_level,
 };
 pub use turn_records::{
-    ComputerRef, FinishReason, ModelName, NativeRef, NotRunReason, TaskOpener, ThinkingChoice,
+    ComputerRef, DeliveryReportRecord, FinishReason, ModelName, NativeRef, NotRunReason,
+    ReportAttention, ReportOutcome, ReportStep, ReportSummary, TaskOpener, ThinkingChoice,
     TokenUsage, ToolArgs, ToolRequest, TurnEndReason, TurnInitiator,
 };
 pub use versions::{PROTOCOL_RELEASES, ProtocolRelease, accepts_protocol_version};

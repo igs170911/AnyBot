@@ -7,6 +7,8 @@ pub const CODE_GATE_DENIED_BY_RULE: &str = "gate-denied-by-rule";
 pub const CODE_GATE_DENIED: &str = "gate-denied";
 pub const CODE_GATE_USER_REJECTED: &str = "gate-user-rejected";
 pub const CODE_GATE_ASK_PENDING: &str = "gate-ask-pending";
+pub const CODE_REPORT_SUMMARY_MISSING: &str = "report-summary-missing";
+pub const CODE_TURN_ANSWER_EMPTY: &str = "turn-answer-empty";
 pub const CODE_GATE_ASK_UNAVAILABLE: &str = "gate-ask-unavailable";
 pub const CODE_GATE_TICKET_MISMATCH: &str = "gate-ticket-mismatch";
 pub const CODE_GATE_ASK_COMPUTER_MISMATCH: &str = "gate-ask-computer-mismatch";
@@ -23,7 +25,7 @@ pub const CODE_TOOL_EXECUTION_FAILED: &str = "tool-execution-failed";
 pub const CODE_TOOL_UNREADABLE_SHAPE: &str = "tool-unreadable-shape";
 
 #[must_use]
-pub fn all_codes() -> [&'static str; 23] {
+pub fn all_codes() -> [&'static str; 25] {
     [
         CODE_GATE_COMMAND_DENIED,
         CODE_GATE_PRIVATE_FILE,
@@ -35,6 +37,8 @@ pub fn all_codes() -> [&'static str; 23] {
         CODE_GATE_USER_REJECTED,
         CODE_GATE_ASK_PENDING,
         CODE_GATE_ASK_UNAVAILABLE,
+        CODE_REPORT_SUMMARY_MISSING,
+        CODE_TURN_ANSWER_EMPTY,
         CODE_GATE_ASK_COMPUTER_MISMATCH,
         CODE_GATE_TICKET_MISMATCH,
         CODE_TURN_COMPLETED,
@@ -63,6 +67,6 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), 23);
+        assert_eq!(seen.len(), 25);
     }
 }

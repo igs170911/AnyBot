@@ -28,6 +28,7 @@ pub struct FakeComputer {
     pub(crate) unresolvable: Vec<String>,
     pub(crate) workdir: Mutex<String>,
     pub(crate) shift_declaration: AtomicBool,
+    pub(crate) mutate_after_write: AtomicBool,
     pub(crate) log: Mutex<Vec<String>>,
 }
 
@@ -50,6 +51,21 @@ impl FakeComputer {
     #[must_use]
     pub fn is_unreachable(&self) -> bool {
         self.unreachable.load(Ordering::SeqCst)
+    }
+
+    pub fn set_mutate_after_write(&self, on: bool) {
+        self.mutate_after_write.store(on, Ordering::SeqCst);
+    }
+
+    fn apply_mutation(&self, path: &str, content: &str) {
+        if !self.mutate_after_write.load(Ordering::SeqCst) {
+            return;
+        }
+        let changed = format!(
+            "{content}
+changed"
+        );
+        Self::guard(&self.tree).write_exact(path, &changed);
     }
 
     pub fn set_unreachable(&self, on: bool) {
@@ -237,6 +253,7 @@ impl GatedComputer for FakeComputer {
         self.reachable()?;
         let before = Self::guard(&self.tree).digest(&path);
         let outcome = write_outcome(&self.tree, &path, &content, before);
+        self.apply_mutation(&path, &content);
         Ok(ActualResult::Write(outcome))
     }
 
@@ -249,6 +266,7 @@ impl GatedComputer for FakeComputer {
         let before = Self::guard(&self.tree).digest(&path);
         let content = self.apply_edit_exact(&path, old_text, new_text)?;
         let outcome = write_outcome(&self.tree, &path, &content, before);
+        self.apply_mutation(&path, &content);
         Ok(ActualResult::Write(outcome))
     }
 

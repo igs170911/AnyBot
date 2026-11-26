@@ -2322,7 +2322,6 @@ T-task-cancel-3
 T-task-cancel-4
 T-task-cancel-5
 T-task-done-gate-10
-T-task-done-gate-7
 T-task-done-gate-8
 T-task-done-gate-9
 T-task-entry-1
@@ -2484,11 +2483,9 @@ T-trust-verify-6
 T-trust-verify-7
 T-trust-verify-8
 T-turn-loop-10
-T-turn-loop-12
 T-turn-loop-13
 T-turn-loop-14
 T-turn-loop-15
-T-turn-loop-2
 T-turn-loop-4
 T-turn-loop-5
 T-turn-loop-6

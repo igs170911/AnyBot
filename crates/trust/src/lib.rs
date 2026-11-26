@@ -42,6 +42,7 @@ pub mod pipeline_exec;
 mod pipeline_gate;
 pub mod pipeline_run;
 pub mod pipeline_verify;
+pub mod report;
 pub mod runner;
 pub mod safety_always;
 pub mod safety_lock;
@@ -77,11 +78,13 @@ pub use message_codes::{
     CODE_TURN_AWAITING_APPROVAL, CODE_TURN_COMPLETED, CODE_TURN_FAILED, CODE_TURN_NOT_EXECUTED,
     CODE_TURN_REJECTED, CODE_TURN_TOOL_FAILED, all_codes,
 };
+pub use message_codes::{CODE_REPORT_SUMMARY_MISSING, CODE_TURN_ANSWER_EMPTY};
 pub use op_ticket::{OpKind, OpTicket};
 pub use pipeline::{ActionRequest, GateAnswer, RequestedAction};
 pub use pipeline_ask::{AskTicket, answer_ask};
 pub use pipeline_gate::{GateStep, ask_declined_run, exec_step, gate_step, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
+pub use report::{ReportFail, delivery_report, report_summary};
 pub use runner::{GatedComputer, OpRejection, OpRejectionKind};
 pub use safety_always::{ActionSpec, concrete_actions};
 pub use safety_lock::{LockState, PolicyKey, parse_lock_value, parse_policy};
