@@ -18,6 +18,7 @@ pub fn block(kind: BlockKind, form: BlockForm, source_ids: Vec<String>, text: St
         estimate_raw,
         call_id: None,
         tool_name: None,
+        arguments: None,
     }
 }
 
@@ -102,7 +103,9 @@ fn intent_block(step: &StepRecord, idx: usize) -> Block {
         result_status(step)
     );
     let intent = block(BlockKind::ToolIntent, BlockForm::Verbatim, vec![id], text);
-    tag(intent, &step.call_id.as_str(), &step.tool)
+    let mut tagged = tag(intent, &step.call_id.as_str(), &step.tool);
+    tagged.arguments = Some(step.arguments.clone());
+    tagged
 }
 
 struct Refs {

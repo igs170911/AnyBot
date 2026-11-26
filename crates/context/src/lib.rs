@@ -94,6 +94,9 @@ mod mask_tests;
 #[cfg(test)]
 #[path = "request_tests.rs"]
 mod request_tests;
+#[cfg(test)]
+#[path = "request_wire_tests.rs"]
+mod request_wire_tests;
 
 #[cfg(test)]
 #[path = "mask_prop_tests.rs"]
@@ -106,3 +109,7 @@ mod must_tests;
 use proptest as _;
 #[cfg(test)]
 use serde_json as _;
+#[cfg(test)]
+use test_harness as _;
+#[cfg(test)]
+use tokio as _;

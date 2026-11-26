@@ -36,6 +36,7 @@ fn mk_step(index: usize, len: usize) -> StepRecord {
             .unwrap(),
         tool: format!("tool{index}"),
         args_summary: format!("a{index}"),
+        arguments: serde_json::json!({ "n": index }),
         level: *levels
             .get(index % 3)
             .unwrap_or(&anybot_protocol::ToolEffect::ReadOnly),

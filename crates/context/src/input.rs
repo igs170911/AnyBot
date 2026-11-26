@@ -26,6 +26,7 @@ pub struct StepRecord {
     pub call_id: CallId,
     pub tool: String,
     pub args_summary: String,
+    pub arguments: serde_json::Value,
     pub level: ToolEffect,
     pub unconfirmed: bool,
     pub outcome: StepOutcomeKind,

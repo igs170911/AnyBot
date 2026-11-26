@@ -48,6 +48,7 @@ pub struct Block {
     pub estimate_raw: u64,
     pub call_id: Option<String>,
     pub tool_name: Option<String>,
+    pub arguments: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,13 +114,17 @@ fn intent_calls(block: &Block) -> Vec<anybot_models::ToolCall> {
     if block.kind != BlockKind::ToolIntent {
         return Vec::new();
     }
-    let (Some(id), Some(name)) = (block.call_id.clone(), block.tool_name.clone()) else {
+    let (Some(id), Some(name), Some(arguments)) = (
+        block.call_id.clone(),
+        block.tool_name.clone(),
+        block.arguments.clone(),
+    ) else {
         return Vec::new();
     };
     vec![anybot_models::ToolCall {
         id,
         name,
-        arguments: anybot_models::ToolArguments::Json(serde_json::Value::Null),
+        arguments: anybot_models::ToolArguments::Json(arguments),
     }]
 }
 
@@ -140,11 +145,11 @@ fn block_role(kind: BlockKind) -> Role {
         | BlockKind::UserRef
         | BlockKind::PriorChatFull
         | BlockKind::PriorChatRef => Role::User,
-        BlockKind::ToolIntent
-        | BlockKind::ToolResultFull
+        BlockKind::ToolResultFull
         | BlockKind::ToolResultMasked
         | BlockKind::ToolResultDuplicate => Role::Tool,
-        BlockKind::System
+        BlockKind::ToolIntent
+        | BlockKind::System
         | BlockKind::ToolDoc
         | BlockKind::Pinned
         | BlockKind::BotText

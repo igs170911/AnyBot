@@ -73,6 +73,7 @@ pub(crate) fn step_len(idx: usize, len: usize, ref_id: &str) -> StepRecord {
         call_id: CallId::parse(&format!("00000000-0000-0000-0000-{idx:012x}")).unwrap(),
         tool: format!("tool{idx}"),
         args_summary: format!("args{idx}"),
+        arguments: serde_json::json!({ "n": idx }),
         level: ToolEffect::ReadOnly,
         unconfirmed: false,
         outcome: StepOutcomeKind::Completed,
