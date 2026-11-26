@@ -28,7 +28,7 @@
 
 - **開工前 `dev` 要有**：
   - M6b-1 的 A 段（合約，commit 訊息開頭是 `M6b-1 contract:`），包括網路控制的「吞掉」和「回應在路上掉」。
-  - 「監督者定了的」那一點的規格改字（同意的話：§0.1「在線」、`computers-online` S1、`conn-heartbeat` S1）。
+  - 「監督者定了的」那一點的規格改字（§0.1「在線」、`computers-online` S1、`conn-heartbeat` S1）。
 - **第 6 段要 M6b-1 的 B 段也在 `dev` 上**：設定、永久刪除、停止這類動作的入口都在 B 段。第 6 段開始前 `git merge dev`；還沒有，就停在第 5 段的全綠 commit，回報做到哪。
 - 自己的工作區和分支，從 `dev` 切，分支名 `ws/m6c`（`AGENTS.md` 第七節）。先 `git merge dev`。
 - **這份交出去的東西**：一個函式庫，M7 的執行端（`apps/agent`、`apps/runner-service`）和 M8 的桌面 App 都用它。對外長什麼樣見下面「函式庫對外的樣子」。
