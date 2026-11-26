@@ -1,4 +1,6 @@
+use rustls as _;
 use std::time::Duration;
+use tokio_rustls as _;
 
 use anybot_foundation as _;
 use anybot_models::ProviderKind;

@@ -7,6 +7,7 @@ use bytes as _;
 use futures_util as _;
 use proptest as _;
 use reqwest as _;
+use rustls as _;
 use serde as _;
 use serde_json as _;
 use std::sync::Arc;
@@ -15,6 +16,7 @@ use test_harness::{
     model_start_with_format, model_usage,
 };
 use tokio as _;
+use tokio_rustls as _;
 use trybuild as _;
 use url as _;
 

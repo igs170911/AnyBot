@@ -1515,6 +1515,8 @@ T-models-chatgpt-8
 T-models-chatgpt-9
 T-models-egress-7
 T-models-egress-8
+T-models-errors-4
+T-models-errors-5
 T-models-fallback-1
 T-models-fallback-2
 T-models-fallback-3
@@ -1564,6 +1566,7 @@ T-models-n9-4
 T-models-n9-5
 T-models-n9-6
 T-models-normalize-10
+T-models-normalize-14
 T-models-providers-1
 T-models-providers-4
 T-models-providers-5

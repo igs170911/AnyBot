@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use axum::Router;
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::{HeaderName, HeaderValue, StatusCode};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use tokio::net::TcpListener;
@@ -191,6 +191,17 @@ async fn handle_models(
     let Some(step) = model.take_step() else {
         return empty_script_response();
     };
+    let (step, delay) = peel_delay(step);
+    if let Some(seconds) = delay
+        && let Some(clock) = model.header_wait()
+    {
+        tokio::task::yield_now().await;
+        anybot_foundation::clock::Clock::sleep(
+            clock.as_ref(),
+            std::time::Duration::from_secs(seconds),
+        )
+        .await;
+    }
     model_plan::list_response(&step)
 }
 
@@ -279,21 +290,4 @@ fn empty_script_response() -> Response {
         Body::from(text),
     )
         .into_response()
-}
-
-#[must_use]
-pub fn header_pairs(headers: &axum::http::HeaderMap) -> Vec<(String, String)> {
-    headers
-        .iter()
-        .map(|(name, value)| {
-            (
-                name.as_str().to_owned(),
-                value.to_str().unwrap_or_default().to_owned(),
-            )
-        })
-        .collect()
-}
-
-pub fn find_header(headers: &axum::http::HeaderMap, name: HeaderName) -> Option<HeaderValue> {
-    headers.get(name).cloned()
 }

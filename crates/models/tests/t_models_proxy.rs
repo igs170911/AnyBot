@@ -1,4 +1,6 @@
+use rustls as _;
 use std::sync::Arc;
+use tokio_rustls as _;
 
 use anybot_foundation as _;
 use bytes as _;
@@ -79,6 +81,53 @@ async fn loopback_neighbor_skips_the_configured_proxy() -> Result<(), String> {
     assert_eq!(sent.text, "ok");
     assert_eq!(direct.recorded().len(), 1);
     assert!(decoy.recorded().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn classified_local_and_lan_skip_the_configured_proxy() -> Result<(), String> {
+    let (decoy, decoy_port) = model_start_with_format(ModelFormat::OpenAi).await?;
+    let (direct, direct_port) = model_start_with_format(ModelFormat::OpenAi).await?;
+    direct.script_set(vec![
+        model_replies_text("mapped", false),
+        model_replies_text("lan", false),
+        model_replies_text("bare", false),
+    ]);
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+    let mut gateway = anybot_models::gateway_with_proxy(
+        clock,
+        &TrustedCerts::empty(),
+        Some(&format!("http://127.0.0.1:{decoy_port}")),
+    )?;
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], direct_port));
+    send_pinned(&mut gateway, "[::ffff:127.0.0.1]", addr, "mapped").await?;
+    send_pinned(&mut gateway, "192.168.1.20", addr, "lan").await?;
+    send_pinned(&mut gateway, "printer", addr, "bare").await?;
+    assert_eq!(direct.recorded().len(), 3);
+    assert!(decoy.recorded().is_empty());
+    Ok(())
+}
+
+async fn send_pinned(
+    gateway: &mut anybot_models::Gateway,
+    host: &str,
+    addr: std::net::SocketAddr,
+    text: &str,
+) -> Result<(), String> {
+    gateway.pin_host(host.trim_matches(['[', ']']), addr);
+    let endpoint = resolve_endpoint(
+        ProviderKind::Custom,
+        &format!("http://{host}:{}/v1", addr.port()),
+        "",
+        "local",
+        None,
+    );
+    let permit = permit_support::permit_for(&endpoint)?;
+    let sent = gateway
+        .complete(&endpoint, &hi(), false, &permit)
+        .await
+        .map_err(|err| format!("{host}: {err:?}"))?;
+    assert_eq!(sent.text, text);
     Ok(())
 }
 

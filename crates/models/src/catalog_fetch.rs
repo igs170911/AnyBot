@@ -30,8 +30,9 @@ pub async fn fetch_models(
     }
     let mut request = crate::client_wire::wire_for(&listed, &serde_json::json!({}), endpoint);
     request.dial = gateway.dial_addr(&listed);
-    let wait = Duration::from_secs(LIST_WAIT_SECS);
-    match gateway.transport_send(&request, wait).await {
+    request.header_wait = Some(Duration::from_secs(LIST_WAIT_SECS));
+    let outcome = list_exchange(gateway, &request).await;
+    match outcome {
         Ok(bytes) if bytes.status >= 400 => Ok(ListOutcome::Failed {
             code: "model-list-status",
             detail: clip_detail(&redact(
@@ -59,6 +60,14 @@ pub async fn fetch_models(
         }),
         Err(other) => Err(crate::ask::transport_fail(endpoint, &other, false)),
     }
+}
+
+async fn list_exchange(
+    gateway: &crate::Gateway,
+    request: &crate::http_wire::WireRequest,
+) -> Result<crate::transport::HttpBytes, crate::transport::TransportFail> {
+    let wait = Duration::from_secs(LIST_WAIT_SECS);
+    gateway.transport_send(request, wait).await
 }
 
 fn parse_ids(body: &str) -> Vec<String> {

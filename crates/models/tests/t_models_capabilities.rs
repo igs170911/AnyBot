@@ -1,5 +1,7 @@
 use proptest as _;
+use rustls as _;
 use std::sync::Arc;
+use tokio_rustls as _;
 use trybuild as _;
 
 use anybot_foundation as _;

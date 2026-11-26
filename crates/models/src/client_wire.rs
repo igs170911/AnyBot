@@ -57,6 +57,7 @@ pub(crate) fn wire_request(url: &str, body: &Value, endpoint: &ProviderEndpoint)
         headers: auth_headers(endpoint),
         body: encoded,
         dial: None,
+        header_wait: None,
     }
 }
 

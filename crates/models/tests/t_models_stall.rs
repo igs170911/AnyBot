@@ -1,3 +1,5 @@
+use rustls as _;
+use tokio_rustls as _;
 use trybuild as _;
 #[path = "../test_support/permit.rs"]
 mod permit_support;

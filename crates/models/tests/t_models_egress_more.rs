@@ -1,3 +1,5 @@
+use rustls as _;
+use tokio_rustls as _;
 use trybuild as _;
 #[path = "../test_support/permit.rs"]
 mod permit_support;
@@ -129,7 +131,16 @@ async fn t_models_egress_3() -> Result<(), String> {
         endpoint: support::endpoint(ProviderKind::Custom, local_port, "m1", ""),
         bot_context: None,
     };
-    let fallback = cloud_ref();
+    let fallback = anybot_models::ModelRef {
+        endpoint: anybot_models::resolve_endpoint(
+            ProviderKind::Custom,
+            "http://api.cloud.test/v1",
+            "",
+            "m2",
+            None,
+        ),
+        bot_context: None,
+    };
     let mut gateway = cloud_gateway(&clock, cloud_port)?;
     gateway.pin_host(
         "127.0.0.1",
@@ -138,7 +149,7 @@ async fn t_models_egress_3() -> Result<(), String> {
     let mut session = anybot_models::Session::new(
         gateway,
         DataPolicy::Cloud {
-            allowed: vec![ProviderKind::OpenAi],
+            allowed: vec![ProviderKind::Custom],
         },
         share(&clock),
         0,

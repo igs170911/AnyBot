@@ -84,7 +84,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_models_errors_4(
+    fn random_failure_sequences_stay_within_written_limits(
         (kinds, watching, stream) in (
             proptest::collection::vec(0_u8..13, 1..9),
             any::<bool>(),

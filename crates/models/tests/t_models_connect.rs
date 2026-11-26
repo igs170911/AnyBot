@@ -1,8 +1,10 @@
 use proptest as _;
+use rustls as _;
 use serde as _;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio_rustls as _;
 use trybuild as _;
 
 use anybot_foundation::clock::Clock;

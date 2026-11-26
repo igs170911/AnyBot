@@ -73,7 +73,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_models_errors_5(
+    fn blank_reject_and_cut_patterns_stay_bounded(
         (pattern, watching, extras, stream) in (0_u8..5, any::<bool>(), 0_u8..4, any::<bool>())
     ) {
         let audience = if watching { Audience::Watching } else { Audience::Unattended };

@@ -144,7 +144,7 @@ mod windows {
     pub(super) fn load() -> OsRoots {
         let mut notes = Vec::new();
         let mut certs = Vec::new();
-        for name in ["ROOT", "CA"] {
+        for name in ["ROOT"] {
             match read_store(name) {
                 Ok(found) => certs.extend(found),
                 Err(err) => notes.push(format!("failed to open {name} certificate store: {err}")),

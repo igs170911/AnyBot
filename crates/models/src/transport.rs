@@ -89,7 +89,21 @@ impl TimedTransport {
             () = wait => return Err(TransportFail::ConnectTimeout),
         };
         match connected {
-            crate::http_wire::Connected::Ready => self.wire.open(request).await,
+            crate::http_wire::Connected::Ready => self.open_headers(request).await,
+        }
+    }
+
+    async fn open_headers(
+        &self,
+        request: &WireRequest,
+    ) -> Result<crate::http_wire::WireOpen, TransportFail> {
+        let open = self.wire.open(request);
+        let wait = self.clock.sleep(header_wait(request));
+        tokio::pin!(open);
+        tokio::select! {
+            biased;
+            outcome = &mut open => outcome,
+            () = wait => Err(TransportFail::FirstToken),
         }
     }
 }
@@ -98,6 +112,12 @@ pub(crate) struct StreamOpen {
     pub status: u16,
     pub headers: Vec<(String, String)>,
     pub rx: mpsc::Receiver<Result<Bytes, TransportFail>>,
+}
+
+fn header_wait(request: &WireRequest) -> Duration {
+    request
+        .header_wait
+        .unwrap_or_else(|| crate::where_run::first_token_wait(0))
 }
 
 fn char_started(held: &[u8]) -> bool {

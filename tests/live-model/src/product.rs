@@ -62,7 +62,7 @@ pub async fn https_product_shapes(
     let endpoint = resolve_endpoint(
         ProviderKind::Custom,
         &format!("https://{host}:{port}/v1"),
-        "k",
+        "",
         model,
         None,
     );

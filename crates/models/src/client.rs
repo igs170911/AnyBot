@@ -1,8 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use anybot_foundation::clock::Clock;
-
 use crate::egress::SendPermit;
 use crate::http_wire::{SharedWire, WireRequest};
 use crate::transport::TimedTransport;
@@ -23,14 +21,14 @@ struct HostPin {
 
 impl Gateway {
     pub fn new(
-        clock: Arc<dyn Clock>,
+        clock: Arc<dyn anybot_foundation::clock::Clock>,
         trusted: &anybot_foundation::TrustedCerts,
     ) -> Result<Self, String> {
         Self::with_proxy(clock, trusted, None)
     }
 
     pub fn with_proxy(
-        clock: Arc<dyn Clock>,
+        clock: Arc<dyn anybot_foundation::clock::Clock>,
         trusted: &anybot_foundation::TrustedCerts,
         proxy: Option<&str>,
     ) -> Result<Self, String> {
@@ -49,14 +47,17 @@ impl Gateway {
         });
     }
 
-    fn from_client(clock: Arc<dyn Clock>, built: crate::client_http::BuiltClient) -> Self {
+    fn from_client(
+        clock: Arc<dyn anybot_foundation::clock::Clock>,
+        built: crate::client_http::BuiltClient,
+    ) -> Self {
         let notes = built.os_notes.clone();
         Self::from_wire(crate::reqwest_wire::ReqwestWire::new(built), clock, notes)
     }
 
     pub(crate) fn from_wire(
         wire: SharedWire,
-        clock: Arc<dyn Clock>,
+        clock: Arc<dyn anybot_foundation::clock::Clock>,
         os_notes: Vec<String>,
     ) -> Self {
         Self {

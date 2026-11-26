@@ -25,6 +25,7 @@ pub(crate) struct WireRequest {
     pub headers: Vec<WireHeader>,
     pub body: String,
     pub dial: Option<SocketAddr>,
+    pub header_wait: Option<std::time::Duration>,
 }
 
 pub(crate) trait HttpWire: Send + Sync {

@@ -1,4 +1,6 @@
+use rustls as _;
 use std::sync::Arc;
+use tokio_rustls as _;
 
 use bytes as _;
 use futures_util as _;
@@ -183,7 +185,7 @@ async fn ask(
     let endpoint = resolve_endpoint(
         ProviderKind::Custom,
         &format!("https://{host}:{port}/v1"),
-        "k",
+        "",
         "local",
         None,
     );

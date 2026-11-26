@@ -9,11 +9,10 @@ pub(crate) struct BuiltClient {
     pub client: reqwest::Client,
     pub os_notes: Vec<String>,
     pub pins: PinMap,
+    pub tls: Arc<rustls::ClientConfig>,
 }
 
 pub(crate) type PinMap = Arc<Mutex<HashMap<String, SocketAddr>>>;
-
-const LOCAL_BYPASS: &str = "localhost,127.0.0.0/8,::1";
 
 struct DialResolver {
     pins: PinMap,
@@ -40,7 +39,7 @@ pub(crate) fn client_for(
     }
     let mut builder = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .use_preconfigured_tls(tls)
+        .use_preconfigured_tls(tls.clone())
         .no_proxy()
         .dns_resolver(Arc::new(DialResolver {
             pins: Arc::clone(&pins),
@@ -53,6 +52,7 @@ pub(crate) fn client_for(
         client,
         os_notes: notes,
         pins,
+        tls: Arc::new(tls),
     })
 }
 
@@ -104,9 +104,24 @@ pub(crate) fn pin_of(pins: &PinMap, host: &str) -> Option<SocketAddr> {
 
 fn explicit_proxy(raw: &str) -> Result<reqwest::Proxy, String> {
     let parsed = reqwest::Url::parse(raw).map_err(|err| format!("proxy url: {err}"))?;
-    reqwest::Proxy::all(parsed)
-        .map(|proxy| proxy.no_proxy(reqwest::NoProxy::from_string(LOCAL_BYPASS)))
-        .map_err(|err| format!("proxy: {err}"))
+    let proxy_url = parsed.to_string();
+    Ok(reqwest::Proxy::custom(move |url| {
+        direct_or_proxy(url, &proxy_url)
+    }))
+}
+
+fn direct_or_proxy(url: &reqwest::Url, proxy: &str) -> Option<reqwest::Url> {
+    if direct_place(url.as_ref()) {
+        return None;
+    }
+    reqwest::Url::parse(proxy).ok()
+}
+
+fn direct_place(url: &str) -> bool {
+    matches!(
+        crate::where_run::classify_url(url),
+        crate::where_run::RunPlace::Local | crate::where_run::RunPlace::Lan
+    )
 }
 
 pub(crate) fn chat_url(endpoint: &ProviderEndpoint) -> String {

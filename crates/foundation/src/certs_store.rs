@@ -1,6 +1,18 @@
 use super::{TrustStore, TrustedCerts};
 
 #[test]
+fn windows_trust_reads_only_the_root_store() {
+    let source = include_str!("certs_os.rs");
+    let windows = source
+        .split("mod windows {")
+        .nth(1)
+        .expect("windows module");
+    let load = windows.split("fn read_store").next().expect("load");
+    assert!(load.contains("\"ROOT\""));
+    assert!(!load.contains("\"CA\""));
+}
+
+#[test]
 fn os_store_loads_without_bundled_roots() {
     let built = TrustStore::new(&TrustedCerts::empty()).expect("os trust store");
     assert!(built.root_count() > 0);

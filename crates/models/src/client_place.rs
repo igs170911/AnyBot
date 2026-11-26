@@ -9,8 +9,8 @@ pub(crate) fn chat_url_of(endpoint: &ProviderEndpoint) -> String {
     crate::client_http::chat_url(endpoint)
 }
 
-pub(crate) fn key_for(endpoint: &ProviderEndpoint, listed: &str, dial: &str) -> bool {
-    key_allowed(endpoint, listed) || key_allowed(endpoint, dial)
+pub(crate) fn key_for(endpoint: &ProviderEndpoint, _listed: &str, dial: &str) -> bool {
+    key_allowed(endpoint, dial)
 }
 
 pub(crate) fn place_ok(

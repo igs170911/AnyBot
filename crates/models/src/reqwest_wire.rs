@@ -11,6 +11,7 @@ use crate::transport::TransportFail;
 pub(crate) struct ReqwestWire {
     client: reqwest::Client,
     pins: crate::client_http::PinMap,
+    tls: Arc<rustls::ClientConfig>,
 }
 
 impl ReqwestWire {
@@ -18,6 +19,7 @@ impl ReqwestWire {
         Arc::new(Self {
             client: built.client,
             pins: built.pins,
+            tls: built.tls,
         })
     }
 
@@ -35,16 +37,17 @@ impl ReqwestWire {
     }
 
     fn builder(&self, request: &WireRequest) -> reqwest::RequestBuilder {
-        let mut builder = match request.method {
-            crate::http_wire::WireMethod::Get => self.client.get(&request.url),
-            crate::http_wire::WireMethod::Post => self.client.post(&request.url),
-        };
         if let Some(addr) = request.dial
             && let Ok(parsed) = reqwest::Url::parse(&request.url)
             && let Some(host) = parsed.host_str()
         {
             self.pin(host, addr);
         }
+        let url = send_url(self, request);
+        let mut builder = match request.method {
+            crate::http_wire::WireMethod::Get => self.client.get(url),
+            crate::http_wire::WireMethod::Post => self.client.post(url),
+        };
         for header in &request.headers {
             builder = builder.header(&header.name, header.value.expose());
         }
@@ -63,13 +66,11 @@ impl HttpWire for ReqwestWire {
         request: &'a WireRequest,
     ) -> Pin<Box<dyn Future<Output = Result<Connected, TransportFail>> + Send + 'a>> {
         Box::pin(async move {
-            if request.url.starts_with("https://") {
-                return Ok(Connected::Ready);
-            }
             let target = dial_target(self, request).await?;
-            let _stream = tokio::net::TcpStream::connect(target)
+            let stream = tokio::net::TcpStream::connect(target)
                 .await
                 .map_err(|_| TransportFail::Unreachable)?;
+            finish_connect(self, request, stream).await?;
             Ok(Connected::Ready)
         })
     }
@@ -114,10 +115,43 @@ async fn dial_target(
         wire.pin(&host, addr);
     }
     if let Some(addr) = crate::client_http::pin_of(&wire.pins, &host) {
-        let chosen = if port == 0 { addr.port() } else { port };
-        return Ok(SocketAddr::new(addr.ip(), chosen));
+        return Ok(SocketAddr::new(addr.ip(), addr.port()));
     }
     lookup_host(&host, port).await
+}
+
+async fn finish_connect(
+    wire: &ReqwestWire,
+    request: &WireRequest,
+    stream: tokio::net::TcpStream,
+) -> Result<(), TransportFail> {
+    let parsed = reqwest::Url::parse(&request.url).map_err(|_| TransportFail::Unreachable)?;
+    if parsed.scheme() != "https" {
+        drop(stream);
+        return Ok(());
+    }
+    let host = parsed
+        .host_str()
+        .ok_or(TransportFail::Unreachable)?
+        .to_owned();
+    let name = server_name(&host)?;
+    let connector = tokio_rustls::TlsConnector::from(Arc::clone(&wire.tls));
+    let _shaken = connector
+        .connect(name, stream)
+        .await
+        .map_err(|err| map_handshake(&err))?;
+    Ok(())
+}
+
+fn server_name(host: &str) -> Result<rustls::pki_types::ServerName<'static>, TransportFail> {
+    rustls::pki_types::ServerName::try_from(host.to_owned()).map_err(|_| TransportFail::Unreachable)
+}
+
+fn map_handshake(err: &std::io::Error) -> TransportFail {
+    if let Some(fault) = anybot_foundation::classify_tls_error(err) {
+        return TransportFail::Certificate(fault);
+    }
+    TransportFail::Unreachable
 }
 
 async fn lookup_host(host: &str, port: u16) -> Result<SocketAddr, TransportFail> {
@@ -133,6 +167,25 @@ async fn lookup_host(host: &str, port: u16) -> Result<SocketAddr, TransportFail>
     .map_err(|_| TransportFail::Unreachable)?
     .map_err(|_| TransportFail::Unreachable)?;
     looked.into_iter().next().ok_or(TransportFail::Unreachable)
+}
+
+fn send_url(wire: &ReqwestWire, request: &WireRequest) -> String {
+    let Ok(mut parsed) = reqwest::Url::parse(&request.url) else {
+        return request.url.clone();
+    };
+    let Some(host) = parsed.host_str().map(str::to_owned) else {
+        return request.url.clone();
+    };
+    let Some(addr) = crate::client_http::pin_of(&wire.pins, &host) else {
+        return request.url.clone();
+    };
+    if host.parse::<std::net::IpAddr>().is_ok() {
+        let _ip = parsed.set_ip_host(addr.ip());
+    }
+    if parsed.set_port(Some(addr.port())).is_err() {
+        return request.url.clone();
+    }
+    parsed.to_string()
 }
 
 fn map_send(err: reqwest::Error) -> TransportFail {

@@ -1,6 +1,8 @@
 use proptest as _;
+use rustls as _;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio_rustls as _;
 use trybuild as _;
 
 use anybot_foundation as _;
@@ -14,7 +16,8 @@ use reqwest as _;
 use serde as _;
 use serde_json as _;
 use test_harness::{
-    FakeClock, ModelFormat, model_list, model_list_silent, model_start_with_format,
+    FakeClock, ModelFormat, model_accept_then_delay, model_list, model_list_silent,
+    model_start_with_format,
 };
 use tokio as _;
 use url as _;
@@ -77,6 +80,33 @@ async fn t_models_n3_4() -> Result<(), String> {
         outcome,
         ListOutcome::Failed { code, .. } if code == "model-list-timeout"
     ));
+    Ok(())
+}
+
+#[tokio::test]
+async fn list_headers_that_never_arrive_time_out() -> Result<(), String> {
+    let (model, port) = model_start_with_format(ModelFormat::OpenAi).await?;
+    model.script_set(vec![model_accept_then_delay(90, model_list(Vec::new()))]);
+    let clock = FakeClock::new(0);
+    model.header_clock(Arc::clone(&clock));
+    let shared: Arc<FakeClock> = Arc::clone(&clock);
+    let gateway = gateway(shared, &anybot_foundation::TrustedCerts::empty())?;
+    let endpoint = anybot_models::resolve_endpoint(
+        ProviderKind::OpenAi,
+        &format!("http://127.0.0.1:{port}/v1"),
+        "k",
+        "gpt-5",
+        None,
+    );
+    let task = tokio::spawn(async move { fetch_models(&gateway, &endpoint).await });
+    let ready =
+        test_harness::timeout_real(advance_list(&clock, &task), Duration::from_secs(5)).await;
+    assert!(ready.is_ok(), "list still waiting for headers");
+    let outcome = task.await.unwrap().map_err(|err| format!("{err:?}"))?;
+    assert!(
+        matches!(outcome, ListOutcome::Failed { code, .. } if code == "model-list-timeout"),
+        "{outcome:?}"
+    );
     Ok(())
 }
 

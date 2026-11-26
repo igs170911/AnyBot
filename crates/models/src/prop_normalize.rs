@@ -64,7 +64,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn t_models_normalize_14(case in reply_strategy()) {
+    fn random_replies_keep_tool_stop_and_survive_byte_cuts(case in reply_strategy()) {
         let endpoint = endpoint_for(&case);
         let plain = whole_body(&case);
         let stream = sse(&events_of(&case), true);
