@@ -7,17 +7,28 @@ Bot computer comes later).
 
 ## Interface rule
 
-Every `GatedComputer` implementation must check, at the start of every
-operation, that the `Pass` handed to it was issued for exactly that
-operation (same tool and same action key). A pass for one operation must
-never run another one: the implementation rejects the call before touching
-the machine.
+Every operation on `GatedComputer` takes exactly one `OpTicket`, by value.
+The ticket is the operation: it names the computer, the operation kind, and
+every parameter in its original form (the command line, the path, the
+content, the old and new text). There are no extra path, content, command,
+or timeout parameters beside the ticket, so nothing can be passed that the
+gate did not approve.
 
-This is enforced in the fake computer used by tests (`tests/runner-test`,
-`FakeComputer::authorize`), which records the rejection `pass does not
-authorize ...` when the key does not match. The test
-`test_the_computer_rejects_a_pass_issued_for_a_different_action` proves an
-`ls` pass cannot run `pwd`.
+Only `crates/trust` can build a ticket (its fields are private, `OpTicket::issue`
+is `pub(crate)`, and it has no `Clone` and no serde). Handing a ticket to an
+operation consumes it: the call takes it by value, so a ticket can be used
+once and cannot be stored, copied, or replayed.
+
+An implementation must reject a ticket whose named computer is not itself,
+or whose kind is not the operation being called, before touching the
+machine. `FakeComputer::accept` in `tests/runner-test` does this and returns
+`OpRejectionKind::TicketMismatch`; the trust-internal tests
+`test_a_ticket_handed_to_another_computer_is_refused` and
+`test_a_ticket_for_the_right_computer_and_the_right_operation_is_accepted`
+prove both directions.
+
+Nothing returned to a caller carries a ticket or a pass: `ActionRun` holds
+only the gate record, the evidence, the model text, and the summary.
 
 A real endpoint must also:
 

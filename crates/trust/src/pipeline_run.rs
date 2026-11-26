@@ -3,9 +3,9 @@ use crate::evidence::{
     ActionContext, approved_evidence, failed_evidence, rejected_evidence, rejection_reason,
 };
 use crate::gate_flow::{GateVerdict, rule_code};
-use crate::pass::Pass;
+use crate::op_ticket::OpTicket;
 use crate::pipeline::{ActionRequest, AskTicket, GateAnswer};
-use crate::pipeline_verify::{perform, verified_evidence, verify};
+use crate::pipeline_verify::{perform, plan_of, verified_evidence, verify};
 use crate::runner::{GatedComputer, OpRejection, OpRejectionKind};
 use anybot_foundation::Clock;
 use anybot_protocol::{
@@ -58,7 +58,6 @@ pub struct Summary {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ActionRun {
     pub gate: GateRecord,
-    pub pass: Option<Pass>,
     pub evidence: Vec<EvidenceRecord>,
     pub model: OutcomeText,
     pub summary: Summary,
@@ -78,7 +77,6 @@ impl RunStep {
             RunStep::Executed(run) | RunStep::Denied(run) => run,
             RunStep::Ask(ticket) => ActionRun {
                 gate: ticket.gate().clone(),
-                pass: None,
                 evidence: Vec::new(),
                 model: OutcomeText::of(crate::message_codes::CODE_GATE_ASK_PENDING, Vec::new()),
                 summary: pending_summary(ticket.request()),
@@ -119,13 +117,13 @@ pub(crate) fn prepared_gate(
 pub(crate) fn user_approved_run(
     request: &ActionRequest,
     gate: &GateRecord,
-    pass: Pass,
+    ticket: OpTicket,
     computer: &dyn GatedComputer,
     view: &dyn ModelResultView,
     clock: &dyn Clock,
 ) -> ActionRun {
     let approved = approved_evidence(&request.context, gate, JudgementSource::You, clock);
-    let mut run = executed_run(request, pass, computer, view, clock);
+    let mut run = executed_run(request, ticket, computer, view, clock);
     run.gate = gate.clone();
     run.summary
         .evidence_numbers
@@ -175,21 +173,20 @@ fn gate_params(verdict: &GateVerdict, request: &ActionRequest) -> Vec<(String, S
 
 pub(crate) fn executed_run(
     request: &ActionRequest,
-    pass: Pass,
+    ticket: OpTicket,
     computer: &dyn GatedComputer,
     view: &dyn ModelResultView,
     clock: &dyn Clock,
 ) -> ActionRun {
-    let gate = pass.gate().clone();
-    let op = perform(&pass, &request.subject, computer);
+    let gate = ticket.gate().clone();
+    let plan = plan_of(&ticket);
+    let op = perform(ticket, computer);
     match op {
         Ok(result) => {
-            let verification = verify(&pass, &request.subject, &result, computer);
+            let verification = verify(&plan, &result, computer, clock);
             let evidence = verified_evidence(&request.context, &gate, &result, verification, clock);
             let model = view.result_text(&request.context.tool, &result);
-            let mut run = finish(gate, vec![evidence], model, &request.context);
-            run.pass = Some(pass);
-            run
+            finish(gate, vec![evidence], model, &request.context)
         }
         Err(rejection) => failed_run(request, gate, &rejection, view, clock),
     }
@@ -236,7 +233,6 @@ fn unreachable_run(
     };
     ActionRun {
         gate: gate.clone(),
-        pass: None,
         evidence: Vec::new(),
         model: view.failure_text(rejection),
         summary,
@@ -244,7 +240,7 @@ fn unreachable_run(
 }
 
 #[must_use]
-pub fn finish(
+pub(crate) fn finish(
     gate: GateRecord,
     evidence: Vec<EvidenceRecord>,
     model: OutcomeText,
@@ -260,7 +256,6 @@ pub fn finish(
         evidence_numbers: numbers,
     };
     ActionRun {
-        pass: None,
         gate,
         evidence,
         model,

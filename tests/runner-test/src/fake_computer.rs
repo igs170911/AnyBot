@@ -11,7 +11,7 @@ use anybot_protocol::{
     ActualResult, CommandOutcome, ComputerCaps, ComputerFailure, PathOutcome, ReadOutcome,
     TargetKind,
 };
-use anybot_trust::{ActionKey, GatedComputer, OpRejection, Pass, normalize_command};
+use anybot_trust::{GatedComputer, OpKind, OpRejection, OpTicket, normalize_command};
 use test_harness::FakeClock;
 
 use crate::fake_builder::FakeComputerBuilder;
@@ -91,22 +91,21 @@ impl FakeComputer {
         Ok(())
     }
 
-    fn authorize(pass: &Pass, key: &ActionKey) -> Result<(), OpRejection> {
-        if !pass.authorizes(key) {
-            let (tool, subject) = key.parts();
-            return Err(OpRejection::unauthorized(format!(
-                "pass does not authorize {tool} {subject}"
+    fn accept(ticket: &OpTicket, name: &str, kind: OpKind) -> Result<(), OpRejection> {
+        if !ticket.fits(name, kind) {
+            return Err(OpRejection::mismatch(format!(
+                "the ticket is for {name} doing a {kind:?} operation",
+                name = ticket.computer(),
+                kind = ticket.kind(),
             )));
         }
         Ok(())
     }
 
-    fn command_key(pass: &Pass, command: &str) -> ActionKey {
-        ActionKey::command(pass.tool(), command)
-    }
-
-    fn file_key(pass: &Pass, mode: &str, path: &str) -> ActionKey {
-        ActionKey::file(pass.tool(), mode, path)
+    fn ticket_path(ticket: &OpTicket) -> Result<&str, OpRejection> {
+        ticket
+            .path()
+            .ok_or_else(|| OpRejection::mismatch("the ticket has no path".to_owned()))
     }
 
     fn measured(&self, script: &CommandScript, timeout_ms: u64) -> (u64, i32, usize) {
@@ -156,23 +155,20 @@ impl GatedComputer for FakeComputer {
         self.caps.clone()
     }
 
-    fn capabilities(&self, pass: &Pass) -> Result<ActualResult, OpRejection> {
-        self.record(format!("capabilities {}", pass.tool()));
-        Self::authorize(pass, &ActionKey::capabilities(pass.tool()))?;
+    fn capabilities(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::accept(&ticket, &self.name, OpKind::Caps)?;
+        self.record("capabilities".to_owned());
         self.reachable()?;
         Ok(ActualResult::Caps(self.caps.clone()))
     }
 
-    fn run_command(
-        &self,
-        pass: &Pass,
-        command: &str,
-        timeout_ms: u64,
-    ) -> Result<ActualResult, OpRejection> {
-        self.record(format!("run_command {}", normalize_command(command)));
-        Self::authorize(pass, &Self::command_key(pass, command))?;
+    fn run_command(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::accept(&ticket, &self.name, OpKind::Run)?;
+        let (command, timeout_ms) = ticket.command_line().unwrap_or(("", 0));
+        let command = command.to_owned();
+        self.record(format!("run_command {}", normalize_command(&command)));
         self.reachable()?;
-        let Some(script) = self.scripts.lookup(command) else {
+        let Some(script) = self.scripts.lookup(&command) else {
             return Err(OpRejection::from_failure(ComputerFailure::operation(
                 NO_SCRIPT_REASON.to_owned(),
             )));
@@ -181,7 +177,7 @@ impl GatedComputer for FakeComputer {
         self.record(format!("run_command done wakes {wakes}"));
         apply_writes(&self.tree, &script.writes);
         Ok(ActualResult::Command(CommandOutcome {
-            command: command.to_owned(),
+            command,
             computer: self.name.clone(),
             exit_code: Some(exit_code),
             output: script.output.clone(),
@@ -189,9 +185,10 @@ impl GatedComputer for FakeComputer {
         }))
     }
 
-    fn read_file(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection> {
+    fn read_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::accept(&ticket, &self.name, OpKind::Read)?;
+        let path = Self::ticket_path(&ticket)?;
         self.record(format!("read_file {path}"));
-        Self::authorize(pass, &Self::file_key(pass, "read", path))?;
         self.reachable()?;
         let content = Self::guard(&self.tree).read(path).ok_or_else(|| {
             OpRejection::from_failure(ComputerFailure::operation(MISSING_FILE_REASON.to_owned()))
@@ -206,39 +203,33 @@ impl GatedComputer for FakeComputer {
         }))
     }
 
-    fn write_file(
-        &self,
-        pass: &Pass,
-        path: &str,
-        content: &str,
-    ) -> Result<ActualResult, OpRejection> {
+    fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::accept(&ticket, &self.name, OpKind::Write)?;
+        let path = Self::ticket_path(&ticket)?.to_owned();
+        let content = ticket.content().unwrap_or("").to_owned();
         self.record(format!("write_file {path}"));
-        Self::authorize(pass, &Self::file_key(pass, "write", path))?;
         self.reachable()?;
-        let before = Self::guard(&self.tree).digest(path);
-        let outcome = write_outcome(&self.tree, path, content, before);
+        let before = Self::guard(&self.tree).digest(&path);
+        let outcome = write_outcome(&self.tree, &path, &content, before);
         Ok(ActualResult::Write(outcome))
     }
 
-    fn edit_file(
-        &self,
-        pass: &Pass,
-        path: &str,
-        old_text: &str,
-        new_text: &str,
-    ) -> Result<ActualResult, OpRejection> {
+    fn edit_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::accept(&ticket, &self.name, OpKind::Edit)?;
+        let path = Self::ticket_path(&ticket)?.to_owned();
+        let (old_text, new_text) = ticket.texts().unwrap_or(("", ""));
         self.record(format!("edit_file {path}"));
-        Self::authorize(pass, &Self::file_key(pass, "edit", path))?;
         self.reachable()?;
-        let before = Self::guard(&self.tree).digest(path);
-        let content = self.apply_edit(path, old_text, new_text)?;
-        let outcome = write_outcome(&self.tree, path, &content, before);
+        let before = Self::guard(&self.tree).digest(&path);
+        let content = self.apply_edit(&path, old_text, new_text)?;
+        let outcome = write_outcome(&self.tree, &path, &content, before);
         Ok(ActualResult::Write(outcome))
     }
 
-    fn path_info(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection> {
+    fn path_info(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::accept(&ticket, &self.name, OpKind::Path)?;
+        let path = Self::ticket_path(&ticket)?;
         self.record(format!("path_info {path}"));
-        Self::authorize(pass, &Self::file_key(pass, "path", path))?;
         self.reachable()?;
         let tree = Self::guard(&self.tree);
         let canonical = tree.canonical(path);

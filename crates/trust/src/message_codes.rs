@@ -7,7 +7,7 @@ pub const CODE_GATE_DENIED_BY_RULE: &str = "gate-denied-by-rule";
 pub const CODE_GATE_DENIED: &str = "gate-denied";
 pub const CODE_GATE_USER_REJECTED: &str = "gate-user-rejected";
 pub const CODE_GATE_ASK_PENDING: &str = "gate-ask-pending";
-pub const CODE_GATE_PASS_NOT_AUTHORIZED: &str = "gate-pass-not-authorized";
+pub const CODE_GATE_TICKET_MISMATCH: &str = "gate-ticket-mismatch";
 pub const CODE_TURN_COMPLETED: &str = "turn-completed";
 pub const CODE_TURN_FAILED: &str = "turn-failed";
 pub const CODE_TURN_TOOL_FAILED: &str = "turn-tool-failed";
@@ -31,7 +31,7 @@ pub fn all_codes() -> [&'static str; 20] {
         CODE_GATE_DENIED,
         CODE_GATE_USER_REJECTED,
         CODE_GATE_ASK_PENDING,
-        CODE_GATE_PASS_NOT_AUTHORIZED,
+        CODE_GATE_TICKET_MISMATCH,
         CODE_TURN_COMPLETED,
         CODE_TURN_FAILED,
         CODE_TURN_TOOL_FAILED,

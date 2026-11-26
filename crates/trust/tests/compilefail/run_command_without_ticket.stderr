@@ -1,0 +1,15 @@
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+ --> tests/compilefail/run_command_without_ticket.rs:4:28
+  |
+4 |     let outcome = computer.run_command();
+  |                            ^^^^^^^^^^^-- argument #1 of type `OpTicket` is missing
+  |
+note: method defined here
+ --> src/runner.rs
+  |
+  |     fn run_command(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
+  |        ^^^^^^^^^^^
+help: provide the argument
+  |
+4 |     let outcome = computer.run_command(/* OpTicket */);
+  |                                        ++++++++++++++

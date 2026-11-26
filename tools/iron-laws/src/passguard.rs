@@ -1,6 +1,6 @@
 use crate::collect;
 
-pub const PASS_BUILD_TOKENS: [&str; 3] = ["Pass::issue", "Pass {", "Pass{"];
+pub const PASS_BUILD_TOKENS: [&str; 3] = ["OpTicket::issue", "OpTicket {", "OpTicket{"];
 
 #[must_use]
 pub fn violations(files: &[(String, String)]) -> Vec<String> {
@@ -13,7 +13,7 @@ pub fn violations(files: &[(String, String)]) -> Vec<String> {
         for token in PASS_BUILD_TOKENS {
             if text.contains(token) {
                 out.push(format!(
-                    "{path} builds a pass token ({token}): only crates/trust may issue passes (spec/07 section 3)",
+                    "{path} builds an operation ticket ({token}): only crates/trust may issue tickets (spec/07 section 3)",
                 ));
             }
         }
@@ -35,22 +35,22 @@ mod tests {
         let files = vec![
             (
                 "crates/tools/src/lib.rs".to_owned(),
-                "let p = Pass::issue(k, g, t);".to_owned(),
+                "let t = OpTicket::issue(s, k, g, c, t);".to_owned(),
             ),
             (
                 "crates/computers/src/lib.rs".to_owned(),
-                "Pass { key, gate, issued_at }".to_owned(),
+                "OpTicket { kind, computer, subject, gate, key, issued_at }".to_owned(),
             ),
             (
-                "crates/trust/src/pass.rs".to_owned(),
-                "Pass { key, gate, issued_at }".to_owned(),
+                "crates/trust/src/op_ticket.rs".to_owned(),
+                "OpTicket { kind, computer, subject, gate, key, issued_at }".to_owned(),
             ),
         ];
         let got = violations(&files);
         assert_eq!(got.len(), 2, "{got:?}");
         assert!(
             got.iter()
-                .all(|v| v.contains("only crates/trust may issue passes"))
+                .all(|v| v.contains("only crates/trust may issue tickets"))
         );
     }
 
@@ -58,7 +58,7 @@ mod tests {
     fn test_iron_laws_pass_token_inside_a_string_literal_is_ignored() {
         let files = vec![(
             "crates/tools/src/lib.rs".to_owned(),
-            "let note = \"Pass { key }\".to_owned();".to_owned(),
+            "let note = \"OpTicket { kind }\".to_owned();".to_owned(),
         )];
         assert_eq!(violations(&files), Vec::<String>::new());
     }

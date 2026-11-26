@@ -1,26 +1,27 @@
 # iron-laws passguard
 
-Scans every `.rs` file outside `crates/trust/` for tokens that construct a
-`Pass`: `Pass::issue`, `Pass {`, `Pass{`. Rust string literals are stripped
-before scanning, so test fixtures that mention these words are not flagged.
+Scans every `.rs` file outside `crates/trust/` for tokens that construct an
+operation ticket: `OpTicket::issue`, `OpTicket {`, `OpTicket{`. Rust string
+literals are stripped before scanning, so test fixtures that mention these
+words are not flagged.
 
 ## What it checks
 
-A textual scan of the whole repository for the three pass-construction tokens
-in any Rust source outside the trust crate. It runs in `make check` (the
-iron-laws gate) and in the fast gate.
+A textual scan of the whole repository for the three ticket-construction
+tokens in any Rust source outside the trust crate. It runs in `make check`
+(the iron-laws gate) and in the fast gate.
 
 ## What it misses
 
-- Text split across lines, for example `Pass\n{` after formatting, is not
+- Text split across lines, for example `OpTicket\n{` after formatting, is not
   matched by the two single-line tokens; struct literals written in one line
   are matched.
 - Macro expansion, `build.rs` output, and generated files are not scanned.
-- Renaming imports and wrapper functions (for example a helper in a
-  third crate that calls `Pass::issue` inside `crates/trust/`) are not
+- Renaming imports and wrapper functions (for example a helper in a third
+  crate that calls `OpTicket::issue` inside `crates/trust/`) are not
   detected; the scan only sees the tokens in the file they appear in.
-- Because `Pass::issue` is `pub(crate)` in the trust crate, code outside the
-  crate cannot compile against it; the textual scan is the belt, the
+- Because `OpTicket::issue` is `pub(crate)` in the trust crate, code outside
+  the crate cannot compile against it; the textual scan is the belt, the
   visibility is the suspenders.
 
 ## Compile-fail tests that close the gaps
@@ -30,10 +31,12 @@ compiler rejects each bypass the scanner can miss:
 
 | Test | What it proves |
 | --- | --- |
-| `issue_pass_outside_trust.rs` | `Pass::issue` is not visible outside `crates/trust/`. |
+| `issue_ticket_outside_trust.rs` | `OpTicket::issue` is not visible outside `crates/trust/`. |
+| `clone_ticket_outside_trust.rs` | `OpTicket` has no `Clone`, so a ticket cannot be copied. |
 | `build_gate_verdict_outside_trust.rs` | `GateVerdict` is not public, so it cannot be built by hand. |
 | `edit_gate_verdict_outside_trust.rs` | There is no public verdict to mutate, so "allow" cannot be forged. |
 | `build_ask_ticket_outside_trust.rs` | `AskTicket` fields are private; it cannot be constructed. |
 | `clone_ask_ticket_outside_trust.rs` | `AskTicket` has no `Clone`, so a ticket cannot be copied. |
-| `clone_pass_outside_trust.rs` | `Pass` has no `Clone`, and no public API returns a `Pass`, so a pass cannot be copied. |
-| `run_command_without_pass.rs` | The computer trait requires a pass for every operation; the trait is sealed, so it cannot be implemented outside. |
+| `build_evidence_outside_trust.rs` | The evidence builders are not visible outside `crates/trust/`. |
+| `read_pass_field_outside_trust.rs` | `ActionRun` has no pass or ticket field, so a finished run hands the caller nothing to replay an operation with. |
+| `run_command_without_ticket.rs` | Every computer operation takes exactly one `OpTicket`; a call without one does not compile. An implementation outside `crates/trust` can exist, but it can never obtain a ticket to invoke its own operations with, so it can only forward tickets built by the gate. |

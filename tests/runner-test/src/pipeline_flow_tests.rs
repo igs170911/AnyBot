@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use anybot_protocol::{GateOutcome, JudgementSource};
-use anybot_trust::GatedComputer;
+use anybot_protocol::{EvidencePayload, GateOutcome, JudgementSource};
 use anybot_trust::{
     ActionSubject, GateAnswer, GateConfig, PathView, RunStep, answer_ask, run_action,
 };
@@ -11,7 +10,6 @@ use crate::fake_builder::FakeComputerBuilder;
 use crate::fake_computer::FakeComputer;
 use crate::fake_scripts::CommandScript;
 use crate::ops_tests::{command_request, fresh_clock, run};
-use crate::spy_computer::SpyComputer;
 use crate::test_view::TestView;
 
 fn push_computer(clock: &Arc<FakeClock>) -> FakeComputer {
@@ -91,52 +89,44 @@ fn test_a_denied_action_produces_no_answer_ticket() {
 }
 
 #[test]
-fn test_the_computer_rejects_a_pass_issued_for_a_different_action() {
+fn test_an_approved_command_runs_the_exact_line_that_was_written() {
+    let clock = fresh_clock();
+    let computer = FakeComputerBuilder::default()
+        .bot_machine()
+        .clock(Arc::clone(&clock))
+        .script("Echo MixedCase", CommandScript::ok("out"))
+        .build();
+    let run = run(&computer, &command_request("Echo MixedCase", &clock)).into_run();
+    let first = run.evidence.first().unwrap();
+    let EvidencePayload::Executed { command, .. } = &first.payload else {
+        panic!("the executed action must carry an executed payload");
+    };
+    assert_eq!(command, "Echo MixedCase");
+    assert_eq!(
+        computer.logged(),
+        vec!["run_command echo mixedcase", "run_command done wakes 0"],
+    );
+}
+
+#[test]
+fn test_a_finished_run_leaves_nothing_to_ask_the_computer_again() {
     let clock = fresh_clock();
     let computer = FakeComputerBuilder::default()
         .bot_machine()
         .clock(Arc::clone(&clock))
         .script("ls", CommandScript::ok("files"))
-        .build();
-    let ls_run = run(&computer, &command_request("ls", &clock)).into_run();
-    let Some(pass) = ls_run.pass else {
-        panic!("an executed run must carry the pass it used");
-    };
-    let result = computer.run_command(&pass, "pwd", 1000);
-    assert!(
-        result.is_err(),
-        "a pass issued for ls must be rejected by the computer for pwd"
-    );
-}
-
-#[test]
-fn test_a_pass_for_one_command_never_authorizes_another_command() {
-    let clock = fresh_clock();
-    let inner = FakeComputerBuilder::default()
-        .bot_machine()
-        .clock(Arc::clone(&clock))
-        .script("ls", CommandScript::ok("files"))
         .script("pwd", CommandScript::ok("/workspace"))
         .build();
-    let spy = SpyComputer::new(inner);
-    let ls_run = run_action(
-        &command_request("ls", &clock),
-        &spy,
-        &GateConfig::plain(),
-        &TestView,
-        clock.as_ref(),
-    )
-    .into_run();
+    let ls_run = run(&computer, &command_request("ls", &clock)).into_run();
     assert_eq!(ls_run.gate.outcome, GateOutcome::Allow);
-    assert_eq!(spy.seen(), vec![false]);
-    let pwd_run = run_action(
-        &command_request("pwd", &clock),
-        &spy,
-        &GateConfig::plain(),
-        &TestView,
-        clock.as_ref(),
-    )
-    .into_run();
-    assert_eq!(pwd_run.gate.outcome, GateOutcome::Allow);
-    assert_eq!(spy.seen(), vec![false, true]);
+    let debug = format!("{ls_run:?}");
+    assert!(
+        !debug.contains("OpTicket") && !debug.contains("ticket"),
+        "the returned run must not carry anything a caller can hand to a computer"
+    );
+    assert_eq!(
+        computer.logged(),
+        vec!["run_command ls", "run_command done wakes 0"],
+        "a finished run leaves nothing behind to ask the computer again",
+    );
 }

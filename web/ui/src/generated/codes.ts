@@ -72,7 +72,7 @@ export type MessageCode =
   "gate-denied" |
   "gate-user-rejected" |
   "gate-ask-pending" |
-  "gate-pass-not-authorized" |
+  "gate-ticket-mismatch" |
   "turn-completed" |
   "turn-failed" |
   "turn-tool-failed" |
@@ -170,7 +170,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "gate-denied",
   "gate-user-rejected",
   "gate-ask-pending",
-  "gate-pass-not-authorized",
+  "gate-ticket-mismatch",
   "turn-completed",
   "turn-failed",
   "turn-tool-failed",

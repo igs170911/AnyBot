@@ -28,7 +28,9 @@ pub mod machine_rules;
 #[cfg(test)]
 mod machine_rules_tests;
 pub mod message_codes;
-pub mod pass;
+pub mod op_ticket;
+#[cfg(test)]
+mod op_ticket_computer_tests;
 pub mod pipeline;
 pub mod pipeline_run;
 pub mod pipeline_verify;
@@ -57,13 +59,13 @@ pub use machine_rules::{MachineLevel, RuleVerdict, default_rule, inside_workdir}
 pub use message_codes::{
     CODE_GATE_ASK_PENDING, CODE_GATE_BOT_MACHINE_OUTSIDE, CODE_GATE_COMMAND_DENIED,
     CODE_GATE_DENIED, CODE_GATE_DENIED_BY_RULE, CODE_GATE_NO_SANDBOX,
-    CODE_GATE_OUTSIDE_WRITE_DENIED, CODE_GATE_PASS_NOT_AUTHORIZED, CODE_GATE_PRIVATE_FILE,
+    CODE_GATE_OUTSIDE_WRITE_DENIED, CODE_GATE_PRIVATE_FILE, CODE_GATE_TICKET_MISMATCH,
     CODE_GATE_USER_REJECTED, CODE_TOOL_COMPUTER_UNREACHABLE, CODE_TOOL_EMPTY,
     CODE_TOOL_EXECUTION_FAILED, CODE_TOOL_OPERATION_FAILED, CODE_TURN_AWAITING_APPROVAL,
     CODE_TURN_COMPLETED, CODE_TURN_FAILED, CODE_TURN_NOT_EXECUTED, CODE_TURN_REJECTED,
     CODE_TURN_TOOL_FAILED, all_codes,
 };
-pub use pass::Pass;
+pub use op_ticket::{OpKind, OpTicket};
 pub use pipeline::{ActionRequest, AskTicket, GateAnswer, answer_ask, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
 pub use runner::{GatedComputer, OpRejection, OpRejectionKind};

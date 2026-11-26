@@ -1,10 +1,10 @@
 use anybot_protocol::{ActualResult, ComputerCaps, ComputerFailure, ComputerFailureKind};
 
-use crate::pass::Pass;
+use crate::op_ticket::OpTicket;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpRejectionKind {
-    PassNotAuthorized,
+    TicketMismatch,
     Unreachable,
     Operation,
 }
@@ -17,9 +17,9 @@ pub struct OpRejection {
 
 impl OpRejection {
     #[must_use]
-    pub fn unauthorized(reason: String) -> Self {
+    pub fn mismatch(reason: String) -> Self {
         OpRejection {
-            kind: OpRejectionKind::PassNotAuthorized,
+            kind: OpRejectionKind::TicketMismatch,
             reason,
         }
     }
@@ -42,33 +42,17 @@ pub trait GatedComputer: Send + Sync {
 
     fn declared_caps(&self) -> ComputerCaps;
 
-    fn capabilities(&self, pass: &Pass) -> Result<ActualResult, OpRejection>;
+    fn capabilities(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
 
-    fn run_command(
-        &self,
-        pass: &Pass,
-        command: &str,
-        timeout_ms: u64,
-    ) -> Result<ActualResult, OpRejection>;
+    fn run_command(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
 
-    fn read_file(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection>;
+    fn read_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
 
-    fn write_file(
-        &self,
-        pass: &Pass,
-        path: &str,
-        content: &str,
-    ) -> Result<ActualResult, OpRejection>;
+    fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
 
-    fn edit_file(
-        &self,
-        pass: &Pass,
-        path: &str,
-        old_text: &str,
-        new_text: &str,
-    ) -> Result<ActualResult, OpRejection>;
+    fn edit_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
 
-    fn path_info(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection>;
+    fn path_info(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
 
     fn resolve_target(&self, path: &str) -> Option<String>;
 

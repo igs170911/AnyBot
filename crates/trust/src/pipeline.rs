@@ -3,7 +3,7 @@ use crate::card_data::{CardData, build_card};
 use crate::command_target::command_target_paths;
 use crate::evidence::ActionContext;
 use crate::gate_flow::{GateConfig, GateVerdict, judge};
-use crate::pass::Pass;
+use crate::op_ticket::OpTicket;
 use crate::pipeline_run::{RunStep, denied_run, executed_run, prepared_gate};
 use crate::runner::GatedComputer;
 use crate::safety_n5::{ActionClass, classes_of_command};
@@ -72,10 +72,10 @@ pub fn run_action(
         GateOutcome::Deny => RunStep::Denied(denied_run(request, &verdict, &gate, view, clock)),
         GateOutcome::Ask => RunStep::Ask(Box::new(AskTicket::new(verdict, action, &caps, request))),
         GateOutcome::Allow => {
-            let Some(pass) = verdict.pass(&action, clock.now_ms()) else {
+            let Some(ticket) = verdict.ticket(&action, computer.name(), clock.now_ms()) else {
                 return RunStep::Denied(denied_run(request, &verdict, &gate, view, clock));
             };
-            RunStep::Executed(executed_run(request, pass, computer, view, clock))
+            RunStep::Executed(executed_run(request, ticket, computer, view, clock))
         }
     }
 }
@@ -147,11 +147,17 @@ impl AskTicket {
                 crate::pipeline_run::user_rejected_run(&self.request, gate, view, clock)
             }
             GateAnswer::Allow => {
-                let pass = Pass::issue(self.action.key(), gate.clone(), clock.now_ms());
+                let ticket = OpTicket::issue(
+                    &self.action.subject,
+                    self.action.key(),
+                    gate.clone(),
+                    computer.name(),
+                    clock.now_ms(),
+                );
                 crate::pipeline_run::user_approved_run(
                     &self.request,
                     &gate,
-                    pass,
+                    ticket,
                     computer,
                     view,
                     clock,

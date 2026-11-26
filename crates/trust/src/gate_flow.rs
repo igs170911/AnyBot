@@ -2,7 +2,7 @@ use crate::action::{ActionSubject, GateAction};
 use crate::gate_engine::{GateLayer, Opinion};
 use crate::gate_full::{EngineInput, ModeFlags, StyleFlags, decide};
 use crate::machine_rules::{RuleVerdict, default_rule};
-use crate::pass::Pass;
+use crate::op_ticket::OpTicket;
 use crate::trust_floor::{FloorAction, FloorDeny, floor_check};
 use anybot_foundation::TimestampMs;
 use anybot_protocol::{
@@ -73,11 +73,22 @@ impl GateVerdict {
     }
 
     #[must_use]
-    pub(crate) fn pass(&self, action: &GateAction, issued_at: TimestampMs) -> Option<Pass> {
+    pub(crate) fn ticket(
+        &self,
+        action: &GateAction,
+        computer: &str,
+        issued_at: TimestampMs,
+    ) -> Option<OpTicket> {
         if self.outcome != GateOutcome::Allow {
             return None;
         }
-        Some(Pass::issue(action.key(), self.record(), issued_at))
+        Some(OpTicket::issue(
+            &action.subject,
+            action.key(),
+            self.record(),
+            computer,
+            issued_at,
+        ))
     }
 }
 
@@ -251,15 +262,18 @@ mod tests {
     }
 
     #[test]
-    fn test_gate_flow_default_direct_rule_issues_a_pass_for_that_action() {
+    fn test_gate_flow_default_direct_rule_issues_a_ticket_for_that_action() {
         let action = GateAction::command("shell", "ls -la", "/workspace", Vec::new());
         let verdict = judge(&action, &bot_caps(), &GateConfig::plain());
         assert_eq!(verdict.outcome, GateOutcome::Allow);
         assert_eq!(verdict.rule, "bot-machine-command");
-        let pass = verdict.pass(&action, TimestampMs::from_millis(5));
-        assert!(pass.is_some());
+        let ticket = verdict.ticket(&action, "fake-computer", TimestampMs::from_millis(5));
+        assert!(ticket.is_some());
         let other = GateAction::command("shell", "ls -lb", "/workspace", Vec::new());
-        assert!(!pass.unwrap().authorizes(&other.key()));
+        let issued = ticket.unwrap();
+        assert_eq!(issued.key(), &action.key());
+        assert_ne!(issued.key(), &other.key());
+        assert_eq!(issued.computer(), "fake-computer");
     }
 
     #[test]

@@ -115,8 +115,8 @@ pub(crate) fn approved_evidence(
 #[must_use]
 pub fn rejection_reason(rejection: &OpRejection) -> ReasonPayload {
     let code = match rejection.kind {
-        crate::runner::OpRejectionKind::PassNotAuthorized => {
-            crate::message_codes::CODE_GATE_PASS_NOT_AUTHORIZED
+        crate::runner::OpRejectionKind::TicketMismatch => {
+            crate::message_codes::CODE_GATE_TICKET_MISMATCH
         }
         crate::runner::OpRejectionKind::Unreachable => {
             crate::message_codes::CODE_TOOL_COMPUTER_UNREACHABLE

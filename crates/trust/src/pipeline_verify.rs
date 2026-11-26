@@ -1,6 +1,6 @@
-use crate::action::ActionSubject;
+use crate::action::{ActionKey, ActionSubject, PathView};
 use crate::evidence::{ActionContext, build_evidence};
-use crate::pass::Pass;
+use crate::op_ticket::OpTicket;
 use crate::runner::{GatedComputer, OpRejection};
 use anybot_foundation::{Clock, ContentDigest};
 use anybot_protocol::{
@@ -36,84 +36,117 @@ pub(crate) fn completed_outcome(
     ActionOutcome::Completed
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct VerificationPlan {
+    pub kind: crate::op_ticket::OpKind,
+    pub tool: String,
+    pub path: String,
+    pub content: String,
+    pub computer: String,
+    pub gate: GateRecord,
+}
+
+pub(crate) fn plan_of(ticket: &OpTicket) -> VerificationPlan {
+    VerificationPlan {
+        kind: ticket.kind(),
+        tool: ticket.key().parts().0.to_owned(),
+        path: ticket.path().unwrap_or("").to_owned(),
+        content: ticket.content().unwrap_or("").to_owned(),
+        computer: ticket.computer().to_owned(),
+        gate: ticket.gate().clone(),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum VerificationTarget {
+    RereadContent,
+    AfterDigest,
+}
+
 pub(crate) fn verify(
-    pass: &Pass,
-    subject: &ActionSubject,
+    plan: &VerificationPlan,
     result: &ActualResult,
     computer: &dyn GatedComputer,
+    clock: &dyn Clock,
 ) -> Option<VerificationRecord> {
-    match subject {
-        ActionSubject::WriteFile { path, content } => {
-            Some(reread_verification(pass, &path.raw, content, computer))
-        }
-        ActionSubject::EditFile { path, .. } => {
-            Some(after_digest_verification(pass, &path.raw, result, computer))
-        }
-        ActionSubject::Command { .. } => Some(exit_code_verification(result)),
-        ActionSubject::ReadFile { .. }
-        | ActionSubject::PathCheck { .. }
-        | ActionSubject::Capabilities => None,
+    match plan.kind {
+        crate::op_ticket::OpKind::Write => Some(reread_verification(
+            plan,
+            result,
+            computer,
+            clock,
+            VerificationTarget::RereadContent,
+        )),
+        crate::op_ticket::OpKind::Edit => Some(reread_verification(
+            plan,
+            result,
+            computer,
+            clock,
+            VerificationTarget::AfterDigest,
+        )),
+        crate::op_ticket::OpKind::Run => Some(exit_code_verification(result)),
+        crate::op_ticket::OpKind::Read
+        | crate::op_ticket::OpKind::Path
+        | crate::op_ticket::OpKind::Caps => None,
     }
 }
 
 fn reread_verification(
-    pass: &Pass,
-    path: &str,
-    content: &str,
+    plan: &VerificationPlan,
+    result: &ActualResult,
     computer: &dyn GatedComputer,
+    clock: &dyn Clock,
+    target: VerificationTarget,
 ) -> VerificationRecord {
-    match computer.read_file(pass, path) {
-        Ok(ActualResult::Read(outcome)) => VerificationRecord {
-            result: digest_match(outcome.digest.hex(), content),
-            source: JudgementSource::ProgramCheck,
-            detail: format!("reread digest of {path}"),
+    let path = plan.path.clone();
+    let subject = ActionSubject::ReadFile {
+        path: PathView::raw(&path),
+    };
+    let key = ActionKey::file(&plan.tool, "read", &path);
+    let ticket = OpTicket::issue(
+        &subject,
+        key,
+        plan.gate.clone(),
+        plan.computer.as_str(),
+        clock.now_ms(),
+    );
+    match computer.read_file(ticket) {
+        Ok(ActualResult::Read(outcome)) => match target {
+            VerificationTarget::RereadContent => VerificationRecord {
+                result: digest_match(outcome.digest.hex(), &plan.content),
+                source: JudgementSource::ProgramCheck,
+                detail: format!("reread digest of {path}"),
+            },
+            VerificationTarget::AfterDigest => VerificationRecord {
+                result: after_digest_match(&outcome, result),
+                source: JudgementSource::ProgramCheck,
+                detail: format!("reread digest of {path} against the written digest"),
+            },
         },
-        Ok(other) => VerificationRecord {
-            result: VerificationResult::Failed,
-            source: JudgementSource::ProgramCheck,
-            detail: format!("reread of {path} returned {other:?}"),
-        },
-        Err(rejection) => VerificationRecord {
-            result: VerificationResult::Failed,
-            source: JudgementSource::ProgramCheck,
-            detail: rejection.reason.clone(),
-        },
+        Ok(other) => failed_check(format!("reread of {path} returned {other:?}")),
+        Err(rejection) => failed_check(rejection.reason.clone()),
     }
 }
 
-fn after_digest_verification(
-    pass: &Pass,
-    path: &str,
+fn after_digest_match(
+    reread: &anybot_protocol::ReadOutcome,
     result: &ActualResult,
-    computer: &dyn GatedComputer,
-) -> VerificationRecord {
+) -> VerificationResult {
     let ActualResult::Write(outcome) = result else {
-        return VerificationRecord {
-            result: VerificationResult::Failed,
-            source: JudgementSource::ProgramCheck,
-            detail: "the edit result is not a write".to_owned(),
-        };
+        return VerificationResult::Failed;
     };
-    match computer.read_file(pass, path) {
-        Ok(ActualResult::Read(reread)) => VerificationRecord {
-            result: if reread.digest == outcome.after {
-                VerificationResult::Passed
-            } else {
-                VerificationResult::Failed
-            },
-            source: JudgementSource::ProgramCheck,
-            detail: format!("reread digest of {path} against the written digest"),
-        },
-        Ok(other) => VerificationRecord {
-            result: VerificationResult::Failed,
-            source: JudgementSource::ProgramCheck,
-            detail: format!("reread of {path} returned {other:?}"),
-        },
-        Err(rejection) => VerificationRecord {
-            result: VerificationResult::Failed,
-            source: JudgementSource::ProgramCheck,
-            detail: rejection.reason.clone(),
-        },
+    if reread.digest == outcome.after {
+        VerificationResult::Passed
+    } else {
+        VerificationResult::Failed
+    }
+}
+
+fn failed_check(detail: String) -> VerificationRecord {
+    VerificationRecord {
+        result: VerificationResult::Failed,
+        source: JudgementSource::ProgramCheck,
+        detail,
     }
 }
 
@@ -155,22 +188,15 @@ fn exit_word(code: Option<i32>) -> String {
 }
 
 pub(crate) fn perform(
-    pass: &Pass,
-    subject: &ActionSubject,
+    ticket: OpTicket,
     computer: &dyn GatedComputer,
 ) -> Result<ActualResult, OpRejection> {
-    match subject {
-        ActionSubject::Command { line, timeout_ms } => {
-            computer.run_command(pass, line, *timeout_ms)
-        }
-        ActionSubject::ReadFile { path } => computer.read_file(pass, &path.raw),
-        ActionSubject::WriteFile { path, content } => computer.write_file(pass, &path.raw, content),
-        ActionSubject::EditFile {
-            path,
-            old_text,
-            new_text,
-        } => computer.edit_file(pass, &path.raw, old_text, new_text),
-        ActionSubject::PathCheck { path } => computer.path_info(pass, &path.raw),
-        ActionSubject::Capabilities => computer.capabilities(pass),
+    match ticket.kind() {
+        crate::op_ticket::OpKind::Run => computer.run_command(ticket),
+        crate::op_ticket::OpKind::Read => computer.read_file(ticket),
+        crate::op_ticket::OpKind::Write => computer.write_file(ticket),
+        crate::op_ticket::OpKind::Edit => computer.edit_file(ticket),
+        crate::op_ticket::OpKind::Path => computer.path_info(ticket),
+        crate::op_ticket::OpKind::Caps => computer.capabilities(ticket),
     }
 }
