@@ -16,6 +16,12 @@ fn version_line_keeps_dirty_marker() {
 }
 
 #[test]
+fn version_line_tagged_describe_does_not_repeat_the_tag() {
+    let line = version_line("0.1.0", "v0.1.0", Some("1732523400"));
+    assert_eq!(line, "v0.1.0-missing-commit · 2024-11-25T08:30:00Z");
+}
+
+#[test]
 fn version_line_without_epoch_is_stable() {
     let line = version_line("0.1.0", "abc1234", None);
     assert_eq!(line, "v0.1.0-abc1234 · unspecified");

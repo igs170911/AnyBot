@@ -1,30 +1,85 @@
 #!/bin/sh
-# Push each native image, then point one tag at both architectures.
-# The tars were built on ubuntu-24.04 and ubuntu-24.04-arm. This step does not rebuild.
+# Push each native image by digest, then build the multi-arch tag from those digests.
+# Shared arch-* and :verify tags are not used: two publishes can overwrite them.
+# ANYBOT_DOCKER replaces docker in tests. Digests may be injected the same way.
+# https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/
 set -eu
+docker="${ANYBOT_DOCKER:-docker}"
 short="$(printf '%s' "$COMMIT" | cut -c1-12)"
-if [ "$CHANNEL" = "dev" ]; then
-  moving="dev"
-else
-  moving="$VERSION"
-fi
-dir="target/image-parts"
+moving="${IMAGE_TAG:?IMAGE_TAG is required}"
+image="${IMAGE:?IMAGE is required}"
+dir="${IMAGE_DIR:-target/image-parts}"
 amd64="$(find "$dir" -name 'amd64.tar' -type f | head -n 1)"
 arm64="$(find "$dir" -name 'arm64.tar' -type f | head -n 1)"
 if [ -z "$amd64" ] || [ -z "$arm64" ]; then
   echo "missing a native image tar (amd64=$amd64 arm64=$arm64)" >&2
   exit 1
 fi
-docker load -i "$amd64"
-docker tag "${IMAGE}:verify" "${IMAGE}:arch-amd64"
-docker push "${IMAGE}:arch-amd64"
-docker load -i "$arm64"
-docker tag "${IMAGE}:verify" "${IMAGE}:arch-arm64"
-docker push "${IMAGE}:arch-arm64"
-for name in "$moving" "$short"; do
-  docker buildx imagetools create \
-    --tag "${IMAGE}:${name}" \
-    "${IMAGE}:arch-amd64" \
-    "${IMAGE}:arch-arm64"
-done
-echo "pushed ${IMAGE}:${moving} and ${IMAGE}:${short}"
+
+push_one() {
+  tar="$1"
+  injected="$2"
+  name="$3"
+  if [ -n "$injected" ]; then
+    printf '%s\n' "$injected"
+    return
+  fi
+  # The tar keeps the runner-local tag from the build job. Retag to a name that
+  # includes this commit, push that, and keep only the digest the registry returns.
+  loaded="$("$docker" load -i "$tar")"
+  ref="$(printf '%s\n' "$loaded" | sed -n 's/^Loaded image: //p' | head -n 1)"
+  if [ -z "$ref" ]; then
+    ref="$(printf '%s\n' "$loaded" | sed -n 's/^Loaded image ID: //p' | head -n 1)"
+  fi
+  if [ -z "$ref" ]; then
+    echo "docker load did not name an image" >&2
+    exit 1
+  fi
+  "$docker" tag "$ref" "$name"
+  # Quiet mode is not documented to print the digest. The normal line is
+  # "<tag>: digest: sha256:..." (docs.docker.com/reference/cli/docker/image/push).
+  pushed="$("$docker" push "$name")"
+  printf '%s\n' "$pushed" | sed -n 's/.*digest: //p' | awk '{print $1; exit}'
+}
+
+amd64_digest="$(push_one "$amd64" "${AMD64_DIGEST:-}" "${image}:amd64-${short}")"
+arm64_digest="$(push_one "$arm64" "${ARM64_DIGEST:-}" "${image}:arm64-${short}")"
+case "$amd64_digest" in
+  sha256:*) ;;
+  *)
+    echo "amd64 push did not return a digest ($amd64_digest)" >&2
+    exit 1
+    ;;
+esac
+case "$arm64_digest" in
+  sha256:*) ;;
+  *)
+    echo "arm64 push did not return a digest ($arm64_digest)" >&2
+    exit 1
+    ;;
+esac
+
+meta="${IMAGE_META:-target/image-index.json}"
+mkdir -p "$(dirname "$meta")"
+"$docker" buildx imagetools create \
+  --tag "${image}:${moving}" \
+  --tag "${image}:${short}" \
+  --annotation "index:org.opencontainers.image.revision=${COMMIT}" \
+  --metadata-file "$meta" \
+  "${image}@${amd64_digest}" \
+  "${image}@${arm64_digest}"
+if [ ! -s "$meta" ] && [ -n "${INDEX_DIGEST:-}" ]; then
+  printf '%s\n' "{\"containerimage.descriptor\":{\"digest\":\"${INDEX_DIGEST}\"}}" > "$meta"
+fi
+digest="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["containerimage.descriptor"]["digest"])' "$meta")"
+case "$digest" in
+  sha256:*) ;;
+  *)
+    echo "imagetools metadata has no digest ($digest)" >&2
+    exit 1
+    ;;
+esac
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+fi
+echo "pushed ${image}:${moving} ${digest}"

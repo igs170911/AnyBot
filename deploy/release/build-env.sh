@@ -21,7 +21,13 @@ if [ -n "${GITHUB_SHA:-}" ]; then
   fi
 fi
 # --dirty cannot be combined with a commit-ish. A tagged checkout is still clean.
+# A tag-only describe repeats the tag and drops the commit (install-n10). Always append -g<sha>.
 describe="$(git describe --tags --always --abbrev=12 --dirty)" || exit 1
+short_now="$(printf '%s' "${GITHUB_SHA:-$(git rev-parse HEAD)}" | cut -c1-12)"
+case "$describe" in
+  *-g*) ;;
+  *) describe="${describe}-g${short_now}" ;;
+esac
 case "$describe" in
   *-dirty|*-dirty*)
     echo "refusing a dirty worktree ($describe)" >&2

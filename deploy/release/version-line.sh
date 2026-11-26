@@ -14,6 +14,10 @@ case "$describe" in
 esac
 case "$commit" in
   *-g*) short="${commit##*-g}" ;;
+  v[0-9]*)
+    echo "describe $describe has a tag and no commit; refusing a repeated tag (install-n10)" >&2
+    exit 1
+    ;;
   *) short="$commit" ;;
 esac
 stamp="$(SOURCE_DATE_EPOCH="$epoch" python3 -c 'import os, time; print(time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(int(os.environ["SOURCE_DATE_EPOCH"]))))')"

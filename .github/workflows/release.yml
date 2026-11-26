@@ -30,9 +30,9 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: release-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+# No workflow-level concurrency. A group on this file would cancel a publish
+# that has already started when the next tag or dev call arrives. The publish
+# job serializes itself and does not cancel.
 
 env:
   CARGO_INCREMENTAL: "0"
@@ -53,11 +53,20 @@ jobs:
       built_at: ${{ steps.mode.outputs.built_at }}
       describe: ${{ steps.mode.outputs.describe }}
       image: ${{ steps.mode.outputs.image }}
+      image_tag: ${{ steps.mode.outputs.image_tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: record the dev tip this call can see
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          set -euo pipefail
+          mkdir -p target
+          git fetch --no-tags origin dev
+          git rev-parse origin/dev > target/dev-head.txt
 
       - name: decide mode and refuse a bad tag
         id: mode
@@ -70,6 +79,7 @@ jobs:
           SHA: ${{ github.sha }}
           REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
+          DEV_HEAD_FILE: target/dev-head.txt
         run: sh deploy/release/guard.sh
 
   desktop:
@@ -97,6 +107,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: linux bundling packages
         if: runner.os == 'Linux'
@@ -191,6 +202,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: export compile-time release values
         env:
@@ -201,10 +213,19 @@ jobs:
         env:
           ANYBOT_GIT_DESCRIBE: ${{ needs.guard.outputs.describe }}
           SOURCE_DATE_EPOCH: ${{ needs.guard.outputs.built_at }}
+          COMMIT: ${{ needs.guard.outputs.commit }}
         run: |
           set -euo pipefail
           mkdir -p target
-          line="$(sh deploy/release/version-line.sh)"
+          # The image is checked against the commit, not against git describe.
+          # A tag-only describe repeats the tag and would hide a missing commit.
+          short="$(printf '%s' "$COMMIT" | cut -c1-12)"
+          describe="$ANYBOT_GIT_DESCRIBE"
+          case "$describe" in
+            *-g*) ;;
+            *) describe="${describe}-g${short}" ;;
+          esac
+          line="$(ANYBOT_GIT_DESCRIBE="$describe" sh deploy/release/version-line.sh)"
           printf '%s\n' "$line" > target/expected-version.txt
           echo "expected $line"
 
@@ -224,14 +245,17 @@ jobs:
             ANYBOT_RELEASE_CHANNEL=${{ needs.guard.outputs.channel }}
             ANYBOT_GIT_DESCRIBE=${{ needs.guard.outputs.describe }}
             SOURCE_DATE_EPOCH=${{ needs.guard.outputs.built_at }}
-          tags: ${{ needs.guard.outputs.image }}:verify
+          tags: ${{ needs.guard.outputs.image }}:${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: run --version inside the image
         env:
           IMAGE: ${{ needs.guard.outputs.image }}
+          ARCH: ${{ matrix.arch }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
-          got="$(docker run --rm --entrypoint /usr/local/bin/anybot-server "${IMAGE}:verify" --version)"
+          got="$(docker run --rm --entrypoint /usr/local/bin/anybot-server "${IMAGE}:${ARCH}-${RUN_ID}-${RUN_ATTEMPT}" --version)"
           want="$(tr -d '\r' < target/expected-version.txt)"
           got="$(printf '%s' "$got" | tr -d '\r')"
           echo "image version: [$got]"
@@ -246,10 +270,13 @@ jobs:
         env:
           IMAGE: ${{ needs.guard.outputs.image }}
           PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
           mkdir -p target/image-export
-          docker save "${IMAGE}:verify" -o "target/image-export/${PLATFORM##*/}.tar"
+          docker save "${IMAGE}:${ARCH}-${RUN_ID}-${RUN_ATTEMPT}" -o "target/image-export/${PLATFORM##*/}.tar"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: needs.guard.outputs.mode == 'publish'
@@ -261,6 +288,11 @@ jobs:
   publish:
     needs: [guard, desktop, image]
     if: github.event_name != 'release' && needs.guard.outputs.mode == 'publish' && needs.desktop.result == 'success' && needs.image.result == 'success'
+    # One publish at a time. A new one waits; it does not cancel the one already pushing.
+    # https://docs.github.com/en/actions/using-jobs/using-concurrency
+    concurrency:
+      group: release-publish-${{ github.repository }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -283,30 +315,15 @@ jobs:
       - name: one checksum file
         run: |
           set -euo pipefail
-          mkdir -p target/release-page
-          find target/downloaded -type f ! -name SHA256SUMS -exec cp {} target/release-page/ \;
+          mkdir -p target/release-page target/release-raw
+          find target/downloaded -type f ! -name SHA256SUMS -exec cp {} target/release-raw/ \;
+          sh deploy/release/sanitize-names.sh target/release-raw target/release-page
           count="$(find target/release-page -type f | wc -l | tr -d ' ')"
           if [ "$count" = 0 ]; then
             echo "no desktop artifacts downloaded" >&2
             exit 1
           fi
           (cd target/release-page && sha256sum -- * > SHA256SUMS)
-
-      - name: release notes
-        env:
-          CHANNEL: ${{ needs.guard.outputs.channel }}
-          COMMIT: ${{ needs.guard.outputs.commit }}
-          BUILT_AT: ${{ needs.guard.outputs.built_at }}
-          TAG: ${{ needs.guard.outputs.tag }}
-        run: sh deploy/release/render-notes.sh "$CHANNEL" "$COMMIT" "$BUILT_AT" "$TAG"
-
-      - name: publish the dev pre-release or the stable draft
-        env:
-          CHANNEL: ${{ needs.guard.outputs.channel }}
-          TAG: ${{ needs.guard.outputs.tag }}
-          SHA: ${{ needs.guard.outputs.commit }}
-          GH_TOKEN: ${{ github.token }}
-        run: sh deploy/release/publish-release.sh
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -328,9 +345,28 @@ jobs:
         env:
           CHANNEL: ${{ needs.guard.outputs.channel }}
           VERSION: ${{ needs.guard.outputs.version }}
+          IMAGE_TAG: ${{ needs.guard.outputs.image_tag }}
           COMMIT: ${{ needs.guard.outputs.commit }}
           IMAGE: ${{ needs.guard.outputs.image }}
         run: sh deploy/release/push-images.sh
+
+      - name: release notes
+        env:
+          CHANNEL: ${{ needs.guard.outputs.channel }}
+          COMMIT: ${{ needs.guard.outputs.commit }}
+          BUILT_AT: ${{ needs.guard.outputs.built_at }}
+          TAG: ${{ needs.guard.outputs.tag }}
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: sh deploy/release/render-notes.sh "$CHANNEL" "$COMMIT" "$BUILT_AT" "$TAG" "$IMAGE_DIGEST"
+
+      - name: publish the dev pre-release or the stable draft
+        env:
+          CHANNEL: ${{ needs.guard.outputs.channel }}
+          TAG: ${{ needs.guard.outputs.tag }}
+          SHA: ${{ needs.guard.outputs.commit }}
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: sh deploy/release/publish-release.sh
 
   latest:
     # spec/09 K111: move `latest` only after a non-rc Release is published. A draft does not.
@@ -350,6 +386,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: move the latest tag
         env:

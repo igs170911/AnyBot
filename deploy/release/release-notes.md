@@ -8,6 +8,7 @@ This build is **{{CHANNEL}}**. It is not code-signed and not notarized (spec/09 
 - Commit: `{{COMMIT}}`
 - Built at: {{BUILT_AT}} (UTC)
 - Tag: {{TAG}}
+- Server image digest: `{{IMAGE_DIGEST}}`
 
 When the channel is `dev`, this is the one fixed pre-release page. Each green `dev` build replaces the whole page: the previous installers are removed and these files are the only ones left. The `dev-build` tag is moved to this commit; it is not a new page and not a new tag name.
 
@@ -49,4 +50,4 @@ On macOS the same file is checked with `shasum -a 256 -c SHA256SUMS`.
 
 2. Install only after that line says OK. A mismatch means the file is not the one this release published.
 
-The server image is also unsigned. `docker pull` will not show a signature. Compare the image digest printed by the workflow with the digest in this release before you run it.
+The server image is also unsigned. `docker pull` will not show a signature. The digest above is the multi-arch index this release pushed. Compare it with `docker buildx imagetools inspect` before you run the image.

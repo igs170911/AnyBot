@@ -23,9 +23,9 @@ SPEC_TRACE_REF ?= HEAD
 	api-docs api-lint api-client api-html api-compat api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
 	_test-body _test-fast-body _test-basic-body _e2e-body gate-selftest \
-	locale locale-refresh
+	locale locale-refresh release-selftest
 
-check: fmt clippy gate-selftest test deny machete depcheck spec-trace ironlaws gitleaks versions actionlint locale \
+check: fmt clippy gate-selftest test deny machete depcheck spec-trace ironlaws gitleaks versions actionlint locale release-selftest \
 	api-docs api-lint api-client api-html api-compat api-lint-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
@@ -116,6 +116,9 @@ versions:
 # plus generated-code freshness (locale-gen check).
 locale:
 	$(CARGO) run --locked -p locale-gen -- check
+
+release-selftest:
+	sh deploy/release/release-selftest.sh
 
 # explicit command: regenerate the committed message code tables (CI does not run it).
 locale-refresh:

@@ -60,7 +60,16 @@ fn version_line(version: &str, describe: &str, epoch: Option<&str>) -> String {
         commit = stripped;
         dirty = true;
     }
-    let short = commit.rsplit_once("-g").map_or(commit, |(_, hash)| hash);
+    let short = if let Some((_, hash)) = commit.rsplit_once("-g") {
+        hash
+    } else if commit
+        .strip_prefix('v')
+        .is_some_and(|rest| rest.chars().next().is_some_and(|c| c.is_ascii_digit()))
+    {
+        "missing-commit"
+    } else {
+        commit
+    };
     let mut line = format!("v{version}-{short}");
     if dirty {
         line.push_str("-dirty");
