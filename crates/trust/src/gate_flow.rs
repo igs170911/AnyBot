@@ -56,7 +56,7 @@ impl GateConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct GateVerdict {
+pub struct GateVerdict {
     pub(crate) outcome: GateOutcome,
     pub(crate) layer: GateLayer,
     pub(crate) rule: String,

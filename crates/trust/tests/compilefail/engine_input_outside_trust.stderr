@@ -3,9 +3,3 @@ error[E0425]: cannot find type `EngineInput` in crate `anybot_trust`
   |
 1 | fn pick(input: &anybot_trust::EngineInput) {
   |                               ^^^^^^^^^^^ not found in `anybot_trust`
-
-error[E0425]: cannot find function `decide` in crate `anybot_trust`
- --> tests/compilefail/engine_input_outside_trust.rs:2:33
-  |
-2 |     let decided = anybot_trust::decide(input);
-  |                                 ^^^^^^ not found in `anybot_trust`

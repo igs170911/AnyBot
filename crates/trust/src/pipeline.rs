@@ -2,7 +2,7 @@ use crate::action::{GateAction, PathView};
 use crate::card_data::{CardData, build_card};
 use crate::command_target::{DeleteBase, command_targets};
 use crate::evidence::ActionContext;
-use crate::gate_flow::{GateConfig, GateVerdict, judge};
+use crate::gate_flow::{GateConfig, judge};
 use crate::op_ticket::OpTicket;
 use crate::pipeline_exec::executed_run;
 use crate::pipeline_run::{RunStep, denied_run, prepared_gate};
@@ -78,7 +78,8 @@ pub fn run_action(
     match verdict.outcome {
         GateOutcome::Deny => RunStep::Denied(denied_run(request, &verdict, &gate, view, clock)),
         GateOutcome::Ask => RunStep::Ask(Box::new(AskTicket::new(
-            verdict,
+            GateOutcome::Ask,
+            gate.clone(),
             action,
             &caps,
             request,
@@ -96,7 +97,7 @@ pub fn run_action(
 #[derive(Debug)]
 pub struct AskTicket {
     gate: GateRecord,
-    verdict: GateVerdict,
+    outcome: GateOutcome,
     action: GateAction,
     card: CardData,
     request: ActionRequest,
@@ -126,7 +127,8 @@ impl AskTicket {
     }
 
     pub(crate) fn new(
-        verdict: GateVerdict,
+        outcome: GateOutcome,
+        gate: GateRecord,
         action: GateAction,
         caps: &ComputerCaps,
         request: &ActionRequest,
@@ -134,8 +136,8 @@ impl AskTicket {
     ) -> Self {
         let card = build_card(&action, caps);
         AskTicket {
-            gate: verdict.record(),
-            verdict,
+            gate,
+            outcome,
             action,
             card,
             request: request.clone(),
@@ -161,7 +163,7 @@ impl AskTicket {
         view: &dyn crate::pipeline_run::ModelResultView,
         clock: &dyn Clock,
     ) -> crate::pipeline_run::ActionRun {
-        if self.verdict.outcome != GateOutcome::Ask {
+        if self.outcome != GateOutcome::Ask {
             return crate::pipeline_run::user_rejected_run(&self.request, self.gate, view, clock);
         }
         if computer.name() != self.computer || computer.declared_caps() != self.caps {

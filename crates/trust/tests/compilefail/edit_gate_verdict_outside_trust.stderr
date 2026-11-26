@@ -1,5 +1,5 @@
-error[E0425]: cannot find function `gate_verdict_for_testing` in crate `anybot_trust`
- --> tests/compilefail/edit_gate_verdict_outside_trust.rs:4:37
+error[E0616]: field `rule` of struct `GateVerdict` is private
+ --> tests/compilefail/edit_gate_verdict_outside_trust.rs:2:13
   |
-4 |     let mut verdict = anybot_trust::gate_verdict_for_testing();
-  |                                     ^^^^^^^^^^^^^^^^^^^^^^^^ not found in `anybot_trust`
+2 |     verdict.rule = "made-by-me".to_owned();
+  |             ^^^^ private field

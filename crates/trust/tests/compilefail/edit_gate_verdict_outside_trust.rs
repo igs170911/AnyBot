@@ -1,6 +1,8 @@
+fn seal(verdict: &mut anybot_trust::GateVerdict) {
+    verdict.rule = "made-by-me".to_owned();
+}
+
 fn main() {
-    let config = anybot_trust::GateConfig::plain();
-    println!("{config:?}");
-    let mut verdict = anybot_trust::gate_verdict_for_testing();
-    verdict.outcome = anybot_protocol::GateOutcome::Allow;
+    let referenced = seal;
+    let _ = referenced;
 }

@@ -57,7 +57,7 @@ pub use edit_rule::{
 };
 pub use evidence::ActionContext;
 pub use gate_engine::{GateLayer, LayerCall, Opinion, Outcome, precedence_decision};
-pub use gate_flow::{AdminRules, GateConfig, RuleEntry, UserRules, rule_code};
+pub use gate_flow::{AdminRules, GateConfig, GateVerdict, RuleEntry, UserRules, rule_code};
 pub use machine_rules::{MachineLevel, RuleVerdict, default_rule, inside_workdir};
 pub use message_codes::{
     CODE_GATE_ASK_PENDING, CODE_GATE_BOT_MACHINE_OUTSIDE, CODE_GATE_COMMAND_DENIED,

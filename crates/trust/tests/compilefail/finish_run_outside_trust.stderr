@@ -1,0 +1,5 @@
+error[E0425]: cannot find function `finish` in crate `anybot_trust`
+ --> tests/compilefail/finish_run_outside_trust.rs:2:29
+  |
+2 |     let run = anybot_trust::finish(gate.clone(), Vec::new(), anybot_trust::OutcomeText::of("x", Vec::new()), &anybot_trust::ActionCon...
+  |                             ^^^^^^ not found in `anybot_trust`

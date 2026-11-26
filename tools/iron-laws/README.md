@@ -33,10 +33,12 @@ compiler rejects each bypass the scanner can miss:
 | --- | --- |
 | `issue_ticket_outside_trust.rs` | `OpTicket::issue` is not visible outside `crates/trust/`. |
 | `clone_ticket_outside_trust.rs` | `OpTicket` has no `Clone`, so a ticket cannot be copied. |
-| `build_gate_verdict_outside_trust.rs` | `GateVerdict` is not public, so it cannot be built by hand. |
-| `edit_gate_verdict_outside_trust.rs` | There is no public verdict to mutate, so "allow" cannot be forged. |
+| `build_gate_verdict_outside_trust.rs` | `GateVerdict` fields are private, so a verdict cannot be built by hand. |
+| `edit_gate_verdict_outside_trust.rs` | `GateVerdict` fields are private, so "allow" cannot be forged on a verdict handed out by the gate. |
+| `engine_input_outside_trust.rs` | `EngineInput` is not visible outside `crates/trust/`, so a caller cannot hand the engine pre-computed hits. |
 | `build_ask_ticket_outside_trust.rs` | `AskTicket` fields are private; it cannot be constructed. |
 | `clone_ask_ticket_outside_trust.rs` | `AskTicket` has no `Clone`, so a ticket cannot be copied. |
 | `build_evidence_outside_trust.rs` | The evidence builders are not visible outside `crates/trust/`. |
+| `finish_run_outside_trust.rs` | The final assembly step that accepts any evidence is not visible outside `crates/trust/`. |
 | `read_pass_field_outside_trust.rs` | `ActionRun` has no pass or ticket field, so a finished run hands the caller nothing to replay an operation with. |
 | `run_command_without_ticket.rs` | Every computer operation takes exactly one `OpTicket`; a call without one does not compile. An implementation outside `crates/trust` can exist, but it can never obtain a ticket to invoke its own operations with, so it can only forward tickets built by the gate. |

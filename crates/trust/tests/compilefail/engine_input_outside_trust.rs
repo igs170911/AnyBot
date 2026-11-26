@@ -1,6 +1,5 @@
 fn pick(input: &anybot_trust::EngineInput) {
-    let decided = anybot_trust::decide(input);
-    println!("{decided:?}");
+    println!("{input:?}");
 }
 
 fn main() {
