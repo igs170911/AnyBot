@@ -8,7 +8,7 @@
 1. **只在這個資料夾裡工作。** 不要讀、不要搜尋、不要列出這個資料夾以外的任何檔案。特別是 `~/Documents/AnyBotRebuild` 和 `~/Documents/AnyBot`：那是舊版，是污染源，一個字都不要看。也不要上網找舊版 AnyBot 的原始碼。例外：可以唯讀查看 `~/.cargo/registry/src/` 裡第三方套件的原始碼（查函式庫的 API 用），不准修改。
 2. **規格沒寫的行為，不要猜。** 不要憑印象補「舊版大概怎麼做」。寫進回報的「要問的問題」。
 3. **`spec/09-decisions.md` 是最終決定。** 跟其他文件不一致時，以它為準。
-4. **不 push、不建遠端 repo。** 只在本地 commit；每個里程碑做完、`make check` 全綠後 commit 一次，訊息用繁體中文寫做了什麼。
+4. **只用雲端檢查把自己的分支推上去，其他一律不 push。** 監督者在派工指示裡會給雲端檢查的指令：它先掃有沒有私人資料，再把你自己的 `ws/<名稱>` 分支推上 GitHub，等完整檢查的結果回來。不准自己用 `git push`、不准用 `gh`、不准推 `dev`、`main` 或別人的分支、不准強制推、不建遠端 repo。commit 訊息用繁體中文寫做了什麼。
 5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`；`brew install gitleaks`、`brew install oasdiff`；`pnpm exec playwright install chromium webkit`；測試用的 PostgreSQL 程式由 harness 下載到 `target/`。**不准用 Docker**（`spec/09` K90，這台電腦的 Docker 上有使用者真的在用的東西）。要裝別的先停下來回報。
 6. **不放任何金鑰、帳號、個人資料進 repo。** 新版也不讀環境變數做設定（`spec/02` A10）。
 7. **暫存檔、紀錄檔一律放在 repo 的 `target/` 裡**（已經在 `.gitignore`），不要寫到 `/tmp` 或其他地方。
@@ -34,8 +34,10 @@
 ## 三、開發原則（`spec/05` 摘要）
 
 - **能用工具擋的就用工具擋，不靠感覺。**
-- **「完成」＝`make check` 全綠，而且這次相關的規格測試都通過。** 沒到這個狀態，不要回報「完成」。
-- **邊寫邊跑 `make check-fast`**（有了之後）：每改完一批就跑，錯了當場修，不要累積到最後。
+- **「完成」＝雲端檢查全綠（GitHub 上完整的 `make check`，和 Windows、macOS 的編譯），而且這次相關的規格測試都通過。** 沒到這個狀態，不要回報「完成」。
+- **本機只跑快的**：邊寫邊跑相關的測試和 `make check-fast`，錯了當場修。完整的 `make check` 不在這台電腦跑，交給雲端檢查：這台電腦同時有好幾個 agent，完整檢查要 10–15 分鐘，還要搶測試鎖。
+- **雲端檢查沒過**：看它印出來的錯誤（完整紀錄在 `target/ci-logs/`），在本機只重跑失敗的那一步（例如 `make depcheck`）或那幾個測試，修好、commit，再送一次。
+- **改到 `.github/` 的任務**：雲端檢查會擋（CI 設定由監督者推）。這時在本機跑一次完整的 `make check`，回報裡寫明。
 - **依賴方向**照 `spec/07` §3，由 `tools/` 裡的檢查工具擋。
 - **禁用的寫法**照 `spec/07` §3，由 clippy 的禁用清單擋：讀環境變數、執行外部程式、發 HTTP、讀寫任意檔案，只准在指定的套件。
 - 正式程式碼裡不准 `unwrap`、`expect`、`panic!`；測試裡可以（靠 `clippy.toml` 的測試設定，不是在程式碼裡關掉）。
@@ -66,7 +68,7 @@ Rust stable、edition 2024；tokio、axum、sqlx、utoipa、reqwest（rustls）�
 
 用繁體中文：
 1. 做了什麼（照任務的項目逐條）。
-2. `make check` 最後的輸出（貼最後 30 行）。
+2. 雲端檢查最後的輸出（全綠那一行和 CI 的網址；改到 `.github/` 的任務，貼本機 `make check` 的最後 30 行）。
 3. 偏離規格的地方，和原因。
 4. 要問的問題。
 
@@ -79,10 +81,10 @@ Rust stable、edition 2024；tokio、axum、sqlx、utoipa、reqwest（rustls）�
    - 不准切換到別人的分支，不准直接改 `dev` 和 `main`。合進 `dev`、把 `main` 往前推，都由監督者做。
 2. **commit 在自己的分支**。回報之前：
    - 先 `git merge dev` 把最新的 `dev` 合進來。不准 rebase，也不准用任何方式改寫歷史。
-   - 解決衝突，`make check` 全綠，再回報。
+   - 解決衝突，`make check-fast` 過了，跑雲端檢查，全綠再回報。
    - 衝突裡別人的改動要保留。看不懂、不確定怎麼合的，停下來寫進回報。
 3. **編譯輸出可能跟別的工作區共用**：
    - 出現「Blocking waiting for file lock」是在等別人編譯，屬於正常。
    - 不准刪共用的編譯輸出，不准對它 `cargo clean`。
 4. **測試鎖**：`make test`、`make e2e` 會等別的工作區的測試跑完，不要繞過。
-5. 暫存檔放**自己工作區的** `target/`。不 push。
+5. 暫存檔放**自己工作區的** `target/`。除了雲端檢查，不 push。
