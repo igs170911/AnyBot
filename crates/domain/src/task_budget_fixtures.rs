@@ -56,3 +56,22 @@ pub(crate) fn pair(n: usize) -> Vec<KnownTaskEventKind> {
         })
         .collect()
 }
+
+pub(crate) fn ev_at(seq: u64, at: u64, kind: KnownTaskEventKind) -> anybot_protocol::TaskEvent {
+    use anybot_foundation::{EventId, TimestampMs};
+    use anybot_protocol::TaskEventKind;
+    anybot_protocol::TaskEvent {
+        event_id: EventId::generate(&SystemClock),
+        seq,
+        at_ms: TimestampMs::from_millis(at),
+        kind: TaskEventKind::Known(kind),
+    }
+}
+
+pub(crate) fn fold_events(events: &[anybot_protocol::TaskEvent]) -> TaskView {
+    use std::collections::BTreeSet;
+    let mut view = initial_view();
+    let mut seen = BTreeSet::new();
+    crate::task_replay::fold(&mut view, events, &mut seen);
+    view
+}

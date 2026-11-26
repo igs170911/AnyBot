@@ -32,12 +32,37 @@ pub fn per_round(view: &TaskView, item: BudgetItem) -> bool {
 
 #[must_use]
 pub fn compare_usage(view: &TaskView, item: BudgetItem) -> u64 {
+    let raw = match item {
+        BudgetItem::Elapsed => view
+            .budget
+            .used(item)
+            .saturating_add(turn_active_ms(view, view.budget.last_ms) / 1_000),
+        BudgetItem::Steps
+        | BudgetItem::ToolCalls
+        | BudgetItem::Turns
+        | BudgetItem::Tokens
+        | BudgetItem::Cost
+        | BudgetItem::Retries => view.budget.used(item),
+    };
     if per_round(view, item) {
         let baseline = view.budget.round_baseline.get(&item).copied().unwrap_or(0);
-        view.budget.used(item).saturating_sub(baseline)
+        raw.saturating_sub(baseline)
     } else {
-        view.budget.used(item)
+        raw
     }
+}
+
+fn turn_active_ms(view: &TaskView, now: u64) -> u64 {
+    let Some(start) = view.budget.turn_start_ms else {
+        return 0;
+    };
+    let open_card = view
+        .budget
+        .card_start_ms
+        .map_or(0, |c| now.saturating_sub(c));
+    now.saturating_sub(start)
+        .saturating_sub(view.budget.turn_paused_ms)
+        .saturating_sub(open_card)
 }
 
 fn over_at_cap(view: &TaskView, item: BudgetItem) -> Option<BudgetOver> {
@@ -81,7 +106,11 @@ pub fn note_ask_attempt(view: &mut TaskView) {
         refresh_budget_status(view);
         return;
     }
-    let over = steps_guard(view).or_else(|| over_at_cap(view, BudgetItem::Steps));
+    let over = steps_guard(view)
+        .or_else(|| over_at_cap(view, BudgetItem::Steps))
+        .or_else(|| over_at_cap(view, BudgetItem::Elapsed))
+        .or_else(|| over_at_cap(view, BudgetItem::Tokens))
+        .or_else(|| over_at_cap(view, BudgetItem::Cost));
     mark_over(view, over);
 }
 
@@ -90,8 +119,10 @@ pub fn note_action_attempt(view: &mut TaskView) {
         refresh_budget_status(view);
         return;
     }
-    let over =
-        over_at_cap(view, BudgetItem::ToolCalls).or_else(|| over_at_cap(view, BudgetItem::Elapsed));
+    let over = over_at_cap(view, BudgetItem::ToolCalls)
+        .or_else(|| over_at_cap(view, BudgetItem::Elapsed))
+        .or_else(|| over_at_cap(view, BudgetItem::Tokens))
+        .or_else(|| over_at_cap(view, BudgetItem::Cost));
     mark_over(view, over);
 }
 
@@ -169,18 +200,28 @@ pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind
     let millis = at.millis();
     match kind {
         KnownTaskEventKind::TurnStarted => {
+            view.budget.last_ms = millis;
             view.budget.turn_start_ms = Some(millis);
             view.budget.turn_paused_ms = 0;
             view.budget.card_start_ms = None;
         }
         KnownTaskEventKind::CardShown { .. } => {
+            view.budget.last_ms = millis;
             view.budget.card_start_ms = Some(millis);
         }
         KnownTaskEventKind::CardAnswered { .. } => {
+            view.budget.last_ms = millis;
             pause_answered(view, millis);
         }
         KnownTaskEventKind::TurnEnded { .. } => {
+            view.budget.last_ms = millis;
             turn_ended(view, millis);
+        }
+        KnownTaskEventKind::BudgetUsage { .. }
+        | KnownTaskEventKind::BudgetLimit { .. }
+        | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::ToolStarted { .. } => {
+            view.budget.last_ms = millis;
         }
         KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
@@ -193,8 +234,6 @@ pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind
         | KnownTaskEventKind::TurnText { .. }
         | KnownTaskEventKind::ContextBuilt
         | KnownTaskEventKind::ModelSwapped { .. }
-        | KnownTaskEventKind::ToolIntent { .. }
-        | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
         | KnownTaskEventKind::OutcomeUnknown { .. }
@@ -205,8 +244,6 @@ pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
         | KnownTaskEventKind::ClaimChecked { .. }
-        | KnownTaskEventKind::BudgetUsage { .. }
-        | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => {}
@@ -222,13 +259,12 @@ fn pause_answered(view: &mut TaskView, at: u64) {
 }
 
 fn turn_ended(view: &mut TaskView, at: u64) {
-    let Some(start) = view.budget.turn_start_ms.take() else {
+    if view.budget.turn_start_ms.is_none() {
         return;
-    };
-    let open_card = at.saturating_sub(view.budget.card_start_ms.take().unwrap_or(at));
-    let span = at.saturating_sub(start);
-    let idle = view.budget.turn_paused_ms.saturating_add(open_card);
-    let active_secs = span.saturating_sub(idle) / 1000;
+    }
+    let active_secs = turn_active_ms(view, at) / 1_000;
+    view.budget.turn_start_ms = None;
+    view.budget.card_start_ms = None;
     view.budget.turn_paused_ms = 0;
     if active_secs > 0 {
         note_usage(view, BudgetItem::Elapsed, active_secs);
@@ -246,3 +282,7 @@ mod prop_tests;
 #[cfg(test)]
 #[path = "task_budget_fixtures.rs"]
 mod fixtures;
+
+#[cfg(test)]
+#[path = "task_budget_live_tests.rs"]
+mod live_tests;

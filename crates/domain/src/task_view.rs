@@ -62,6 +62,8 @@ pub struct BudgetState {
     pub turn_paused_ms: u64,
     #[serde(default)]
     pub card_start_ms: Option<u64>,
+    #[serde(default)]
+    pub last_ms: u64,
 }
 
 fn default_limits() -> BTreeMap<BudgetItem, u64> {
@@ -86,6 +88,7 @@ impl BudgetState {
             turn_start_ms: None,
             turn_paused_ms: 0,
             card_start_ms: None,
+            last_ms: 0,
         }
     }
 
