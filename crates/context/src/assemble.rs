@@ -232,6 +232,15 @@ fn result_block(
 
 #[must_use]
 pub fn memory_blocks(memories: &[crate::input::MemoryRecord], cap: u64) -> StepBlocks {
+    memory_kept(memories, cap, &[])
+}
+
+#[must_use]
+pub fn memory_kept(
+    memories: &[crate::input::MemoryRecord],
+    cap: u64,
+    omit: &[String],
+) -> StepBlocks {
     let mut sorted: Vec<&crate::input::MemoryRecord> = memories.iter().collect();
     sorted.sort_by(|a, b| {
         b.relevance
@@ -242,14 +251,17 @@ pub fn memory_blocks(memories: &[crate::input::MemoryRecord], cap: u64) -> StepB
     let mut blocks = Vec::new();
     let mut excluded = Vec::new();
     let mut used = 0u64;
-    for (idx, m) in sorted.iter().enumerate() {
+    let mut kept = 0usize;
+    for m in &sorted {
         let text = format!("memory{}: {}", marker(m), m.content);
         let tokens = text_tokens(&text);
-        let over = used.saturating_add(tokens) > cap && idx >= K114_6_MEMORY_MIN_KEEP;
+        let named = omit.iter().any(|id| id == &m.id);
+        let over = named || (used.saturating_add(tokens) > cap && kept >= K114_6_MEMORY_MIN_KEEP);
         if over {
             excluded.push((m.id.clone(), ExcludedReason::Budget));
             continue;
         }
+        kept = kept.saturating_add(1);
         used = used.saturating_add(tokens);
         blocks.push(block(
             BlockKind::Memory,

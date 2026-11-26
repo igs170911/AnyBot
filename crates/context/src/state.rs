@@ -223,6 +223,14 @@ fn record_intent(b: &mut StateBuilder, seq: u64, call_id: &CallId, name: &str, l
     }
 }
 
+impl StateBuilder {
+    #[must_use]
+    pub fn open_cards(&self) -> Vec<(u64, String)> {
+        let answered = self.answers.len();
+        self.questions.iter().skip(answered).cloned().collect()
+    }
+}
+
 fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
     match known {
         KnownTaskEventKind::EvidenceAdded { summary } => {

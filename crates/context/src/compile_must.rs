@@ -5,19 +5,15 @@ use crate::mask::result_summary;
 use crate::output::{Block, BlockForm, BlockKind};
 
 pub(crate) fn mandatory_raw(a: &Assembled) -> u64 {
-    let core = a
-        .prefix
+    let prefix: u64 = a.prefix.iter().map(|b| b.estimate_raw).sum();
+    let rest: u64 = a
+        .core
         .iter()
-        .chain(a.core.iter())
         .chain(a.tail.iter())
         .filter(|b| is_mandatory(b.kind))
         .map(|b| b.estimate_raw)
         .sum();
-    a.prefix
-        .iter()
-        .map(|b| b.estimate_raw)
-        .sum::<u64>()
-        .saturating_add(core)
+    prefix.saturating_add(rest)
 }
 
 pub(crate) fn is_mandatory(kind: BlockKind) -> bool {
@@ -68,20 +64,12 @@ pub(crate) fn tail_blocks(input: &BuildInput, state: &crate::state::StateBuilder
             format!("current step: {} [seq {}]", step.1.tool, step.1.intent_seq),
         ));
     }
-    for (seq, action) in &state.questions {
+    for (seq, action) in state.open_cards() {
         out.push(block(
             BlockKind::OpenQuestion,
             BlockForm::Verbatim,
             vec![format!("question-{seq}")],
             format!("open question: {action}"),
-        ));
-    }
-    for (seq, answer) in &state.answers {
-        out.push(block(
-            BlockKind::OpenQuestion,
-            BlockForm::Verbatim,
-            vec![format!("answer-{seq}")],
-            format!("card answer: {answer}"),
         ));
     }
     for (id, seq) in state.pending.iter().chain(state.unknowns.iter()) {

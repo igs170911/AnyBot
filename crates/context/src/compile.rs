@@ -2,19 +2,16 @@ use std::collections::BTreeSet;
 
 use anybot_foundation::MessageRef;
 
-use crate::assemble::{StepBlocks, memory_blocks, prefix_blocks, step_blocks};
+use crate::assemble::{StepBlocks, memory_kept, prefix_blocks, step_blocks};
 use crate::chat::{bot_block, prior_blocks, user_block};
 use crate::collapse::{
-    StepView, budget_collapse, model_swapped_after_last_built, plan_collapse, recorded_collapsed,
+    StepView, model_swapped_after_last_built, plan_collapse, recorded_collapsed,
 };
 use crate::compile_must::block_summary;
 use crate::estimate::{blocks_raw, calibrated, text_tokens};
 use crate::input::BuildInput;
 use crate::mask::{render_view, result_summary};
-use crate::numbers::{
-    K114_1_RECENT_STEPS, K114_4_MIN_VERBATIM_STEPS, K114_4_WATERMARK_MILLI,
-    K114_6_MEMORY_CAP_MILLI, milli_of,
-};
+use crate::numbers::{K114_4_WATERMARK_MILLI, K114_6_MEMORY_CAP_MILLI, milli_of};
 use crate::output::{Block, CollapseReason, Compiled, Insufficient, ManifestExcluded, NewEvent};
 use crate::state::build_state;
 use crate::state_render::fit_summary;
@@ -26,7 +23,9 @@ pub(crate) struct Stage {
     pub(crate) events: Vec<NewEvent>,
     pub(crate) prior_keep: usize,
     pub(crate) memory_cap: u64,
-    pub(crate) budget_collapse_done: bool,
+    pub(crate) dropped_results: Vec<String>,
+    pub(crate) dropped_prior: Vec<String>,
+    pub(crate) dropped_memory: Vec<String>,
 }
 
 pub fn compile(input: &BuildInput) -> Result<Compiled, anybot_foundation::FoundationError> {
@@ -41,28 +40,62 @@ pub fn compile(input: &BuildInput) -> Result<Compiled, anybot_foundation::Founda
         events,
         prior_keep: usize::MAX,
         memory_cap: milli_of(usable, K114_6_MEMORY_CAP_MILLI),
-        budget_collapse_done: false,
+        dropped_results: Vec::new(),
+        dropped_prior: Vec::new(),
+        dropped_memory: Vec::new(),
     };
-    for stage_no in 0..4 {
-        let assembled = assemble(input, &stage);
-        let total_raw = blocks_raw(&all_blocks(&assembled));
-        let cal = calibrated(total_raw, &input.model.calibration);
-        let under = cal <= milli_of(usable, K114_4_WATERMARK_MILLI);
-        let send = if stage_no == 0 {
-            cal <= usable
-        } else if stage_no == 3 {
-            under || cal <= usable
-        } else {
-            under
-        };
-        if send {
-            return Ok(crate::compile_sent::sent(
-                input, &assembled, &stage, usable, total_raw, cal,
-            ));
-        }
-        apply_stage(stage_no, input, &views, &mut stage);
+    if let Some(done) = send_when_fits(input, &mut stage, usable, true) {
+        return Ok(done);
     }
+    trim_until_watermark(input, &views, &mut stage, usable);
     finish(input, &assemble(input, &stage), &stage, usable)
+}
+
+fn send_when_fits(
+    input: &BuildInput,
+    stage: &mut Stage,
+    usable: u64,
+    fits_is_enough: bool,
+) -> Option<Compiled> {
+    let assembled = assemble(input, stage);
+    let total_raw = blocks_raw(&all_blocks(&assembled));
+    let cal = calibrated(total_raw, &input.model.calibration);
+    let watermark = milli_of(usable, K114_4_WATERMARK_MILLI);
+    let ready = cal <= watermark || (fits_is_enough && cal <= usable);
+    if !ready {
+        return None;
+    }
+    Some(crate::compile_sent::sent(
+        input, &assembled, stage, usable, total_raw, cal,
+    ))
+}
+
+fn trim_until_watermark(input: &BuildInput, views: &[StepView], stage: &mut Stage, usable: u64) {
+    for item in 0..3 {
+        trim_one_item(item, input, views, stage, usable);
+        if send_when_fits(input, stage, usable, false).is_some() {
+            record_drops(stage);
+            return;
+        }
+    }
+    record_drops(stage);
+}
+
+fn trim_one_item(
+    item: usize,
+    input: &BuildInput,
+    views: &[StepView],
+    stage: &mut Stage,
+    usable: u64,
+) {
+    loop {
+        if !drop_one(item, input, views, stage) {
+            return;
+        }
+        if send_when_fits(input, stage, usable, false).is_some() {
+            return;
+        }
+    }
 }
 
 fn finish(
@@ -94,51 +127,32 @@ fn u64_to_i64(value: u64) -> Result<i64, anybot_foundation::FoundationError> {
         .map_err(|_| anybot_foundation::FoundationError::IdParse("deficit too large".to_owned()))
 }
 
-fn apply_stage(step_no: usize, input: &BuildInput, views: &[StepView], stage: &mut Stage) {
-    if step_no == 1 && !stage.budget_collapse_done {
-        apply_budget_stage(views, stage);
-    } else if step_no == 2 {
-        apply_prior_stage(input, stage);
-    } else if step_no == 3 {
-        apply_memory_stage(input, stage);
+fn drop_one(item: usize, input: &BuildInput, views: &[StepView], stage: &mut Stage) -> bool {
+    match item {
+        0 => crate::compile_trim::drop_oldest_result(views, stage),
+        1 => crate::compile_trim::drop_oldest_prior(input, stage),
+        _ => crate::compile_trim::drop_oldest_memory(input, stage),
     }
 }
 
-fn apply_prior_stage(input: &BuildInput, stage: &mut Stage) {
-    let count = input.prior_chat.len();
-    if count > K114_1_RECENT_STEPS {
-        let split = count.saturating_sub(K114_1_RECENT_STEPS);
-        let ids: Vec<String> = input
-            .prior_chat
-            .iter()
-            .take(split)
-            .map(|r| r.record_id.clone())
-            .collect();
-        stage.events.push(NewEvent::Collapsed {
-            ids,
-            reason: CollapseReason::Budget,
-        });
+fn record_drops(stage: &mut Stage) {
+    let results = stage.dropped_results.clone();
+    let prior = stage.dropped_prior.clone();
+    let memory = stage.dropped_memory.clone();
+    push_collapsed(&results, stage);
+    push_collapsed(&prior, stage);
+    if memory.is_empty() {
+        return;
     }
-    stage.prior_keep = K114_1_RECENT_STEPS;
+    stage.events.push(NewEvent::MemoryDropped { ids: memory });
 }
 
-fn apply_memory_stage(input: &BuildInput, stage: &mut Stage) {
-    let ids: Vec<String> = input.memories.iter().map(|m| m.id.clone()).collect();
-    if !ids.is_empty() {
-        stage.events.push(NewEvent::MemoryDropped { ids });
-    }
-    stage.memory_cap = 0;
-}
-
-fn apply_budget_stage(views: &[StepView], stage: &mut Stage) {
-    stage.budget_collapse_done = true;
-    let ids = budget_collapse(views, &stage.collapsed, K114_4_MIN_VERBATIM_STEPS);
+fn push_collapsed(ids: &[String], stage: &mut Stage) {
     if ids.is_empty() {
         return;
     }
-    stage.collapsed.extend(ids.iter().cloned());
     stage.events.push(NewEvent::Collapsed {
-        ids,
+        ids: ids.to_vec(),
         reason: CollapseReason::Budget,
     });
 }
@@ -157,7 +171,7 @@ fn assemble(input: &BuildInput, stage: &Stage) -> Assembled {
     let criteria = crate::compile_must::criteria_blocks(&builder);
     let prefix = prefix_blocks(input, &criteria);
     let steps = step_blocks(&input.steps, &stage.collapsed, input.view_limit);
-    let memories = memory_blocks(&input.memories, stage.memory_cap);
+    let memories = memory_kept(&input.memories, stage.memory_cap, &stage.dropped_memory);
     let mut excluded = join_excluded(&steps, &memories);
     excluded.extend(prior_excluded(&input.prior_chat, stage.prior_keep));
     let core = core_blocks(input, stage, &steps);

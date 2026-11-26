@@ -130,8 +130,8 @@ fn push_simple(b: &StateBuilder, items: &mut Vec<SummaryItem>) {
     for (seq, summary) in &b.evidence {
         items.push(item(format!("evidence: {summary} [seq {seq}]"), *seq));
     }
-    for (seq, action) in &b.questions {
-        items.push(item(format!("open question: {action} [seq {seq}]"), *seq));
+    for (seq, action) in b.open_cards() {
+        items.push(item(format!("open question: {action} [seq {seq}]"), seq));
     }
     for (seq, answer) in &b.answers {
         items.push(item(format!("card answer: {answer} [seq {seq}]"), *seq));

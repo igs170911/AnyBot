@@ -6,6 +6,7 @@ mod compile_must;
 mod compile_sent;
 #[cfg(test)]
 mod compile_tests_support;
+mod compile_trim;
 pub mod digest;
 pub mod estimate;
 #[cfg(test)]
@@ -97,6 +98,9 @@ mod request_tests;
 #[cfg(test)]
 #[path = "request_wire_tests.rs"]
 mod request_wire_tests;
+#[cfg(test)]
+#[path = "review_behavior_tests.rs"]
+mod review_behavior_tests;
 
 #[cfg(test)]
 #[path = "mask_prop_tests.rs"]

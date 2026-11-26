@@ -94,7 +94,7 @@ pub fn plan_collapse(
 ) -> (BTreeSet<String>, Vec<NewEvent>) {
     let margin = milli_of(usable, K114_3_ACCUMULATE_MARGIN_MILLI);
     let old = old_candidates(views);
-    let fresh: Vec<&StepView> = if swap && !compact {
+    let fresh: Vec<&StepView> = if swap {
         old
     } else {
         old.into_iter()
@@ -107,31 +107,40 @@ pub fn plan_collapse(
     } else {
         BTreeSet::new()
     };
-    let collapsed: BTreeSet<String> = if swap && !compact {
+    let collapsed: BTreeSet<String> = if swap {
         BTreeSet::from_iter(target.iter().cloned())
     } else {
         let mut c = recorded.clone();
         c.extend(target.iter().cloned());
         c
     };
-    let mut events = Vec::new();
-    if swap && !compact {
-        events.push(NewEvent::Collapsed {
+    (collapsed, collapse_events(swap, compact, &target, recorded))
+}
+
+fn collapse_events(
+    swap: bool,
+    compact: bool,
+    target: &BTreeSet<String>,
+    recorded: &BTreeSet<String>,
+) -> Vec<NewEvent> {
+    if swap {
+        return vec![NewEvent::Collapsed {
             ids: target.iter().cloned().collect(),
             reason: CollapseReason::ReplaceAll,
-        });
-    } else {
-        let added: Vec<String> = target
-            .iter()
-            .filter(|id| !recorded.contains(*id))
-            .cloned()
-            .collect();
-        if !added.is_empty() {
-            let reason = collapse_reason(compact, swap);
-            events.push(NewEvent::Collapsed { ids: added, reason });
-        }
+        }];
     }
-    (collapsed, events)
+    let added: Vec<String> = target
+        .iter()
+        .filter(|id| !recorded.contains(*id))
+        .cloned()
+        .collect();
+    if added.is_empty() {
+        return Vec::new();
+    }
+    vec![NewEvent::Collapsed {
+        ids: added,
+        reason: collapse_reason(compact, swap),
+    }]
 }
 
 fn collapse_reason(compact: bool, swap: bool) -> CollapseReason {
