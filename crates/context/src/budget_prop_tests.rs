@@ -198,9 +198,11 @@ fn order_broken(input: &BuildInput, d: &Dropped) -> bool {
 
 fn droppable_results(input: &BuildInput) -> bool {
     let cutoff = input.steps.len().saturating_sub(2);
-    input.steps.iter().take(cutoff).any(|step| {
-        !step.keeps_full() && step.has_output() && step.content.chars().count() > 600
-    })
+    input
+        .steps
+        .iter()
+        .take(cutoff)
+        .any(|step| !step.keeps_full() && step.has_output() && step.content.chars().count() > 600)
 }
 
 proptest! {
