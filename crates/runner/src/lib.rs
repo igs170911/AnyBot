@@ -1,25 +1,29 @@
-use anybot_trust::Evidence;
+pub mod answer;
+pub mod checks;
+pub mod context_input;
+pub mod ending;
+pub mod error;
+pub mod fixed_blocks;
+pub mod record;
+pub mod runner;
+pub mod step;
 
-use anybot_domain::TaskStatus;
-use anybot_foundation::{Clock, TimestampMs};
-use anybot_protocol::RunEvent;
+pub use error::TurnError;
+pub use record::{
+    NewTaskEvent, RawStore, RawStoreError, Record, RecordEntry, RecordError, Stored, StoredBody,
+    UserLine, task_event_of,
+};
+pub use runner::{
+    BotProfile, KindCount, RunnerParts, TurnModel, TurnOutcome, TurnRunner, UserMessage,
+};
 
-#[derive(Debug, Clone)]
-pub struct Turn {
-    pub evidence: Vec<Evidence>,
-    pub events: Vec<RunEvent>,
-    pub status: TaskStatus,
-    pub started_at: TimestampMs,
-}
-
-impl Turn {
-    #[must_use]
-    pub fn new(status: TaskStatus, clock: &dyn Clock) -> Self {
-        Turn {
-            evidence: Vec::new(),
-            events: Vec::new(),
-            status,
-            started_at: clock.now_ms(),
-        }
-    }
-}
+#[cfg(test)]
+use proptest as _;
+#[cfg(test)]
+use runner_test as _;
+#[cfg(test)]
+use sha2 as _;
+#[cfg(test)]
+use test_harness as _;
+#[cfg(test)]
+use tokio as _;

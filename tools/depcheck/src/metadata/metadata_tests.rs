@@ -176,21 +176,32 @@ fn test_depcheck_blocks_runner_test_dependence_on_product_crates() {
                 "anybot-protocol",
                 "anybot-trust",
                 "anybot-runner",
+                "anybot-domain",
+                "anybot-messages",
+                "anybot-models",
+                "anybot-context",
             ],
         ),
         pkg("anybot-runner", &["anybot-foundation"]),
         pkg("anybot-trust", &["anybot-foundation"]),
         pkg("anybot-protocol", &["anybot-foundation"]),
         pkg("anybot-foundation", &[]),
+        pkg("anybot-domain", &["anybot-foundation"]),
+        pkg("anybot-messages", &[]),
+        pkg("anybot-models", &["anybot-foundation"]),
+        pkg("anybot-context", &["anybot-foundation"]),
         pkg("test-harness", &["anybot-foundation"]),
     ]);
     let v = check_metadata_value(&m);
     assert_eq!(v.len(), 2, "{v:?}");
     assert!(
         v.iter()
-            .any(|s| s.contains("runner-test depends on anybot-runner: the fake computer helper"))
+            .any(|s| s.contains("runner-test depends on anybot-context: not in the allow list"))
     );
-    assert!(v.iter().any(|s| s.contains("not in the allow list")));
+    assert!(
+        v.iter()
+            .any(|s| s.contains("runner-test depends on anybot-context: the fake computer helper"))
+    );
 }
 
 #[test]

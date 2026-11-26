@@ -99,6 +99,7 @@ live-model
 anybot-app-server
 anybot-context
 anybot-models
+anybot-runner
 anybot-server
 api-docs
 api-compat

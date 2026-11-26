@@ -362,10 +362,19 @@ dependencies = [
 name = "anybot-runner"
 version = "0.1.0"
 dependencies = [
+ "anybot-context",
  "anybot-domain",
  "anybot-foundation",
+ "anybot-messages",
+ "anybot-models",
  "anybot-protocol",
- "anybot-trust",
+ "proptest",
+ "runner-test",
+ "serde_json",
+ "sha2 0.11.1",
+ "test-harness",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
@@ -4470,10 +4479,17 @@ dependencies = [
 name = "runner-test"
 version = "0.1.0"
 dependencies = [
+ "anybot-domain",
  "anybot-foundation",
+ "anybot-messages",
+ "anybot-models",
  "anybot-protocol",
+ "anybot-runner",
  "anybot-trust",
+ "serde_json",
+ "sha2 0.11.1",
  "test-harness",
+ "tokio",
 ]
 
 [[package]]

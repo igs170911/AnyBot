@@ -115,11 +115,18 @@ fn check_harness_rules(
 const HARNESS_RUNTIME_USERS: [&str; 4] =
     ["testenv", "live-model", "runner-test", "anybot-app-test"];
 
-const RUNNER_TEST_ALLOWED: [&str; 4] = [
+const RUNNER_TEST_ALLOWED: [&str; 11] = [
     "test-harness",
     "anybot-foundation",
     "anybot-protocol",
     "anybot-trust",
+    "anybot-domain",
+    "anybot-messages",
+    "anybot-models",
+    "anybot-runner",
+    "serde_json",
+    "sha2",
+    "tokio",
 ];
 
 fn check_runner_test_rules(

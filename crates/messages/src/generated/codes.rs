@@ -139,6 +139,17 @@ pub enum MessageCode {
     ServerCliResetPasswordDone,
     ServerConfigInvalid,
     TurnProgramNote,
+    TurnFixedIdentity,
+    TurnFixedInstructions,
+    TurnFixedComputerBotMachine,
+    TurnFixedComputerMac,
+    TurnFixedComputerLinux,
+    TurnFixedComputerWindows,
+    TurnFixedComputerSsh,
+    TurnFixedComputerUnknown,
+    TurnToolNotWired,
+    TurnModelFailed,
+    ModelBlank,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -396,6 +407,32 @@ const TABLE: &[(MessageCode, &str)] = &[
     ),
     (MessageCode::ServerConfigInvalid, "server-config-invalid"),
     (MessageCode::TurnProgramNote, "turn-program-note"),
+    (MessageCode::TurnFixedIdentity, "turn-fixed-identity"),
+    (
+        MessageCode::TurnFixedInstructions,
+        "turn-fixed-instructions",
+    ),
+    (
+        MessageCode::TurnFixedComputerBotMachine,
+        "turn-fixed-computer-bot-machine",
+    ),
+    (MessageCode::TurnFixedComputerMac, "turn-fixed-computer-mac"),
+    (
+        MessageCode::TurnFixedComputerLinux,
+        "turn-fixed-computer-linux",
+    ),
+    (
+        MessageCode::TurnFixedComputerWindows,
+        "turn-fixed-computer-windows",
+    ),
+    (MessageCode::TurnFixedComputerSsh, "turn-fixed-computer-ssh"),
+    (
+        MessageCode::TurnFixedComputerUnknown,
+        "turn-fixed-computer-unknown",
+    ),
+    (MessageCode::TurnToolNotWired, "turn-tool-not-wired"),
+    (MessageCode::TurnModelFailed, "turn-model-failed"),
+    (MessageCode::ModelBlank, "model-blank"),
 ];
 
 impl MessageCode {

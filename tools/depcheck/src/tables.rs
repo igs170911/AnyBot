@@ -60,6 +60,8 @@ fn runner_deps() -> Vec<&'static str> {
         "foundation",
         "protocol",
         "domain",
+        "context",
+        "messages",
         "trust",
         "models",
         "tools",
@@ -129,6 +131,13 @@ fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
             "anybot-foundation".to_owned(),
             "anybot-protocol".to_owned(),
             "anybot-trust".to_owned(),
+            "anybot-domain".to_owned(),
+            "anybot-messages".to_owned(),
+            "anybot-models".to_owned(),
+            "anybot-runner".to_owned(),
+            "serde-json".to_owned(),
+            "sha2".to_owned(),
+            "tokio".to_owned(),
         ]
         .into_iter()
         .collect(),

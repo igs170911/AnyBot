@@ -101,3 +101,7 @@ mod tests;
 #[cfg(test)]
 #[path = "task_events_prop_tests.rs"]
 mod prop_tests;
+
+#[cfg(test)]
+#[path = "task_turn_end_tests.rs"]
+mod task_turn_end_tests;

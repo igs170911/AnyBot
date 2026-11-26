@@ -1,8 +1,14 @@
+extern crate self as runner_test;
+
 pub mod fake_builder;
 pub mod fake_computer;
 pub mod fake_files;
 pub mod fake_helpers;
 pub mod fake_scripts;
+pub mod mem_store;
+pub mod turn;
+pub mod turn_helpers;
+pub mod turn_setup;
 
 pub use fake_builder::FakeComputerBuilder;
 pub use fake_computer::FakeComputer;

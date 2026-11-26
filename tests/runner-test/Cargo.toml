@@ -11,6 +11,13 @@ workspace = true
 
 [dependencies]
 anybot-foundation = { workspace = true }
+anybot-domain = { workspace = true }
+anybot-messages = { workspace = true }
+anybot-models = { workspace = true }
 anybot-protocol = { workspace = true }
+anybot-runner = { workspace = true }
 anybot-trust = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
 test-harness = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

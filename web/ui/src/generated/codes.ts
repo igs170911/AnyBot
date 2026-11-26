@@ -135,7 +135,18 @@ export type MessageCode =
   "server-cli-password-confirm-prompt" |
   "server-cli-reset-password-done" |
   "server-config-invalid" |
-  "turn-program-note";
+  "turn-program-note" |
+  "turn-fixed-identity" |
+  "turn-fixed-instructions" |
+  "turn-fixed-computer-bot-machine" |
+  "turn-fixed-computer-mac" |
+  "turn-fixed-computer-linux" |
+  "turn-fixed-computer-windows" |
+  "turn-fixed-computer-ssh" |
+  "turn-fixed-computer-unknown" |
+  "turn-tool-not-wired" |
+  "turn-model-failed" |
+  "model-blank";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -273,4 +284,15 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-cli-reset-password-done",
   "server-config-invalid",
   "turn-program-note",
+  "turn-fixed-identity",
+  "turn-fixed-instructions",
+  "turn-fixed-computer-bot-machine",
+  "turn-fixed-computer-mac",
+  "turn-fixed-computer-linux",
+  "turn-fixed-computer-windows",
+  "turn-fixed-computer-ssh",
+  "turn-fixed-computer-unknown",
+  "turn-tool-not-wired",
+  "turn-model-failed",
+  "model-blank",
 ];

@@ -2376,7 +2376,6 @@ T-task-notify-5
 T-task-notify-6
 T-task-notify-7
 T-task-object-1
-T-task-object-2
 T-task-object-4
 T-task-proof-1
 T-task-proof-2
@@ -2497,7 +2496,6 @@ T-trust-verify-7
 T-trust-verify-8
 T-turn-loop-1
 T-turn-loop-10
-T-turn-loop-11
 T-turn-loop-12
 T-turn-loop-13
 T-turn-loop-14
