@@ -13,7 +13,7 @@ fn cheap_input(low: u64, high: u64, max_steps: usize) -> BoxedStrategy<BuildInpu
                 .steps
                 .iter()
                 .map(|s| StepRecord {
-                    content: s.content.chars().take(1_200).collect(),
+                    content: s.content.chars().take(800).collect(),
                     ..s.clone()
                 })
                 .collect();

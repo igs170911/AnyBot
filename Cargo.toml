@@ -134,3 +134,9 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
+
+# Parent worktree .cargo/config.toml already sets [profile.test], so a package
+# opt-level cannot override it. Measurement showed the context property tests
+# are slow in debug; this is the setting that applies locally and on GitHub.
+[profile.test]
+opt-level = 1
