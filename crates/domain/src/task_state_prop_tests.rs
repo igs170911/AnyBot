@@ -264,7 +264,7 @@ proptest! {
             );
         }
         let all_pass = results.iter().all(|p| *p);
-        let ready = all_pass && claims_ok == 0 && unknowns == 0 && over < 1000;
+        let ready = all_pass && claims_ok == 0 && unknowns == 0 && over <= 1000;
         prop_assert_eq!(view.status == TaskStatus::Completed, ready);
     }
 }
