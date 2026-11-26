@@ -186,3 +186,62 @@ fn test_machine_rules_user_machine_without_sandbox_asks_every_time() {
     assert_eq!(verdict.level, MachineLevel::AskEveryTime);
     assert_eq!(verdict.rule, "user-machine-no-sandbox");
 }
+
+#[test]
+fn test_a_wrapped_push_asks_on_the_bot_machine() {
+    let verdict = default_rule(
+        &shell("sudo nohup git push origin", "/workspace"),
+        &bot_caps(),
+    );
+    assert_eq!(verdict.level, MachineLevel::AskEveryTime);
+    assert_eq!(verdict.rule, "bot-machine-sending");
+}
+
+#[test]
+fn test_an_unreadable_command_asks_every_time_on_the_bot_machine() {
+    let verdict = default_rule(&shell("eval ls", "/workspace"), &bot_caps());
+    assert_eq!(verdict.level, MachineLevel::AskEveryTime);
+    assert_eq!(verdict.rule, "tool-unreadable-eval");
+}
+
+#[test]
+fn test_an_unreadable_command_asks_every_time_on_the_user_machine() {
+    let verdict = default_rule(&shell("bash << EOF", "/workspace"), &user_caps());
+    assert_eq!(verdict.level, MachineLevel::AskEveryTime);
+    assert_eq!(verdict.rule, "tool-unreadable-heredoc");
+}
+
+fn delete_command(line: &str) -> GateAction {
+    let request = crate::pipeline::ActionRequest {
+        context: crate::evidence::ActionContext {
+            task: anybot_foundation::TaskId::generate(&anybot_foundation::SystemClock),
+            turn: anybot_foundation::TurnId::generate(&anybot_foundation::SystemClock),
+            evidence_no: 1,
+            computer: "bot-1".to_owned(),
+            workdir: "/workspace".to_owned(),
+            tool: "shell".to_owned(),
+            classes: Vec::new(),
+        },
+        subject: ActionSubject::Command {
+            line: line.to_owned(),
+            timeout_ms: 1000,
+        },
+    };
+    GateAction::command("shell", line, "/workspace", request.delete_targets())
+}
+
+#[test]
+fn test_a_cd_outside_the_workspace_moves_the_delete_target_out() {
+    let action = delete_command("cd /tmp && rm -rf build");
+    let verdict = default_rule(&action, &bot_caps());
+    assert_eq!(verdict.level, MachineLevel::AskEveryTime);
+    assert_eq!(verdict.rule, "bot-machine-outside-delete");
+}
+
+#[test]
+fn test_an_unreadable_cd_target_makes_the_delete_ask() {
+    let action = delete_command("cd $HOME && rm notes.md");
+    let verdict = default_rule(&action, &bot_caps());
+    assert_eq!(verdict.level, MachineLevel::AskEveryTime);
+    assert_eq!(verdict.rule, "bot-machine-outside-delete");
+}

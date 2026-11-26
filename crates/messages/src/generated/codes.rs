@@ -101,6 +101,10 @@ pub enum MessageCode {
     ToolShellTrimmed,
     ToolShellTimedOut,
     GateAskComputerMismatch,
+    ToolUnreadableEval,
+    ToolUnreadableQuotes,
+    ToolUnreadableHeredoc,
+    ToolUnreadableHead,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -272,6 +276,13 @@ const TABLE: &[(MessageCode, &str)] = &[
         MessageCode::GateAskComputerMismatch,
         "gate-ask-computer-mismatch",
     ),
+    (MessageCode::ToolUnreadableEval, "tool-unreadable-eval"),
+    (MessageCode::ToolUnreadableQuotes, "tool-unreadable-quotes"),
+    (
+        MessageCode::ToolUnreadableHeredoc,
+        "tool-unreadable-heredoc",
+    ),
+    (MessageCode::ToolUnreadableHead, "tool-unreadable-head"),
 ];
 
 impl MessageCode {

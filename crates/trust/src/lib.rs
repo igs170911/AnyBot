@@ -42,6 +42,8 @@ pub mod safety_lock;
 pub mod safety_n5;
 pub mod sandbox_deny;
 pub mod sandbox_levels;
+pub mod sandbox_peel;
+pub mod sandbox_subshell;
 pub mod trust_floor;
 
 pub use action::{ActionKey, ActionSubject, DEFAULT_COMMAND_TIMEOUT_MS, GateAction, PathView};
@@ -49,7 +51,7 @@ pub use always_list::{AddSource, AlwaysAddEvent, AlwaysEntry, AlwaysList, parse_
 pub use card_data::{CardData, build_card};
 pub use claim_levels::{Claim, ClaimLevel, EvidenceKind, Link, Scope, Verification};
 pub use command_key::{command_action_key, command_tokens};
-pub use command_target::{command_target_paths, has_expansion_token};
+pub use command_target::{DeleteBase, DeleteTarget, command_targets, has_expansion_token};
 pub use edit_rule::{
     EditApplied, EditKind, EditRejection, apply_edit, line_count, occurrences, replace_once,
 };
@@ -77,6 +79,9 @@ pub use safety_n5::{
 };
 pub use sandbox_deny::{DENIED_COMMAND_KINDS, deny_token, normalize_command, split_segments};
 pub use sandbox_levels::{CommandLevel, READ_ONLY_COMMANDS, command_level};
+pub use sandbox_peel::{
+    PEEL_WRAPPERS, PRIVILEGE_WRAPPERS, bare_name, peel_segment, unreadable_reason, visible_segments,
+};
 pub use trust_floor::{FloorAction, FloorDeny, floor_check, is_denied_command};
 
 #[derive(Debug, Clone)]
@@ -109,3 +114,5 @@ mod safety_lock_tests;
 mod safety_n5_tests;
 #[cfg(test)]
 mod sandbox_deny_tests;
+#[cfg(test)]
+mod sandbox_peel_tests;

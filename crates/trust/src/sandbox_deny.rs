@@ -13,11 +13,11 @@ pub const DENIED_COMMAND_KINDS: [&str; 10] = [
 
 const NUMERIC_WRAPPERS: [&str; 4] = ["time", "nice", "stdbuf", "timeout"];
 
-const COMMAND_WRAPPERS: [&str; 8] = [
-    "env", "command", "nohup", "time", "nice", "stdbuf", "timeout", "xargs",
+const COMMAND_WRAPPERS: [&str; 9] = [
+    "env", "command", "nohup", "time", "nice", "stdbuf", "timeout", "xargs", "exec",
 ];
 
-const WRAPPER_VALUE_OPTIONS: [&str; 12] = [
+pub const WRAPPER_VALUE_OPTIONS: [&str; 12] = [
     "-u", "-g", "-l", "-c", "-d", "-e", "-i", "-n", "-p", "--user", "--group", "--login",
 ];
 
@@ -147,13 +147,8 @@ const PRIVILEGE_WRAPPERS: [&str; 2] = ["sudo", "doas"];
 
 #[must_use]
 pub fn deny_token(line: &str, bot_machine: bool) -> Option<&'static str> {
-    for segment in split_segments(line) {
-        let inner = strip_wrappers(&segment);
-        let inner = if bot_machine {
-            strip_privilege_wrappers(&inner)
-        } else {
-            inner
-        };
+    for segment in crate::sandbox_peel::visible_segments(line) {
+        let inner = crate::sandbox_peel::peel_segment(&segment, bot_machine);
         for kind in DENIED_COMMAND_KINDS {
             if inner.starts_with(normalize_command(kind).as_str()) {
                 return Some(kind);
@@ -216,53 +211,4 @@ fn peel_privilege(segment: &str) -> Option<String> {
         return None;
     }
     Some(normalize_command(&inner.join(" ")))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sandbox_deny_sees_through_wrappers_and_join_tokens() {
-        let wrapped = "env A=1 timeout 5 command nohup nice -n 0 sudo rm -rf / && ls; echo hi";
-        assert_eq!(deny_token(wrapped, false), Some("sudo"));
-        let joined = "ls | nohup dd of=/x || true";
-        assert_eq!(deny_token(joined, false), Some("dd"));
-        assert_eq!(deny_token("ls -la && git status", false), None);
-        assert_eq!(deny_token("echo hello | grep hello", false), None);
-    }
-
-    #[test]
-    fn test_sandbox_deny_splits_a_newline_joined_line_before_cleaning_it() {
-        assert_eq!(deny_token("ls\nsudo rm -rf /", false), Some("sudo"));
-        assert_eq!(deny_token("echo hi\ndd of=/x", false), Some("dd"));
-        assert_eq!(deny_token("ls\ntrue", false), None);
-    }
-
-    #[test]
-    fn test_sandbox_deny_sees_through_sudo_with_options_on_the_bot_machine() {
-        assert_eq!(
-            deny_token("sudo -u root mkfs.ext4 /dev/sda1", true),
-            Some("mkfs")
-        );
-        assert_eq!(deny_token("doas -u root dd of=/dev/sda1", true), Some("dd"));
-        assert_eq!(
-            deny_token(
-                "nohup nice -n 0 timeout 5 xargs -d newline sudo rm -rf /",
-                true
-            ),
-            Some("rm -rf /")
-        );
-        assert_eq!(
-            deny_token("env PATH=/bin rm -rf ~", false),
-            Some("rm -rf ~")
-        );
-    }
-
-    #[test]
-    fn test_sandbox_deny_strips_sudo_only_on_the_bot_machine() {
-        assert_eq!(deny_token("sudo apt-get install jq", true), None);
-        assert_eq!(deny_token("sudo rm -rf /", true), Some("rm -rf /"));
-        assert_eq!(deny_token("sudo mkfs.ext4 /dev/sda1", true), Some("mkfs"));
-    }
 }

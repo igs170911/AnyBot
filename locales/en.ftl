@@ -95,3 +95,7 @@ tool-shell-failed = Exit code { $code }.
 tool-shell-trimmed = Output was long: { $omitted } characters were omitted; the full text digest is { $digest }.
 tool-shell-timed-out = The command timed out: the operation itself failed.
 gate-ask-computer-mismatch = The approval was asked on { $asked_for }; it cannot be answered on { $answered_on }.
+tool-unreadable-eval = The command uses eval, which cannot be read ahead.
+tool-unreadable-quotes = The command has quotes that do not match, so it cannot be read ahead.
+tool-unreadable-heredoc = The command feeds a here-document into a shell, so it cannot be read ahead.
+tool-unreadable-head = The first word of the command cannot be read after peeling its wrappers.

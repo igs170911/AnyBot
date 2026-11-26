@@ -1,6 +1,6 @@
 use crate::action::{GateAction, PathView};
 use crate::card_data::{CardData, build_card};
-use crate::command_target::command_target_paths;
+use crate::command_target::{DeleteBase, command_targets};
 use crate::evidence::ActionContext;
 use crate::gate_flow::{GateConfig, GateVerdict, judge};
 use crate::op_ticket::OpTicket;
@@ -38,17 +38,23 @@ impl ActionRequest {
         if !classes_of_command(line).contains(&ActionClass::Delete) {
             return Vec::new();
         }
-        command_target_paths(line)
+        command_targets(line)
             .into_iter()
-            .map(|token| {
-                if crate::command_target::has_expansion_token(&token) {
-                    PathView::unresolvable(&token)
-                } else {
-                    PathView::raw(&token)
-                }
-            })
+            .map(|target| view_of_target(&target))
             .collect()
     }
+}
+
+fn view_of_target(target: &crate::command_target::DeleteTarget) -> PathView {
+    if crate::command_target::has_expansion_token(&target.token)
+        || target.base == DeleteBase::Unresolved
+    {
+        return PathView::unresolvable(&target.token);
+    }
+    if target.base == DeleteBase::Cd && !target.token.starts_with('/') {
+        return PathView::raw(&format!("{}/{}", target.cd_path, target.token));
+    }
+    PathView::raw(&target.token)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

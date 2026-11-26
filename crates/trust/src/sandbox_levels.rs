@@ -1,4 +1,4 @@
-use crate::sandbox_deny::split_segments;
+use crate::sandbox_peel::visible_segments;
 
 pub const READ_ONLY_COMMANDS: [&str; 20] = [
     "ls", "pwd", "cat", "head", "tail", "wc", "echo", "rg", "grep", "find", "file", "stat", "du",
@@ -47,20 +47,20 @@ pub fn is_read_only_segment(segment: &str) -> bool {
     if READ_ONLY_COMMANDS.contains(&head) {
         return true;
     }
-    if head == "git"
-        && segment
-            .split_whitespace()
-            .nth(1)
-            .is_some_and(|sub| READ_ONLY_GIT_SUBCOMMANDS.contains(&sub))
-    {
-        return true;
+    if head == "git" {
+        let tokens = crate::safety_n5::egress_tokens(segment);
+        let sub = tokens.get(1).map(String::as_str).unwrap_or_default();
+        return READ_ONLY_GIT_SUBCOMMANDS.contains(&sub);
     }
     false
 }
 
 #[must_use]
 pub fn command_level(line: &str) -> CommandLevel {
-    let segments = split_segments(line);
+    if crate::sandbox_peel::unreadable_reason(line).is_some() {
+        return CommandLevel::AskEveryTime;
+    }
+    let segments = visible_segments(line);
     let joined = segments.join(" ");
     if has_unbalanced_shape(&joined) || has_hidden_subcommand(&joined) {
         return CommandLevel::AskEveryTime;

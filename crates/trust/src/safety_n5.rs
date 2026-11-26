@@ -113,26 +113,20 @@ pub fn classes_of_connector_tool(name: &str, destructive: bool) -> Vec<ActionCla
     out
 }
 
-const GIT_GLOBAL_OPTIONS: [&str; 10] = [
+const GIT_VALUE_OPTIONS: [&str; 6] = [
     "-C",
     "-c",
     "--git-dir",
     "--work-tree",
     "--namespace",
     "--exec-path",
-    "--bare",
-    "--config",
-    "--paginate",
-    "--no-pager",
 ];
 
 #[must_use]
 pub fn classes_of_command(line: &str) -> Vec<ActionClass> {
     let mut out = Vec::new();
-    for segment in crate::sandbox_deny::split_segments(line) {
-        let inner = crate::sandbox_deny::strip_privilege_wrappers(
-            &crate::sandbox_deny::strip_wrappers(&segment),
-        );
+    for segment in crate::sandbox_peel::visible_segments(line) {
+        let inner = crate::sandbox_peel::peel_segment(&segment, true);
         let lower: Vec<String> = egress_tokens(&inner)
             .iter()
             .map(|t| t.to_lowercase())
@@ -152,7 +146,7 @@ pub fn classes_of_command(line: &str) -> Vec<ActionClass> {
     out
 }
 
-fn egress_tokens(segment: &str) -> Vec<String> {
+pub(crate) fn egress_tokens(segment: &str) -> Vec<String> {
     let mut parts = segment.split_whitespace();
     let head = parts.next().unwrap_or_default().to_owned();
     if head != "git" {
@@ -166,14 +160,8 @@ fn egress_tokens(segment: &str) -> Vec<String> {
             value_expected = false;
             continue;
         }
-        if GIT_GLOBAL_OPTIONS.contains(&token) && !token.contains('=') {
-            if token == "-C"
-                || token == "-c"
-                || token == "--git-dir"
-                || token == "--work-tree"
-                || token == "--namespace"
-                || token == "--exec-path"
-            {
+        if token.starts_with('-') {
+            if GIT_VALUE_OPTIONS.contains(&token) && !token.contains('=') {
                 value_expected = true;
             }
             continue;

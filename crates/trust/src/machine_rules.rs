@@ -72,6 +72,9 @@ fn outside_check(path: &PathView, action: &GateAction, read_only: bool) -> RuleV
 }
 
 fn bot_command_rule(action: &GateAction, line: &str) -> RuleVerdict {
+    if let Some(code) = crate::sandbox_peel::unreadable_reason(line) {
+        return RuleVerdict::of(MachineLevel::AskEveryTime, code, false);
+    }
     let classes = crate::safety_n5::classes_of_command(line);
     if classes.iter().copied().any(is_outbound_class) {
         return RuleVerdict::of(MachineLevel::AskEveryTime, "bot-machine-sending", false);
@@ -141,6 +144,9 @@ fn user_file_rule(action: &GateAction, path: &PathView, read_only: bool) -> Rule
 }
 
 fn user_command_rule(line: &str) -> RuleVerdict {
+    if let Some(code) = crate::sandbox_peel::unreadable_reason(line) {
+        return RuleVerdict::of(MachineLevel::AskEveryTime, code, false);
+    }
     let classes = crate::safety_n5::classes_of_command(line);
     if classes.iter().copied().any(is_outbound_class) || classes.contains(&ActionClass::Delete) {
         return RuleVerdict::of(MachineLevel::AskEveryTime, "safety-n5-outbound", false);

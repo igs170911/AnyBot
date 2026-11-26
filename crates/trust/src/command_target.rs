@@ -1,68 +1,86 @@
+use crate::sandbox_peel::bare_name;
+use crate::sandbox_peel::peel_segment;
+use crate::sandbox_peel::visible_segments;
+
 const DELETE_TOOLS: [&str; 6] = ["rm", "rmdir", "unlink", "shred", "trash", "find"];
 
 const EXPANSION_TOKENS: [char; 7] = ['$', '~', '*', '?', '[', ']', '`'];
 
-const JOIN_TOKENS: [&str; 6] = [";", "&&", "||", "|", "&", "\n"];
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeleteBase {
+    Workdir,
+    Cd,
+    Unresolved,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeleteTarget {
+    pub token: String,
+    pub base: DeleteBase,
+    pub cd_path: String,
+}
 
 #[must_use]
-pub fn command_target_paths(line: &str) -> Vec<String> {
-    let mut targets = Vec::new();
-    for segment in split_segments_raw(line) {
-        for token in segment_operands(&segment) {
-            targets.push(token);
+pub fn command_targets(line: &str) -> Vec<DeleteTarget> {
+    let mut out = Vec::new();
+    let mut cwd = String::new();
+    let mut cwd_known = true;
+    for segment in visible_segments(line) {
+        let inner = peel_segment(&segment, true);
+        let head = inner.split_whitespace().next().unwrap_or_default();
+        if head == "cd" {
+            let (next, known) = cd_step(&inner, &cwd, cwd_known);
+            cwd = next;
+            cwd_known = known;
+            continue;
+        }
+        if !DELETE_TOOLS.contains(&bare_name(head).as_str()) {
+            continue;
+        }
+        for token in inner.split_whitespace().skip(1) {
+            if token.starts_with('-') || token.contains('=') {
+                continue;
+            }
+            out.push(DeleteTarget {
+                token: token.to_owned(),
+                base: target_base(cwd_known, &cwd),
+                cd_path: cwd.clone(),
+            });
         }
     }
-    targets
+    out
 }
 
-fn split_segments_raw(line: &str) -> Vec<String> {
-    let bytes = line.as_bytes();
-    let mut raw = Vec::new();
-    let mut start = 0usize;
-    let mut pos = 0usize;
-    while pos < bytes.len() {
-        let Some(len) = join_token_len_at(bytes, pos) else {
-            pos = pos.saturating_add(1);
-            continue;
-        };
-        raw.push(bytes.get(start..pos).unwrap_or(&[]).to_vec());
-        pos = pos.saturating_add(len);
-        start = pos;
+fn target_base(cwd_known: bool, cwd: &str) -> DeleteBase {
+    if !cwd_known {
+        return DeleteBase::Unresolved;
     }
-    raw.push(bytes.get(start..).unwrap_or(&[]).to_vec());
-    raw.into_iter()
-        .map(|chunk| String::from_utf8_lossy(&chunk).trim().to_owned())
-        .filter(|s| !s.is_empty())
-        .collect()
-}
-
-fn join_token_len_at(bytes: &[u8], pos: usize) -> Option<usize> {
-    JOIN_TOKENS
-        .iter()
-        .filter(|t| starts_with_at(bytes, pos, t.as_bytes()))
-        .map(|t| t.len())
-        .max()
-}
-
-fn starts_with_at(bytes: &[u8], pos: usize, token: &[u8]) -> bool {
-    let Some(window) = bytes.get(pos..pos.saturating_add(token.len())) else {
-        return false;
-    };
-    window == token
-}
-
-fn segment_operands(segment: &str) -> Vec<String> {
-    let mut parts = segment.split_whitespace();
-    let Some(head) = parts.next() else {
-        return Vec::new();
-    };
-    if !DELETE_TOOLS.contains(&head.to_ascii_lowercase().as_str()) {
-        return Vec::new();
+    if cwd.is_empty() {
+        return DeleteBase::Workdir;
     }
-    parts
-        .filter(|token| !token.starts_with('-') && !token.contains('='))
-        .map(ToOwned::to_owned)
-        .collect()
+    DeleteBase::Cd
+}
+
+fn cd_step(inner: &str, cwd: &str, known: bool) -> (String, bool) {
+    let Some(token) = inner
+        .split_whitespace()
+        .skip(1)
+        .find(|t| !t.starts_with('-') && !t.contains('='))
+    else {
+        return (cwd.to_owned(), known);
+    };
+    if has_expansion_token(token) || !known {
+        return (cwd.to_owned(), false);
+    }
+    if token.starts_with('/') {
+        return (token.to_owned(), true);
+    }
+    let joined = if cwd.is_empty() {
+        token.to_owned()
+    } else {
+        format!("{cwd}/{token}")
+    };
+    (joined, true)
 }
 
 #[must_use]
@@ -75,28 +93,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_command_target_paths_pick_the_first_operand_of_each_delete_segment() {
-        let got = command_target_paths("rm notes.md && rmdir build");
-        assert_eq!(got, vec!["notes.md".to_owned(), "build".to_owned()]);
-        assert_eq!(command_target_paths("ls -la"), Vec::<String>::new());
-        assert_eq!(
-            command_target_paths("rm -rf ./build"),
-            vec!["./build".to_owned()]
-        );
+    fn test_command_targets_pick_operands_of_every_delete_segment() {
+        let got = command_targets("rm notes.md && rmdir build");
+        let tokens: Vec<String> = got.iter().map(|t| t.token.clone()).collect();
+        assert_eq!(tokens, vec!["notes.md".to_owned(), "build".to_owned()]);
+        assert!(command_targets("ls -la").is_empty());
     }
 
     #[test]
-    fn test_command_target_paths_take_every_operand_of_a_delete() {
-        let got = command_target_paths("rm notes.md /etc/passwd");
-        assert_eq!(got, vec!["notes.md".to_owned(), "/etc/passwd".to_owned()]);
-        assert_eq!(
-            command_target_paths("rm A.TXT b.txt"),
-            vec!["A.TXT".to_owned(), "b.txt".to_owned()]
-        );
+    fn test_command_targets_peel_wrappers_before_reading_the_head() {
+        let got = command_targets("rm a.txt; sudo rm -r /opt/app");
+        let tokens: Vec<String> = got.iter().map(|t| t.token.clone()).collect();
+        assert_eq!(tokens, vec!["a.txt".to_owned(), "/opt/app".to_owned()]);
     }
 
     #[test]
-    fn test_command_target_paths_flag_tokens_that_expand() {
+    fn test_command_targets_follow_a_cd_that_moves_outside_the_workspace() {
+        let got = command_targets("cd /tmp && rm -rf build");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got.first().unwrap().base, DeleteBase::Cd);
+        assert_eq!(got.first().unwrap().cd_path, "/tmp");
+    }
+
+    #[test]
+    fn test_command_targets_mark_targets_unresolvable_after_an_unreadable_cd() {
+        let got = command_targets("cd $HOME && rm notes.md");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got.first().unwrap().base, DeleteBase::Unresolved);
+    }
+
+    #[test]
+    fn test_command_targets_flag_tokens_that_expand() {
         assert!(has_expansion_token("$HOME/notes.md"));
         assert!(has_expansion_token("~/notes.md"));
         assert!(has_expansion_token("build/*.o"));

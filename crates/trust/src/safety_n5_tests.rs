@@ -65,3 +65,27 @@ fn test_six_class_negative_examples_stay_unclassified() {
     assert_eq!(classes_of_connector_tool("github_sender", false), vec![]);
     assert_eq!(classes_of_click_label("Search"), vec![]);
 }
+
+#[test]
+fn test_git_global_options_with_equals_still_reach_the_subcommand() {
+    let got = classes_of_command("git --git-dir=.git push origin");
+    assert!(got.contains(&ActionClass::Publish));
+}
+
+#[test]
+fn test_unknown_git_global_options_still_reach_the_subcommand() {
+    let got = classes_of_command("git -P push origin");
+    assert!(got.contains(&ActionClass::Publish));
+}
+
+#[test]
+fn test_a_privilege_wrapper_hides_nothing_from_the_class_scan_on_the_bot_machine() {
+    let got = classes_of_command("sudo nohup git push origin");
+    assert!(got.contains(&ActionClass::Publish));
+}
+
+#[test]
+fn test_a_class_scan_reads_the_command_inside_a_shell_quote() {
+    let got = classes_of_command("bash -c 'git push origin'");
+    assert!(got.contains(&ActionClass::Publish));
+}

@@ -97,3 +97,8 @@ tool-shell-trimmed = 輸出很長：省略了 { $omitted } 個字，原文的編
 tool-shell-timed-out = 指令時間到了：操作本身失敗。
 
 gate-ask-computer-mismatch = 這張核准是在 { $asked_for } 上問的，不能在 { $answered_on } 上回答。
+
+tool-unreadable-eval = 這串指令用了 eval，事先看不出會做什麼。
+tool-unreadable-quotes = 這串指令的引號沒有配對，事先看不出會做什麼。
+tool-unreadable-heredoc = 這串指令把 here-document 餵給 shell，事先看不出會做什麼。
+tool-unreadable-head = 拿掉包裝之後，這串指令的第一個字還是看不出來。

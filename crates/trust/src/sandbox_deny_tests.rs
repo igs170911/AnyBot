@@ -130,3 +130,76 @@ proptest! {
         prop_assert_eq!(deny_token(&benign_full, false), None, "line {}", benign_full);
     }
 }
+
+#[test]
+fn test_sandbox_deny_sees_through_wrappers_and_join_tokens() {
+    let wrapped = "env A=1 timeout 5 command nohup nice -n 0 sudo rm -rf / && ls; echo hi";
+    assert_eq!(deny_token(wrapped, false), Some("sudo"));
+    let joined = "ls | nohup dd of=/x || true";
+    assert_eq!(deny_token(joined, false), Some("dd"));
+    assert_eq!(deny_token("ls -la && git status", false), None);
+    assert_eq!(deny_token("echo hello | grep hello", false), None);
+}
+
+#[test]
+fn test_sandbox_deny_splits_a_newline_joined_line_before_cleaning_it() {
+    assert_eq!(deny_token("ls\nsudo rm -rf /", false), Some("sudo"));
+    assert_eq!(deny_token("echo hi\ndd of=/x", false), Some("dd"));
+    assert_eq!(deny_token("ls\ntrue", false), None);
+}
+
+#[test]
+fn test_sandbox_deny_sees_through_sudo_with_options_on_the_bot_machine() {
+    assert_eq!(
+        deny_token("sudo -u root mkfs.ext4 /dev/sda1", true),
+        Some("mkfs")
+    );
+    assert_eq!(deny_token("doas -u root dd of=/dev/sda1", true), Some("dd"));
+    assert_eq!(
+        deny_token(
+            "nohup nice -n 0 timeout 5 xargs -d newline sudo rm -rf /",
+            true
+        ),
+        Some("rm -rf /")
+    );
+    assert_eq!(
+        deny_token("env PATH=/bin rm -rf ~", false),
+        Some("rm -rf ~")
+    );
+}
+
+#[test]
+fn test_sandbox_deny_strips_sudo_only_on_the_bot_machine() {
+    assert_eq!(deny_token("sudo apt-get install jq", true), None);
+    assert_eq!(deny_token("sudo rm -rf /", true), Some("rm -rf /"));
+    assert_eq!(deny_token("sudo mkfs.ext4 /dev/sda1", true), Some("mkfs"));
+}
+
+#[test]
+fn test_sandbox_deny_peels_privilege_wrappers_repeatedly_on_the_bot_machine() {
+    assert_eq!(
+        deny_token("sudo nohup mkfs.ext4 /dev/sda1", true),
+        Some("mkfs")
+    );
+    assert_eq!(deny_token("sudo env reboot", true), Some("reboot"));
+    assert_eq!(
+        deny_token("sudo FOO=1 shutdown -h now", true),
+        Some("shutdown")
+    );
+}
+
+#[test]
+fn test_sandbox_deny_reads_inside_shells_subshells_and_compounds() {
+    assert_eq!(
+        deny_token("sh -c 'mkfs.ext4 /dev/sda1'", false),
+        Some("mkfs")
+    );
+    assert_eq!(deny_token("ls $(dd if=/dev/zero of=/x)", false), Some("dd"));
+    assert_eq!(deny_token("ls `dd of=/x`", false), Some("dd"));
+    assert_eq!(
+        deny_token("if true; then mkfs.ext4 /dev/sda1; fi", false),
+        Some("mkfs")
+    );
+    assert_eq!(deny_token("'reboot'", false), Some("reboot"));
+    assert_eq!(deny_token("/sbin/reboot", false), Some("reboot"));
+}

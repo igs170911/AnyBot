@@ -229,6 +229,10 @@ pub fn rule_code(rule: &str) -> String {
         "user-machine-outside-write" => {
             crate::message_codes::CODE_GATE_OUTSIDE_WRITE_DENIED.to_owned()
         }
+        "tool-unreadable-eval"
+        | "tool-unreadable-quotes"
+        | "tool-unreadable-heredoc"
+        | "tool-unreadable-head" => rule.to_owned(),
         _ => crate::message_codes::CODE_GATE_DENIED_BY_RULE.to_owned(),
     }
 }
