@@ -6,8 +6,8 @@ use url::Url;
 use crate::error::{
     CODE_BOOTSTRAP_CREDENTIALS_MISSING, CODE_BOOTSTRAP_DATABASE_MISSING,
     CODE_BOOTSTRAP_HOST_MISSING, CODE_BOOTSTRAP_NOT_FOUND, CODE_BOOTSTRAP_PERMISSIONS_READ_FAILED,
-    CODE_BOOTSTRAP_PERMISSIONS_TOO_OPEN, CODE_BOOTSTRAP_READ_FAILED, CODE_BOOTSTRAP_URL_MALFORMED,
-    CODE_BOOTSTRAP_URL_SCHEME, FoundationError, MessageRef,
+    CODE_BOOTSTRAP_READ_FAILED, CODE_BOOTSTRAP_URL_MALFORMED, CODE_BOOTSTRAP_URL_SCHEME,
+    FoundationError, MessageRef,
 };
 use crate::secret::Secret;
 
@@ -59,18 +59,26 @@ impl ServerBootstrap {
 }
 
 fn check_permissions(path: &Path, meta: &std::fs::Metadata) -> Result<(), FoundationError> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        let mode = meta.mode() & 0o777;
-        if mode & 0o077 != 0 {
-            return Err(FoundationError::BootstrapPermissions(
-                MessageRef::new(CODE_BOOTSTRAP_PERMISSIONS_TOO_OPEN)
-                    .with_text("path", &path.display().to_string())
-                    .with_text("mode", &format!("{mode:o}")),
-            ));
-        }
+    unix_permissions(path, meta)
+}
+
+#[cfg(unix)]
+fn unix_permissions(path: &Path, meta: &std::fs::Metadata) -> Result<(), FoundationError> {
+    use crate::error::CODE_BOOTSTRAP_PERMISSIONS_TOO_OPEN;
+    use std::os::unix::fs::MetadataExt;
+    let mode = meta.mode() & 0o777;
+    if mode & 0o077 != 0 {
+        return Err(FoundationError::BootstrapPermissions(
+            MessageRef::new(CODE_BOOTSTRAP_PERMISSIONS_TOO_OPEN)
+                .with_text("path", &path.display().to_string())
+                .with_text("mode", &format!("{mode:o}")),
+        ));
     }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn unix_permissions(_path: &Path, _meta: &std::fs::Metadata) -> Result<(), FoundationError> {
     Ok(())
 }
 

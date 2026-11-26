@@ -108,6 +108,7 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
             .collect(),
     );
     m.insert("locale-gen".to_owned(), BTreeSet::new());
+    m.insert("anybot-versions".to_owned(), BTreeSet::new());
 }
 
 #[must_use]
@@ -172,6 +173,7 @@ pub fn packages_allowed_exemptions() -> BTreeSet<String> {
         "iron-laws",
         "api-docs",
         "locale-gen",
+        "anybot-versions",
     ]
     .into_iter()
     .map(String::from)
@@ -197,6 +199,7 @@ mod tests {
         assert!(p.contains("anybot-foundation"));
         assert!(p.contains("iron-laws"));
         assert!(p.contains("api-docs"));
+        assert!(p.contains("anybot-versions"));
         assert!(!p.contains("anybot-domain"));
         assert!(!p.contains("anybot-bus"));
     }
