@@ -136,6 +136,32 @@ jobs:
           cargo deny --version
           cargo machete --version
 
+      - name: cache the sqlx command built from the pinned crate
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-sqlx
+          key: sqlx-cli-0.9.1-${{ runner.os }}-7e99f14841a9fe8e5650ccda3dd7607f1f22c33af86b17b4872488a2146bcdfe
+
+      - name: install sqlx-cli 0.9.1 from the verified crate
+        # crates.io has no prebuilt binary. The crate requires Rust 1.94, so the
+        # install uses that toolchain explicitly and leaves rust-toolchain.toml unchanged.
+        run: |
+          set -euo pipefail
+          out="$CARGO_HOME/bin/cargo-sqlx"
+          if [ ! -x "$out" ]; then
+          url="https://static.crates.io/crates/sqlx-cli/sqlx-cli-0.9.1.crate"
+          curl -sLf "$url" -o sqlx-cli-0.9.1.crate
+          echo "7e99f14841a9fe8e5650ccda3dd7607f1f22c33af86b17b4872488a2146bcdfe  sqlx-cli-0.9.1.crate" | sha256sum -c -
+          mkdir sqlx-cli-src
+          tar -xzf sqlx-cli-0.9.1.crate -C sqlx-cli-src
+          rustup toolchain install 1.94.0 --profile minimal
+          cargo_194="$(rustup which --toolchain 1.94.0 cargo)"
+          "$cargo_194" install --path sqlx-cli-src/sqlx-cli-0.9.1 --locked --bin cargo-sqlx --features postgres,rustls --no-default-features
+          rm -r sqlx-cli-0.9.1.crate sqlx-cli-src
+          fi
+          test -x "$out"
+          cargo sqlx --version
+
       - name: install gitleaks and oasdiff from pinned archives
         run: |
           set -euo pipefail
