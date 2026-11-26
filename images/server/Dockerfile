@@ -25,9 +25,9 @@ FROM debian:13.2-slim@sha256:4bcb9db66237237d03b55b969271728dd3d955eaaa254b9db8a
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --create-home --home-dir /var/lib/anybot --shell /usr/sbin/nologin anybot
+    && useradd --system --uid 65532 --create-home --home-dir /var/lib/anybot --shell /usr/sbin/nologin anybot
 COPY --from=build /src/target/release/anybot-server /usr/local/bin/anybot-server
-USER anybot
+USER 65532
 WORKDIR /var/lib/anybot
 ENTRYPOINT ["/usr/local/bin/anybot-server"]
 CMD ["--version"]
