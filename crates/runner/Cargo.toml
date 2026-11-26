@@ -16,6 +16,8 @@ anybot-domain = { workspace = true }
 anybot-models = { workspace = true }
 anybot-context = { workspace = true }
 anybot-messages = { workspace = true }
+anybot-trust = { workspace = true }
+anybot-tools = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }

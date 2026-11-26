@@ -2,6 +2,8 @@ use anybot_context as _;
 use anybot_domain as _;
 use anybot_messages as _;
 use anybot_models as _;
+use anybot_tools as _;
+use anybot_trust as _;
 use serde_json as _;
 use sha2 as _;
 use thiserror as _;
@@ -177,22 +179,25 @@ fn check_order(world: &TurnWorld, task: &anybot_foundation::TaskId) -> Result<()
 
 fn check_tool_pairs(kinds: &[KnownTaskEventKind]) -> Result<(), String> {
     let mut requests: Vec<anybot_foundation::CallId> = Vec::new();
-    let mut not_run: Vec<anybot_foundation::CallId> = Vec::new();
+    let mut results: Vec<anybot_foundation::CallId> = Vec::new();
     for kind in kinds {
         if let KnownTaskEventKind::ModelAnswer { tool_requests, .. } = kind {
             for request in tool_requests {
                 requests.push(request.call_id);
             }
         }
-        if let KnownTaskEventKind::ToolNotRun { call_id, .. } = kind {
-            not_run.push(*call_id);
+        if let KnownTaskEventKind::ToolNotRun { call_id, .. }
+        | KnownTaskEventKind::ToolCompleted { call_id, .. }
+        | KnownTaskEventKind::ToolFailed { call_id, .. } = kind
+        {
+            results.push(*call_id);
         }
     }
-    if requests != not_run {
+    if requests != results {
         return Err(format!(
-            "requests {} not_run {}",
+            "requests {} results {}",
             requests.len(),
-            not_run.len()
+            results.len()
         ));
     }
     Ok(())

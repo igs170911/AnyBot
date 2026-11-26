@@ -17,6 +17,8 @@ pub enum TurnError {
     Messages(#[from] anybot_messages::MessagesError),
     #[error(transparent)]
     Encode(#[from] serde_json::Error),
+    #[error("message code {code} is not in the catalog")]
+    UnknownMessageCode { code: String },
     #[error("tool request {call_id} has no result in the record")]
     UnpairedToolRequest { call_id: CallId },
 }

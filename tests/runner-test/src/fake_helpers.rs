@@ -8,10 +8,10 @@ use crate::fake_computer::FakeComputer;
 use crate::fake_files::{FileTree, digest_text};
 
 pub(crate) const TIMEOUT_EXIT_CODE: i32 = 124;
-pub(crate) const NO_SCRIPT_REASON: &str = "the fake computer has no script for this command";
+pub const NO_SCRIPT_REASON: &str = "the fake computer has no script for this command";
 pub(crate) const MULTIPLE_REASON: &str = "the text to replace appears more than once in the file:";
 pub(crate) const NOT_FOUND_REASON: &str = "the text to replace was not found in the file";
-pub(crate) const MISSING_FILE_REASON: &str = "no such file on the fake computer";
+pub const MISSING_FILE_REASON: &str = "no such file on the fake computer";
 pub(crate) const UNREACHABLE_REASON: &str = "the fake computer is set unreachable";
 
 pub(crate) fn write_outcome(

@@ -44,6 +44,16 @@ pub enum ArgsRejection {
     },
 }
 
+#[must_use]
+pub fn args_rejection_word(tool: &str, json: &str) -> String {
+    match parse_call(tool, json) {
+        Ok(_) => "arguments-ok".to_owned(),
+        Err(ArgsRejection::UnknownTool { tool, .. }) => format!("unknown-tool-{tool}"),
+        Err(ArgsRejection::Malformed { reason }) => format!("malformed-{reason}"),
+        Err(ArgsRejection::MissingField { field, tool }) => format!("missing-field-{field}-{tool}"),
+    }
+}
+
 pub fn parse_call(tool: &str, json: &str) -> Result<ToolArgs, ArgsRejection> {
     if !is_known_tool(tool) {
         return Err(ArgsRejection::UnknownTool {

@@ -4,6 +4,8 @@ use anybot_foundation as _;
 use anybot_models as _;
 use anybot_protocol as _;
 use anybot_runner as _;
+use anybot_tools as _;
+use anybot_trust as _;
 use proptest as _;
 use serde_json as _;
 use sha2 as _;

@@ -6,7 +6,9 @@ pub mod read;
 pub mod registry;
 pub mod shell;
 
-pub use arguments::{ArgsRejection, EditArgs, ReadArgs, ShellArgs, ToolArgs, parse_call};
+pub use arguments::{
+    ArgsRejection, EditArgs, ReadArgs, ShellArgs, ToolArgs, args_rejection_word, parse_call,
+};
 pub use calls::{
     DEFAULT_SHELL_TIMEOUT_MS, MAX_SHELL_TIMEOUT_MS, build_request, clamp_timeout, subject_of,
 };

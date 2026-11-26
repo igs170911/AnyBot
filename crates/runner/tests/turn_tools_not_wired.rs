@@ -1,6 +1,8 @@
 use anybot_context as _;
 use anybot_domain as _;
 use anybot_runner as _;
+use anybot_tools as _;
+use anybot_trust as _;
 use proptest as _;
 use serde_json as _;
 use sha2 as _;
@@ -35,7 +37,7 @@ fn call(name: &str, args: &str, id: &str) -> ToolCallScript {
 }
 
 #[tokio::test]
-async fn turn_tool_requests_get_not_wired_results() -> Result<(), String> {
+async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
     let setup = WorldSetup {
         tools: two_specs(),
         ..WorldSetup::default()
@@ -45,7 +47,7 @@ async fn turn_tool_requests_get_not_wired_results() -> Result<(), String> {
         model_tool_calls(
             vec![
                 call("read_file", "{\"path\":\"a.txt\"}", "c1"),
-                call("shell", "{\"command\":\"ls\"}", "c2"),
+                call("shell", "{\"line\":\"ls\"}", "c2"),
             ],
             "tool_calls",
             false,
@@ -65,8 +67,18 @@ async fn turn_tool_requests_get_not_wired_results() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
-            "tool_not_run",
-            "tool_not_run",
+            "gate_result",
+            "tool_intent",
+            "tool_started",
+            "tool_failed",
+            "evidence_added",
+            "action_verified",
+            "gate_result",
+            "tool_intent",
+            "tool_started",
+            "tool_failed",
+            "evidence_added",
+            "action_verified",
             "context_built",
             "model_asked",
             "model_answer",
@@ -76,7 +88,7 @@ async fn turn_tool_requests_get_not_wired_results() -> Result<(), String> {
     );
     check_call_ids(&world, &task)?;
     check_tool_messages(&world)?;
-    assert!(!kind_names(&world, &task).contains(&"tool_started".to_owned()));
+    assert!(kind_names(&world, &task).contains(&"tool_started".to_owned()));
     let state = state_of(&world, &task)?;
     assert_eq!(state.0, anybot_protocol::TaskStatus::Completed);
     Ok(())
@@ -89,9 +101,9 @@ fn check_call_ids(world: &TurnWorld, task: &TaskId) -> Result<(), String> {
     };
     assert_eq!(tool_requests.len(), 2);
     let mut not_run: Vec<anybot_foundation::CallId> = Vec::new();
-    for kind in kinds.iter().skip(6).take(2) {
-        let KnownTaskEventKind::ToolNotRun { call_id, .. } = kind else {
-            return Err("not a tool_not_run".to_owned());
+    for kind in kinds.iter().skip(6) {
+        let KnownTaskEventKind::ToolFailed { call_id, .. } = kind else {
+            continue;
         };
         not_run.push(*call_id);
     }
@@ -130,7 +142,10 @@ fn check_tool_messages(world: &TurnWorld) -> Result<(), String> {
         }
     }
     assert_eq!(ids.len(), 2);
-    let wanted = [not_wired("read_file")?, not_wired("shell")?];
+    let wanted = [
+        failed_text(runner_test::MISSING_FILE_REASON)?,
+        failed_text(runner_test::NO_SCRIPT_REASON)?,
+    ];
     let mut contents: Vec<String> = Vec::new();
     for item in &messages {
         let Some(id) = item.get("tool_call_id").and_then(|v| v.as_str()) else {
@@ -148,9 +163,9 @@ fn check_tool_messages(world: &TurnWorld) -> Result<(), String> {
     Ok(())
 }
 
-fn not_wired(tool: &str) -> Result<String, String> {
-    let params = Params::new().with_text("tool", tool);
-    fmt_text(Lang::En, "turn-tool-not-wired", &params)
+fn failed_text(reason: &str) -> Result<String, String> {
+    let params = Params::new().with_text("reason", reason);
+    fmt_text(Lang::En, "tool-operation-failed", &params)
 }
 
 #[tokio::test]

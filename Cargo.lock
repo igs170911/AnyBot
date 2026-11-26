@@ -368,6 +368,8 @@ dependencies = [
  "anybot-messages",
  "anybot-models",
  "anybot-protocol",
+ "anybot-tools",
+ "anybot-trust",
  "proptest",
  "runner-test",
  "serde_json",

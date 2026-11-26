@@ -1,8 +1,9 @@
 use anybot_context::{Compiled, NewEvent};
 use anybot_domain::{ContextCollapseReason, ContextCollapsed, collapsed_kind, memory_dropped_kind};
 use anybot_models::{Audience, GatewayFail, ask_plan};
-use anybot_protocol::{KnownTaskEventKind, NotRunReason, TurnEndReason};
+use anybot_protocol::{KnownTaskEventKind, TurnEndReason};
 
+use crate::action::run_actions;
 use crate::answer;
 use crate::checks::run_checks;
 use crate::context_input::build_input;
@@ -186,17 +187,7 @@ async fn finish_answer(
             .await?;
         return Ok(StepFlow::Ended(TurnEndReason::Answered));
     }
-    for request in &requests {
-        runner
-            .append_task_event(
-                &ctx.task,
-                KnownTaskEventKind::ToolNotRun {
-                    call_id: request.call_id,
-                    reason: NotRunReason::NotWired,
-                },
-            )
-            .await?;
-    }
+    run_actions(runner, ctx, &requests).await?;
     Ok(StepFlow::Continue)
 }
 

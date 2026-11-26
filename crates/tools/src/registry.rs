@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolLevel {
     ReadOnly,
+    Reversible,
     Irreversible,
 }
 
@@ -15,8 +16,12 @@ pub fn tool_list() -> [&'static str; 3] {
 
 #[must_use]
 pub fn level_of(tool: &str) -> ToolLevel {
+    if !is_known_tool(tool) {
+        return ToolLevel::Irreversible;
+    }
     match tool {
         TOOL_READ_FILE => ToolLevel::ReadOnly,
+        TOOL_EDIT_FILE => ToolLevel::Reversible,
         _ => ToolLevel::Irreversible,
     }
 }
@@ -44,7 +49,7 @@ mod tests {
         let table = registry();
         assert_eq!(table.len(), 3);
         assert_eq!(level_of(TOOL_READ_FILE), ToolLevel::ReadOnly);
-        assert_eq!(level_of(TOOL_EDIT_FILE), ToolLevel::Irreversible);
+        assert_eq!(level_of(TOOL_EDIT_FILE), ToolLevel::Reversible);
         assert_eq!(level_of(TOOL_SHELL), ToolLevel::Irreversible);
     }
 

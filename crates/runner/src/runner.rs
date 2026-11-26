@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anybot_foundation::TurnId;
 use anybot_foundation::{BotId, Clock, DeviceId, EventId, RecordId, TaskId};
 use anybot_messages::Lang;
 use anybot_models::{Calibration, Capability, ModelRef, Session, ThinkingMode, ToolSpec};
@@ -27,6 +28,7 @@ pub struct TurnModel {
 }
 
 pub struct RunnerParts {
+    pub gated: Arc<dyn anybot_trust::GatedComputer>,
     pub record: Arc<dyn Record>,
     pub raw: Arc<dyn RawStore>,
     pub session: Session,
@@ -41,6 +43,27 @@ pub struct RunnerParts {
 pub struct TurnCtx {
     pub(crate) task: TaskId,
     pub(crate) turn: u32,
+    pub(crate) turn_id: TurnId,
+    evidence: tokio::sync::Mutex<u32>,
+}
+
+impl TurnCtx {
+    #[must_use]
+    pub(crate) fn peek_evidence(&self) -> u32 {
+        let Ok(guard) = self.evidence.try_lock() else {
+            return 1;
+        };
+        *guard
+    }
+
+    pub(crate) fn next_evidence(&self) -> u32 {
+        let Ok(mut guard) = self.evidence.try_lock() else {
+            return 1;
+        };
+        let value = *guard;
+        *guard = value.saturating_add(1);
+        value
+    }
 }
 
 pub struct UserMessage {
@@ -55,6 +78,7 @@ pub struct TurnOutcome {
 }
 
 pub struct TurnRunner {
+    pub(crate) gated: Arc<dyn anybot_trust::GatedComputer>,
     pub(crate) record: Arc<dyn Record>,
     pub(crate) raw: Arc<dyn RawStore>,
     pub(crate) session: Arc<tokio::sync::Mutex<Session>>,
@@ -72,6 +96,7 @@ impl TurnRunner {
     pub fn new(parts: RunnerParts) -> Self {
         let lang = crate::fixed_blocks::lang_of(parts.lang);
         TurnRunner {
+            gated: parts.gated,
             record: parts.record,
             raw: parts.raw,
             session: Arc::new(tokio::sync::Mutex::new(parts.session)),
@@ -114,7 +139,12 @@ impl TurnRunner {
             .saturating_add(1);
         self.append_task_event(&task, self.turn_started_kind(turn, message.device))
             .await?;
-        let ctx = TurnCtx { task, turn };
+        let ctx = TurnCtx {
+            task,
+            turn,
+            turn_id: TurnId::generate(&*self.clock),
+            evidence: tokio::sync::Mutex::new(1),
+        };
         self.run_steps(&ctx, task).await
     }
 

@@ -13,6 +13,7 @@ pub mod turn_setup;
 pub use fake_builder::FakeComputerBuilder;
 pub use fake_computer::FakeComputer;
 pub use fake_files::FileTree;
+pub use fake_helpers::{MISSING_FILE_REASON, NO_SCRIPT_REASON};
 pub use fake_scripts::{CommandScript, ScriptTable};
 pub mod test_view;
 

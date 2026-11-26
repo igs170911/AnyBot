@@ -24,6 +24,7 @@ pub struct WorldSetup {
     pub tools: Vec<ToolSpec>,
     pub probe_requests: bool,
     pub fail_on_kind: Option<&'static str>,
+    pub sandbox: bool,
 }
 
 impl Default for WorldSetup {
@@ -38,6 +39,7 @@ impl Default for WorldSetup {
             tools: vec![read_file_spec()],
             probe_requests: false,
             fail_on_kind: None,
+            sandbox: true,
         }
     }
 }
@@ -94,7 +96,16 @@ impl TurnWorld {
         let session = build_session(&clock)?;
         let clock_dyn = share_clock(&clock);
         let bot = BotId::generate(clock_dyn.as_ref());
+        let gated = Arc::new(
+            crate::fake_builder::FakeComputerBuilder::default()
+                .named("bot-computer")
+                .bot_machine()
+                .sandbox(setup.sandbox)
+                .clock(Arc::clone(&clock))
+                .build(),
+        );
         let runner = Arc::new(TurnRunner::new(RunnerParts {
+            gated,
             record: crate::mem_store::share_record(&record),
             raw: share_raw(&raw),
             session,
