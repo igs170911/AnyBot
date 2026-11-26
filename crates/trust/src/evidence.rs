@@ -4,7 +4,7 @@ use crate::runner::OpRejection;
 use anybot_foundation::{Clock, EvidenceId, TaskId, TurnId};
 use anybot_protocol::{
     ActionOutcome, ActualResult, EvidenceKind, EvidencePayload, EvidenceRecord, EvidenceShortId,
-    GateOutcome, GateRecord, JudgementSource, NotExecutedReason, ReasonPayload,
+    GateOutcome, GateRecord, JudgementSource, ReasonPayload,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,7 +30,7 @@ impl ActionContext {
 }
 
 #[must_use]
-pub fn build_evidence(
+pub(crate) fn build_evidence(
     context: &ActionContext,
     gate: &GateRecord,
     result: &ActualResult,
@@ -59,7 +59,7 @@ pub fn build_evidence(
 }
 
 #[must_use]
-pub fn rejected_evidence(
+pub(crate) fn rejected_evidence(
     context: &ActionContext,
     gate: &GateRecord,
     reason: ReasonPayload,
@@ -69,7 +69,7 @@ pub fn rejected_evidence(
         context,
         gate,
         clock,
-        EvidenceKind::Approved,
+        EvidenceKind::Rejected,
         ActionOutcome::Rejected,
         gate.source,
         EvidencePayload::Rejected { reason },
@@ -77,7 +77,7 @@ pub fn rejected_evidence(
 }
 
 #[must_use]
-pub fn failed_evidence(
+pub(crate) fn failed_evidence(
     context: &ActionContext,
     gate: &GateRecord,
     reason: ReasonPayload,
@@ -87,7 +87,7 @@ pub fn failed_evidence(
         context,
         gate,
         clock,
-        EvidenceKind::Approved,
+        EvidenceKind::Failed,
         ActionOutcome::Failed,
         JudgementSource::ProgramCheck,
         EvidencePayload::Rejected { reason },
@@ -95,7 +95,7 @@ pub fn failed_evidence(
 }
 
 #[must_use]
-pub fn approved_evidence(
+pub(crate) fn approved_evidence(
     context: &ActionContext,
     gate: &GateRecord,
     source: JudgementSource,
@@ -110,38 +110,6 @@ pub fn approved_evidence(
         source,
         EvidencePayload::Approved { gate: gate.clone() },
     )
-}
-
-#[must_use]
-pub fn not_executed_evidence(
-    context: &ActionContext,
-    gate: &GateRecord,
-    reason: NotExecutedReason,
-    detail: ReasonPayload,
-    clock: &dyn Clock,
-) -> EvidenceRecord {
-    base_record(
-        context,
-        gate,
-        clock,
-        EvidenceKind::Approved,
-        ActionOutcome::NotExecuted,
-        JudgementSource::Rule,
-        EvidencePayload::NotExecuted { reason, detail },
-    )
-}
-
-#[must_use]
-pub fn ungated_evidence(
-    context: &ActionContext,
-    gate: &GateRecord,
-    result: &ActualResult,
-    clock: &dyn Clock,
-) -> EvidenceRecord {
-    let mut record = build_evidence(context, gate, result, clock);
-    record.ungated = true;
-    record.source = JudgementSource::Ungated;
-    record
 }
 
 #[must_use]
@@ -240,6 +208,28 @@ mod tests {
     }
 
     #[test]
+    fn test_refused_and_failed_steps_have_their_own_kinds() {
+        let gate = GateRecord::new(
+            GateNo(4),
+            RuleLayer::Default,
+            "bot-machine-files".to_owned(),
+            JudgementSource::Rule,
+            GateOutcome::Deny,
+            false,
+        );
+        let reason = ReasonPayload {
+            code: "gate-denied".to_owned(),
+            params: Vec::new(),
+        };
+        let refused = rejected_evidence(&context(), &gate, reason.clone(), &SystemClock);
+        assert_eq!(refused.kind, EvidenceKind::Rejected);
+        assert_eq!(refused.outcome, ActionOutcome::Rejected);
+        let broken = failed_evidence(&context(), &gate, reason.clone(), &SystemClock);
+        assert_eq!(broken.kind, EvidenceKind::Failed);
+        assert_eq!(broken.outcome, ActionOutcome::Failed);
+    }
+
+    #[test]
     fn test_evidence_write_result_records_before_and_after_digests() {
         let gate = GateRecord::new(
             GateNo(4),
@@ -258,29 +248,6 @@ mod tests {
         let record = build_evidence(&context(), &gate, &result, &SystemClock);
         assert_eq!(record.kind, EvidenceKind::Changed);
         assert_eq!(record.outcome, ActionOutcome::Completed);
-    }
-
-    #[test]
-    fn test_evidence_ungated_report_marks_the_source_and_flag() {
-        let gate = GateRecord::new(
-            GateNo(4),
-            RuleLayer::Default,
-            "unverified-report".to_owned(),
-            JudgementSource::Ungated,
-            GateOutcome::Allow,
-            false,
-        );
-        let result = ActualResult::Read(ReadOutcome {
-            path: "/workspace/x".to_owned(),
-            kind: TargetKind::File,
-            digest: ContentDigest::sha256(b"x"),
-            size: 1,
-            content: "x".to_owned(),
-        });
-        let record = ungated_evidence(&context(), &gate, &result, &SystemClock);
-        assert!(record.ungated);
-        assert_eq!(record.source, JudgementSource::Ungated);
-        assert_eq!(record.gate.outcome, GateOutcome::Allow);
     }
 
     #[test]

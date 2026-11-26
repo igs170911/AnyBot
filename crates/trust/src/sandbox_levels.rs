@@ -1,8 +1,8 @@
 use crate::sandbox_deny::split_segments;
 
-pub const READ_ONLY_COMMANDS: [&str; 24] = [
-    "ls", "pwd", "cat", "head", "tail", "less", "more", "grep", "egrep", "fgrep", "find", "stat",
-    "du", "df", "wc", "file", "tree", "ps", "top", "uptime", "free", "vm_stat", "iostat", "purge",
+pub const READ_ONLY_COMMANDS: [&str; 20] = [
+    "ls", "pwd", "cat", "head", "tail", "wc", "echo", "rg", "grep", "find", "file", "stat", "du",
+    "df", "date", "which", "tree", "sort", "uniq", "diff",
 ];
 
 const READ_ONLY_GIT_SUBCOMMANDS: [&str; 4] = ["status", "diff", "log", "show"];
@@ -136,15 +136,38 @@ mod tests {
 
     #[test]
     fn t_sandbox_levels_1() {
-        for cmd in READ_ONLY_COMMANDS {
-            assert_eq!(command_level(cmd), CommandLevel::Direct, "cmd {cmd}");
+        const EXPECTED: [(&str, CommandLevel); 27] = [
+            ("ls", CommandLevel::Direct),
+            ("pwd", CommandLevel::Direct),
+            ("cat", CommandLevel::Direct),
+            ("head", CommandLevel::Direct),
+            ("tail", CommandLevel::Direct),
+            ("wc", CommandLevel::Direct),
+            ("echo", CommandLevel::Direct),
+            ("rg", CommandLevel::Direct),
+            ("grep", CommandLevel::Direct),
+            ("find", CommandLevel::Direct),
+            ("file", CommandLevel::Direct),
+            ("stat", CommandLevel::Direct),
+            ("du", CommandLevel::Direct),
+            ("df", CommandLevel::Direct),
+            ("date", CommandLevel::Direct),
+            ("which", CommandLevel::Direct),
+            ("tree", CommandLevel::Direct),
+            ("sort", CommandLevel::Direct),
+            ("uniq", CommandLevel::Direct),
+            ("diff", CommandLevel::Direct),
+            ("git status", CommandLevel::Direct),
+            ("git diff", CommandLevel::Direct),
+            ("git log", CommandLevel::Direct),
+            ("git show", CommandLevel::Direct),
+            ("ls && git status", CommandLevel::Direct),
+            ("ls > out.txt", CommandLevel::AskEveryTime),
+            ("grep x | sort -o y", CommandLevel::AskEveryTime),
+        ];
+        for (line, level) in EXPECTED {
+            assert_eq!(command_level(line), level, "line {line}");
         }
-        assert_eq!(command_level("ls && git status"), CommandLevel::Direct);
-        assert_eq!(command_level("ls > out.txt"), CommandLevel::AskEveryTime);
-        assert_eq!(
-            command_level("grep x | sort -o y"),
-            CommandLevel::AskEveryTime
-        );
     }
 
     #[test]
@@ -153,7 +176,7 @@ mod tests {
         assert_eq!(command_level("ls $(whoami)"), CommandLevel::AskEveryTime);
         assert_eq!(command_level("eval ls"), CommandLevel::AskEveryTime);
         assert_eq!(
-            command_level("ls && echo a && echo b"),
+            command_level("ls && make test && npm run x"),
             CommandLevel::AskEveryTime
         );
         assert_eq!(command_level("sed -i s/a/b/ notes.txt"), CommandLevel::Ask);
@@ -161,12 +184,12 @@ mod tests {
             command_level("cd /workspace && cat notes.txt"),
             CommandLevel::Ask
         );
-        assert_eq!(command_level("echo hello"), CommandLevel::Ask);
+        assert_eq!(command_level("echo hello"), CommandLevel::Direct);
     }
 
     #[test]
     fn test_sandbox_levels_unbalanced_quotes_count_as_indeterminate() {
         assert_eq!(command_level("echo \"abc"), CommandLevel::AskEveryTime);
-        assert_eq!(command_level("echo 'abc'"), CommandLevel::Ask);
+        assert_eq!(command_level("echo 'abc'"), CommandLevel::Direct);
     }
 }

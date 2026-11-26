@@ -12,6 +12,9 @@ pub enum EvidenceKind {
     Changed,
     Executed,
     Approved,
+    Rejected,
+    Failed,
+    NotExecuted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
