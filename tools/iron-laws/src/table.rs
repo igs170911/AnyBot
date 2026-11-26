@@ -66,6 +66,7 @@ pub fn package_of_path(path: &str) -> Option<String> {
         ("tools", Some(_) | None) => Some(dir.to_owned()),
         ("tests", Some(_)) if dir == "harness" => Some("test-harness".to_owned()),
         ("tests", Some(_)) if dir == "live-model" => Some("live-model".to_owned()),
+        ("tests", Some(_)) if dir == "os-certs" => Some("os-certs".to_owned()),
         _ => None,
     }
 }
@@ -89,6 +90,7 @@ mod tests {
         let want = [
             "std::fs::read_to_string".to_owned(),
             "std::fs::File::open".to_owned(),
+            "std::fs::read_dir".to_owned(),
             "std::env::home_dir".to_owned(),
             "time::OffsetDateTime::now_utc".to_owned(),
             "tokio::time::sleep".to_owned(),
@@ -197,6 +199,10 @@ mod tests {
         assert_eq!(
             package_of_path("tests/live-model/src/main.rs").as_deref(),
             Some("live-model")
+        );
+        assert_eq!(
+            package_of_path("tests/os-certs/src/main.rs").as_deref(),
+            Some("os-certs")
         );
         assert_eq!(package_of_path("web/ui/src/shell.tsx"), None);
     }

@@ -1,4 +1,3 @@
-use rustls_native_certs as _;
 use rustls_pki_types as _;
 
 #[cfg(test)]

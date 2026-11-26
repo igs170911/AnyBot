@@ -50,7 +50,6 @@ disallowed-methods = [
     { path = "std::fs::create_dir", reason = "same" },
     { path = "std::fs::remove_dir", reason = "same" },
     { path = "std::fs::remove_dir_all", reason = "same" },
-    { path = "std::fs::read_dir", reason = "same" },
     { path = "std::fs::set_permissions", reason = "same (spec/07 §3; the startup file must be pinned to 0600)" },
     { path = "std::fs::hard_link", reason = "same" },
     { path = "std::fs::OpenOptions::new", reason = "same" },

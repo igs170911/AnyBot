@@ -28,13 +28,18 @@ fn pem_text_outside_blocks_is_rejected() {
 }
 
 #[test]
-fn cert_file_path_does_not_replace_the_os_store() {
-    let built = TrustStore::new(&TrustedCerts::empty()).expect("os trust store");
-    let from_file = rustls_native_certs::load_certs_from_paths(
-        Some(std::path::Path::new("target/missing-cert-file.pem")),
-        Some(std::path::Path::new("target/missing-cert-dir")),
+fn unreadable_system_bundle_is_an_error() {
+    let loaded = crate::certs_os::pem::load_from(
+        &["target/m7a5-missing-bundle.pem"],
+        &["target/m7a5-missing-bundle-dir"],
     );
-    assert!(from_file.certs.is_empty());
-    assert!(!from_file.errors.is_empty());
-    assert!(built.root_count() > 0);
+    assert!(loaded.certs.is_empty());
+    assert!(
+        loaded
+            .notes
+            .iter()
+            .any(|note| note.contains("no system certificate bundle found")),
+        "{:?}",
+        loaded.notes
+    );
 }

@@ -97,16 +97,13 @@ pub struct TrustStore {
 
 impl TrustStore {
     pub fn new(extra: &TrustedCerts) -> Result<Arc<Self>, String> {
-        let (certs, notes) = crate::certs_os::load_os_roots();
-        if certs.is_empty() && !notes.is_empty() {
-            return Err(os_store_error_text(&notes));
-        }
-        if certs.is_empty() {
-            return Err("os trust store returned no certificates".to_owned());
+        let loaded = crate::certs_os::load_os_roots();
+        if loaded.certs.is_empty() {
+            return Err(os_store_error_text(&loaded.notes));
         }
         let mut roots = RootCertStore::empty();
-        let mut skipped = notes;
-        for cert in certs {
+        let mut skipped = loaded.notes;
+        for cert in loaded.certs {
             if let Err(err) = roots.add(cert) {
                 skipped.push(format!("os trust store: {err}"));
             }

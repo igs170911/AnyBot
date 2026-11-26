@@ -20,10 +20,14 @@ tokio = { workspace = true, features = ["time"] }
 zeroize = { workspace = true }
 rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
-rustls-native-certs = { workspace = true }
-security-framework = { workspace = true }
 webpki = { workspace = true }
 x509-parser = { workspace = true }
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+schannel = { workspace = true }
+
 [lints]
 workspace = true
 

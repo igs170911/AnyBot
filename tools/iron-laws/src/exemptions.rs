@@ -18,6 +18,7 @@ fn fill_server_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<Strin
         &[
             "std::fs::read_to_string",
             "std::fs::File::open",
+            "std::fs::read_dir",
             "std::env::home_dir",
             "time::OffsetDateTime::now_utc",
             "tokio::time::sleep",
@@ -49,6 +50,12 @@ fn fill_client_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<Strin
         &[CMD_T[0], CMD_T[1], FS_T[0], FS_T[1], FS_T[2], FS_T[3]],
     );
     insert(m, "live-model", &merge(&[&HTTP_M, &FS_M, &PERMIT_M]), &FS_T);
+    insert(
+        m,
+        "os-certs",
+        &merge(&[&FS_M, &STD_PROC]),
+        &[CMD_T[0], FS_T[0], FS_T[1], FS_T[2]],
+    );
 }
 
 fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>>>) {
