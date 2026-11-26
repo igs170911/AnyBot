@@ -7,11 +7,9 @@ use anybot_store_client as store_client;
 use proptest as _;
 pub mod after_merge;
 pub mod outbox;
-pub mod settings_merge;
 
 pub use after_merge::{Replica, StreamDelta, StreamItem, delta_from};
 pub use outbox::{RETRY_CAP_SECONDS, retry_delay_secs, retry_schedule};
-pub use settings_merge::{FieldEdit, FieldKey, SettingsState, agreed};
 
 pub type SyncHttpClient = reqwest::Client;
 
@@ -45,6 +43,5 @@ mod after_merge_tests;
 #[cfg(test)]
 mod outbox_tests;
 #[cfg(test)]
-mod settings_merge_tests;
 #[cfg(test)]
 mod sync_id_tests;

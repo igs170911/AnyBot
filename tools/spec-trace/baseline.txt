@@ -2283,6 +2283,7 @@ T-sync-append-6
 T-sync-files-1
 T-sync-files-2
 T-sync-files-3
+T-sync-id-1
 T-sync-id-2
 T-sync-id-3
 T-sync-id-4
@@ -2314,6 +2315,7 @@ T-sync-seq-2
 T-sync-settings-1
 T-sync-settings-2
 T-sync-settings-3
+T-sync-settings-4
 T-sync-settings-5
 T-sync-settings-6
 T-sync-settings-7

@@ -29,7 +29,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(10))]
 
     #[test]
-    fn t_sync_id_1(seeds in prop::collection::vec(0i64..3_600_000, 10), base in 1_700_000_000_000u64..1_700_000_060_000) {
+    fn record_ids_unique_across_skewed_clocks(seeds in prop::collection::vec(0i64..3_600_000, 10), base in 1_700_000_000_000u64..1_700_000_060_000) {
         let mut all: Vec<String> = vec![];
         for seed in seeds {
             let clock = Skewed { base, skew: seed };

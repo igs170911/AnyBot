@@ -10,7 +10,9 @@ pub struct FieldEdit {
     pub list_item: Option<String>,
     pub device: DeviceId,
     pub device_time: TimestampMs,
-    pub clock_offset_ms: u64,
+    pub clock_offset_ms: i64,
+    pub received_ms: TimestampMs,
+    pub stream_seq: u64,
     pub value: String,
 }
 
@@ -25,10 +27,16 @@ impl FieldEdit {
 
     #[must_use]
     pub fn corrected_time(&self) -> u64 {
-        self.device_time
-            .millis()
-            .saturating_sub(self.clock_offset_ms)
+        corrected_time(self.device_time, self.clock_offset_ms, self.received_ms)
     }
+}
+
+#[must_use = "the corrected time is the clock the merge compares edits on"]
+pub fn corrected_time(device_time: TimestampMs, offset_ms: i64, received_ms: TimestampMs) -> u64 {
+    let device_ms = i64::try_from(device_time.millis()).unwrap_or(i64::MAX);
+    let shifted = device_ms.saturating_add(offset_ms);
+    let received = received_ms.millis();
+    u64::try_from(shifted).unwrap_or(received).min(received)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -37,14 +45,16 @@ pub struct SettingsState {
 }
 
 impl SettingsState {
-    #[must_use]
-    pub fn wins(existing: &FieldEdit, incoming: &FieldEdit) -> bool {
-        let left = existing.corrected_time();
-        let right = incoming.corrected_time();
-        if right != left {
-            return right > left;
-        }
-        incoming.device.as_str() > existing.device.as_str()
+    #[must_use = "the verdict decides whether the incoming edit replaces the stored winner"]
+    pub fn wins(incoming: &FieldEdit, existing: &FieldEdit) -> bool {
+        let time = existing.corrected_time();
+        let device = existing.device.as_str();
+        let later = incoming.corrected_time() > time;
+        let same_time = incoming.corrected_time() == time;
+        let bigger_device = same_time && incoming.device.as_str() > device;
+        let same_device = same_time && incoming.device.as_str() == device;
+        let bigger_seq = same_device && incoming.stream_seq > existing.stream_seq;
+        later || bigger_device || bigger_seq
     }
 
     pub fn apply(&mut self, edit: &FieldEdit) {
@@ -63,13 +73,13 @@ impl SettingsState {
         }
     }
 
-    #[must_use]
+    #[must_use = "the stored winner value is what every device reads back"]
     pub fn value_of(&self, key: &FieldKey) -> Option<String> {
         self.winners.get(key).map(|e| e.value.clone())
     }
 }
 
-#[must_use]
+#[must_use = "agreement means every device converged to the same winners"]
 pub fn agreed(states: &[SettingsState]) -> bool {
     let Some(first) = states.first() else {
         return true;
