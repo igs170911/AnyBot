@@ -4,6 +4,40 @@ use anybot_foundation::{DeviceId, TimestampMs};
 
 pub type FieldKey = String;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EditTiming {
+    pub device_time: TimestampMs,
+    pub clock_offset_ms: i64,
+    pub received_ms: TimestampMs,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CorrectedTimeError {
+    Overflow,
+    BeforeEpoch,
+}
+
+#[must_use = "the corrected time is the clock the merge compares edits on"]
+pub fn corrected_time(
+    device_time: TimestampMs,
+    offset_ms: i64,
+    received_ms: TimestampMs,
+) -> Result<u64, CorrectedTimeError> {
+    let Some(device) = i64::try_from(device_time.millis()).ok() else {
+        return Err(CorrectedTimeError::Overflow);
+    };
+    let Some(received) = i64::try_from(received_ms.millis()).ok() else {
+        return Err(CorrectedTimeError::Overflow);
+    };
+    let Some(sum) = device.checked_add(offset_ms) else {
+        return Err(CorrectedTimeError::Overflow);
+    };
+    if sum < 0 {
+        return Err(CorrectedTimeError::BeforeEpoch);
+    }
+    Ok(sum.min(received).cast_unsigned())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldEdit {
     pub field: FieldKey,
@@ -14,40 +48,47 @@ pub struct FieldEdit {
     pub received_ms: TimestampMs,
     pub stream_seq: u64,
     pub value: String,
+    corrected_ms: u64,
 }
 
 impl FieldEdit {
-    #[must_use]
+    pub fn new(
+        field: FieldKey,
+        list_item: Option<String>,
+        device: DeviceId,
+        timing: EditTiming,
+        stream_seq: u64,
+        value: String,
+    ) -> Result<Self, CorrectedTimeError> {
+        let corrected_ms = corrected_time(
+            timing.device_time,
+            timing.clock_offset_ms,
+            timing.received_ms,
+        )?;
+        Ok(Self {
+            field,
+            list_item,
+            device,
+            device_time: timing.device_time,
+            clock_offset_ms: timing.clock_offset_ms,
+            received_ms: timing.received_ms,
+            stream_seq,
+            value,
+            corrected_ms,
+        })
+    }
+
+    #[must_use = "the corrected time stored at construction is what the merge compares"]
+    pub fn corrected_ms(&self) -> u64 {
+        self.corrected_ms
+    }
+
+    #[must_use = "the key is the slot a winner competes for"]
     pub fn key(&self) -> FieldKey {
         match &self.list_item {
             Some(item) => format!("{}#{item}", self.field),
             None => self.field.clone(),
         }
-    }
-
-    #[must_use]
-    pub fn corrected_time(&self) -> u64 {
-        corrected_time(self.device_time, self.clock_offset_ms, self.received_ms)
-    }
-}
-
-#[must_use = "the corrected time is the clock the merge compares edits on"]
-pub fn corrected_time(device_time: TimestampMs, offset_ms: i64, received_ms: TimestampMs) -> u64 {
-    let device_ms = i64::try_from(device_time.millis()).unwrap_or(i64::MAX);
-    let received_ms = i64::try_from(received_ms.millis()).unwrap_or(i64::MAX);
-    device_ms
-        .saturating_add(offset_ms)
-        .clamp(0, received_ms)
-        .to_u64_millis()
-}
-
-trait MillisCast {
-    fn to_u64_millis(self) -> u64;
-}
-
-impl MillisCast for i64 {
-    fn to_u64_millis(self) -> u64 {
-        u64::try_from(self).unwrap_or(u64::MAX)
     }
 }
 
@@ -59,12 +100,10 @@ pub struct SettingsState {
 impl SettingsState {
     #[must_use = "the verdict decides whether the incoming edit beats the stored winner"]
     pub fn wins(incoming: &FieldEdit, existing: &FieldEdit) -> bool {
-        let time = existing.corrected_time();
-        let device = existing.device.as_str();
-        let later = incoming.corrected_time() > time;
-        let same_time = incoming.corrected_time() == time;
-        let bigger_device = same_time && incoming.device.as_str() > device;
-        let same_device = same_time && incoming.device.as_str() == device;
+        let later = incoming.corrected_ms > existing.corrected_ms;
+        let same_time = incoming.corrected_ms == existing.corrected_ms;
+        let bigger_device = same_time && incoming.device.as_str() > existing.device.as_str();
+        let same_device = same_time && incoming.device.as_str() == existing.device.as_str();
         let bigger_seq = same_device && incoming.stream_seq > existing.stream_seq;
         later || bigger_device || bigger_seq
     }
