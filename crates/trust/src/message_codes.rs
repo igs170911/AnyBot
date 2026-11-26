@@ -8,6 +8,7 @@ pub const CODE_GATE_DENIED: &str = "gate-denied";
 pub const CODE_GATE_USER_REJECTED: &str = "gate-user-rejected";
 pub const CODE_GATE_ASK_PENDING: &str = "gate-ask-pending";
 pub const CODE_GATE_TICKET_MISMATCH: &str = "gate-ticket-mismatch";
+pub const CODE_GATE_ASK_COMPUTER_MISMATCH: &str = "gate-ask-computer-mismatch";
 pub const CODE_TURN_COMPLETED: &str = "turn-completed";
 pub const CODE_TURN_FAILED: &str = "turn-failed";
 pub const CODE_TURN_TOOL_FAILED: &str = "turn-tool-failed";
@@ -20,7 +21,7 @@ pub const CODE_TOOL_COMPUTER_UNREACHABLE: &str = "tool-computer-unreachable";
 pub const CODE_TOOL_EXECUTION_FAILED: &str = "tool-execution-failed";
 
 #[must_use]
-pub fn all_codes() -> [&'static str; 20] {
+pub fn all_codes() -> [&'static str; 21] {
     [
         CODE_GATE_COMMAND_DENIED,
         CODE_GATE_PRIVATE_FILE,
@@ -31,6 +32,7 @@ pub fn all_codes() -> [&'static str; 20] {
         CODE_GATE_DENIED,
         CODE_GATE_USER_REJECTED,
         CODE_GATE_ASK_PENDING,
+        CODE_GATE_ASK_COMPUTER_MISMATCH,
         CODE_GATE_TICKET_MISMATCH,
         CODE_TURN_COMPLETED,
         CODE_TURN_FAILED,
@@ -57,6 +59,6 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), 20);
+        assert_eq!(seen.len(), 21);
     }
 }

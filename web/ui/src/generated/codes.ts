@@ -96,7 +96,8 @@ export type MessageCode =
   "tool-shell-no-output" |
   "tool-shell-failed" |
   "tool-shell-trimmed" |
-  "tool-shell-timed-out";
+  "tool-shell-timed-out" |
+  "gate-ask-computer-mismatch";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -195,4 +196,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-shell-failed",
   "tool-shell-trimmed",
   "tool-shell-timed-out",
+  "gate-ask-computer-mismatch",
 ];

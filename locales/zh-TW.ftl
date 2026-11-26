@@ -95,3 +95,5 @@ tool-shell-no-output = 完成，沒有輸出。
 tool-shell-failed = 結束代碼 { $code }。
 tool-shell-trimmed = 輸出很長：省略了 { $omitted } 個字，原文的編號是 { $digest }。
 tool-shell-timed-out = 指令時間到了：操作本身失敗。
+
+gate-ask-computer-mismatch = 這張核准是在 { $asked_for } 上問的，不能在 { $answered_on } 上回答。

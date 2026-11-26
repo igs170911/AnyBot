@@ -1,6 +1,8 @@
-use crate::action::{ActionSubject, GateAction};
+use crate::action::{ActionKey, ActionSubject, GateAction};
+use crate::always_list::AlwaysList;
 use crate::gate_engine::{GateLayer, Opinion};
-use crate::gate_full::{EngineInput, ModeFlags, StyleFlags, decide};
+use crate::gate_full::{EngineInput, ModeFlags, decide};
+use crate::gate_rules::{hook_opinion, style_hits};
 use crate::machine_rules::{RuleVerdict, default_rule};
 use crate::op_ticket::OpTicket;
 use crate::trust_floor::{FloorAction, FloorDeny, floor_check};
@@ -10,11 +12,30 @@ use anybot_protocol::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuleEntry {
+    pub key: ActionKey,
+    pub opinion: Opinion,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct UserRules {
+    pub always: AlwaysList,
+    pub session: Vec<ActionKey>,
+    pub ask_style: Vec<ActionKey>,
+    pub allow_style: Vec<ActionKey>,
+    pub hook: Vec<RuleEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AdminRules {
+    pub hook: Vec<RuleEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GateConfig {
     pub modes: ModeFlags,
-    pub styles: StyleFlags,
-    pub admin_hook: Opinion,
-    pub user_hook: Opinion,
+    pub user: UserRules,
+    pub admin: AdminRules,
 }
 
 impl GateConfig {
@@ -28,14 +49,8 @@ impl GateConfig {
                 direct_mode: false,
                 mdm_locks_direct: false,
             },
-            styles: StyleFlags {
-                ask_style_hit: false,
-                allow_style_hit: false,
-                always_hit: false,
-                session_allowed: false,
-            },
-            admin_hook: Opinion::None,
-            user_hook: Opinion::None,
+            user: UserRules::default(),
+            admin: AdminRules::default(),
         }
     }
 }
@@ -126,14 +141,19 @@ pub fn floor_view(action: &GateAction, caps: &ComputerCaps) -> FloorAction {
 }
 
 #[must_use]
-pub(crate) fn judge(action: &GateAction, caps: &ComputerCaps, config: &GateConfig) -> GateVerdict {
+pub(crate) fn judge(
+    action: &GateAction,
+    caps: &ComputerCaps,
+    config: &GateConfig,
+    computer: &str,
+) -> GateVerdict {
     let verdict = default_rule(action, caps);
     let input = EngineInput {
         action: floor_view(action, caps),
         modes: config.modes.clone(),
-        styles: config.styles.clone(),
-        admin_hook: config.admin_hook,
-        user_hook: config.user_hook,
+        styles: style_hits(action, computer, &config.user),
+        admin_hook: hook_opinion(&config.admin.hook, &action.key()),
+        user_hook: hook_opinion(&config.user.hook, &action.key()),
         default_rule: verdict.opinion(),
     };
     let floor_hit = floor_check(&floor_view(action, caps));
@@ -230,64 +250,5 @@ fn decision_rule(layer: GateLayer, verdict: &RuleVerdict, floor_hit: Option<Floo
         },
         GateLayer::Admin => "admin-rule".to_owned(),
         GateLayer::User => "user-rule".to_owned(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::action::PathView;
-    use anybot_protocol::{CapState, ComputerPlatform};
-
-    fn bot_caps() -> ComputerCaps {
-        ComputerCaps {
-            owner: ComputerOwner::Bot,
-            platform: ComputerPlatform::Linux,
-            run_commands: CapState::Supported,
-            read_files: CapState::Supported,
-            write_files: CapState::Supported,
-            check_path: CapState::Supported,
-            command_sandbox: CapState::Supported,
-            ..ComputerCaps::declared(ComputerPlatform::Linux, ComputerOwner::Bot)
-        }
-    }
-
-    #[test]
-    fn test_gate_flow_floor_denial_records_the_first_gate() {
-        let action = GateAction::command("shell", "mkfs.ext4 /dev/sda1", "/workspace", Vec::new());
-        let verdict = judge(&action, &bot_caps(), &GateConfig::plain());
-        assert_eq!(verdict.outcome, GateOutcome::Deny);
-        assert_eq!(verdict.gate_no().value(), 1);
-        assert_eq!(verdict.record().layer, RuleLayer::Floor);
-    }
-
-    #[test]
-    fn test_gate_flow_default_direct_rule_issues_a_ticket_for_that_action() {
-        let action = GateAction::command("shell", "ls -la", "/workspace", Vec::new());
-        let verdict = judge(&action, &bot_caps(), &GateConfig::plain());
-        assert_eq!(verdict.outcome, GateOutcome::Allow);
-        assert_eq!(verdict.rule, "bot-machine-command");
-        let ticket = verdict.ticket(&action, "fake-computer", TimestampMs::from_millis(5));
-        assert!(ticket.is_some());
-        let other = GateAction::command("shell", "ls -lb", "/workspace", Vec::new());
-        let issued = ticket.unwrap();
-        assert_eq!(issued.key(), &action.key());
-        assert_ne!(issued.key(), &other.key());
-        assert_eq!(issued.computer(), "fake-computer");
-    }
-
-    #[test]
-    fn test_gate_flow_private_path_is_denied_by_the_floor_rule() {
-        let action = GateAction {
-            tool: "read_file".to_owned(),
-            subject: ActionSubject::ReadFile {
-                path: PathView::raw("~/.ssh/id_ed25519"),
-            },
-            extra_paths: Vec::new(),
-            workdir: "/workspace".to_owned(),
-        };
-        let verdict = judge(&action, &bot_caps(), &GateConfig::plain());
-        assert_eq!(verdict.outcome, GateOutcome::Deny);
-        assert!(floor_check(&floor_view(&action, &bot_caps())).is_some());
     }
 }

@@ -24,6 +24,7 @@ pub mod evidence_payload;
 pub mod gate_engine;
 pub mod gate_flow;
 pub mod gate_full;
+pub mod gate_rules;
 pub mod machine_rules;
 #[cfg(test)]
 mod machine_rules_tests;
@@ -32,6 +33,7 @@ pub mod op_ticket;
 #[cfg(test)]
 mod op_ticket_computer_tests;
 pub mod pipeline;
+pub(crate) mod pipeline_exec;
 pub mod pipeline_run;
 pub mod pipeline_verify;
 pub mod runner;
@@ -53,8 +55,7 @@ pub use edit_rule::{
 };
 pub use evidence::ActionContext;
 pub use gate_engine::{GateLayer, LayerCall, Opinion, Outcome, precedence_decision};
-pub use gate_flow::{GateConfig, rule_code};
-pub use gate_full::{EngineInput, GateDecision, decide};
+pub use gate_flow::{AdminRules, GateConfig, RuleEntry, UserRules, rule_code};
 pub use machine_rules::{MachineLevel, RuleVerdict, default_rule, inside_workdir};
 pub use message_codes::{
     CODE_GATE_ASK_PENDING, CODE_GATE_BOT_MACHINE_OUTSIDE, CODE_GATE_COMMAND_DENIED,
@@ -96,6 +97,8 @@ mod always_list_tests;
 mod claim_levels_tests;
 #[cfg(test)]
 mod gate_engine_tests;
+#[cfg(test)]
+mod gate_flow_tests;
 #[cfg(test)]
 mod gate_full_tests;
 #[cfg(test)]

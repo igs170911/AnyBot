@@ -32,12 +32,12 @@ error: cannot construct `AskTicket` with struct literal syntax due to private fi
 4 |         card: anybot_trust::CardData::default(),
   |         --------------------------------------- private field
   |
-  = note: ...and other private fields `verdict`, `action` and `request` that were not provided
+  = note: ...and other private fields `verdict`, `action`, `request`, `computer` and `caps` that were not provided
 help: you might have meant to use the `new` associated function
   |
 2 -     let ticket = anybot_trust::AskTicket {
 3 -         gate: anybot_protocol::GateRecord::default(),
 4 -         card: anybot_trust::CardData::default(),
 5 -     };
-2 +     let ticket = anybot_trust::AskTicket::new(_, _, _, _);
+2 +     let ticket = anybot_trust::AskTicket::new(_, _, _, _, _);
   |

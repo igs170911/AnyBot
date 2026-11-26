@@ -19,7 +19,7 @@ pub struct StyleFlags {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EngineInput {
+pub(crate) struct EngineInput {
     pub action: FloorAction,
     pub modes: ModeFlags,
     pub styles: StyleFlags,
@@ -29,7 +29,7 @@ pub struct EngineInput {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GateDecision {
+pub(crate) struct GateDecision {
     pub outcome: Outcome,
     pub layer: GateLayer,
     pub rule: String,
@@ -77,7 +77,7 @@ fn default_call(input: &EngineInput) -> LayerCall {
 }
 
 #[must_use]
-pub fn decide(input: &EngineInput) -> GateDecision {
+pub(crate) fn decide(input: &EngineInput) -> GateDecision {
     let floor_hit = floor_check(&input.action).is_some();
     let calls = [
         floor_call(input, floor_hit),

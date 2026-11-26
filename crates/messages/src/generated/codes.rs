@@ -100,6 +100,7 @@ pub enum MessageCode {
     ToolShellFailed,
     ToolShellTrimmed,
     ToolShellTimedOut,
+    GateAskComputerMismatch,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -267,6 +268,10 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::ToolShellFailed, "tool-shell-failed"),
     (MessageCode::ToolShellTrimmed, "tool-shell-trimmed"),
     (MessageCode::ToolShellTimedOut, "tool-shell-timed-out"),
+    (
+        MessageCode::GateAskComputerMismatch,
+        "gate-ask-computer-mismatch",
+    ),
 ];
 
 impl MessageCode {

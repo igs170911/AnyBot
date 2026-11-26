@@ -94,3 +94,4 @@ tool-shell-no-output = Finished with no output.
 tool-shell-failed = Exit code { $code }.
 tool-shell-trimmed = Output was long: { $omitted } characters were omitted; the full text digest is { $digest }.
 tool-shell-timed-out = The command timed out: the operation itself failed.
+gate-ask-computer-mismatch = The approval was asked on { $asked_for }; it cannot be answered on { $answered_on }.

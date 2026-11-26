@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anybot_protocol::{EvidencePayload, GateOutcome, JudgementSource};
+use anybot_trust::GatedComputer;
 use anybot_trust::{
     ActionSubject, GateAnswer, GateConfig, PathView, RunStep, answer_ask, run_action,
 };
@@ -58,6 +59,38 @@ fn test_an_ask_step_answered_deny_never_reaches_the_computer() {
     );
     assert_eq!(run.gate.outcome, GateOutcome::Deny);
     assert_eq!(computer.logged().len(), 0);
+}
+
+#[test]
+fn test_answering_an_ask_on_a_different_computer_refuses_the_action() {
+    let clock = fresh_clock();
+    let asking = push_computer(&clock);
+    let step = run(&asking, &command_request("git push origin", &clock));
+    let RunStep::Ask(ticket) = step else {
+        panic!("the sending action must ask");
+    };
+    assert_eq!(ticket.computer_name(), asking.name());
+    let answering = FakeComputerBuilder::default()
+        .bot_machine()
+        .named("other-machine")
+        .clock(Arc::clone(&clock))
+        .script("git push origin", CommandScript::ok("done"))
+        .build();
+    let run = answer_ask(
+        *ticket,
+        GateAnswer::Allow,
+        &answering,
+        &TestView,
+        clock.as_ref(),
+    );
+    assert_eq!(run.gate.outcome, GateOutcome::Deny);
+    assert_eq!(run.gate.source, JudgementSource::ProgramCheck);
+    assert_eq!(answering.logged().len(), 0);
+    assert_eq!(asking.logged().len(), 0);
+    let EvidencePayload::Rejected { reason, .. } = &run.evidence.first().unwrap().payload else {
+        panic!("the refused answer must carry a rejected payload");
+    };
+    assert_eq!(reason.code, "gate-ask-computer-mismatch");
 }
 
 #[test]

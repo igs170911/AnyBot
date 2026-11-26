@@ -4,7 +4,8 @@ use crate::command_target::command_target_paths;
 use crate::evidence::ActionContext;
 use crate::gate_flow::{GateConfig, GateVerdict, judge};
 use crate::op_ticket::OpTicket;
-use crate::pipeline_run::{RunStep, denied_run, executed_run, prepared_gate};
+use crate::pipeline_exec::executed_run;
+use crate::pipeline_run::{RunStep, denied_run, prepared_gate};
 use crate::runner::GatedComputer;
 use crate::safety_n5::{ActionClass, classes_of_command};
 use anybot_foundation::Clock;
@@ -66,11 +67,17 @@ pub fn run_action(
 ) -> RunStep {
     let action = prepared_action(request, computer);
     let caps = computer.declared_caps();
-    let verdict = judge(&action, &caps, config);
+    let verdict = judge(&action, &caps, config, computer.name());
     let gate = verdict.record();
     match verdict.outcome {
         GateOutcome::Deny => RunStep::Denied(denied_run(request, &verdict, &gate, view, clock)),
-        GateOutcome::Ask => RunStep::Ask(Box::new(AskTicket::new(verdict, action, &caps, request))),
+        GateOutcome::Ask => RunStep::Ask(Box::new(AskTicket::new(
+            verdict,
+            action,
+            &caps,
+            request,
+            computer.name(),
+        ))),
         GateOutcome::Allow => {
             let Some(ticket) = verdict.ticket(&action, computer.name(), clock.now_ms()) else {
                 return RunStep::Denied(denied_run(request, &verdict, &gate, view, clock));
@@ -87,6 +94,8 @@ pub struct AskTicket {
     action: GateAction,
     card: CardData,
     request: ActionRequest,
+    computer: String,
+    caps: ComputerCaps,
 }
 
 impl AskTicket {
@@ -115,6 +124,7 @@ impl AskTicket {
         action: GateAction,
         caps: &ComputerCaps,
         request: &ActionRequest,
+        computer: &str,
     ) -> Self {
         let card = build_card(&action, caps);
         AskTicket {
@@ -123,7 +133,14 @@ impl AskTicket {
             action,
             card,
             request: request.clone(),
+            computer: computer.to_owned(),
+            caps: caps.clone(),
         }
+    }
+
+    #[must_use]
+    pub fn computer_name(&self) -> &str {
+        &self.computer
     }
 
     #[must_use]
@@ -140,6 +157,17 @@ impl AskTicket {
     ) -> crate::pipeline_run::ActionRun {
         if self.verdict.outcome != GateOutcome::Ask {
             return crate::pipeline_run::user_rejected_run(&self.request, self.gate, view, clock);
+        }
+        if computer.name() != self.computer || computer.declared_caps() != self.caps {
+            let gate = prepared_gate(&self.gate, GateAnswer::Deny, JudgementSource::ProgramCheck);
+            return crate::pipeline_run::ask_computer_mismatch_run(
+                &self.request,
+                gate,
+                &self.computer,
+                computer.name(),
+                view,
+                clock,
+            );
         }
         let gate = prepared_gate(&self.gate, answer, JudgementSource::You);
         match answer {
