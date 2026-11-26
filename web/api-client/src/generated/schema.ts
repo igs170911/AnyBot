@@ -290,6 +290,8 @@ export interface components {
         LoginRequest: {
             /** @example alice */
             account: string;
+            /** @example bearer */
+            credential: string;
             /** @example phone P */
             label: string;
             /** @example longenough */
@@ -299,7 +301,9 @@ export interface components {
             /** @example alice */
             account: string;
             /** @example a1b2c3d4 */
-            session_key: string;
+            bearer_key?: string | null;
+            /** @example d1 */
+            device_id: string;
         };
         MessageParams: {
             [key: string]: unknown;
@@ -395,6 +399,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "account": "alice",
+                 *       "credential": "bearer",
                  *       "label": "phone",
                  *       "password": "hunter22"
                  *     }
@@ -412,7 +417,8 @@ export interface operations {
                     /**
                      * @example {
                      *       "account": "alice",
-                     *       "session_key": "a1b2c3d4e5f6a1b2"
+                     *       "bearer_key": "a1b2c3d4e5f6a1b2",
+                     *       "device_id": "d1"
                      *     }
                      */
                     "application/json": components["schemas"]["LoginSession"];

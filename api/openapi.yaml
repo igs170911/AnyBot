@@ -35,6 +35,7 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
             example:
               account: alice
+              credential: bearer
               label: phone
               password: hunter22
         required: true
@@ -47,7 +48,8 @@ paths:
                 $ref: '#/components/schemas/LoginSession'
               example:
                 account: alice
-                session_key: a1b2c3d4e5f6a1b2
+                bearer_key: a1b2c3d4e5f6a1b2
+                device_id: d1
         '400':
           description: Missing idempotency key
           content:
@@ -1191,10 +1193,14 @@ components:
       - account
       - password
       - label
+      - credential
       properties:
         account:
           type: string
           example: alice
+        credential:
+          type: string
+          example: bearer
         label:
           type: string
           example: phone P
@@ -1204,15 +1210,20 @@ components:
     LoginSession:
       type: object
       required:
-      - session_key
       - account
+      - device_id
       properties:
         account:
           type: string
           example: alice
-        session_key:
-          type: string
+        bearer_key:
+          type:
+          - string
+          - 'null'
           example: a1b2c3d4
+        device_id:
+          type: string
+          example: d1
     MessageParams:
       type: object
       additionalProperties: {}

@@ -45,6 +45,7 @@ pub struct StatusResponse {
     )
 )]
 pub async fn status(State(state): State<AppState>) -> Json<StatusResponse> {
+    let config = state.config_view().await;
     let uptime_ms = state
         .clock
         .now_ms()
@@ -54,7 +55,7 @@ pub async fn status(State(state): State<AppState>) -> Json<StatusResponse> {
         version: state.version.clone(),
         protocol_version: PROTOCOL_VERSION,
         uptime_ms,
-        listen_port: state.config.listen_port,
-        public_url: state.config.public_url.clone(),
+        listen_port: config.listen_port,
+        public_url: config.public_url.clone(),
     })
 }

@@ -883,13 +883,7 @@ T-computers-send-2
 T-computers-send-3
 T-computers-send-4
 T-computers-send-5
-T-conn-auth-1
-T-conn-auth-2
-T-conn-auth-3
 T-conn-auth-4
-T-conn-auth-5
-T-conn-auth-6
-T-conn-auth-7
 T-conn-batch-1
 T-conn-batch-2
 T-conn-batch-3

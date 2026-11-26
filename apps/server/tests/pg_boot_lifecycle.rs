@@ -1,3 +1,4 @@
+use anybot_server_test as _;
 use std::sync::Arc;
 
 use anybot_app_server as _;

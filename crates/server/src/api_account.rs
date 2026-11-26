@@ -16,11 +16,11 @@ use crate::idem::{DID_IT_BODY, find_recorded, replay_value, request_scope, safe_
 use crate::limits::Limiter;
 use crate::problems;
 use crate::req_write::{
-    Outcome, denied, idempotency_key, internal_detail, internal_sqlx, internal_text, path_of,
-    pool_of, read_json, record_outcome, request_address, value_of,
+    Outcome, denied, internal_detail, internal_sqlx, internal_text, pool_of, record_outcome,
+    value_of,
 };
-use axum::http::Method;
 use axum::http::HeaderValue;
+use axum::http::Method;
 use axum::http::header::SET_COOKIE;
 
 const SESSION_COOKIE_MAX_AGE: u64 = anybot_domain::session_term::SESSION_IDLE_MS / 1000;
@@ -72,11 +72,17 @@ pub async fn login(
     State(state): State<AppState>,
     request: axum::extract::Request,
 ) -> Result<Response, CallerDenied> {
-    let key = idempotency_key(&request)?;
-    let address = request_address(&request, &state)?;
-    let path = path_of(&request);
-    let origin = origin_of(&request);
-    let (body, raw) = read_json::<LoginRequest>(request).await?;
+    let (parts, body) = request.into_parts();
+    let raw = axum::body::to_bytes(body, crate::req_write::MAX_WRITE_BODY)
+        .await
+        .map_err(|e| internal_detail(&e.to_string()))?
+        .to_vec();
+    let key = crate::req_write::idempotency_key_of(&parts.headers)?;
+    let address = crate::req_write::parts_address(&parts, &state).await?;
+    let path = parts.uri.path().to_owned();
+    let origin = origin_of(&parts);
+    let body: LoginRequest = serde_json::from_slice(&raw)
+        .map_err(|e| crate::req_write::denied_detail(StatusCode::BAD_REQUEST, &e.to_string()))?;
     let pool = pool_of(&state)?;
     let account = normalized_account(&body)?;
     let scope = request_scope(&Method::POST, &path, &account);
@@ -124,9 +130,9 @@ struct LoginRun<'a> {
     cookie_mode: bool,
 }
 
-fn origin_of(request: &axum::extract::Request) -> Option<String> {
-    request
-        .headers()
+fn origin_of(parts: &axum::http::request::Parts) -> Option<String> {
+    parts
+        .headers
         .get(axum::http::header::ORIGIN)
         .and_then(|value| value.to_str().ok())
         .map(String::from)
@@ -226,12 +232,13 @@ async fn issue_cookie(
         .clone()
         .ok_or(internal_detail("session key missing at issue"))?;
     let key = Secret::from_untrusted(raw);
-    let view = crate::auth_csrf::credential_view(run.state, run.origin.as_deref());
+    let view = crate::auth_csrf::credential_view(run.state, run.origin.as_deref()).await;
     let cookie = crate::auth_credential::cookie_issue(&view, &key, SESSION_COOKIE_MAX_AGE);
     let mut answer = answer;
-    answer
-        .headers_mut()
-        .append(SET_COOKIE, HeaderValue::from_str(&cookie).map_err(|e| internal_detail(&e.to_string()))?);
+    answer.headers_mut().append(
+        SET_COOKIE,
+        HeaderValue::from_str(&cookie).map_err(|e| internal_detail(&e.to_string()))?,
+    );
     Ok(answer)
 }
 

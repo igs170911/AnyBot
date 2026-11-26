@@ -1,3 +1,4 @@
+use anybot_server_test as _;
 use std::sync::Arc;
 
 use serde_json::json;

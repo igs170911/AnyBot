@@ -36,7 +36,33 @@ impl Default for ServerConfig {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ConfigView {
+    pub listen_addresses: Vec<String>,
+    pub listen_port: u16,
+    pub public_url: Option<String>,
+    pub trust_proxy: Option<std::net::IpAddr>,
+    pub proxy_secret_configured: bool,
+    pub language: String,
+}
+
 impl ServerConfig {
+    #[must_use]
+    pub fn view(&self) -> ConfigView {
+        ConfigView {
+            listen_addresses: self.listen_addresses.clone(),
+            listen_port: self.listen_port,
+            public_url: self.public_url.clone(),
+            trust_proxy: self.trust_proxy,
+            proxy_secret_configured: self.proxy_secret.is_some(),
+            language: self.language.clone(),
+        }
+    }
+
+    pub fn set_public_url(&mut self, url: Option<String>) {
+        self.public_url = url;
+    }
+
     pub fn from_rows(rows: Vec<(String, String)>) -> Result<Self, String> {
         let mut config = ServerConfig::default();
         for (key, value) in rows {

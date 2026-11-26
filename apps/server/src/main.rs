@@ -1,4 +1,7 @@
 #[cfg(test)]
+use anybot_server_test as _;
+
+#[cfg(test)]
 use anybot_app_test as _;
 use std::io::Write;
 

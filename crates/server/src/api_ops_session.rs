@@ -7,8 +7,8 @@ use anybot_store_server::sessions;
 
 use crate::api_ops::{ack_value, guard_replay, record};
 use crate::app::AppState;
-use crate::caller::{Caller, CallerDenied};
 use crate::caller::CredentialKind;
+use crate::caller::{Caller, CallerDenied};
 use crate::req_write::{caller_scope, idempotency_key, internal_sqlx, pool_of, read_json};
 
 #[utoipa::path(
@@ -63,19 +63,22 @@ pub async fn logout(
         .map_err(internal_sqlx)?;
     let value = ack_value(&body)?;
     let answer = record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await?;
-    Ok(clear_cookie(answer, &state, &caller))
+    Ok(clear_cookie(answer, &state, &caller).await)
 }
 
-fn clear_cookie(answer: Response, state: &AppState, caller: &Caller) -> Response {
+async fn clear_cookie(answer: Response, state: &AppState, caller: &Caller) -> Response {
     if caller.credential != CredentialKind::Cookie {
         return answer;
     }
-    let view = crate::auth_csrf::credential_view(state, None);
-    let Ok(value) = axum::http::HeaderValue::from_str(&crate::auth_credential::cookie_clear(&view)) else {
+    let view = crate::auth_csrf::credential_view(state, None).await;
+    let Ok(value) = axum::http::HeaderValue::from_str(&crate::auth_credential::cookie_clear(&view))
+    else {
         return answer;
     };
     let mut answer = answer;
-    answer.headers_mut().append(axum::http::header::SET_COOKIE, value);
+    answer
+        .headers_mut()
+        .append(axum::http::header::SET_COOKIE, value);
     answer
 }
 

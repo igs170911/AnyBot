@@ -170,6 +170,7 @@ dependencies = [
  "anybot-foundation",
  "anybot-messages",
  "anybot-server",
+ "anybot-server-test",
  "anybot-store-server",
  "axum",
  "clap",
@@ -407,6 +408,15 @@ dependencies = [
  "url",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "anybot-server-test"
+version = "0.1.0"
+dependencies = [
+ "anybot-app-test",
+ "serde_json",
+ "sqlx",
 ]
 
 [[package]]

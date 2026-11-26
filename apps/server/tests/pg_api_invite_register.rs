@@ -3,6 +3,7 @@ use anybot_app_test as _;
 use anybot_foundation as _;
 use anybot_messages as _;
 use anybot_server as _;
+use anybot_server_test as _;
 use anybot_store_server as _;
 use axum as _;
 use clap as _;

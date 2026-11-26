@@ -16,6 +16,7 @@ members = [
     "tests/live-model",
     "tests/testenv",
     "tests/app-test",
+    "tests/server-test",
 ]
 
 [workspace.package]
@@ -31,6 +32,7 @@ anybot-domain = { path = "crates/domain", version = "0.1.0" }
 anybot-trust = { path = "crates/trust", version = "0.1.0" }
 anybot-models = { path = "crates/models", version = "0.1.0" }
 anybot-app-test = { path = "tests/app-test", version = "0.1.0" }
+anybot-server-test = { path = "tests/server-test", version = "0.1.0" }
 anybot-app-server = { path = "apps/server", version = "0.1.0" }
 anybot-tools = { path = "crates/tools", version = "0.1.0" }
 anybot-mcp = { path = "crates/mcp", version = "0.1.0" }

@@ -15,8 +15,7 @@ use crate::limits::Limiter;
 use crate::api_account::{Guard, guard_idem};
 use crate::idem::request_scope;
 use crate::req_write::{
-    Outcome, denied, idempotency_key, internal_sqlx, internal_text, json_response, path_of,
-    pool_of, read_json, record_outcome, request_address,
+    Outcome, denied, internal_sqlx, internal_text, json_response, pool_of, record_outcome,
 };
 use axum::http::Method;
 
@@ -81,10 +80,16 @@ pub async fn register(
     State(state): State<AppState>,
     request: axum::extract::Request,
 ) -> Result<Response, CallerDenied> {
-    let key = idempotency_key(&request)?;
-    let address = request_address(&request, &state)?;
-    let path = path_of(&request);
-    let (body, raw) = read_json::<RegisterRequest>(request).await?;
+    let (parts, body) = request.into_parts();
+    let raw = axum::body::to_bytes(body, crate::req_write::MAX_WRITE_BODY)
+        .await
+        .map_err(|e| crate::req_write::internal_detail(&e.to_string()))?
+        .to_vec();
+    let key = crate::req_write::idempotency_key_of(&parts.headers)?;
+    let address = crate::req_write::parts_address(&parts, &state).await?;
+    let path = parts.uri.path().to_owned();
+    let body: RegisterRequest = serde_json::from_slice(&raw)
+        .map_err(|e| crate::req_write::denied_detail(StatusCode::BAD_REQUEST, &e.to_string()))?;
     let pool = pool_of(&state)?;
     let account = normalize_account_name(&body.account)
         .map_err(|_| denied(StatusCode::BAD_REQUEST, MessageCode::AccountNameRule))?;

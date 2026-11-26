@@ -1,3 +1,4 @@
+use axum::http::HeaderMap;
 use axum::http::header::HeaderName;
 
 use anybot_domain::source_addr::source_address;
@@ -8,15 +9,15 @@ pub const PROXY_SECRET_HEADER: HeaderName = HeaderName::from_static("x-anybot-pr
 
 pub const FORWARDED_HEADER: HeaderName = HeaderName::from_static("x-forwarded-for");
 
-pub fn request_source_address(
-    request: &axum::extract::Request,
-    peer: &str,
-    state: &AppState,
-) -> String {
-    let forwarded = header_text(request.headers(), FORWARDED_HEADER);
-    let secret_ok = proxy_secret_ok(request.headers(), state);
-    let trust = state.config.trust_proxy.map(|ip| ip.to_string());
-    let secret_configured = state.config.proxy_secret.is_some();
+pub async fn request_source_address(headers: &HeaderMap, peer: &str, state: &AppState) -> String {
+    let forwarded = header_text(headers, FORWARDED_HEADER);
+    let config = state.config_view().await;
+    let secret_ok = {
+        let full = state.config.lock().await;
+        proxy_secret_ok(headers, full.proxy_secret.as_ref())
+    };
+    let trust = config.trust_proxy.map(|ip| ip.to_string());
+    let secret_configured = config.proxy_secret_configured;
     source_address(
         peer,
         trust.as_deref(),
@@ -26,7 +27,7 @@ pub fn request_source_address(
     )
 }
 
-fn header_text(headers: &axum::http::HeaderMap, name: HeaderName) -> Option<String> {
+fn header_text(headers: &HeaderMap, name: HeaderName) -> Option<String> {
     let joined = headers
         .get_all(name)
         .iter()
@@ -36,8 +37,8 @@ fn header_text(headers: &axum::http::HeaderMap, name: HeaderName) -> Option<Stri
     (!joined.is_empty()).then_some(joined)
 }
 
-fn proxy_secret_ok(headers: &axum::http::HeaderMap, state: &AppState) -> bool {
-    let Some(expected) = state.config.proxy_secret.as_ref() else {
+fn proxy_secret_ok(headers: &HeaderMap, expected: Option<&anybot_foundation::Secret>) -> bool {
+    let Some(expected) = expected else {
         return true;
     };
     headers

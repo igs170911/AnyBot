@@ -1,3 +1,4 @@
+use anybot_server_test as _;
 use tokio::net::TcpListener;
 
 use sqlx as _;

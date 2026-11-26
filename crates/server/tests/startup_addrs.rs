@@ -1,4 +1,5 @@
 use getrandom as _;
+use http_body_util as _;
 use std::net::SocketAddr;
 
 use anybot_server::{DEFAULT_PORT, bind_addrs, bind_listeners, parse_listen_host};

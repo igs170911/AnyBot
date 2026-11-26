@@ -38,6 +38,7 @@ pub struct LoginRequest {
 pub struct LoginSession {
     #[serde(skip)]
     pub session_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schema", schema(example = "a1b2c3d4"))]
     pub bearer_key: Option<String>,
     #[cfg_attr(feature = "schema", schema(example = "alice"))]

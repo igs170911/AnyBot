@@ -143,6 +143,10 @@ fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
         .collect(),
     );
     m.insert(
+        "anybot-server-test".to_owned(),
+        ["anybot-app-test".to_owned()].into_iter().collect(),
+    );
+    m.insert(
         "anybot-app-test".to_owned(),
         [
             "anybot-foundation".to_owned(),

@@ -1,4 +1,4 @@
-use axum::extract::Request;
+use axum::extract::{ConnectInfo, Request};
 use axum::http::StatusCode;
 use axum::http::header::HeaderName;
 use axum::response::{IntoResponse, Response};
@@ -47,7 +47,11 @@ pub fn pool_of(state: &AppState) -> Result<&Pool, CallerDenied> {
 }
 
 pub fn idempotency_key(request: &Request) -> Result<String, CallerDenied> {
-    let raw = request.headers().get(IDEMPOTENCY_HEADER).ok_or(denied(
+    idempotency_key_of(request.headers())
+}
+
+pub fn idempotency_key_of(headers: &axum::http::HeaderMap) -> Result<String, CallerDenied> {
+    let raw = headers.get(IDEMPOTENCY_HEADER).ok_or(denied(
         StatusCode::BAD_REQUEST,
         MessageCode::AccountIdempotencyMissing,
     ))?;
@@ -80,12 +84,12 @@ pub async fn read_json<T: serde::de::DeserializeOwned>(
     Ok((parsed, raw.to_vec()))
 }
 
-const MAX_WRITE_BODY: usize = 256 * 1024;
+pub const MAX_WRITE_BODY: usize = 256 * 1024;
 
 pub fn peer_address(request: &Request) -> Result<String, CallerDenied> {
     request
         .extensions()
-        .get::<axum::extract::ConnectInfo<SocketAddr>>()
+        .get::<ConnectInfo<SocketAddr>>()
         .map(|info| info.0.ip().to_string())
         .ok_or_else(|| internal_detail("missing connect info"))
 }
@@ -110,9 +114,22 @@ pub fn path_tail(request: &Request) -> Result<String, CallerDenied> {
     Ok(tail.to_owned())
 }
 
-pub fn request_address(request: &Request, state: &AppState) -> Result<String, CallerDenied> {
+pub async fn request_address(request: &Request, state: &AppState) -> Result<String, CallerDenied> {
     let peer = peer_address(request)?;
-    Ok(request_source_address(request, &peer, state))
+    let headers = request.headers().clone();
+    Ok(request_source_address(&headers, &peer, state).await)
+}
+
+pub async fn parts_address(
+    parts: &axum::http::request::Parts,
+    state: &AppState,
+) -> Result<String, CallerDenied> {
+    let peer = parts
+        .extensions
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|info| info.0.ip().to_string())
+        .ok_or_else(|| internal_detail("missing connect info"))?;
+    Ok(request_source_address(&parts.headers, &peer, state).await)
 }
 
 pub fn has_forwarded_header(request: &Request) -> bool {

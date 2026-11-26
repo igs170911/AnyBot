@@ -1,3 +1,4 @@
+use anybot_server_test as _;
 use serde_json as _;
 
 use anybot_app_server as _;

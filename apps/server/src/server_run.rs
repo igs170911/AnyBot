@@ -201,7 +201,15 @@ pub async fn stage_serve(
     let account_count = started.account_count;
     let new_invite = started.new_invite.clone();
     let clock = Arc::new(SystemClock);
-    let state = AppState::with_pool(version, clock, pool, started.config);
+    let mut state = AppState::with_pool(version, clock, pool, started.config);
+    let mut bound: Vec<u16> = Vec::new();
+    for listener in &listeners {
+        let addr = listener
+            .local_addr()
+            .map_err(|e| messages_exit(ctx, &e.to_string()))?;
+        bound.push(addr.port());
+    }
+    state.listen_ports = Arc::new(bound);
     let shutdown = Arc::clone(&state.shutdown);
     let cleanup = anybot_server::cleanup::cleanup_loop(
         state

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use reqwest::Client;
+use reqwest::Method;
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderName, HeaderValue};
 use serde_json::Value;
 
@@ -84,10 +85,12 @@ impl RequestSpec {
     }
 }
 
+#[derive(Debug)]
 pub struct ResponseSpec {
     pub status: u16,
     pub json: Value,
     pub elapsed: Duration,
+    pub headers: HeaderMap,
 }
 
 impl ResponseSpec {
@@ -97,6 +100,19 @@ impl ResponseSpec {
             .and_then(Value::as_str)
             .map(String::from)
             .ok_or(format!("no string field {key} in {}", self.json))
+    }
+
+    #[must_use]
+    pub fn header_values(&self, name: &str) -> Vec<String> {
+        let name = HeaderName::from_bytes(name.as_bytes()).ok();
+        let Some(name) = name else {
+            return Vec::new();
+        };
+        self.headers
+            .get_all(name)
+            .iter()
+            .map(|value| value.to_str().unwrap_or_default().to_owned())
+            .collect()
     }
 
     pub fn bearer(&self) -> Result<String, String> {
@@ -120,6 +136,11 @@ pub async fn post(base: &str, path: &str, spec: &RequestSpec) -> Result<Response
 pub async fn get(base: &str, path: &str, spec: &RequestSpec) -> Result<ResponseSpec, String> {
     let client = build_client(spec)?;
     send(&client, base, path, spec, "GET").await
+}
+
+pub async fn options(base: &str, path: &str, spec: &RequestSpec) -> Result<ResponseSpec, String> {
+    let client = build_client(spec)?;
+    send(&client, base, path, spec, "OPTIONS").await
 }
 
 pub struct ConnectionPool {
@@ -174,6 +195,7 @@ async fn send(
     let url = format!("{base}{path}");
     let mut request = match method {
         "POST" => client.post(url),
+        "OPTIONS" => client.request(Method::OPTIONS, url),
         _ => client.get(url),
     };
     request = request.headers(spec.headers()?);
@@ -185,6 +207,7 @@ async fn send(
     let response = request.send().await.map_err(|e| e.to_string())?;
     let elapsed = started.elapsed();
     let status = response.status().as_u16();
+    let headers = response.headers().clone();
     let text = response.text().await.map_err(|e| e.to_string())?;
     let json = if text.is_empty() {
         Value::Null
@@ -195,6 +218,7 @@ async fn send(
         status,
         json,
         elapsed,
+        headers,
     })
 }
 

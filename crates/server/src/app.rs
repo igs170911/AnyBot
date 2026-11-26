@@ -25,10 +25,11 @@ pub struct AppState {
     pub clock: Arc<dyn Clock>,
     pub bootstrap: Arc<Option<ServerBootstrap>>,
     pub pool: Arc<Option<Pool>>,
-    pub config: Arc<ServerConfig>,
+    pub config: Arc<tokio::sync::Mutex<ServerConfig>>,
     pub shutdown: Arc<Notify>,
     pub started_at_ms: TimestampMs,
     pub pass_hash: Arc<tokio::sync::OnceCell<Arc<PassHash>>>,
+    pub listen_ports: Arc<Vec<u16>>,
 }
 
 impl AppState {
@@ -52,10 +53,11 @@ impl AppState {
         AppState {
             version: version.to_owned(),
             pass_hash: Arc::new(tokio::sync::OnceCell::new()),
+            listen_ports: Arc::new(Vec::new()),
             clock,
             bootstrap: Arc::new(None),
             pool: Arc::new(None),
-            config: Arc::new(ServerConfig::default()),
+            config: Arc::new(tokio::sync::Mutex::new(ServerConfig::default())),
             shutdown: Arc::new(Notify::new()),
             started_at_ms,
         }
@@ -81,8 +83,13 @@ impl AppState {
     ) -> Self {
         let mut state = AppState::with_clock(version, clock);
         state.pool = Arc::new(Some(pool));
-        state.config = Arc::new(config);
+        state.config = Arc::new(tokio::sync::Mutex::new(config));
         state
+    }
+
+    #[must_use]
+    pub async fn config_view(&self) -> crate::config::ConfigView {
+        self.config.lock().await.view()
     }
 
     #[must_use]
@@ -112,9 +119,12 @@ pub fn build_router(state: AppState) -> Router {
             "/v1/admin/accounts/{account}/reset-password",
             post(reset_password),
         )
+        .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
+            state,
             crate::auth_csrf::csrf_layer,
         ))
-        .with_state(state)
+        .layer(axum::middleware::from_fn(
+            crate::auth_pre::pre_session_layer,
+        ))
 }

@@ -57,7 +57,7 @@ pub(crate) async fn open_session(
     )
     .await
     .map_err(internal_sqlx)?;
-    let bearer_key = cookie_mode.then(|| key.expose().to_owned());
+    let bearer_key = (!cookie_mode).then(|| key.expose().to_owned());
     Ok(LoginSession {
         session_key: Some(key.expose().to_owned()),
         bearer_key,

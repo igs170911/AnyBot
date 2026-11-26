@@ -23,6 +23,7 @@ pub fn cookie_secret(headers: &HeaderMap) -> Option<Secret> {
     None
 }
 
+#[must_use]
 pub fn cookie_issue(origin: &OriginView, key: &Secret, max_age: u64) -> String {
     let mut text = format!(
         "{SESSION_COOKIE_NAME}={}; HttpOnly; SameSite=Strict; Path=/; Max-Age={max_age}",
@@ -34,16 +35,16 @@ pub fn cookie_issue(origin: &OriginView, key: &Secret, max_age: u64) -> String {
     text
 }
 
+#[must_use]
 pub fn cookie_clear(origin: &OriginView) -> String {
-    let mut text = format!(
-        "{SESSION_COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
-    );
+    let mut text = format!("{SESSION_COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");
     if origin.secure_flag {
         text.push_str("; Secure");
     }
     text
 }
 
+#[must_use]
 pub fn csrf_header_ok(headers: &HeaderMap) -> bool {
     headers
         .get(CSRF_HEADER_NAME)

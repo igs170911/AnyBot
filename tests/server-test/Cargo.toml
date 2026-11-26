@@ -1,0 +1,16 @@
+[package]
+publish = false
+name = "anybot-server-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared helpers for the server PostgreSQL API suites (spec/07 §3, spec/09 K87)"
+
+[lints]
+workspace = true
+
+[dependencies]
+anybot-app-test = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio"] }
+

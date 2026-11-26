@@ -205,6 +205,11 @@ pub async fn set_public_url(
     config::write_config_value(pool, crate::config::KEY_PUBLIC_URL, &body.public_url)
         .await
         .map_err(internal_sqlx)?;
+    state
+        .config
+        .lock()
+        .await
+        .set_public_url(Some(body.public_url.clone()));
     let value = value_of(&ActionAck { ok: true })?;
     record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await
 }
