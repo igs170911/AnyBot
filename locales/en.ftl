@@ -79,6 +79,7 @@ gate-denied-by-rule = This action was blocked by a rule: { $rule }
 gate-denied = The approval gate denied this action on { $computer } ({ $rule }).
 gate-user-rejected = You rejected this action.
 gate-ask-pending = Waiting for your approval.
+gate-ask-unavailable = This version cannot ask you for approval yet, so the action was denied.
 gate-ticket-mismatch = { $computer } refused an operation ticket that is not for this computer and this operation.
 turn-completed = The action finished.
 turn-failed = The action failed.

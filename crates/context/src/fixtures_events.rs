@@ -72,7 +72,11 @@ pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
         }),
         2 => Just(ev(CardShown { action: "q?".to_owned() })),
         2 => Just(ev(OutcomeUnknown { call_id: CallId::generate(&SystemClock) })),
-        1 => Just(ev(ActionVerified { call_id: CallId::generate(&SystemClock), source: CheckSource::Program })),
+        1 => Just(ev(ActionVerified {
+            call_id: CallId::generate(&SystemClock),
+            source: CheckSource::Program,
+            evidence_ids: Vec::new(),
+        })),
         1 => Just(ev(BudgetUsage { item: BudgetItem::Tokens, delta: 5 })),
         1 => (0usize..3).prop_map(|i| ev(CriterionPassed { index: i, source: CheckSource::Program })),
         1 => (0usize..3).prop_map(|i| ev(CriterionFailed { index: i, source: CheckSource::Program, observed: "o".to_owned() })),

@@ -85,6 +85,7 @@ fn t_task_state_9() {
         KnownTaskEventKind::ActionVerified {
             call_id: c,
             source: CheckSource::Program,
+            evidence_ids: Vec::new(),
         },
         KnownTaskEventKind::TurnEnded {
             reason: anybot_protocol::TurnEndReason::Answered,

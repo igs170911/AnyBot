@@ -119,6 +119,8 @@ pub enum KnownTaskEventKind {
         #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
         call_id: CallId,
         source: CheckSource,
+        #[cfg_attr(feature = "schema", schema(value_type = Vec<String>, format = "uuid"))]
+        evidence_ids: Vec<anybot_foundation::EvidenceId>,
     },
     EvidenceAdded {
         record: Box<EvidenceRecord>,

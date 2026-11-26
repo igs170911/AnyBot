@@ -37,7 +37,9 @@ pub mod op_ticket;
 mod op_ticket_computer_tests;
 mod path_resolve;
 pub mod pipeline;
+mod pipeline_ask;
 pub mod pipeline_exec;
+mod pipeline_gate;
 pub mod pipeline_run;
 pub mod pipeline_verify;
 pub mod runner;
@@ -75,10 +77,9 @@ pub use message_codes::{
     CODE_TURN_REJECTED, CODE_TURN_TOOL_FAILED, all_codes,
 };
 pub use op_ticket::{OpKind, OpTicket};
-pub use pipeline::{
-    ActionRequest, AskTicket, GateAnswer, GateStep, RequestedAction, answer_ask, ask_declined_run,
-    exec_step, gate_step, run_action,
-};
+pub use pipeline::{ActionRequest, GateAnswer, RequestedAction};
+pub use pipeline_ask::{AskTicket, answer_ask};
+pub use pipeline_gate::{GateStep, ask_declined_run, exec_step, gate_step, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
 pub use runner::{GatedComputer, OpRejection, OpRejectionKind};
 pub use safety_always::{ActionSpec, concrete_actions};

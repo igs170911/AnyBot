@@ -80,6 +80,7 @@ gate-denied-by-rule = 這條動作被規則擋下：{ $rule }
 gate-denied = 這筆動作在 { $computer } 被把關規則拒絕（{ $rule }）。
 gate-user-rejected = 你拒絕了這筆動作。
 gate-ask-pending = 正在等你核准。
+gate-ask-unavailable = 這一版還不能請你核准，所以這個動作被拒絕。
 gate-ticket-mismatch = { $computer } 拒絕這張不是給它、不是這筆操作的單據。
 turn-completed = 動作完成了。
 turn-failed = 動作失敗。

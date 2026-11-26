@@ -61,6 +61,7 @@ fn tool_events() -> BoxedStrategy<KnownTaskEventKind> {
         call.prop_map(|c| KnownTaskEventKind::ToolStarted { call_id: c }),
         call.prop_map(|c| KnownTaskEventKind::OutcomeUnknown { call_id: c }),
         call.prop_map(|c| KnownTaskEventKind::ActionVerified {
+            evidence_ids: Vec::new(),
             call_id: c,
             source: CheckSource::Program,
         }),

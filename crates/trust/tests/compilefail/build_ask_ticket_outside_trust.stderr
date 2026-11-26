@@ -4,7 +4,7 @@ error[E0624]: associated function `new` is private
 2 |       let ticket = anybot_trust::AskTicket::new(
   |                                             ^^^ private associated function
   |
- ::: src/pipeline.rs
+ ::: src/pipeline_ask.rs
   |
   | /     pub(super) fn new(
   | |         outcome: GateOutcome,

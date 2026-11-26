@@ -94,6 +94,7 @@ fn t_task_done_gate_3() {
         KnownTaskEventKind::ActionVerified {
             call_id: c,
             source: CheckSource::Program,
+            evidence_ids: Vec::new(),
         },
         KnownTaskEventKind::CriterionPassed {
             index: 0,

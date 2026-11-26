@@ -118,6 +118,7 @@ fn budget_tool_events() -> BoxedStrategy<KnownTaskEventKind> {
             call_id: CallId::generate(&SystemClock),
         }),
         Just(KnownTaskEventKind::ActionVerified {
+            evidence_ids: Vec::new(),
             call_id: CallId::generate(&SystemClock),
             source: anybot_protocol::CheckSource::Program,
         }),

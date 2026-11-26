@@ -1,7 +1,8 @@
 use crate::evidence::{approved_evidence, rejected_evidence};
 use crate::gate_flow::{GateVerdict, rule_code};
 use crate::op_ticket::OpTicket;
-use crate::pipeline::{ActionRequest, AskTicket, GateAnswer};
+use crate::pipeline::{ActionRequest, GateAnswer};
+use crate::pipeline_ask::AskTicket;
 use crate::pipeline_exec::executed_run;
 use crate::pipeline_exec::{action_label, finish};
 use crate::runner::{GatedComputer, OpRejection};

@@ -64,6 +64,10 @@ pub trait GatedComputer: Send + Sync {
     }
 
     fn declared_workdir(&self) -> String;
+
+    fn gate_config(&self) -> crate::gate_flow::GateConfig {
+        crate::gate_flow::GateConfig::plain()
+    }
 }
 
 #[cfg(test)]
