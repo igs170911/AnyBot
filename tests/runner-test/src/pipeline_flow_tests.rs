@@ -252,3 +252,35 @@ fn test_a_finished_run_leaves_nothing_to_ask_the_computer_again() {
         "a finished run leaves nothing behind to ask the computer again",
     );
 }
+
+#[test]
+fn test_a_wrapper_with_the_real_name_and_a_root_workdir_cannot_spend_the_ticket() {
+    let clock = fresh_clock();
+    let computer = FakeComputerBuilder::default()
+        .bot_machine()
+        .named("bot-1")
+        .clock(Arc::clone(&clock))
+        .script("pwd", CommandScript::ok("/workspace"))
+        .build();
+    computer.shift_declaration_before_the_operation();
+    let step = run_action(
+        &command_request("pwd", &clock),
+        &computer,
+        &GateConfig::plain(),
+        &TestView,
+        clock.as_ref(),
+    );
+    let RunStep::Executed(run) = step else {
+        panic!("the gate issued a ticket before the declaration changed");
+    };
+    assert_eq!(computer.logged().len(), 0, "{run:?}");
+    assert!(
+        run.evidence.iter().any(|item| {
+            matches!(
+                &item.payload,
+                EvidencePayload::Rejected { reason, .. } if reason.code == "gate-ticket-mismatch"
+            )
+        }),
+        "{run:?}"
+    );
+}

@@ -1,5 +1,16 @@
-error[E0425]: cannot find function `finish` in crate `anybot_trust`
- --> tests/compilefail/finish_run_outside_trust.rs:2:29
+error[E0603]: function `finish` is private
+ --> tests/compilefail/finish_run_outside_trust.rs:2:44
   |
-2 |     let run = anybot_trust::finish(gate.clone(), Vec::new(), anybot_trust::OutcomeText::of("x", Vec::new()), &anybot_trust::ActionCon...
-  |                             ^^^^^^ not found in `anybot_trust`
+2 |     let run = anybot_trust::pipeline_exec::finish(
+  |                                            ^^^^^^ private function
+  |
+note: the function `finish` is defined here
+ --> src/pipeline_exec.rs
+  |
+  | / pub(super) fn finish(
+  | |     gate: GateRecord,
+  | |     evidence: Vec<EvidenceRecord>,
+  | |     model: OutcomeText,
+  | |     context: &ActionContext,
+  | | ) -> ActionRun {
+  | |______________^

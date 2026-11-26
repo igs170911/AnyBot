@@ -1,5 +1,16 @@
-error[E0425]: cannot find function `build_evidence` in crate `anybot_trust`
- --> tests/compilefail/build_evidence_outside_trust.rs:4:32
+error[E0603]: function `build_evidence` is private
+ --> tests/compilefail/build_evidence_outside_trust.rs:2:42
   |
-4 |     let record = anybot_trust::build_evidence(context, gate, &anybot_protocol::ActualResult::Read(anybot_protocol::ReadOutcome {
-  |                                ^^^^^^^^^^^^^^ not found in `anybot_trust`
+2 |     let record = anybot_trust::evidence::build_evidence(
+  |                                          ^^^^^^^^^^^^^^ private function
+  |
+note: the function `build_evidence` is defined here
+ --> src/evidence.rs
+  |
+  | / pub(super) fn build_evidence(
+  | |     context: &ActionContext,
+  | |     gate: &GateRecord,
+  | |     result: &ActualResult,
+  | |     clock: &dyn Clock,
+  | | ) -> EvidenceRecord {
+  | |___________________^

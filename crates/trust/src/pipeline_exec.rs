@@ -77,7 +77,7 @@ fn unreachable_run(
 }
 
 #[must_use]
-pub(crate) fn finish(
+pub(super) fn finish(
     gate: GateRecord,
     evidence: Vec<EvidenceRecord>,
     model: OutcomeText,

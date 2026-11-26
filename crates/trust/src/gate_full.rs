@@ -18,7 +18,7 @@ pub struct StyleFlags {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct EngineInput {
+pub(super) struct EngineInput {
     pub action: FloorAction,
     pub modes: ModeFlags,
     pub six_class: bool,

@@ -43,6 +43,8 @@ pub(crate) struct VerificationPlan {
     pub path: String,
     pub content: String,
     pub computer: String,
+    pub caps: anybot_protocol::ComputerCaps,
+    pub workdir: String,
     pub gate: GateRecord,
 }
 
@@ -53,6 +55,8 @@ pub(crate) fn plan_of(ticket: &OpTicket) -> VerificationPlan {
         path: ticket.path().unwrap_or("").to_owned(),
         content: ticket.content().unwrap_or("").to_owned(),
         computer: ticket.computer().to_owned(),
+        caps: ticket.caps().clone(),
+        workdir: ticket.workdir().to_owned(),
         gate: ticket.gate().clone(),
     }
 }
@@ -108,6 +112,8 @@ fn reread_verification(
         key,
         plan.gate.clone(),
         plan.computer.as_str(),
+        &plan.caps,
+        &plan.workdir,
         clock.now_ms(),
     );
     match computer.read_file(ticket) {

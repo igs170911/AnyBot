@@ -10,7 +10,7 @@ error[E0624]: associated function `issue` is private
    | |         subject: &ActionSubject,
    | |         key: ActionKey,
    | |         gate: GateRecord,
-   | |         computer: &str,
+...  |
    | |         issued_at: TimestampMs,
    | |     ) -> Self {
    | |_____________- private associated function defined here

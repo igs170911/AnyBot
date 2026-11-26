@@ -91,6 +91,7 @@ impl GateVerdict {
         &self,
         action: &GateAction,
         computer: &str,
+        caps: &ComputerCaps,
         issued_at: TimestampMs,
     ) -> Option<OpTicket> {
         if self.outcome != GateOutcome::Allow {
@@ -101,6 +102,8 @@ impl GateVerdict {
             action.key(),
             self.record(),
             computer,
+            caps,
+            &action.workdir,
             issued_at,
         ))
     }

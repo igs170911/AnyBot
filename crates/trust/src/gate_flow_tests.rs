@@ -37,7 +37,12 @@ fn test_gate_flow_default_direct_rule_issues_a_ticket_for_that_action() {
     let verdict = judge(&action, &bot_caps(), &GateConfig::plain(), "fake-computer");
     assert_eq!(verdict.outcome, GateOutcome::Allow);
     assert_eq!(verdict.rule, "bot-machine-command");
-    let ticket = verdict.ticket(&action, "fake-computer", TimestampMs::from_millis(5));
+    let ticket = verdict.ticket(
+        &action,
+        "fake-computer",
+        &bot_caps(),
+        TimestampMs::from_millis(5),
+    );
     assert!(ticket.is_some());
     let other = GateAction::command("shell", "ls -lb", "/workspace", Vec::new());
     let issued = ticket.unwrap();

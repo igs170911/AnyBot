@@ -1,6 +1,6 @@
 use crate::action::{ActionKey, ActionSubject};
 use anybot_foundation::TimestampMs;
-use anybot_protocol::GateRecord;
+use anybot_protocol::{ComputerCaps, GateRecord};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpKind {
@@ -30,6 +30,8 @@ impl OpKind {
 pub struct OpTicket {
     kind: OpKind,
     computer: String,
+    caps: ComputerCaps,
+    workdir: String,
     subject: ActionSubject,
     gate: GateRecord,
     key: ActionKey,
@@ -42,11 +44,15 @@ impl OpTicket {
         key: ActionKey,
         gate: GateRecord,
         computer: &str,
+        caps: &ComputerCaps,
+        workdir: &str,
         issued_at: TimestampMs,
     ) -> Self {
         OpTicket {
             kind: OpKind::of_subject(subject),
             computer: computer.to_owned(),
+            caps: caps.clone(),
+            workdir: workdir.to_owned(),
             subject: subject.clone(),
             gate,
             key,
@@ -80,8 +86,23 @@ impl OpTicket {
     }
 
     #[must_use]
+    pub fn caps(&self) -> &ComputerCaps {
+        &self.caps
+    }
+
+    #[must_use]
+    pub fn workdir(&self) -> &str {
+        &self.workdir
+    }
+
+    #[must_use]
     pub fn fits(&self, computer: &str, kind: OpKind) -> bool {
         self.computer == computer && self.kind == kind
+    }
+
+    #[must_use]
+    pub fn matches_computer(&self, computer: &str, caps: &ComputerCaps, workdir: &str) -> bool {
+        self.computer == computer && &self.caps == caps && self.workdir == workdir
     }
 
     #[must_use]
@@ -143,7 +164,14 @@ impl OpTicket {
 mod tests {
     use super::*;
     use crate::action::PathView;
-    use anybot_protocol::{GateNo, GateOutcome, JudgementSource, RuleLayer};
+    use anybot_protocol::{
+        ComputerCaps, ComputerOwner, ComputerPlatform, GateNo, GateOutcome, JudgementSource,
+        RuleLayer,
+    };
+
+    fn issued_caps() -> ComputerCaps {
+        ComputerCaps::declared(ComputerPlatform::Linux, ComputerOwner::Bot)
+    }
 
     fn allow_gate() -> GateRecord {
         GateRecord::new(
@@ -167,6 +195,8 @@ mod tests {
             key,
             allow_gate(),
             "fake-computer",
+            &issued_caps(),
+            "/workspace",
             TimestampMs::from_millis(10),
         )
     }
@@ -201,6 +231,8 @@ mod tests {
             write_key,
             allow_gate(),
             "fake-computer",
+            &issued_caps(),
+            "/workspace",
             TimestampMs::from_millis(10),
         );
         assert_eq!(write.content(), Some("Keep 100% CASE"));
@@ -216,6 +248,8 @@ mod tests {
             edit_key,
             allow_gate(),
             "fake-computer",
+            &issued_caps(),
+            "/workspace",
             TimestampMs::from_millis(10),
         );
         assert_eq!(edit.texts(), Some(("one", "Two")));

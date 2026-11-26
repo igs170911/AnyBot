@@ -1,5 +1,16 @@
-error[E0451]: field `gate` of struct `AskTicket` is private
- --> tests/compilefail/build_ask_ticket_outside_trust.rs:2:35
+error[E0624]: associated function `new` is private
+ --> tests/compilefail/build_ask_ticket_outside_trust.rs:2:43
   |
-2 |     let anybot_trust::AskTicket { gate, .. } = ticket;
-  |                                   ^^^^ private field
+2 |       let ticket = anybot_trust::AskTicket::new(
+  |                                             ^^^ private associated function
+  |
+ ::: src/pipeline.rs
+  |
+  | /     pub(super) fn new(
+  | |         outcome: GateOutcome,
+  | |         gate: GateRecord,
+  | |         action: GateAction,
+... |
+  | |         computer: &str,
+  | |     ) -> Self {
+  | |_____________- private associated function defined here

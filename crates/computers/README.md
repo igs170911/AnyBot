@@ -17,15 +17,23 @@ gate did not approve.
 Only `crates/trust` can build a ticket (its fields are private, `OpTicket::issue`
 is `pub(crate)`, and it has no `Clone` and no serde). Handing a ticket to an
 operation consumes it: the call takes it by value, so a ticket can be used
-once and cannot be stored, copied, or replayed.
+once and cannot be copied or replayed. The trait itself does not stop an
+implementation from keeping the ticket: any crate can implement
+`GatedComputer`, and the ticket is an ordinary value until that call takes it.
 
-An implementation must reject a ticket whose named computer is not itself,
-or whose kind is not the operation being called, before touching the
-machine. `FakeComputer::accept` in `tests/runner-test` does this and returns
-`OpRejectionKind::TicketMismatch`; the trust-internal tests
-`test_a_ticket_handed_to_another_computer_is_refused` and
-`test_a_ticket_for_the_right_computer_and_the_right_operation_is_accepted`
-prove both directions.
+At issue time the ticket also freezes the computer's declared capabilities
+and declared workdir. An implementation must reject a ticket, before touching
+the machine, when the named computer, the operation kind, the declared
+capabilities, or the declared workdir do not match itself. A wrapper that
+reuses a real computer's name, claims to be the bot computer, and declares
+`/` as its workdir must not be able to spend a ticket issued under the bot
+computer's rules. `FakeComputer::accept` in `tests/runner-test` does this and
+returns `OpRejectionKind::TicketMismatch`. The tests
+`test_a_ticket_handed_to_another_computer_is_refused`,
+`test_a_ticket_for_the_right_computer_and_the_right_operation_is_accepted`,
+and
+`test_a_wrapper_with_the_real_name_and_a_root_workdir_cannot_spend_the_ticket`
+prove those directions.
 
 Nothing returned to a caller carries a ticket or a pass: `ActionRun` holds
 only the gate record, the evidence, the model text, and the summary.

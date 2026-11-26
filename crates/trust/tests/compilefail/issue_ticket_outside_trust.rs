@@ -16,6 +16,11 @@ fn main() {
         key,
         gate,
         "c",
+        &anybot_protocol::ComputerCaps::declared(
+            anybot_protocol::ComputerPlatform::Linux,
+            anybot_protocol::ComputerOwner::Bot,
+        ),
+        "/workspace",
         anybot_foundation::TimestampMs::from_millis(1),
     );
     println!("{ticket:?}");

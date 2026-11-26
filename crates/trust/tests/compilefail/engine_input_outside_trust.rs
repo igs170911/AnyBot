@@ -1,4 +1,4 @@
-fn pick(input: &anybot_trust::EngineInput) {
+fn pick(input: &anybot_trust::gate_full::EngineInput) {
     println!("{input:?}");
 }
 

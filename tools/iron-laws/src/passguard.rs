@@ -39,11 +39,13 @@ mod tests {
             ),
             (
                 "crates/computers/src/lib.rs".to_owned(),
-                "OpTicket { kind, computer, subject, gate, key, issued_at }".to_owned(),
+                "OpTicket { kind, computer, caps, workdir, subject, gate, key, issued_at }"
+                    .to_owned(),
             ),
             (
                 "crates/trust/src/op_ticket.rs".to_owned(),
-                "OpTicket { kind, computer, subject, gate, key, issued_at }".to_owned(),
+                "OpTicket { kind, computer, caps, workdir, subject, gate, key, issued_at }"
+                    .to_owned(),
             ),
         ];
         let got = violations(&files);

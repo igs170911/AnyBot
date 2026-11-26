@@ -26,6 +26,8 @@ pub struct FakeComputer {
     pub(crate) scripts: ScriptTable,
     pub(crate) unreachable: AtomicBool,
     pub(crate) unresolvable: Vec<String>,
+    pub(crate) workdir: Mutex<String>,
+    pub(crate) shift_declaration: AtomicBool,
     pub(crate) log: Mutex<Vec<String>>,
 }
 
@@ -56,6 +58,10 @@ impl FakeComputer {
 
     pub fn retarget_link(&self, path: &str, target: &str) {
         Self::guard(&self.tree).link(path, target);
+    }
+
+    pub fn shift_declaration_before_the_operation(&self) {
+        self.shift_declaration.store(true, Ordering::SeqCst);
     }
 
     #[must_use]
@@ -95,19 +101,25 @@ impl FakeComputer {
         Ok(())
     }
 
-    fn accept(ticket: &OpTicket, name: &str, kind: OpKind) -> Result<(), OpRejection> {
-        if !ticket.fits(name, kind) {
-            return Err(OpRejection::mismatch(format!(
-                "the ticket is for {name} doing a {kind:?} operation",
-                name = ticket.computer(),
-                kind = ticket.kind(),
-            )));
+    fn accept(&self, ticket: &OpTicket, kind: OpKind) -> Result<(), OpRejection> {
+        if self.shift_declaration.swap(false, Ordering::SeqCst) {
+            "/".clone_into(&mut Self::guard(&self.workdir));
         }
-        Ok(())
+        let workdir = Self::guard(&self.workdir).clone();
+        if ticket.fits(&self.name, kind)
+            && ticket.matches_computer(&self.name, &self.caps, &workdir)
+        {
+            return Ok(());
+        }
+        Err(OpRejection::mismatch(format!(
+            "the ticket is for {name} doing a {kind:?} operation",
+            name = ticket.computer(),
+            kind = ticket.kind(),
+        )))
     }
 
-    fn accept_path(&self, ticket: &OpTicket, name: &str, kind: OpKind) -> Result<(), OpRejection> {
-        Self::accept(ticket, name, kind)?;
+    fn accept_path(&self, ticket: &OpTicket, _name: &str, kind: OpKind) -> Result<(), OpRejection> {
+        self.accept(ticket, kind)?;
         if self.bound_path_still(ticket) {
             return Ok(());
         }
@@ -170,14 +182,14 @@ impl GatedComputer for FakeComputer {
     }
 
     fn capabilities(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
-        Self::accept(&ticket, &self.name, OpKind::Caps)?;
+        self.accept(&ticket, OpKind::Caps)?;
         self.record("capabilities".to_owned());
         self.reachable()?;
         Ok(ActualResult::Caps(self.caps.clone()))
     }
 
     fn run_command(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
-        Self::accept(&ticket, &self.name, OpKind::Run)?;
+        self.accept(&ticket, OpKind::Run)?;
         let (command, timeout_ms) = ticket.command_line().unwrap_or(("", 0));
         let command = command.to_owned();
         self.record(format!("run_command {}", normalize_command(&command)));
@@ -256,7 +268,7 @@ impl GatedComputer for FakeComputer {
     }
 
     fn declared_workdir(&self) -> String {
-        "/workspace".to_owned()
+        Self::guard(&self.workdir).clone()
     }
 
     fn resolve_target(&self, path: &str) -> Option<String> {

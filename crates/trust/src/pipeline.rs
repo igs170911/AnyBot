@@ -9,7 +9,7 @@ use crate::pipeline_run::{RunStep, denied_run, prepared_gate};
 use crate::runner::GatedComputer;
 use crate::safety_n5::{ActionClass, classes_of_command};
 use anybot_foundation::Clock;
-use anybot_protocol::{ComputerCaps, GateOutcome, JudgementSource};
+use anybot_protocol::{ComputerCaps, GateOutcome, GateRecord, JudgementSource};
 
 use crate::action::ActionSubject;
 
@@ -143,7 +143,8 @@ pub fn run_action(
             if fresh.subject != action.subject {
                 return RunStep::Denied(denied_run(request, &verdict, &gate, view, clock));
             }
-            let Some(ticket) = verdict.ticket(&fresh, computer.name(), clock.now_ms()) else {
+            let Some(ticket) = verdict.ticket(&fresh, computer.name(), &caps, clock.now_ms())
+            else {
                 return RunStep::Denied(denied_run(request, &verdict, &gate, view, clock));
             };
             RunStep::Executed(executed_run(request, ticket, computer, view, clock))
@@ -183,7 +184,7 @@ impl AskTicket {
         self.finish(answer, computer, view, clock)
     }
 
-    pub(crate) fn new(
+    pub(super) fn new(
         outcome: GateOutcome,
         gate: GateRecord,
         action: GateAction,
@@ -258,6 +259,8 @@ impl AskTicket {
                     action.key(),
                     gate.clone(),
                     computer.name(),
+                    &computer.declared_caps(),
+                    &action.workdir,
                     clock.now_ms(),
                 );
                 crate::pipeline_run::user_approved_run(
@@ -272,8 +275,6 @@ impl AskTicket {
         }
     }
 }
-
-use anybot_protocol::GateRecord;
 
 pub fn answer_ask(
     ticket: AskTicket,

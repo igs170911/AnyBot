@@ -18,6 +18,7 @@ pub struct FakeComputerBuilder {
     scripts: ScriptTable,
     unreachable: bool,
     unresolvable: Vec<String>,
+    workdir: String,
 }
 
 impl Default for FakeComputerBuilder {
@@ -30,6 +31,7 @@ impl Default for FakeComputerBuilder {
             scripts: ScriptTable::new(),
             unreachable: false,
             unresolvable: Vec::new(),
+            workdir: "/workspace".to_owned(),
         }
     }
 }
@@ -138,6 +140,12 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
+    pub fn workdir(mut self, workdir: &str) -> Self {
+        workdir.clone_into(&mut self.workdir);
+        self
+    }
+
+    #[must_use]
     pub fn unreachable(mut self, on: bool) -> Self {
         self.unreachable = on;
         self
@@ -153,6 +161,8 @@ impl FakeComputerBuilder {
             scripts: self.scripts,
             unreachable: AtomicBool::new(self.unreachable),
             unresolvable: self.unresolvable,
+            workdir: Mutex::new(self.workdir),
+            shift_declaration: AtomicBool::new(false),
             log: Mutex::new(Vec::new()),
         }
     }

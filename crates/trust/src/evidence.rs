@@ -4,7 +4,7 @@ use crate::runner::OpRejection;
 use anybot_foundation::{Clock, EvidenceId, TaskId, TurnId};
 use anybot_protocol::{
     ActionOutcome, ActualResult, EvidenceKind, EvidencePayload, EvidenceRecord, EvidenceShortId,
-    GateOutcome, GateRecord, JudgementSource, ReasonPayload,
+    GateRecord, JudgementSource, ReasonPayload,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,7 +30,7 @@ impl ActionContext {
 }
 
 #[must_use]
-pub(crate) fn build_evidence(
+pub(super) fn build_evidence(
     context: &ActionContext,
     gate: &GateRecord,
     result: &ActualResult,
@@ -113,7 +113,7 @@ pub(crate) fn approved_evidence(
 }
 
 #[must_use]
-pub fn rejection_reason(rejection: &OpRejection) -> ReasonPayload {
+pub(crate) fn rejection_reason(rejection: &OpRejection) -> ReasonPayload {
     let code = match rejection.kind {
         crate::runner::OpRejectionKind::TicketMismatch => {
             crate::message_codes::CODE_GATE_TICKET_MISMATCH
@@ -160,17 +160,14 @@ fn base_record(
     }
 }
 
-#[must_use]
-pub fn gate_allowed(gate: &GateRecord) -> bool {
-    gate.outcome == GateOutcome::Allow
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::action::{ActionSubject, GateAction, PathView};
     use anybot_foundation::{ContentDigest, SystemClock};
-    use anybot_protocol::{BeforeDigest, GateNo, ReadOutcome, RuleLayer, TargetKind, WriteOutcome};
+    use anybot_protocol::{
+        BeforeDigest, GateNo, GateOutcome, ReadOutcome, RuleLayer, TargetKind, WriteOutcome,
+    };
 
     fn context() -> ActionContext {
         ActionContext {
