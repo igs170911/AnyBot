@@ -61,6 +61,18 @@ paths:
                 title: The Idempotency-Key header is required.
                 type: https://anybot.test/problems/account_idempotency_missing
         '401':
+          description: Wrong credentials
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: The account or password is wrong.
+                type: https://anybot.test/problems/account_login_credentials
+        '403':
           description: Disabled account
           content:
             application/problem+json:
@@ -69,7 +81,7 @@ paths:
               example:
                 code: account-login-disabled
                 params: {}
-                status: 401
+                status: 403
                 title: This account is disabled by the server admin.
                 type: https://anybot.test/problems/account_login_disabled
         '409':

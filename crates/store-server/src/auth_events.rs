@@ -79,12 +79,21 @@ pub async fn lock_counter(
     address: &str,
     account: &str,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "SELECT pg_advisory_xact_lock(hashtext($1))",
-        format!("{kind}|{address}|{account}"),
-    )
-    .execute(&mut *conn)
-    .await?;
+    lock_key(conn, &format!("{kind}|{address}|{account}")).await
+}
+
+pub async fn lock_account(
+    conn: &mut sqlx::PgConnection,
+    kind: &str,
+    account: &str,
+) -> Result<(), sqlx::Error> {
+    lock_key(conn, &format!("{kind}|account|{account}")).await
+}
+
+async fn lock_key(conn: &mut sqlx::PgConnection, key: &str) -> Result<(), sqlx::Error> {
+    sqlx::query!("SELECT pg_advisory_xact_lock(hashtext($1))", key,)
+        .execute(&mut *conn)
+        .await?;
     Ok(())
 }
 

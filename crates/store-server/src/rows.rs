@@ -4,6 +4,23 @@ pub fn required<T>(value: Option<T>, what: &str) -> Result<T, sqlx::Error> {
     value.ok_or(sqlx::Error::Protocol(format!("missing {what} column")))
 }
 
+pub const UNDEFINED_TABLE: &str = "42P01";
+
+#[must_use]
+pub fn missing_relation(err: &sqlx::Error, relation: &str) -> bool {
+    let sqlx::Error::Database(db) = err else {
+        return false;
+    };
+    let undefined = db.code().is_some_and(|code| code == UNDEFINED_TABLE);
+    if !undefined {
+        return false;
+    }
+    match db.table() {
+        Some(table) => table == relation,
+        None => db.message().contains(relation),
+    }
+}
+
 pub async fn schema_marker_present(pool: &Pool) -> Result<bool, sqlx::Error> {
     let row = sqlx::query!(
         "SELECT EXISTS (SELECT 1 FROM schema_marker WHERE app = 'anybot.server') AS present",
@@ -12,7 +29,7 @@ pub async fn schema_marker_present(pool: &Pool) -> Result<bool, sqlx::Error> {
     .await;
     match row {
         Ok(row) => required(row.present, "present"),
-        Err(sqlx::Error::Database(db)) if db.message().contains("schema_marker") => Ok(false),
+        Err(err) if missing_relation(&err, "schema_marker") => Ok(false),
         Err(e) => Err(e),
     }
 }
@@ -36,7 +53,7 @@ pub async fn min_applied_version(pool: &Pool) -> Result<i64, sqlx::Error> {
         .await;
     match row {
         Ok(row) => required(row.low, "low"),
-        Err(sqlx::Error::Database(db)) if db.message().contains("_sqlx_migrations") => Ok(0),
+        Err(err) if missing_relation(&err, "_sqlx_migrations") => Ok(0),
         Err(e) => Err(e),
     }
 }
@@ -47,7 +64,7 @@ pub async fn max_applied_version(pool: &Pool) -> Result<i64, sqlx::Error> {
         .await;
     match row {
         Ok(row) => required(row.high, "high"),
-        Err(sqlx::Error::Database(db)) if db.message().contains("_sqlx_migrations") => Ok(0),
+        Err(err) if missing_relation(&err, "_sqlx_migrations") => Ok(0),
         Err(e) => Err(e),
     }
 }

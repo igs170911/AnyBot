@@ -436,8 +436,26 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemJson"];
                 };
             };
-            /** @description Disabled account */
+            /** @description Wrong credentials */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "The account or password is wrong.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Disabled account */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -446,7 +464,7 @@ export interface operations {
                      * @example {
                      *       "code": "account-login-disabled",
                      *       "params": {},
-                     *       "status": 401,
+                     *       "status": 403,
                      *       "title": "This account is disabled by the server admin.",
                      *       "type": "https://anybot.test/problems/account_login_disabled"
                      *     }

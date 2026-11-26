@@ -15,7 +15,7 @@ pub async fn insert_account(
     account: &str,
     password_hash: &str,
     now_ms: i64,
-) -> Result<bool, sqlx::Error> {
+) -> Result<Option<bool>, sqlx::Error> {
     sqlx::query!("SELECT pg_advisory_xact_lock(5050505)",)
         .execute(&mut *conn)
         .await?;
@@ -29,7 +29,7 @@ pub async fn insert_account(
     )
     .fetch_optional(&mut *conn)
     .await?;
-    Ok(row.is_some_and(|row| row.admin))
+    Ok(row.map(|row| row.admin))
 }
 
 pub async fn find_account(pool: &Pool, account: &str) -> Result<Option<AccountRow>, sqlx::Error> {

@@ -11,7 +11,7 @@ use anybot_store_server::{accounts, sessions};
 use crate::app::AppState;
 use crate::caller::{Caller, CallerDenied};
 use crate::idem::find_recorded;
-use crate::limits::{KIND_PASSWORD_CHANGE, Limiter};
+use crate::limits::Limiter;
 use crate::req_write::{
     Outcome, caller_scope, denied, idempotency_key, internal_sqlx, internal_text, json_response,
     pool_of, read_json, record_outcome, value_of,
@@ -77,15 +77,11 @@ pub async fn change_password(
     if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
-    let blocked = limiter
-        .password_blocked(&caller.account)
+    let admitted = limiter
+        .begin_password(&caller.address, &caller.account)
         .await
         .map_err(internal_sqlx)?;
-    limiter
-        .record(KIND_PASSWORD_CHANGE, &caller.address, &caller.account)
-        .await
-        .map_err(internal_sqlx)?;
-    if blocked {
+    if !admitted {
         return Err(denied(
             StatusCode::TOO_MANY_REQUESTS,
             MessageCode::AccountPasswordRate,

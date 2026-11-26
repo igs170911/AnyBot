@@ -86,7 +86,9 @@ pub async fn register(
     let path = path_of(&request);
     let (body, raw) = read_json::<RegisterRequest>(request).await?;
     let pool = pool_of(&state)?;
-    let scope = request_scope(&Method::POST, &path, &address);
+    let account = normalize_account_name(&body.account)
+        .map_err(|_| denied(StatusCode::BAD_REQUEST, MessageCode::AccountNameRule))?;
+    let scope = request_scope(&Method::POST, &path, &account);
     let guard = guard_idem(pool, &key, &raw, &scope).await?;
     let limiter = Limiter::new(pool, std::sync::Arc::clone(&state.clock));
     let started = limiter
@@ -102,7 +104,7 @@ pub async fn register(
     if let Guard::Replay(replay_status, replay_value, _did_only) = guard {
         return Ok(json_response(replay_status, replay_value));
     }
-    let (status, value) = run_register(&state, &body).await?;
+    let (status, value) = run_register(&state, &body, &account).await?;
     record_outcome(
         pool,
         &state,
@@ -121,35 +123,14 @@ pub async fn register(
 pub async fn run_register(
     state: &AppState,
     body: &RegisterRequest,
+    account: &str,
 ) -> Result<(StatusCode, serde_json::Value), CallerDenied> {
     let pool = pool_of(state)?;
-    let account = normalize_account_name(&body.account)
-        .map_err(|_| denied(StatusCode::BAD_REQUEST, MessageCode::AccountNameRule))?;
     if !is_allowed_password(&body.password) {
         return Err(denied(
             StatusCode::BAD_REQUEST,
             MessageCode::AccountPasswordRule,
         ));
-    }
-    let expected = crate::api_admin::read_invite(pool).await?;
-    let Some(expected) = expected else {
-        return Err(denied(
-            StatusCode::FORBIDDEN,
-            MessageCode::AccountInviteInvalid,
-        ));
-    };
-    if expected != body.invite {
-        return Err(denied(
-            StatusCode::FORBIDDEN,
-            MessageCode::AccountInviteInvalid,
-        ));
-    }
-    if accounts::find_account(pool, &account)
-        .await
-        .map_err(internal_sqlx)?
-        .is_some()
-    {
-        return Err(denied(StatusCode::CONFLICT, MessageCode::AccountExists));
     }
     let hash = state
         .pass_hasher()
@@ -160,9 +141,31 @@ pub async fn run_register(
         .map_err(internal_text)?;
     let now_ms = i64::try_from(state.clock.now_ms().millis()).map_err(internal_text)?;
     let mut tx = pool.begin().await.map_err(internal_sqlx)?;
-    let admin = accounts::insert_account(&mut tx, &account, &hash, now_ms)
+    let expected =
+        anybot_store_server::config::read_config_value_tx(&mut tx, crate::config::KEY_INVITE_CODE)
+            .await
+            .map_err(internal_sqlx)?;
+    let Some(expected) = expected else {
+        tx.rollback().await.map_err(internal_sqlx)?;
+        return Err(denied(
+            StatusCode::FORBIDDEN,
+            MessageCode::AccountInviteInvalid,
+        ));
+    };
+    if expected != body.invite {
+        tx.rollback().await.map_err(internal_sqlx)?;
+        return Err(denied(
+            StatusCode::FORBIDDEN,
+            MessageCode::AccountInviteInvalid,
+        ));
+    }
+    let inserted = accounts::insert_account(&mut tx, account, &hash, now_ms)
         .await
         .map_err(internal_sqlx)?;
+    let Some(admin) = inserted else {
+        tx.rollback().await.map_err(internal_sqlx)?;
+        return Err(denied(StatusCode::CONFLICT, MessageCode::AccountExists));
+    };
     tx.commit().await.map_err(internal_sqlx)?;
     let value = serde_json::to_value(RegisterAck {
         created: true,

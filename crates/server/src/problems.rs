@@ -9,7 +9,7 @@ use anybot_protocol::{PROBLEM_JSON_CONTENT_TYPE, PROBLEM_TYPE_BASE, ProblemJson}
 fn format_en(code: MessageCode, params: &Params) -> String {
     Catalog::new()
         .format_en(&code, params)
-        .unwrap_or_else(|_| code.as_str().to_owned())
+        .unwrap_or_else(|err| format!("{}: {err}", code.as_str()))
 }
 
 #[must_use]

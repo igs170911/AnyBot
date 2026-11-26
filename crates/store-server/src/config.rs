@@ -1,5 +1,34 @@
 use crate::Pool;
 
+pub async fn read_config_value_tx(
+    conn: &mut sqlx::PgConnection,
+    key: &str,
+) -> Result<Option<String>, sqlx::Error> {
+    let row = sqlx::query!(
+        "SELECT value FROM server_config WHERE key = $1 FOR UPDATE",
+        key,
+    )
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(row.map(|row| row.value))
+}
+
+pub async fn write_config_value_tx(
+    conn: &mut sqlx::PgConnection,
+    key: &str,
+    value: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        "INSERT INTO server_config (key, value) VALUES ($1, $2) \
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+        key,
+        value,
+    )
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
 pub async fn read_config_value(pool: &Pool, key: &str) -> Result<Option<String>, sqlx::Error> {
     let rows = read_config_rows(pool).await?;
     Ok(rows

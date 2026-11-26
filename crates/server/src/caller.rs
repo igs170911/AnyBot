@@ -87,7 +87,7 @@ impl FromRequestParts<AppState> for Caller {
                 MessageCode::AccountLoginCredentials,
             ));
         }
-        touch_if_due(pool, state, &row, now_ms).await;
+        touch_if_due(pool, &row, now_ms).await?;
         Ok(Caller {
             account: row.account,
             admin: account.admin,
@@ -123,19 +123,17 @@ fn peer_string(peer: IpAddr) -> String {
 
 async fn touch_if_due(
     pool: &anybot_store_server::Pool,
-    _state: &AppState,
     row: &sessions::SessionRow,
     now_ms: u64,
-) {
-    let Ok(last) = u64::try_from(row.last_active_ms) else {
-        return;
-    };
-    let Ok(at) = i64::try_from(now_ms) else {
-        return;
-    };
+) -> Result<(), CallerDenied> {
+    let last = u64::try_from(row.last_active_ms).map_err(|e| internal_detail(&e.to_string()))?;
+    let at = i64::try_from(now_ms).map_err(|e| internal_detail(&e.to_string()))?;
     if touch_due(last, now_ms) {
-        drop(sessions::touch_session(pool, &row.id, at).await);
+        sessions::touch_session(pool, &row.id, at)
+            .await
+            .map_err(internal)?;
     }
+    Ok(())
 }
 
 fn denied_code(status: StatusCode, code: MessageCode) -> CallerDenied {

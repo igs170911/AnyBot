@@ -35,6 +35,7 @@ impl Limiter {
         let floor = self.floor()?;
         let at = self.now_i64()?;
         let mut tx = self.pool.begin().await?;
+        auth_events::lock_account(&mut tx, KIND_LOGIN_FAIL, account).await?;
         auth_events::lock_counter(&mut tx, KIND_LOGIN_FAIL, address, account).await?;
         let id =
             auth_events::begin_attempt(&mut *tx, KIND_LOGIN_FAIL, address, account, at).await?;
@@ -76,21 +77,21 @@ impl Limiter {
         i64::try_from(self.now_ms()).map_err(|e| sqlx::Error::Protocol(e.to_string()))
     }
 
-    pub async fn password_blocked(&self, account: &str) -> Result<bool, sqlx::Error> {
+    pub async fn begin_password(&self, address: &str, account: &str) -> Result<bool, sqlx::Error> {
         let floor = self.floor()?;
+        let at = self.now_i64()?;
+        let mut tx = self.pool.begin().await?;
+        auth_events::lock_account(&mut tx, KIND_PASSWORD_CHANGE, account).await?;
+        let _id = auth_events::begin_attempt(&mut *tx, KIND_PASSWORD_CHANGE, address, account, at)
+            .await?;
         let total =
-            auth_events::count_account(&self.pool, KIND_PASSWORD_CHANGE, account, floor).await?;
-        Ok(total >= PASSWORD_LIMIT)
-    }
-
-    pub async fn record(
-        &self,
-        kind: &str,
-        address: &str,
-        account: &str,
-    ) -> Result<(), sqlx::Error> {
-        let at_ms = self.now_i64()?;
-        auth_events::record_auth_event(&self.pool, kind, address, account, at_ms).await
+            auth_events::count_account(&mut *tx, KIND_PASSWORD_CHANGE, account, floor).await?;
+        if total > PASSWORD_LIMIT {
+            tx.rollback().await?;
+            return Ok(false);
+        }
+        tx.commit().await?;
+        Ok(true)
     }
 
     fn now_ms(&self) -> u64 {

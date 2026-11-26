@@ -114,9 +114,14 @@ pub async fn rotate_invite(
     let pool = pool_of(&state)?;
     let _guard = crate::api_account::guard_idem(pool, &key, &raw, &scope).await?;
     let fresh = draw_invite().map_err(internal_text)?;
-    config::write_config_value(pool, crate::config::KEY_INVITE_CODE, &fresh)
+    let mut tx = pool.begin().await.map_err(internal_sqlx)?;
+    let _held = config::read_config_value_tx(&mut tx, crate::config::KEY_INVITE_CODE)
         .await
         .map_err(internal_sqlx)?;
+    config::write_config_value_tx(&mut tx, crate::config::KEY_INVITE_CODE, &fresh)
+        .await
+        .map_err(internal_sqlx)?;
+    tx.commit().await.map_err(internal_sqlx)?;
     let value = value_of(&InviteResponse { invite: fresh })?;
     crate::req_write::record_outcome(
         pool,

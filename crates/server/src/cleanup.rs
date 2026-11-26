@@ -24,7 +24,10 @@ async fn run_cleanup(pool: Pool, clock: Arc<dyn Clock>, shutdown: Arc<Notify>) {
             biased;
             () = shutdown.notified() => break,
             () = clock.sleep(CLEANUP_SPAN) => {
-                let _round = prune_every(&pool, &clock).await;
+                if let Err(err) = prune_every(&pool, &clock).await {
+                    let _reported = format!("cleanup failed: {err}");
+                    break;
+                }
             }
         }
     }
@@ -33,8 +36,8 @@ async fn run_cleanup(pool: Pool, clock: Arc<dyn Clock>, shutdown: Arc<Notify>) {
 async fn prune_every(pool: &Pool, clock: &Arc<dyn Clock>) -> Result<(), sqlx::Error> {
     let auth_floor = retention_floor(clock.now_ms(), AUTH_RETENTION_MS)?;
     let idem_floor = retention_floor(clock.now_ms(), IDEM_RETENTION_MS)?;
-    let _auth = auth_events::prune_auth_events_before(pool, auth_floor).await?;
-    let _idem = idempotency::prune_idempotency_before(pool, idem_floor).await?;
+    auth_events::prune_auth_events_before(pool, auth_floor).await?;
+    idempotency::prune_idempotency_before(pool, idem_floor).await?;
     Ok(())
 }
 
