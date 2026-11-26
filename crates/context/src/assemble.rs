@@ -16,7 +16,16 @@ pub fn block(kind: BlockKind, form: BlockForm, source_ids: Vec<String>, text: St
         source_ids,
         text,
         estimate_raw,
+        call_id: None,
+        tool_name: None,
     }
+}
+
+#[must_use]
+pub fn tag(mut block: Block, call_id: &str, tool: &str) -> Block {
+    block.call_id = Some(call_id.to_owned());
+    block.tool_name = Some(tool.to_owned());
+    block
 }
 
 #[must_use]
@@ -65,23 +74,22 @@ pub fn step_blocks(
     collapsed: &std::collections::BTreeSet<String>,
     view_limit: usize,
 ) -> StepBlocks {
-    let mut first_seen: BTreeMap<String, (usize, String)> = BTreeMap::new();
+    let mut col = Collector {
+        blocks: Vec::new(),
+        excluded: Vec::new(),
+        first_seen: BTreeMap::new(),
+    };
     let mut groups = Vec::new();
-    let mut excluded = Vec::new();
     for (idx, step) in steps.iter().enumerate() {
         let mut group = vec![intent_block(step, idx)];
-        push_result(
-            step,
-            idx,
-            collapsed,
-            view_limit,
-            &mut first_seen,
-            &mut group,
-            &mut excluded,
-        );
+        push_result(step, idx, collapsed, view_limit, &mut col);
+        group.extend(col.blocks.split_off(0));
         groups.push(group);
     }
-    StepBlocks { groups, excluded }
+    StepBlocks {
+        groups,
+        excluded: col.excluded,
+    }
 }
 
 fn intent_block(step: &StepRecord, idx: usize) -> Block {
@@ -93,7 +101,26 @@ fn intent_block(step: &StepRecord, idx: usize) -> Block {
         step.level,
         result_status(step)
     );
-    block(BlockKind::ToolIntent, BlockForm::Verbatim, vec![id], text)
+    let intent = block(BlockKind::ToolIntent, BlockForm::Verbatim, vec![id], text);
+    tag(intent, &step.call_id.as_str(), &step.tool)
+}
+
+struct Refs {
+    id: String,
+    call: String,
+}
+
+struct Collector {
+    blocks: Vec<Block>,
+    excluded: Vec<(String, ExcludedReason)>,
+    first_seen: BTreeMap<String, (usize, String)>,
+}
+
+fn refs_for(step: &StepRecord) -> Refs {
+    Refs {
+        id: format!("result-{}", step.source_ref),
+        call: format!("call-{}", step.call_id.as_str()),
+    }
 }
 
 fn push_result(
@@ -101,53 +128,103 @@ fn push_result(
     idx: usize,
     collapsed: &std::collections::BTreeSet<String>,
     view_limit: usize,
-    first_seen: &mut BTreeMap<String, (usize, String)>,
-    blocks: &mut Vec<Block>,
-    excluded: &mut Vec<(String, ExcludedReason)>,
+    col: &mut Collector,
 ) {
-    let id = format!("result-{}", step.source_ref);
     if !step.has_output() {
         return;
     }
+    let refs = refs_for(step);
     let digest = crate::digest::content_digest(&step.content);
-    if let Some((first, first_ref)) = first_seen.get(&digest) {
-        if collapsed.contains(first_ref) {
-            let full = crate::mask::render_view(step, view_limit);
-            blocks.push(block(
-                BlockKind::ToolResultFull,
-                BlockForm::Verbatim,
-                vec![id.clone()],
-                full,
-            ));
-            return;
-        }
-        blocks.push(block(
-            BlockKind::ToolResultDuplicate,
-            BlockForm::Duplicate,
-            vec![id.clone()],
-            duplicate_line(step, *first),
-        ));
-        excluded.push((id.clone(), ExcludedReason::Duplicate));
+    let found = col
+        .first_seen
+        .get(&digest)
+        .map(|(first, first_ref)| (*first, first_ref.clone()));
+    if let Some((first, first_ref)) = &found {
+        push_repeat(step, *first, first_ref, collapsed, view_limit, &refs, col);
         return;
     }
-    first_seen.insert(digest, (idx, step.source_ref.clone()));
+    col.first_seen
+        .insert(digest, (idx, step.source_ref.clone()));
+    push_first(step, collapsed, view_limit, &refs, col);
+}
+
+fn push_repeat(
+    step: &StepRecord,
+    first: usize,
+    first_ref: &str,
+    collapsed: &std::collections::BTreeSet<String>,
+    view_limit: usize,
+    refs: &Refs,
+    col: &mut Collector,
+) {
+    if collapsed.contains(first_ref) {
+        let full = crate::mask::render_view(step, view_limit);
+        col.blocks.push(result_block(
+            step,
+            BlockKind::ToolResultFull,
+            BlockForm::Verbatim,
+            &full,
+            refs,
+        ));
+        return;
+    }
+    let line = duplicate_line(step, first);
+    col.blocks.push(result_block(
+        step,
+        BlockKind::ToolResultDuplicate,
+        BlockForm::Duplicate,
+        &line,
+        refs,
+    ));
+    col.excluded
+        .push((refs.id.clone(), ExcludedReason::Duplicate));
+}
+
+fn push_first(
+    step: &StepRecord,
+    collapsed: &std::collections::BTreeSet<String>,
+    view_limit: usize,
+    refs: &Refs,
+    col: &mut Collector,
+) {
     if collapsed.contains(&step.source_ref) && !step.keeps_full() {
-        blocks.push(block(
+        col.blocks.push(result_block(
+            step,
             BlockKind::ToolResultMasked,
             BlockForm::Masked,
-            vec![id.clone()],
-            masked_line(step),
+            &masked_line(step),
+            refs,
         ));
-        excluded.push((id.clone(), ExcludedReason::Masked));
+        col.excluded.push((refs.id.clone(), ExcludedReason::Masked));
         return;
     }
     let full = crate::mask::render_view(step, view_limit);
-    blocks.push(block(
+    col.blocks.push(result_block(
+        step,
         BlockKind::ToolResultFull,
         BlockForm::Verbatim,
-        vec![id.clone()],
-        full,
+        &full,
+        refs,
     ));
+}
+
+fn result_block(
+    step: &StepRecord,
+    kind: BlockKind,
+    form: BlockForm,
+    text: &str,
+    refs: &Refs,
+) -> Block {
+    tag(
+        block(
+            kind,
+            form,
+            vec![refs.call.clone(), refs.id.clone()],
+            text.to_owned(),
+        ),
+        &step.call_id.as_str(),
+        &step.tool,
+    )
 }
 
 #[must_use]

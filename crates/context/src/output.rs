@@ -46,6 +46,8 @@ pub struct Block {
     pub source_ids: Vec<String>,
     pub text: String,
     pub estimate_raw: u64,
+    pub call_id: Option<String>,
+    pub tool_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -65,7 +67,12 @@ impl CompiledRequest {
     ) -> TurnRequest {
         TurnRequest {
             system: self.system.clone(),
-            messages: self.blocks.iter().map(block_message).collect(),
+            messages: self
+                .blocks
+                .iter()
+                .filter(|b| b.kind != BlockKind::System)
+                .map(block_message)
+                .collect(),
             tools,
             thinking,
             max_output_tokens,
@@ -97,9 +104,33 @@ fn block_message(block: &Block) -> anybot_models::Message {
     anybot_models::Message {
         role: block.kind.role(),
         text: block.text.clone(),
-        tool_calls: Vec::new(),
-        tool_call_id: None,
+        tool_calls: intent_calls(block),
+        tool_call_id: result_call_id(block),
     }
+}
+
+fn intent_calls(block: &Block) -> Vec<anybot_models::ToolCall> {
+    if block.kind != BlockKind::ToolIntent {
+        return Vec::new();
+    }
+    let (Some(id), Some(name)) = (block.call_id.clone(), block.tool_name.clone()) else {
+        return Vec::new();
+    };
+    vec![anybot_models::ToolCall {
+        id,
+        name,
+        arguments: anybot_models::ToolArguments::Json(serde_json::Value::Null),
+    }]
+}
+
+fn result_call_id(block: &Block) -> Option<String> {
+    if !matches!(
+        block.kind,
+        BlockKind::ToolResultFull | BlockKind::ToolResultMasked | BlockKind::ToolResultDuplicate
+    ) {
+        return None;
+    }
+    block.call_id.clone()
 }
 
 #[must_use]
@@ -203,7 +234,7 @@ pub fn manifest_model(plan: &ModelPlan) -> ManifestModel {
     ManifestModel {
         provider: format!("{:?}", capability.provider),
         model: capability.model.clone(),
-        estimator: format!("{:?}", capability.tokenizer),
+        estimator: "formula:text_tokens".to_owned(),
         calibration_samples: plan.calibration.samples(),
         context_tokens: capability.context_tokens,
     }
