@@ -1,15 +1,16 @@
 use std::path::PathBuf;
 
 #[cfg(unix)]
-pub(super) fn process_alive(pid: u32) -> bool {
-    std::process::Command::new("/bin/kill")
+pub(super) fn process_alive(pid: u32) -> Option<bool> {
+    let status = std::process::Command::new("/bin/kill")
         .args(["-0", &pid.to_string()])
         .status()
-        .is_ok_and(|code| code.success())
+        .ok()?;
+    Some(status.success())
 }
 
 #[cfg(windows)]
-pub(super) fn process_alive(pid: u32) -> bool {
+pub(super) fn process_alive(pid: u32) -> Option<bool> {
     tasklist_pid(pid)
 }
 
@@ -63,7 +64,7 @@ fn send_term(pid: u32) -> Result<(), String> {
         .arg(pid.to_string())
         .output()
         .map_err(|e| format!("term PID {pid} failed: {e}"))?;
-    if output.status.success() || !process_alive(pid) {
+    if output.status.success() || process_alive(pid) == Some(false) {
         return Ok(());
     }
     Err(format!("term PID {pid} was rejected"))
@@ -95,16 +96,16 @@ fn signal_helper() -> Result<PathBuf, String> {
 }
 
 #[cfg(windows)]
-fn tasklist_pid(pid: u32) -> bool {
+fn tasklist_pid(pid: u32) -> Option<bool> {
     let output = std::process::Command::new("tasklist")
         .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
         .output()
         .ok()?;
     if !output.status.success() {
-        return false;
+        return None;
     }
     let text = String::from_utf8_lossy(&output.stdout);
-    text.lines().any(|line| csv_pid_matches(line, pid))
+    Some(text.lines().any(|line| csv_pid_matches(line, pid)))
 }
 
 #[cfg(windows)]
@@ -139,7 +140,7 @@ fn stop_tree(pid: u32) -> Result<(), String> {
         .args(["/PID", &pid.to_string(), "/T", "/F"])
         .output()
         .map_err(|e| format!("term PID {pid} failed: {e}"))?;
-    if output.status.success() || !process_alive(pid) {
+    if output.status.success() || process_alive(pid) == Some(false) {
         return Ok(());
     }
     Err(format!("term PID {pid} was rejected"))

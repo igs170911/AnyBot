@@ -51,7 +51,7 @@ fn stop_recorded(path: &Path) -> Result<(), String> {
     let Some(record) = parse_record(text.trim()) else {
         return Ok(());
     };
-    if record.pid == std::process::id() || !process_alive(record.pid) {
+    if record.pid == std::process::id() || process_alive(record.pid) == Some(false) {
         return Ok(());
     }
     if !marker_in_tests(path) || !workspace_record(&record) {
@@ -120,7 +120,7 @@ fn parse_record(text: &str) -> Option<Record> {
     })
 }
 
-fn process_alive(pid: u32) -> bool {
+fn process_alive(pid: u32) -> Option<bool> {
     os::process_alive(pid)
 }
 
@@ -169,15 +169,18 @@ fn wait_dead(pid: u32, budget: Duration) -> Result<(), String> {
         return Err("reap deadline overflow".to_owned());
     };
     while Instant::now() < deadline {
-        if !process_alive(pid) {
-            return Ok(());
+        match process_alive(pid) {
+            Some(false) => return Ok(()),
+            Some(true) => {}
+            None => return Err(format!("PID {pid} liveness is unknown")),
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    if process_alive(pid) {
-        return Err(format!("PID {pid} still alive after {budget:?}"));
+    match process_alive(pid) {
+        Some(false) => Ok(()),
+        Some(true) => Err(format!("PID {pid} still alive after {budget:?}")),
+        None => Err(format!("PID {pid} liveness is unknown")),
     }
-    Ok(())
 }
 
 pub fn write_tool_pid(dir: &Path) -> Result<PathBuf, String> {
