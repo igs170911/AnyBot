@@ -1,9 +1,12 @@
 #!/bin/sh
 # Point IMAGE:latest at a final vX.Y.Z that is not older than the current latest.
-# The current version is the org.opencontainers.image.version annotation on :latest.
+# The current version is the tag name of the image the :latest index lists.
+# That tag is applied in the same imagetools create as the commit index, so it
+# does not depend on an annotation surviving a Docker manifest list.
 # Only an explicit missing-tag error from the registry counts as a first publish.
 # Any other read error stops and does not move. Does not move a git tag.
 # ANYBOT_DOCKER replaces docker in tests.
+# https://docs.docker.com/reference/cli/docker/buildx/imagetools/inspect/
 set -eu
 docker="${ANYBOT_DOCKER:-docker}"
 tag_name="${TAG_NAME:?TAG_NAME is required}"
@@ -49,10 +52,10 @@ current="${LATEST_VERSION:-}"
 if [ -z "${LATEST_VERSION+x}" ]; then
   err="${LATEST_ERR:-target/latest-inspect.err}"
   mkdir -p "$(dirname "$err")"
-  if "$docker" buildx imagetools inspect --format \
-    '{{index .Manifest.Annotations "org.opencontainers.image.version"}}' \
-    "${image}:latest" >"$err.out" 2>>"$err"; then
-    current="$(cat "$err.out")"
+  # imagetools inspect prints one platform per line. The version is the
+  # tag on that platform's source, not an annotation on :latest.
+  if "$docker" buildx imagetools inspect "${image}:latest" >"$err.out" 2>>"$err"; then
+    current="$(sed -n 's/.*tag: //p' "$err.out" | head -n 1)"
   elif err_text="$(cat "$err")" && case "$err_text" in
     *'manifest unknown'*|*'not found'*|*'no such manifest'*|*NAME_UNKNOWN*|*MANIFEST_UNKNOWN*) true ;;
     *) false ;;
@@ -71,8 +74,8 @@ if [ -n "$current" ] && [ "$current" != "<no value>" ]; then
   fi
 fi
 
+# No index annotation. :latest names the version tag, which already exists.
 "$docker" buildx imagetools create \
   --tag "${image}:latest" \
-  --annotation "index:org.opencontainers.image.version=${version}" \
   "${image}:${version}"
 echo "moved ${image}:latest to ${version}"

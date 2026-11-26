@@ -108,11 +108,23 @@ pathlib.Path(docker).write_text(
     "    if [ \"$prev\" = --metadata-file ]; then meta=\"$arg\"; fi\n"
     "    prev=\"$arg\"\n"
     "  done\n"
+    "  case \"$*\" in\n"
+    "    *--annotation*)\n"
+    "      case \"${STUB_IMAGE_FORMAT:-oci}\" in\n"
+    "        docker)\n"
+    "          echo 'annotations are not supported for Docker manifest lists' >&2\n"
+    "          exit 1 ;;\n"
+    "      esac ;;\n"
+    "  esac\n"
     "  if [ -n \"$meta\" ]; then\n"
     "    printf '%s\\n' '{\"containerimage.descriptor\":{\"digest\":\"sha256:index\"}}' > \"$meta\"\n"
     "  fi\n"
     "  if [ \"$3\" = inspect ]; then\n"
-    "    printf '%s\\n' '0.1.0'\n"
+    "    printf '%s\\n' 'Name: ghcr.io/example:latest' \n"
+    "    printf '%s\\n' 'MediaType: application/vnd.oci.image.index.v1+json' \n"
+    "    printf '%s\\n' 'Manifests:' \n"
+    "    printf '%s\\n' '  Name: ghcr.io/example:0.1.0@sha256:abc' \n"
+    "    printf '%s\\n' '  Platform: linux/amd64' \n"
     "  fi\n"
     "  exit 0\n"
     "fi\n"
@@ -395,13 +407,13 @@ fi
 
 say "--- candidate image tag is the rc, not the cargo version ---"
 prepare push-rc
-mkdir -p "$base/parts"
-printf 'amd64\n' > "$base/parts/amd64.tar"
-printf 'arm64\n' > "$base/parts/arm64.tar"
+mkdir -p "$base/digests"
+printf 'sha256:aaa\n' > "$base/digests/amd64.digest"
+printf 'sha256:bbb\n' > "$base/digests/arm64.digest"
 : > "$base/push-out"
 set +e
 CHANNEL=stable VERSION=0.1.0 IMAGE_TAG=0.1.0-rc.1 COMMIT=aaaaaaaaaaaa \
-  IMAGE=ghcr.io/igs170911/anybot IMAGE_DIR="$base/parts" \
+  IMAGE=ghcr.io/igs170911/anybot IMAGE_DIR="$base/digests" \
   AMD64_DIGEST=sha256:aaa ARM64_DIGEST=sha256:bbb \
   INDEX_DIGEST=sha256:ccc IMAGE_META="$base/index.json" GITHUB_OUTPUT="$root/$base/push-out" \
   sh deploy/release/push-images.sh >"$base/push.out" 2>"$base/push.err"
@@ -421,7 +433,7 @@ prepare push-dev
 : > "$base/push-dev-out"
 set +e
 CHANNEL=dev IMAGE_TAG=dev COMMIT=bbbbbbbbbbbb \
-  IMAGE=ghcr.io/igs170911/anybot IMAGE_DIR="$base/parts" \
+  IMAGE=ghcr.io/igs170911/anybot IMAGE_DIR="$base/digests" \
   AMD64_DIGEST=sha256:aaa ARM64_DIGEST=sha256:bbb \
   INDEX_DIGEST=sha256:ddd IMAGE_META="$base/dev-index.json" GITHUB_OUTPUT="$root/$base/push-dev-out" \
   sh deploy/release/push-images.sh >"$base/push-dev.out" 2>"$base/push-dev.err"
@@ -439,16 +451,17 @@ prepare push-real
 : > "$base/push-real-out"
 set +e
 IMAGE_TAG=0.1.0 COMMIT=aaaaaaaaaaaa IMAGE=ghcr.io/igs170911/anybot \
-  CHANNEL=stable IMAGE_DIR="$base/parts" IMAGE_META="$base/real-index.json" \
+  CHANNEL=stable IMAGE_DIR="$base/digests" IMAGE_META="$base/real-index.json" \
   GITHUB_OUTPUT="$root/$base/push-real-out" \
   sh deploy/release/push-images.sh >"$base/push-real.out" 2>"$base/push-real.err"
 rc=$?
 set -e
 need_ok "real push" "$rc"
 need "real push has no verify tag" "$(grep -c ':verify' "$base/push-real/docker.log" || true)" "0"
-need "index built from pushed digests" "$(grep -c '@sha256:pushed' "$base/push-real/docker.log" || true)" "1"
+need "index built from digest files" "$(grep -c '@sha256:aaa' "$base/push-real/docker.log" || true)" "1"
+need "real push did not load a tar" "$(grep -c '^docker load' "$base/push-real/docker.log" || true)" "0"
 need "real index digest" "$(grep '^digest=' "$base/push-real-out" | cut -d= -f2-)" "sha256:index"
-need "real arch tag is commit scoped" "$(grep -c 'amd64-aaaaaaaaaaaa' "$base/push-real/docker.log" || true)" "2"
+need "real arch tag is not pushed again" "$(grep -c 'amd64-aaaaaaaaaaaa' "$base/push-real/docker.log" || true)" "0"
 need "real version tag planned" "$(grep -c -- '--tag ghcr.io/igs170911/anybot:0.1.0' "$base/push-real/docker.log" || true)" "1"
 
 say "--- :dev moves only when asked, onto the dev commit tag ---"
@@ -460,6 +473,38 @@ rc=$?
 set -e
 need_ok "move dev" "$rc"
 need "moved onto dev commit tag" "$(grep -c 'anybot:dev-bbbbbbbbbbbb' "$base/move-dev/docker.log" || true)" "1"
+need "move dev has no annotation" "$(grep -c -- '--annotation' "$base/move-dev/docker.log" || true)" "0"
+
+say "--- a Docker manifest list rejects an index annotation ---"
+prepare docker-list docker
+export STUB_IMAGE_FORMAT=docker
+set +e
+CHANNEL=stable IMAGE_TAG=0.1.0 COMMIT=aaaaaaaaaaaa \
+  IMAGE=ghcr.io/igs170911/anybot IMAGE_DIR="$base/digests" \
+  IMAGE_META="$base/docker-index.json" \
+  sh deploy/release/push-images.sh >"$base/docker-list.out" 2>"$base/docker-list.err"
+rc=$?
+set -e
+unset STUB_IMAGE_FORMAT || true
+need "docker list refuses the annotation" "$rc" "1"
+need "docker list reason" "$(grep -c 'Docker manifest lists' "$base/docker-list.err" || true)" "1"
+need "docker list did not write a digest" "$(grep -c '^digest=' "$base/docker-list.out" || true)" "0"
+
+say "--- dmg retries only Resource busy ---"
+busy="$base/dmg-busy.log"
+other="$base/dmg-other.log"
+printf '%s\n' 'hdiutil: couldn'"'"'t eject "disk2" - Resource busy' > "$busy"
+printf '%s\n' 'error: missing icon' > "$other"
+set +e
+DMG_RETRY_SELFTEST=1 sh deploy/release/dmg-retry.sh "$busy" 1 >"$base/dmg-busy.out" 2>"$base/dmg-busy.err"
+busy_rc=$?
+DMG_RETRY_SELFTEST=1 sh deploy/release/dmg-retry.sh "$other" 2 >"$base/dmg-other.out" 2>"$base/dmg-other.err"
+other_rc=$?
+set -e
+need "busy is retried" "$busy_rc" "75"
+need "busy retry line" "$(grep -c 'retry 1 of 3, waiting 5s' "$base/dmg-busy.out" || true)" "1"
+need "other error is not retried" "$other_rc" "2"
+need "other error reason" "$(grep -c 'not Resource busy' "$base/dmg-other.err" || true)" "1"
 need "recheck is the first publish step" "$(
   awk '
     /^  publish:/{job=1}
@@ -554,6 +599,9 @@ if [ -z "${ANYBOT_SELFTEST_INNER:-}" ]; then
     sh "$root/deploy/release/release-selftest.sh" >"$base/nested.out" 2>"$base/nested.err" || fail=1
   need "nested selftest passed" "$(grep -c 'release-selftest: pass' "$base/nested.out" || true)" "1"
   need "ANYBOT_DOCKER was not called" "$(wc -c < "$root/$base/trap-docker.log" | tr -d ' ')" "0"
+  need "stub rejects a docker manifest list" "$(grep -c 'Docker manifest lists' "$stub/docker" || true)" "1"
+  need "dmg script still checks the message" "$(grep -c "grep -q 'Resource busy'" deploy/release/dmg-retry.sh || true)" "2"
+  need "latest reads the source tag" "$(grep -c 's/.*tag: //p' deploy/release/move-latest.sh || true)" "1"
 fi
 
 if [ "$fail" -ne 0 ]; then
