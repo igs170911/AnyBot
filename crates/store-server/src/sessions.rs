@@ -6,6 +6,7 @@ pub struct SessionRow {
     pub account: String,
     pub last_active_ms: i64,
     pub last_password_at_ms: i64,
+    pub device_id: Option<String>,
 }
 
 pub async fn insert_session(
@@ -14,6 +15,7 @@ pub async fn insert_session(
     account: &str,
     key_hash: &str,
     label: &str,
+    device_id: &str,
     now_ms: i64,
 ) -> Result<(), sqlx::Error> {
     let account_row = sqlx::query!(
@@ -23,12 +25,13 @@ pub async fn insert_session(
     .fetch_one(pool)
     .await?;
     sqlx::query!(
-        "INSERT INTO sessions (id, account, key_hash, label, created_at_ms, last_active_ms, \
-         last_password_at_ms) VALUES ($1, $2, $3, $4, $5, $5, $6)",
+        "INSERT INTO sessions (id, account, key_hash, label, device_id, created_at_ms, \
+         last_active_ms, last_password_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $6, $7)",
         id,
         account,
         key_hash,
         label,
+        device_id,
         now_ms,
         account_row.last_password_at_ms,
     )
@@ -42,7 +45,7 @@ pub async fn find_session_by_key_hash(
     key_hash: &str,
 ) -> Result<Option<SessionRow>, sqlx::Error> {
     let row = sqlx::query!(
-        "SELECT id, account, last_active_ms, last_password_at_ms \
+        "SELECT id, account, last_active_ms, last_password_at_ms, device_id \
          FROM sessions WHERE key_hash = $1",
         key_hash,
     )
@@ -56,6 +59,7 @@ pub async fn find_session_by_key_hash(
         account: row.account,
         last_active_ms: row.last_active_ms,
         last_password_at_ms: row.last_password_at_ms,
+        device_id: row.device_id,
     }))
 }
 
@@ -83,7 +87,7 @@ pub async fn sync_session_password(pool: &Pool, id: &str, now_ms: i64) -> Result
 
 pub async fn list_sessions(pool: &Pool, account: &str) -> Result<Vec<SessionRow>, sqlx::Error> {
     let rows = sqlx::query!(
-        "SELECT id, account, last_active_ms, last_password_at_ms \
+        "SELECT id, account, last_active_ms, last_password_at_ms, device_id \
          FROM sessions WHERE account = $1 ORDER BY last_active_ms",
         account,
     )
@@ -96,6 +100,7 @@ pub async fn list_sessions(pool: &Pool, account: &str) -> Result<Vec<SessionRow>
             account: row.account,
             last_active_ms: row.last_active_ms,
             last_password_at_ms: row.last_password_at_ms,
+            device_id: row.device_id,
         });
     }
     Ok(out)

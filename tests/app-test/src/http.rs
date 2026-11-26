@@ -100,7 +100,7 @@ impl ResponseSpec {
     }
 
     pub fn bearer(&self) -> Result<String, String> {
-        self.field_str("session_key")
+        self.field_str("bearer_key")
     }
 
     #[must_use]

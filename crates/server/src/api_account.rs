@@ -8,7 +8,7 @@ use anybot_messages::MessageCode;
 use anybot_protocol::{LoginRequest, LoginSession, ProblemJson};
 use anybot_store_server::{Pool, accounts};
 
-use crate::api_login_flow::{open_session, slow_fail, verify_password};
+use crate::api_login_flow::{credential_is_cookie, open_session, slow_fail, verify_password};
 use crate::api_register::status_from_i32;
 use crate::app::AppState;
 use crate::caller::CallerDenied;
@@ -20,6 +20,10 @@ use crate::req_write::{
     pool_of, read_json, record_outcome, request_address, value_of,
 };
 use axum::http::Method;
+use axum::http::HeaderValue;
+use axum::http::header::SET_COOKIE;
+
+const SESSION_COOKIE_MAX_AGE: u64 = anybot_domain::session_term::SESSION_IDLE_MS / 1000;
 
 #[utoipa::path(
     post,
@@ -29,12 +33,12 @@ use axum::http::Method;
     description = "Requires the Idempotency-Key header; replaying the same key opens a new session.",
     tag = "account",
     security(()),
-    request_body(content = LoginRequest, example = json!({"account": "alice", "password": "hunter22", "label": "phone"})),
+    request_body(content = LoginRequest, example = json!({"account": "alice", "password": "hunter22", "label": "phone", "credential": "bearer"})),
     responses(
         (status = 200, description = "Session opened",
             content_type = "application/json",
             body = LoginSession,
-            example = json!({"session_key": "a1b2c3d4e5f6a1b2", "account": "alice"})),
+            example = json!({"bearer_key": "a1b2c3d4e5f6a1b2", "account": "alice", "device_id": "d1"})),
         (status = 400, description = "Missing idempotency key",
             content_type = "application/problem+json",
             body = ProblemJson,
@@ -71,6 +75,7 @@ pub async fn login(
     let key = idempotency_key(&request)?;
     let address = request_address(&request, &state)?;
     let path = path_of(&request);
+    let origin = origin_of(&request);
     let (body, raw) = read_json::<LoginRequest>(request).await?;
     let pool = pool_of(&state)?;
     let account = normalized_account(&body)?;
@@ -88,6 +93,7 @@ pub async fn login(
             MessageCode::AccountLoginRate,
         ));
     };
+    let cookie_mode = credential_is_cookie(&body)?;
     let run = LoginRun {
         state: &state,
         pool,
@@ -98,6 +104,8 @@ pub async fn login(
         key: &key,
         raw: &raw,
         scope: &scope,
+        origin,
+        cookie_mode,
     };
     run_login(&run).await
 }
@@ -112,6 +120,16 @@ struct LoginRun<'a> {
     key: &'a str,
     raw: &'a [u8],
     scope: &'a str,
+    origin: Option<String>,
+    cookie_mode: bool,
+}
+
+fn origin_of(request: &axum::extract::Request) -> Option<String> {
+    request
+        .headers()
+        .get(axum::http::header::ORIGIN)
+        .and_then(|value| value.to_str().ok())
+        .map(String::from)
 }
 
 async fn run_login(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
@@ -195,14 +213,36 @@ async fn disabled(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
     ))
 }
 
+async fn issue_cookie(
+    answer: Response,
+    run: &LoginRun<'_>,
+    session: &LoginSession,
+) -> Result<Response, CallerDenied> {
+    if !run.cookie_mode {
+        return Ok(answer);
+    }
+    let raw = session
+        .session_key
+        .clone()
+        .ok_or(internal_detail("session key missing at issue"))?;
+    let key = Secret::from_untrusted(raw);
+    let view = crate::auth_csrf::credential_view(run.state, run.origin.as_deref());
+    let cookie = crate::auth_credential::cookie_issue(&view, &key, SESSION_COOKIE_MAX_AGE);
+    let mut answer = answer;
+    answer
+        .headers_mut()
+        .append(SET_COOKIE, HeaderValue::from_str(&cookie).map_err(|e| internal_detail(&e.to_string()))?);
+    Ok(answer)
+}
+
 async fn accepted(run: &LoginRun<'_>, account: &str) -> Result<Response, CallerDenied> {
     run.limiter
         .cancel_login(run.attempt)
         .await
         .map_err(internal_sqlx)?;
-    let session = open_session(run.state, run.pool, run.body, account).await?;
+    let session = open_session(run.state, run.pool, run.body, account, run.cookie_mode).await?;
     let value = value_of(&session)?;
-    record_outcome(
+    let answer = record_outcome(
         run.pool,
         run.state,
         &Outcome {
@@ -214,7 +254,8 @@ async fn accepted(run: &LoginRun<'_>, account: &str) -> Result<Response, CallerD
             marker: true,
         },
     )
-    .await
+    .await?;
+    issue_cookie(answer, run, &session).await
 }
 
 pub enum Guard {

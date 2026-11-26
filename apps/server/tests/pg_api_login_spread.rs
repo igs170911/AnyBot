@@ -24,7 +24,7 @@ const N2_1_ACCOUNT_LIMIT: usize = 40;
 const N2_1_BLOCKED_AT: usize = N2_1_ACCOUNT_LIMIT.saturating_add(1);
 
 fn login_body(account: &str, password: &str) -> String {
-    json!({"account": account, "password": password, "label": "test-device"}).to_string()
+    json!({"account": account, "password": password, "label": "test-device", "credential": "bearer"}).to_string()
 }
 
 fn login_spec(account: &str, password: &str, key: &str) -> RequestSpec {

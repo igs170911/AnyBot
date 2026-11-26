@@ -11,6 +11,7 @@ anybot-protocol = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+url = { workspace = true }
 [lints]
 workspace = true
 [dev-dependencies]

@@ -29,7 +29,7 @@ fn register_body(account: &str, password: &str, invite: &str) -> String {
 }
 
 fn login_body(account: &str, password: &str) -> String {
-    json!({"account": account, "password": password, "label": "test-device"}).to_string()
+    json!({"account": account, "password": password, "label": "test-device", "credential": "bearer"}).to_string()
 }
 
 fn invite_code_from_line(line: &str) -> Result<String, String> {

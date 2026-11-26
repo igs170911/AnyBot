@@ -29,15 +29,21 @@ pub struct LoginRequest {
     pub password: String,
     #[cfg_attr(feature = "schema", schema(example = "phone P"))]
     pub label: String,
+    #[cfg_attr(feature = "schema", schema(example = "bearer"))]
+    pub credential: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct LoginSession {
+    #[serde(skip)]
+    pub session_key: Option<String>,
     #[cfg_attr(feature = "schema", schema(example = "a1b2c3d4"))]
-    pub session_key: String,
+    pub bearer_key: Option<String>,
     #[cfg_attr(feature = "schema", schema(example = "alice"))]
     pub account: String,
+    #[cfg_attr(feature = "schema", schema(example = "d1"))]
+    pub device_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

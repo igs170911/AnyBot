@@ -17,10 +17,18 @@ use crate::pass_hash::key_digest;
 use crate::problems::{auth_problem, problem_response};
 use crate::req_source::request_source_address;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialKind {
+    Cookie,
+    Bearer,
+}
+
 pub struct Caller {
     pub account: String,
     pub admin: bool,
     pub session_id: String,
+    pub device_id: String,
+    pub credential: CredentialKind,
     pub address: String,
 }
 
@@ -43,16 +51,30 @@ impl FromRequestParts<AppState> for Caller {
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let address = source_of(parts, state)?;
-        let bearer = bearer_secret(parts).ok_or(denied_code(
-            StatusCode::UNAUTHORIZED,
-            MessageCode::AccountLoginCredentials,
-        ))?;
+        let bearer = bearer_secret(parts);
+        let cookie = crate::auth_credential::cookie_secret(&parts.headers);
+        let credential = match (bearer, cookie) {
+            (Some(_), Some(_)) => {
+                return Err(denied_code(
+                    StatusCode::FORBIDDEN,
+                    MessageCode::AccountLoginCredentials,
+                ))
+            }
+            (Some(key), None) => (CredentialKind::Bearer, key),
+            (None, Some(key)) => (CredentialKind::Cookie, key),
+            (None, None) => {
+                return Err(denied_code(
+                    StatusCode::UNAUTHORIZED,
+                    MessageCode::AccountLoginCredentials,
+                ))
+            }
+        };
         let pool = state
             .pool
             .as_ref()
             .as_ref()
             .ok_or_else(|| internal_static("no database pool"))?;
-        let row = sessions::find_session_by_key_hash(pool, &key_digest(&bearer))
+        let row = sessions::find_session_by_key_hash(pool, &key_digest(&credential.1))
             .await
             .map_err(internal)?;
         let row = row.ok_or(denied_code(
@@ -87,11 +109,19 @@ impl FromRequestParts<AppState> for Caller {
                 MessageCode::AccountLoginCredentials,
             ));
         }
+        let Some(device_id) = row.device_id.clone() else {
+            return Err(denied_code(
+                StatusCode::UNAUTHORIZED,
+                MessageCode::AccountLoginCredentials,
+            ));
+        };
         touch_if_due(pool, &row, now_ms).await?;
         Ok(Caller {
             account: row.account,
             admin: account.admin,
             session_id: row.id,
+            device_id,
+            credential: credential.0,
             address,
         })
     }
@@ -136,7 +166,8 @@ async fn touch_if_due(
     Ok(())
 }
 
-fn denied_code(status: StatusCode, code: MessageCode) -> CallerDenied {
+#[must_use]
+pub fn denied_code(status: StatusCode, code: MessageCode) -> CallerDenied {
     CallerDenied {
         problem: auth_problem(status.as_u16(), code),
     }

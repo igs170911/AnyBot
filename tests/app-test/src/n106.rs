@@ -6,7 +6,7 @@ use crate::http::{FORWARDED_HEADER, RequestSpec, ResponseSpec, post};
 
 #[must_use = "the value is consumed by the caller"]
 pub fn login_body(account: &str, password: &str) -> String {
-    json!({"account": account, "password": password, "label": "test-device"}).to_string()
+    json!({"account": account, "password": password, "label": "test-device", "credential": "bearer"}).to_string()
 }
 
 #[must_use = "the value is consumed by the caller"]

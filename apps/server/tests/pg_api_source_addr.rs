@@ -22,7 +22,7 @@ use anybot_app_test::serve::{boot_pair, serve_start};
 
 fn login_spec(account: &str, password: &str, key: &str) -> RequestSpec {
     RequestSpec::new(
-        &json!({"account": account, "password": password, "label": "test-device"}).to_string(),
+        &json!({"account": account, "password": password, "label": "test-device", "credential": "bearer"}).to_string(),
     )
     .with_key(key)
 }

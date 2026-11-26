@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, account, last_active_ms, last_password_at_ms FROM sessions WHERE key_hash = $1",
+  "query": "SELECT id, account, last_active_ms, last_password_at_ms, device_id FROM sessions WHERE account = $1 ORDER BY last_active_ms",
   "describe": {
     "columns": [
       {
@@ -46,12 +46,23 @@
             "name": "last_password_at_ms"
           }
         }
+      },
+      {
+        "ordinal": 4,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions",
+            "name": "device_id"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": ["Text"]
     },
-    "nullable": [false, false, false, false]
+    "nullable": [false, false, false, false, true]
   },
-  "hash": "6630ce5cd3d47409542e0a02408c6f8710c99c426f8044251187e06b46a26d36"
+  "hash": "92a6d582c901bca78ffdeefaf5a6357cdc6fb5a1b920cadcc1a342a19ea86656"
 }

@@ -260,7 +260,7 @@ async fn register_stores_the_normalized_account_name() -> Result<(), String> {
         &base,
         "/v1/account/login",
         &RequestSpec::new(
-            &json!({"account": "Bob", "password": "longenough", "label": "d1"}).to_string(),
+            &json!({"account": "Bob", "password": "longenough", "label": "d1", "credential": "bearer"}).to_string(),
         )
         .with_key("k-bob-login"),
     )

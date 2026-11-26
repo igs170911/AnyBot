@@ -29,7 +29,7 @@ fn server_bin() -> ServerProgram {
 }
 
 fn login_body(account: &str, password: &str, label: &str) -> String {
-    json!({"account": account, "password": password, "label": label}).to_string()
+    json!({"account": account, "password": password, "label": label, "credential": "bearer"}).to_string()
 }
 
 fn login_spec(account: &str, password: &str, label: &str, key: &str) -> RequestSpec {

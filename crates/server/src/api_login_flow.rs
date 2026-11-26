@@ -23,29 +23,46 @@ pub(crate) async fn verify_password(
     .map_err(|e| internal_detail(&e))
 }
 
+pub(crate) fn credential_is_cookie(body: &LoginRequest) -> Result<bool, CallerDenied> {
+    match body.credential.as_str() {
+        "cookie" => Ok(true),
+        "bearer" => Ok(false),
+        _ => Err(crate::caller::denied_code(
+            axum::http::StatusCode::UNAUTHORIZED,
+            anybot_messages::MessageCode::AccountLoginCredentials,
+        )),
+    }
+}
+
 pub(crate) async fn open_session(
     state: &AppState,
     pool: &Pool,
     body: &LoginRequest,
     account: &str,
+    cookie_mode: bool,
 ) -> Result<LoginSession, CallerDenied> {
     let now_ms = state.clock.now_ms().millis();
     let at_ms = i64::try_from(now_ms).map_err(internal_text)?;
     trim_sessions(pool, account, now_ms).await?;
     let key = Secret::from_untrusted(crate::session_key::random_key()?);
+    let device_id = uuid::Uuid::now_v7().to_string();
     sessions::insert_session(
         pool,
         &uuid::Uuid::now_v7().to_string(),
         account,
         &key_digest(&key),
         &body.label,
+        &device_id,
         at_ms,
     )
     .await
     .map_err(internal_sqlx)?;
+    let bearer_key = cookie_mode.then(|| key.expose().to_owned());
     Ok(LoginSession {
-        session_key: key.expose().to_owned(),
+        session_key: Some(key.expose().to_owned()),
+        bearer_key,
         account: account.to_owned(),
+        device_id,
     })
 }
 

@@ -6,6 +6,8 @@ use anybot_foundation::{Clock, TimestampMs};
 use anybot_protocol::RunEvent;
 use serde_json as _;
 
+pub mod auth_credential;
+pub mod auth_csrf;
 pub mod account_input;
 pub mod api_account;
 pub mod api_admin;

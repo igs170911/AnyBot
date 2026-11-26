@@ -3,6 +3,7 @@ use serde_json as _;
 #[cfg(test)]
 use serde_json as _;
 pub mod account_name;
+pub mod conn_auth;
 pub mod goal_brake;
 pub mod goal_followup;
 pub mod invite;
@@ -25,6 +26,8 @@ pub mod task_stall;
 pub mod task_view;
 pub mod window;
 
+#[cfg(test)]
+mod conn_auth_tests;
 #[cfg(test)]
 mod settings_merge_lists_tests;
 #[cfg(test)]

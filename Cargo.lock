@@ -255,6 +255,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -394,6 +395,7 @@ dependencies = [
  "argon2",
  "axum",
  "getrandom 0.4.3",
+ "http-body-util",
  "serde",
  "serde_json",
  "sha2 0.11.1",

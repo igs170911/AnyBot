@@ -20,7 +20,7 @@ use anybot_app_test::http::{FORWARDED_HEADER, RequestSpec, ResponseSpec, post};
 use anybot_app_test::serve::{serve_start, serve_start_real};
 
 fn login_body(account: &str, password: &str) -> String {
-    json!({"account": account, "password": password, "label": "test-device"}).to_string()
+    json!({"account": account, "password": password, "label": "test-device", "credential": "bearer"}).to_string()
 }
 
 fn login_spec(account: &str, password: &str, key: &str) -> RequestSpec {

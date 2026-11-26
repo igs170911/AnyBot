@@ -29,7 +29,7 @@ const N10_2_PARITY_ROUNDS: usize = 3;
 const N10_2_PARITY_GAP_MS: u128 = 50;
 
 fn login_body(account: &str, password: &str) -> String {
-    json!({"account": account, "password": password, "label": "test-device"}).to_string()
+    json!({"account": account, "password": password, "label": "test-device", "credential": "bearer"}).to_string()
 }
 
 fn login_spec(account: &str, password: &str, key: &str) -> RequestSpec {

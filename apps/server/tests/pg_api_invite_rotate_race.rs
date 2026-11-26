@@ -47,7 +47,7 @@ async fn admin_bearer(served: &anybot_app_test::serve::Served) -> Result<(String
         &served.base_url(),
         "/v1/account/login",
         &RequestSpec::new(
-            &json!({"account": "alice", "password": "longenough", "label": "desk"}).to_string(),
+            &json!({"account": "alice", "password": "longenough", "label": "desk", "credential": "bearer"}).to_string(),
         )
         .with_key("k-login"),
         LOGIN_STEP,

@@ -112,5 +112,9 @@ pub fn build_router(state: AppState) -> Router {
             "/v1/admin/accounts/{account}/reset-password",
             post(reset_password),
         )
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::auth_csrf::csrf_layer,
+        ))
         .with_state(state)
 }

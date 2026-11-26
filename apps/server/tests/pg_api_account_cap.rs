@@ -27,7 +27,7 @@ const BURST: usize = 48;
 const GATE: &str = "login-fail|account|dan";
 
 fn login_body(account: &str, password: &str) -> String {
-    json!({"account": account, "password": password, "label": "test-device"}).to_string()
+    json!({"account": account, "password": password, "label": "test-device", "credential": "bearer"}).to_string()
 }
 
 fn register_body(account: &str, password: &str, invite: &str) -> String {

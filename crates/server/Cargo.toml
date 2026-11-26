@@ -22,6 +22,7 @@ getrandom = { workspace = true }
 sqlx = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+http-body-util = { workspace = true }
 argon2 = { workspace = true, features = ["password-hash", "getrandom"] }
 sha2 = { workspace = true }
 uuid = { workspace = true }
@@ -34,3 +35,4 @@ test-harness = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["rt", "net", "macros", "rt-multi-thread"] }
 serde_json = { workspace = true }
+http-body-util = { workspace = true }
