@@ -78,6 +78,32 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert("depcheck".to_owned(), BTreeSet::new());
     m.insert("spec-trace".to_owned(), BTreeSet::new());
     m.insert("iron-laws".to_owned(), BTreeSet::new());
+    add_test_tools(m);
+    m.insert(
+        "live-model".to_owned(),
+        [
+            "test-harness".to_owned(),
+            "anybot-foundation".to_owned(),
+            "anybot-models".to_owned(),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    m.insert(
+        "os-certs".to_owned(),
+        BTreeSet::from(["anybot-foundation".to_owned()]),
+    );
+    m.insert(
+        "api-docs".to_owned(),
+        ["anybot-server".to_owned(), "anybot-protocol".to_owned()]
+            .into_iter()
+            .collect(),
+    );
+    m.insert("locale-gen".to_owned(), BTreeSet::new());
+    m.insert("anybot-versions".to_owned(), BTreeSet::new());
+}
+
+fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert(
         "test-harness".to_owned(),
         BTreeSet::from([
@@ -117,28 +143,6 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
         .into_iter()
         .collect(),
     );
-    m.insert(
-        "live-model".to_owned(),
-        [
-            "test-harness".to_owned(),
-            "anybot-foundation".to_owned(),
-            "anybot-models".to_owned(),
-        ]
-        .into_iter()
-        .collect(),
-    );
-    m.insert(
-        "os-certs".to_owned(),
-        BTreeSet::from(["anybot-foundation".to_owned()]),
-    );
-    m.insert(
-        "api-docs".to_owned(),
-        ["anybot-server".to_owned(), "anybot-protocol".to_owned()]
-            .into_iter()
-            .collect(),
-    );
-    m.insert("locale-gen".to_owned(), BTreeSet::new());
-    m.insert("anybot-versions".to_owned(), BTreeSet::new());
 }
 
 #[must_use]
