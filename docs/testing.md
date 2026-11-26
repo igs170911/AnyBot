@@ -97,6 +97,7 @@ live-model
 
 <!-- windows-no-test
 anybot-app-server
+anybot-context
 anybot-models
 anybot-server
 api-docs

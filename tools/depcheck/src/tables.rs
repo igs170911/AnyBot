@@ -18,6 +18,7 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
     add("domain", &CORE);
     add("trust", &CORE);
     add("models", &CORE);
+    add("context", &["foundation", "protocol", "domain", "models"]);
     add("tools", &CORE);
     add("computers", &CORE);
     add("mcp", &CORE);
