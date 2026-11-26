@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT pg_advisory_xact_lock(5050505)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pg_advisory_xact_lock",
+        "type_info": "Void",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [null]
+  },
+  "hash": "95c41fb49b2993dd83b30ebc24ab4a6b8adf0bebd2c84b3cfe8fc959912bf6a3"
+}

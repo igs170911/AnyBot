@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tokio::net::TcpStream;
 
 use postgresql_embedded::{PostgreSQL, Settings, VersionReq};
 
@@ -8,6 +9,8 @@ pub const PG_VERSION_EXACT: &str = "=17.6.0";
 pub struct PgInstance {
     server: PostgreSQL,
     base_dir: PathBuf,
+    bound_port: u16,
+    stopped: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl PgInstance {
@@ -18,7 +21,17 @@ impl PgInstance {
 
     #[must_use]
     pub fn port(&self) -> u16 {
-        self.server.settings().port
+        self.bound_port
+    }
+
+    #[must_use]
+    pub fn user(&self) -> String {
+        self.server.settings().username.clone()
+    }
+
+    #[must_use]
+    pub fn password(&self) -> anybot_foundation::Secret {
+        anybot_foundation::Secret::from_untrusted(self.server.settings().password.clone())
     }
 
     #[must_use]
@@ -26,7 +39,11 @@ impl PgInstance {
         let settings = self.server.settings();
         format!(
             "postgres://{}:{}@{}:{}/{}",
-            settings.username, settings.password, settings.host, settings.port, database
+            settings.username,
+            settings.password,
+            settings.host,
+            self.port(),
+            database
         )
     }
 
@@ -54,6 +71,30 @@ impl PgInstance {
         result
             .map(|_rows| ())
             .map_err(|e| format!("drop database {database} failed: {e}"))
+    }
+
+    pub async fn pause(&self) -> Result<(), String> {
+        self.server
+            .stop()
+            .await
+            .map_err(|e| format!("postgres pause failed: {e}"))?;
+        Ok(())
+    }
+
+    pub async fn resume(&mut self) -> Result<(), String> {
+        self.server
+            .start()
+            .await
+            .map_err(|e| format!("postgres resume failed: {e}"))?;
+        let data_dir = self.base_dir.join("data");
+        let confirmed = resolve_bound_port(&data_dir, self.bound_port).await?;
+        if confirmed != self.bound_port {
+            return Err(format!(
+                "postgres resumed on port {confirmed}, wanted {}",
+                self.bound_port
+            ));
+        }
+        Ok(())
     }
 
     async fn admin_pool(&self) -> Result<sqlx::PgPool, String> {
@@ -90,7 +131,8 @@ pub async fn pg_start(base_dir: &Path) -> Result<PgInstance, String> {
         host: "127.0.0.1".to_owned(),
         username: "postgres".to_owned(),
         password: pg_generated_password(),
-        data_dir,
+        port: 0,
+        data_dir: data_dir.clone(),
         socket_dir: Some(base_dir.to_path_buf()),
         password_file: base_dir.join("pw"),
         installation_dir,
@@ -108,13 +150,36 @@ pub async fn pg_start(base_dir: &Path) -> Result<PgInstance, String> {
         .start()
         .await
         .map_err(|e| format!("postgres start failed: {e}"))?;
+    let bound_port = resolve_bound_port(&data_dir, server.settings().port).await?;
     Ok(PgInstance {
         server,
         base_dir: base_dir.to_path_buf(),
+        bound_port,
+        stopped: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
     })
 }
 
+async fn resolve_bound_port(data_dir: &Path, wanted: u16) -> Result<u16, String> {
+    for _tick in 0..150 {
+        let probe = pid_file_port(data_dir).unwrap_or(wanted);
+        if TcpStream::connect(("127.0.0.1", probe)).await.is_ok() {
+            return Ok(probe);
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    Err(format!("postgres port {wanted} never answered"))
+}
+
+fn pid_file_port(data_dir: &Path) -> Option<u16> {
+    let text = std::fs::read_to_string(data_dir.join("postmaster.pid")).ok()?;
+    let line = text.lines().nth(3)?;
+    line.trim().parse::<u16>().ok()
+}
+
 pub async fn pg_stop(instance: &PgInstance) -> Result<(), String> {
+    instance
+        .stopped
+        .store(true, std::sync::atomic::Ordering::SeqCst);
     instance
         .server
         .stop()
@@ -148,4 +213,52 @@ pub fn pg_ready(_base_dir: &Path, port: u16) -> bool {
 #[must_use]
 pub fn pg_socket_path(base_dir: &Path, port: u16) -> PathBuf {
     base_dir.join(format!(".s.PGSQL.{port}"))
+}
+
+pub fn migration_fixture(product_dir: &Path, test: &str, extra: &str) -> Result<PathBuf, String> {
+    let dir = crate::scratch::test_dir(test)?.join("migrations");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("create fixture dir failed: {e}"))?;
+    for entry in std::fs::read_dir(product_dir)
+        .map_err(|e| format!("read product migrations failed: {e}"))?
+    {
+        let path = entry
+            .map_err(|e| format!("fixture entry failed: {e}"))?
+            .path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_owned();
+        std::fs::copy(&path, dir.join(&name)).map_err(|e| format!("fixture copy failed: {e}"))?;
+    }
+    let sql = if extra.contains("broken") {
+        "NOT SQL AT ALL;\n".to_owned()
+    } else {
+        "CREATE TABLE IF NOT EXISTS fixture_extra (id INTEGER PRIMARY KEY);\n".to_owned()
+    };
+    std::fs::write(dir.join(extra), sql).map_err(|e| format!("fixture write failed: {e}"))?;
+    Ok(dir)
+}
+
+impl Drop for PgInstance {
+    fn drop(&mut self) {
+        if self.stopped.load(std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+        self.stopped
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let server = self.server.clone();
+        let base_dir = self.base_dir.clone();
+        let joiner = std::thread::spawn(move || {
+            let built = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build();
+            let Ok(runtime) = built else {
+                return;
+            };
+            let _stopped = runtime.block_on(server.stop()).is_ok();
+            let _removed = std::fs::remove_dir_all(base_dir).is_ok();
+        });
+        let _joined = joiner.join().is_ok();
+    }
 }

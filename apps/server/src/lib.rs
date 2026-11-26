@@ -1,24 +1,39 @@
+#[cfg(test)]
+use anybot_app_test as _;
+use sqlx as _;
 use std::process::ExitCode;
 #[cfg(test)]
 use test_harness as _;
+#[cfg(test)]
+use tracing as _;
 
 use tokio::net::TcpListener;
 
 use anybot_foundation::{FoundationError, ServerLaunchArgs};
 use anybot_messages::{Catalog, MessageCode, MessagesError, ParamValue, Params};
 
-use anybot_server::serve_all::serve_all;
+use anybot_server::serve_all::{serve_all, serve_all_stoppable};
 pub use anybot_server::startup::ServerStartup as AppServerStartup;
-use anybot_server::startup::{ServerStartup, bind_listeners, prepare};
+use anybot_server::startup::{DEFAULT_PORT, ServerStartup, bind_addrs, prepare};
 use clap::{CommandFactory, Parser};
 
 use axum as _;
 
 pub mod bridge;
+pub mod cli_reset;
 pub mod line_out;
+pub mod server_run;
+
+pub const CODE_SERVER_LISTEN_ADDRESS_INVALID: &str = "server-listen-address-invalid";
+pub const CODE_SERVER_STARTUP_NO_ACCOUNTS: &str = "server-startup-no-accounts";
+pub const CODE_SERVER_STARTUP_INVITE_GENERATED: &str = "server-startup-invite-generated";
+pub const CODE_SERVER_DB_CONNECT_RETRY: &str = "server-db-connect-retry";
+pub const CODE_SERVER_DB_FOREIGN_DATA: &str = "server-db-foreign-data";
+pub const CODE_SERVER_MIGRATION_FAILED: &str = "server-migration-failed";
 
 pub use bridge::{foundation_message, params_from_ref};
 pub use line_out::{FailureLine, Line, StartupLine, StopLine, emit, line_text};
+pub use server_run::Ctx;
 
 #[derive(Debug)]
 pub struct PlanFailure {
@@ -103,8 +118,13 @@ pub fn startup_plan(
     }
 }
 
-pub async fn bind_plan(port: u16) -> Result<Vec<TcpListener>, PlanFailure> {
-    bind_listeners(port).await.map_err(|err| {
+pub async fn bind_plan(
+    addresses: &[std::net::SocketAddr],
+) -> Result<Vec<TcpListener>, PlanFailure> {
+    let port = addresses
+        .first()
+        .map_or(DEFAULT_PORT, std::net::SocketAddr::port);
+    bind_addrs(addresses).await.map_err(|err| {
         PlanFailure::new(
             MessageCode::ServerPortUnusable,
             Params::new()
@@ -137,6 +157,24 @@ pub async fn serve_exit(
     app: axum::Router,
 ) -> ExitCode {
     let reason = match serve_all(listeners, app).await {
+        Ok(reason) | Err(reason) => reason,
+    };
+    match stop_line(&reason) {
+        Ok(line) => stop_exit(catalog, &line),
+        Err(err) => {
+            let _result = emit(&err.to_string(), &mut std::io::stderr());
+            ExitCode::from(3)
+        }
+    }
+}
+
+pub async fn serve_exit_stoppable(
+    catalog: &mut Catalog,
+    listeners: Vec<TcpListener>,
+    app: axum::Router,
+    shutdown: std::sync::Arc<tokio::sync::Notify>,
+) -> ExitCode {
+    let reason = match serve_all_stoppable(listeners, app, shutdown).await {
         Ok(reason) | Err(reason) => reason,
     };
     match stop_line(&reason) {

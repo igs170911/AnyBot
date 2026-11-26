@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM schema_marker WHERE app = 'anybot.server') AS present",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "present",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [null]
+  },
+  "hash": "2a28aad49211f1d05d9ee0d2757d933daee2c85e16f459a800c74ff88208e42b"
+}

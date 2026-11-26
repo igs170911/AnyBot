@@ -8,6 +8,7 @@ use std::time::Instant;
 use crate::launch::{Outcome, Program};
 use crate::process::{
     PollState, collect_stream, exit_status_code, finish_poll, kill_child, poll_exit, spawn_bytes,
+    terminate_child,
 };
 
 pub struct Running {
@@ -70,6 +71,12 @@ impl Running {
         }
     }
 
+    pub fn terminate(&mut self) -> Result<(), String> {
+        let pid = self.pid();
+        let label = self.label.clone();
+        terminate_child(pid, &label)
+    }
+
     pub fn kill(&mut self) -> Result<Outcome, String> {
         let pid = self.pid();
         let label = self.label.clone();
@@ -109,11 +116,23 @@ impl Running {
             .unwrap_or_else(|err| format!("stderr unreadable: {err}"))
     }
 
-    fn stderr_note(&mut self) -> String {
+    pub fn stderr_note(&mut self) -> String {
         match self.stderr.try_recv() {
             Ok(buf) => String::from_utf8_lossy(&buf).into_owned(),
             Err(_) => "(nothing collected yet)".to_owned(),
         }
+    }
+}
+
+impl Drop for Running {
+    fn drop(&mut self) {
+        let pid = self.pid();
+        let label = self.label.clone();
+        kill_child(&mut self.child, pid, &label);
+        let Some(deadline) = Instant::now().checked_add(self.timeout) else {
+            return;
+        };
+        let _state = poll_exit(&mut self.child, pid, self.timeout, deadline);
     }
 }
 

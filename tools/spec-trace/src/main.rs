@@ -161,6 +161,13 @@ fn say(lines: &[String]) -> Result<(), std::io::Error> {
     writeln!(stdout, "{text}")
 }
 
+fn read_returned(repo: &Path) -> Result<BTreeSet<String>, String> {
+    let path = repo.join("tools/spec-trace/returned.txt");
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    Ok(read_baseline(&content))
+}
+
 fn against_report(
     repo: &Path,
     git_ref: &str,
@@ -177,10 +184,11 @@ fn against_report(
             let ref_set = read_baseline(&c);
             let ref_ids = ref_spec_ids(repo, git_ref)?;
             let new_spec: BTreeSet<String> = spec_ids.difference(&ref_ids).cloned().collect();
+            let returned = read_returned(repo)?;
             report
                 .violations
                 .extend(spec_trace::check_baseline_against_ref(
-                    current, &ref_set, &new_spec,
+                    current, &ref_set, &new_spec, &returned,
                 ));
             say(&[format!(
                 "spec-trace baseline compare: ref {git_ref} baseline has {} ids, now {} ids, this change adds {} spec ids",

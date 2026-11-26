@@ -147,25 +147,40 @@ fn test_spec_trace_generate_baseline_excludes_tested() {
 
 #[test]
 fn test_spec_trace_against_ref_allows_shrink_and_new_spec_ids() {
+    let empty = set(&[]);
     let v = check_baseline_against_ref(
         &set(&["T-chat-steer-2"]),
         &set(&["T-chat-steer-1", "T-chat-steer-2", "T-chat-steer-3"]),
         &set(&["T-chat-steer-4"]),
+        &empty,
     );
     assert_eq!(v, Vec::<String>::new());
     let v2 = check_baseline_against_ref(
         &set(&["T-chat-steer-1", "T-chat-steer-4"]),
         &set(&["T-chat-steer-1"]),
         &set(&["T-chat-steer-4"]),
+        &empty,
     );
     assert_eq!(v2, Vec::<String>::new());
 }
 
 #[test]
 fn test_spec_trace_against_ref_blocks_stuffed_back_id() {
-    let v = check_baseline_against_ref(&set(&["T-chat-steer-1"]), &set(&[]), &set(&[]));
+    let v = check_baseline_against_ref(&set(&["T-chat-steer-1"]), &set(&[]), &set(&[]), &set(&[]));
     assert_eq!(v.len(), 1);
     let first = v.first().unwrap();
     assert!(first.contains("T-chat-steer-1"));
     assert!(first.contains("may only shrink"));
+}
+
+#[test]
+fn test_spec_trace_against_ref_allows_an_explicit_return() {
+    let returned = set(&["T-chat-steer-1"]);
+    let v = check_baseline_against_ref(&set(&["T-chat-steer-1"]), &set(&[]), &set(&[]), &returned);
+    assert_eq!(v, Vec::<String>::new());
+    let stale = check_baseline_against_ref(&set(&[]), &set(&[]), &set(&[]), &returned);
+    assert!(
+        stale.iter().any(|line| line.contains("returned.txt")),
+        "{stale:?}"
+    );
 }

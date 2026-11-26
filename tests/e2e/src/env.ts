@@ -32,23 +32,60 @@ function readFileSyncSafe(file: string): string | undefined {
   return readFileSync(file, "utf8");
 }
 
+const STOP_TIMEOUT_MS = 15_000;
+
+function waitForExit(child: ChildProcess, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(() => {
+      reject(new Error(`testenv did not exit within ${timeoutMs} ms`));
+    }, timeoutMs);
+    child.once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+async function stopChild(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+  child.kill("SIGTERM");
+  await waitForExit(child, STOP_TIMEOUT_MS);
+}
+
 function waitForReadyLine(child: ChildProcess): Promise<string> {
   return new Promise((resolve, reject) => {
     let text = "";
+    let settled = false;
     const timer = setTimeout(() => {
-      child.kill("SIGTERM");
-      reject(new Error(`testenv did not print a ready line within ${READY_TIMEOUT_MS} ms`));
+      if (settled) {
+        return;
+      }
+      settled = true;
+      void stopChild(child).finally(() => {
+        reject(new Error(`testenv did not print a ready line within ${READY_TIMEOUT_MS} ms`));
+      });
     }, READY_TIMEOUT_MS);
     child.stdout?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string) => {
       text += chunk;
       const line = text.split("\n").find((l) => l.startsWith(READY_PREFIX));
-      if (line !== undefined) {
+      if (line !== undefined && !settled) {
+        settled = true;
         clearTimeout(timer);
         resolve(line.slice(READY_PREFIX.length));
       }
     });
     child.on("exit", (code) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       clearTimeout(timer);
       reject(new Error(`testenv exited early with code ${String(code)}`));
     });
@@ -78,7 +115,7 @@ export default async function globalSetup(): Promise<() => void> {
   const report = await waitForReadyLine(child);
   const ports = JSON.parse(report) as EnvPorts;
   writeFileSync(portsFile(), JSON.stringify(ports));
-  return () => {
-    child.kill("SIGTERM");
+  return async () => {
+    await stopChild(child);
   };
 }

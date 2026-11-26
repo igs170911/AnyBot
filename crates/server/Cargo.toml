@@ -9,6 +9,7 @@ description = "AnyBot server crate skeleton (spec/07 section 2)"
 anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true, features = ["schema"] }
 anybot-domain = { workspace = true }
+anybot-messages = { workspace = true }
 anybot-store-server = { workspace = true }
 anybot-blob = { workspace = true }
 anybot-bus = { workspace = true }
@@ -17,8 +18,14 @@ axum = { workspace = true }
 tokio = { workspace = true, features = ["socket2"] }
 utoipa = { workspace = true }
 socket2 = { workspace = true }
+getrandom = { workspace = true }
+sqlx = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+argon2 = { workspace = true, features = ["password-hash", "getrandom"] }
+sha2 = { workspace = true }
+uuid = { workspace = true }
+url = { workspace = true }
 [lints]
 workspace = true
 

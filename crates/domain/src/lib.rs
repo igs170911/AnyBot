@@ -2,8 +2,12 @@ use serde_json as _;
 
 #[cfg(test)]
 use serde_json as _;
+pub mod account_name;
 pub mod goal_brake;
 pub mod goal_followup;
+pub mod invite;
+pub mod session_term;
+pub mod source_addr;
 pub mod task_attention;
 pub mod task_budget;
 pub mod task_context_events;
@@ -18,8 +22,10 @@ pub mod task_journal;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
+pub mod window;
 
 pub use anybot_protocol::TaskStatus;
+pub use invite::{INVITE_ALPHABET, alphabet_len, format_invite, is_valid_invite};
 pub use task_attention::{counts_as_failure, counts_in_task_badge};
 pub use task_context_events::{
     CONTEXT_COLLAPSED_KIND, CONTEXT_MEMORY_DROPPED_KIND, ContextCollapseReason, ContextCollapsed,

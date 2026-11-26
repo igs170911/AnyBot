@@ -1,15 +1,23 @@
 use std::process::ExitCode;
 
+use sqlx as _;
+
 use tokio::net::TcpListener;
 
 use anybot_app_server::{Parsed, bind_plan, help_text, parse_launch, startup_line, startup_plan};
 
+use anybot_app_server as _;
+use anybot_app_test as _;
 use anybot_foundation as _;
 use anybot_messages::{Catalog, Lang, MessageCode, Params};
 use anybot_server as _;
+use anybot_store_server as _;
 use axum as _;
 use clap as _;
+use rpassword as _;
 use serde_json as _;
+use test_harness as _;
+use tracing as _;
 
 use test_harness::{Program, run_program, test_dir, write_file_with_mode};
 
@@ -67,12 +75,7 @@ fn startup_line_reports_both_addresses_without_password() -> Result<(), String> 
         return Err(format!("unexpected code {:?}", line.code));
     }
     let text = english(&mut Catalog::new(), line.code, &line.params)?;
-    for want in [
-        "v9.9.9",
-        "127.0.0.1:8787",
-        "[::1]:8787",
-        "localhost/anybot_test",
-    ] {
+    for want in ["v9.9.9", "127.0.0.1:", "[::1]:", "localhost/anybot_test"] {
         if !text.contains(want) {
             return Err(format!("missing {want} in {text}"));
         }
@@ -89,11 +92,13 @@ fn startup_line_reports_both_addresses_without_password() -> Result<(), String> 
 
 #[tokio::test]
 async fn bind_plan_says_port_unusable_when_port_is_taken() -> Result<(), String> {
+    let port = test_harness::ports::free_dual_port()?;
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     for _attempt in 0..40 {
-        match TcpListener::bind("127.0.0.1:8787").await {
+        match TcpListener::bind(addr).await {
             Ok(held) => {
-                let result = bind_plan(8787).await;
-                let outcome = check_bind_failure(&held, result);
+                let result = bind_plan(&[addr]).await;
+                let outcome = check_bind_failure(&held, result, port);
                 drop(held);
                 return outcome;
             }
@@ -103,12 +108,13 @@ async fn bind_plan_says_port_unusable_when_port_is_taken() -> Result<(), String>
             Err(err) => return Err(format!("bind failed: {err}")),
         }
     }
-    Err("failed to hold port 8787 in time".to_owned())
+    Err("failed to hold the fixture port in time".to_owned())
 }
 
 fn check_bind_failure(
     _held: &TcpListener,
     result: Result<Vec<TcpListener>, anybot_app_server::PlanFailure>,
+    port: u16,
 ) -> Result<(), String> {
     let failure = match result {
         Ok(_listeners) => return Err("bind plan accepted a taken port".to_owned()),
@@ -120,12 +126,13 @@ fn check_bind_failure(
     if failure.code != MessageCode::ServerPortUnusable {
         return Err(format!("unexpected code {:?}", failure.code));
     }
-    let want_port = anybot_messages::ParamValue::int(8787);
+    let want_port = anybot_messages::ParamValue::int(i64::from(port));
     if failure.params.get("port") != Some(&want_port) {
         return Err(format!("unexpected params {:?}", failure.params));
     }
     let text = english(&mut Catalog::new(), failure.code, &failure.params)?;
-    if !text.starts_with("Cannot use port 8787:") {
+    let want_start = format!("Cannot use port {port}:");
+    if !text.starts_with(&want_start) {
         return Err(format!("unexpected text {text}"));
     }
     Ok(())

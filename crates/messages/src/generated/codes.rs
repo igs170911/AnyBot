@@ -5,6 +5,12 @@ use serde;
 #[serde(rename_all = "kebab-case")]
 pub enum MessageCode {
     ServerStartupListening,
+    ServerDbForeignData,
+    ServerDbConnectRetry,
+    ServerMigrationFailed,
+    ServerListenAddressInvalid,
+    ServerStartupNoAccounts,
+    ServerStartupInviteGenerated,
     ServerPortUnusable,
     ServerArgumentsInvalid,
     ServerBootstrapMissing,
@@ -70,6 +76,28 @@ pub enum MessageCode {
     ModelHandoffUnreachable,
     PushPayloadShort,
     PushKeyBase64,
+    AccountNameRule,
+    AccountPasswordRule,
+    AccountInviteInvalid,
+    AccountRegisterRate,
+    AccountExists,
+    AccountExistsReset,
+    AccountLoginCredentials,
+    AccountLoginDisabled,
+    AccountLoginRate,
+    AccountPasswordRate,
+    AccountPasswordOldWrong,
+    AccountPasswordNewShort,
+    AccountAdminOnly,
+    AccountAdminSelfDisable,
+    AccountIdempotencyMissing,
+    AccountIdempotencyConflict,
+    ServerCliPasswordShort,
+    ServerCliPasswordMismatch,
+    ServerCliPasswordPrompt,
+    ServerCliPasswordConfirmPrompt,
+    ServerCliResetPasswordDone,
+    ServerConfigInvalid,
     TurnProgramNote,
 }
 
@@ -85,6 +113,24 @@ const TABLE: &[(MessageCode, &str)] = &[
     (
         MessageCode::ServerStartupListening,
         "server-startup-listening",
+    ),
+    (MessageCode::ServerDbForeignData, "server-db-foreign-data"),
+    (MessageCode::ServerDbConnectRetry, "server-db-connect-retry"),
+    (
+        MessageCode::ServerMigrationFailed,
+        "server-migration-failed",
+    ),
+    (
+        MessageCode::ServerListenAddressInvalid,
+        "server-listen-address-invalid",
+    ),
+    (
+        MessageCode::ServerStartupNoAccounts,
+        "server-startup-no-accounts",
+    ),
+    (
+        MessageCode::ServerStartupInviteGenerated,
+        "server-startup-invite-generated",
     ),
     (MessageCode::ServerPortUnusable, "server-port-unusable"),
     (
@@ -199,6 +245,61 @@ const TABLE: &[(MessageCode, &str)] = &[
     ),
     (MessageCode::PushPayloadShort, "push-payload-short"),
     (MessageCode::PushKeyBase64, "push-key-base64"),
+    (MessageCode::AccountNameRule, "account-name-rule"),
+    (MessageCode::AccountPasswordRule, "account-password-rule"),
+    (MessageCode::AccountInviteInvalid, "account-invite-invalid"),
+    (MessageCode::AccountRegisterRate, "account-register-rate"),
+    (MessageCode::AccountExists, "account-exists"),
+    (MessageCode::AccountExistsReset, "account-exists-reset"),
+    (
+        MessageCode::AccountLoginCredentials,
+        "account-login-credentials",
+    ),
+    (MessageCode::AccountLoginDisabled, "account-login-disabled"),
+    (MessageCode::AccountLoginRate, "account-login-rate"),
+    (MessageCode::AccountPasswordRate, "account-password-rate"),
+    (
+        MessageCode::AccountPasswordOldWrong,
+        "account-password-old-wrong",
+    ),
+    (
+        MessageCode::AccountPasswordNewShort,
+        "account-password-new-short",
+    ),
+    (MessageCode::AccountAdminOnly, "account-admin-only"),
+    (
+        MessageCode::AccountAdminSelfDisable,
+        "account-admin-self-disable",
+    ),
+    (
+        MessageCode::AccountIdempotencyMissing,
+        "account-idempotency-missing",
+    ),
+    (
+        MessageCode::AccountIdempotencyConflict,
+        "account-idempotency-conflict",
+    ),
+    (
+        MessageCode::ServerCliPasswordShort,
+        "server-cli-password-short",
+    ),
+    (
+        MessageCode::ServerCliPasswordMismatch,
+        "server-cli-password-mismatch",
+    ),
+    (
+        MessageCode::ServerCliPasswordPrompt,
+        "server-cli-password-prompt",
+    ),
+    (
+        MessageCode::ServerCliPasswordConfirmPrompt,
+        "server-cli-password-confirm-prompt",
+    ),
+    (
+        MessageCode::ServerCliResetPasswordDone,
+        "server-cli-reset-password-done",
+    ),
+    (MessageCode::ServerConfigInvalid, "server-config-invalid"),
     (MessageCode::TurnProgramNote, "turn-program-note"),
 ];
 

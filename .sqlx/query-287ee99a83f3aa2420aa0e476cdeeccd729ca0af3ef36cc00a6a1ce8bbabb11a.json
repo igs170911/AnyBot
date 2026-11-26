@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(MIN(version), 0) AS low FROM _sqlx_migrations",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "low",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [null]
+  },
+  "hash": "287ee99a83f3aa2420aa0e476cdeeccd729ca0af3ef36cc00a6a1ce8bbabb11a"
+}

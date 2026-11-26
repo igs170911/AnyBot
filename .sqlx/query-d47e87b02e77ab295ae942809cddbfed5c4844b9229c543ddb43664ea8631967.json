@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS total FROM idempotency WHERE key = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [null]
+  },
+  "hash": "d47e87b02e77ab295ae942809cddbfed5c4844b9229c543ddb43664ea8631967"
+}

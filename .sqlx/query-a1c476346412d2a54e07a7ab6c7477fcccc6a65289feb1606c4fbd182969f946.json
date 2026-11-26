@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT last_password_at_ms FROM accounts WHERE account = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_password_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "accounts",
+            "name": "last_password_at_ms"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [false]
+  },
+  "hash": "a1c476346412d2a54e07a7ab6c7477fcccc6a65289feb1606c4fbd182969f946"
+}

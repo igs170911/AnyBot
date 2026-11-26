@@ -14,6 +14,7 @@ members = [
     "tests/os-certs",
     "tests/live-model",
     "tests/testenv",
+    "tests/app-test",
 ]
 
 [workspace.package]
@@ -28,6 +29,8 @@ anybot-protocol = { path = "crates/protocol", version = "0.1.0" }
 anybot-domain = { path = "crates/domain", version = "0.1.0" }
 anybot-trust = { path = "crates/trust", version = "0.1.0" }
 anybot-models = { path = "crates/models", version = "0.1.0" }
+anybot-app-test = { path = "tests/app-test", version = "0.1.0" }
+anybot-app-server = { path = "apps/server", version = "0.1.0" }
 anybot-tools = { path = "crates/tools", version = "0.1.0" }
 anybot-mcp = { path = "crates/mcp", version = "0.1.0" }
 anybot-computers = { path = "crates/computers", version = "0.1.0" }
@@ -54,13 +57,13 @@ schemars = { version = "1", features = ["uuid1"] }
 yaml_serde = "0.10"
 url = "2"
 percent-encoding = "2"
-tokio = { version = "1", features = ["macros", "rt", "net"] }
+tokio = { version = "1", features = ["macros", "rt", "net", "signal"] }
 socket2 = "0.6"
 getrandom = "0.4"
 bytes = "1"
 trybuild = "1"
 utoipa = { version = "6", features = ["yaml", "uuid"] }
-uuid = { version = "1", features = ["std", "serde"] }
+uuid = { version = "1", features = ["std", "serde", "v7"] }
 zeroize = { version = "1", features = ["alloc"] }
 proptest = "1"
 tower = "0.5"
@@ -71,9 +74,10 @@ libc = { version = "0.2" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.9", features = ["runtime-tokio"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "migrate", "postgres"] }
 thiserror = "2"
 tracing = "0.1"
+tracing-subscriber = "0.3"
 fluent-bundle = "0.16"
 fluent-syntax = "0.12"
 unic-langid = { version = "0.9", features = ["macros"] }
@@ -85,6 +89,8 @@ hkdf = "0.13"
 sha2 = "0.11"
 aes-gcm = { version = "0.11", features = ["zeroize"] }
 base64 = "0.22"
+argon2 = "0.6"
+rpassword = "7"
 postgresql_embedded = { version = "0.22", default-features = false, features = ["tokio", "tls-rustls-ring", "theseus"] }
 toml = "1"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }

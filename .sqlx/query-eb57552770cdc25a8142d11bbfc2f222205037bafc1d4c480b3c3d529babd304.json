@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT at_ms FROM auth_events WHERE kind = $1 AND address = $2 AND account = $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "auth_events",
+            "name": "at_ms"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Text", "Text"]
+    },
+    "nullable": [false]
+  },
+  "hash": "eb57552770cdc25a8142d11bbfc2f222205037bafc1d4c480b3c3d529babd304"
+}

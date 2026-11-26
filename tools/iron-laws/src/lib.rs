@@ -17,6 +17,7 @@ pub mod lines;
 pub mod lints;
 pub mod makefile_recipes;
 pub mod makefile_scan;
+pub mod migrations;
 pub mod nextest_config;
 #[cfg(test)]
 mod nextest_config_tests;
@@ -55,6 +56,7 @@ pub fn all_violations(repo: &Path) -> Vec<String> {
     out.extend(redocly::violations(repo));
     out.extend(workflows::violations(repo));
     out.extend(makefile_recipes::violations(repo));
+    out.extend(migrations::violations(repo));
     out.sort();
     out
 }

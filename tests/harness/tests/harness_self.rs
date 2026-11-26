@@ -1,5 +1,6 @@
 use aes_gcm as _;
 use anybot_foundation as _;
+use anybot_store_server as _;
 use axum as _;
 use base64 as _;
 use bytes as _;
@@ -21,6 +22,8 @@ use time as _;
 use tokio_rustls as _;
 use tokio_stream as _;
 use toml as _;
+use tracing as _;
+use tracing_subscriber as _;
 use url as _;
 
 extern crate libc as _;
@@ -153,4 +156,34 @@ fn harness_running_line_wait_times_out_and_kills_child() {
 async fn harness_http_get_reports_connection_failure_without_crashing() {
     let result = http_get(1, "/v1/health").await;
     assert!(result.is_err());
+}
+
+#[test]
+fn harness_running_dies_when_the_test_panics_midway() {
+    let dir = test_dir("harness-drop").unwrap();
+    let program = Program::new("/bin/sleep", vec!["60".to_owned()]);
+    let recorded = Mutex::new(0_u32);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let running = test_harness::Running::start(&program, &dir).unwrap();
+        *recorded.lock().unwrap() = running.pid();
+        panic!("deliberate midway failure");
+    }));
+    assert!(result.is_err(), "the panic must escape the closure");
+    let pid = *recorded.lock().unwrap();
+    assert!(pid > 0, "the child pid was not recorded");
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert!(!pid_alive(pid), "child PID {pid} survived the drop");
+}
+
+#[cfg(unix)]
+fn pid_alive(pid: u32) -> bool {
+    std::process::Command::new("/bin/kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .is_ok_and(|code| code.success())
+}
+
+#[cfg(not(unix))]
+fn pid_alive(_pid: u32) -> bool {
+    false
 }
