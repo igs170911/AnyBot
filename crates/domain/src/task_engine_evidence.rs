@@ -22,10 +22,13 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
         | KnownTaskEventKind::ToolStarted { .. }
@@ -71,10 +74,13 @@ pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKi
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
         | KnownTaskEventKind::ToolStarted { .. }
@@ -117,10 +123,13 @@ pub(crate) fn advance_done_when(view: &mut TaskView, event: &KnownTaskEventKind)
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
         | KnownTaskEventKind::ToolStarted { .. }

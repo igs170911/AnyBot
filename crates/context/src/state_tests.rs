@@ -49,6 +49,9 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
         1,
         anybot_protocol::KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
+            opened_by: anybot_protocol::TaskOpener::You,
+            bot: anybot_foundation::BotId::generate(&SystemClock),
+            parent: None,
         },
     )];
     for i in 0..20u64 {
@@ -161,6 +164,9 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
         1,
         anybot_protocol::KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
+            opened_by: anybot_protocol::TaskOpener::You,
+            bot: anybot_foundation::BotId::generate(&SystemClock),
+            parent: None,
         },
     ));
     for i in 0..300u64 {

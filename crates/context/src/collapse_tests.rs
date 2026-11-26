@@ -87,12 +87,12 @@ fn test_collapse_short_and_protected_are_never_collapsed() {
 #[test]
 fn test_collapse_recorded_scan_ignores_other_events() {
     use anybot_foundation::{EventId, SystemClock, TimestampMs};
-    use anybot_protocol::{KnownTaskEventKind, TaskEvent};
+    use anybot_protocol::TaskEvent;
     let e = TaskEvent {
         event_id: EventId::generate(&SystemClock),
         seq: 1,
         at_ms: TimestampMs::from_millis(1),
-        kind: anybot_protocol::TaskEventKind::Known(KnownTaskEventKind::ContextBuilt),
+        kind: anybot_protocol::TaskEventKind::Known(context_built_kind()),
     };
     assert!(recorded_collapsed(&[e]).unwrap().is_empty());
 }
@@ -102,9 +102,7 @@ fn swap_flag_clears_after_next_build() {
     let events = vec![
         crate::fixtures::event_with_seq(
             1,
-            anybot_protocol::TaskEventKind::Known(
-                anybot_protocol::KnownTaskEventKind::ContextBuilt,
-            ),
+            anybot_protocol::TaskEventKind::Known(context_built_kind()),
         ),
         crate::fixtures::event_with_seq(
             2,
@@ -118,15 +116,11 @@ fn swap_flag_clears_after_next_build() {
         ),
         crate::fixtures::event_with_seq(
             3,
-            anybot_protocol::TaskEventKind::Known(
-                anybot_protocol::KnownTaskEventKind::ContextBuilt,
-            ),
+            anybot_protocol::TaskEventKind::Known(context_built_kind()),
         ),
         crate::fixtures::event_with_seq(
             4,
-            anybot_protocol::TaskEventKind::Known(
-                anybot_protocol::KnownTaskEventKind::ContextBuilt,
-            ),
+            anybot_protocol::TaskEventKind::Known(context_built_kind()),
         ),
     ];
     assert!(!model_swapped_after_last_built(&events));
@@ -173,4 +167,16 @@ fn larger_model_swap_restores_everything() {
     let (collapsed, events) = plan_collapse(&views, &recorded, 128_000, true, false);
     assert!(collapsed.is_empty());
     assert_eq!(events.len(), 1);
+}
+
+fn context_built_kind() -> anybot_protocol::KnownTaskEventKind {
+    anybot_protocol::KnownTaskEventKind::ContextBuilt {
+        manifest_id: "m".to_owned(),
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        estimate_tokens: 1,
+    }
 }

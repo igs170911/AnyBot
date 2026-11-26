@@ -1,9 +1,10 @@
-use anybot_foundation::CallId;
+use anybot_foundation::{BotId, CallId, TaskId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BudgetItem, CardAnswer, CheckSource, Criterion, DeviceReportKind, DoneWhenChange, Proposer,
-    ReconcileOutcome, ToolEffect,
+    BudgetItem, CardAnswer, CheckSource, ComputerRef, Criterion, DeviceReportKind, DoneWhenChange,
+    FinishReason, ModelName, NativeRef, NotRunReason, Proposer, ReconcileOutcome, TaskOpener,
+    ThinkingChoice, TokenUsage, ToolEffect, ToolRequest, TurnEndReason, TurnInitiator,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -12,6 +13,11 @@ use crate::{
 pub enum KnownTaskEventKind {
     TaskCreated {
         goal: String,
+        opened_by: TaskOpener,
+        #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
+        bot: BotId,
+        #[cfg_attr(feature = "schema", schema(value_type = Option<String>, format = "uuid"))]
+        parent: Option<TaskId>,
     },
     DoneWhenChange {
         by: Proposer,
@@ -30,14 +36,41 @@ pub enum KnownTaskEventKind {
     Wake {
         reason: String,
     },
-    TurnStarted,
+    TurnStarted {
+        turn: u32,
+        initiator: TurnInitiator,
+        computer: ComputerRef,
+        model: ModelName,
+        thinking: ThinkingChoice,
+    },
     TurnEnded {
+        reason: TurnEndReason,
         reply_delivered: bool,
     },
-    TurnText {
-        text: String,
+    ContextBuilt {
+        manifest_id: String,
+        model: ModelName,
+        estimate_tokens: u64,
     },
-    ContextBuilt,
+    ModelAsked {
+        step: u32,
+    },
+    ModelAnswer {
+        text: String,
+        thinking: Option<String>,
+        tool_requests: Vec<ToolRequest>,
+        finish: FinishReason,
+        native: Option<NativeRef>,
+    },
+    ModelUsage {
+        usage: Option<TokenUsage>,
+        manifest_id: String,
+    },
+    ToolNotRun {
+        #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
+        call_id: CallId,
+        reason: NotRunReason,
+    },
     ModelSwapped {
         from: String,
         to: String,

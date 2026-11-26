@@ -6,6 +6,25 @@ use crate::task_budget::fixtures::{asks, call, created, drive, intent, pair, tur
 use crate::task_engine::advance;
 use crate::task_view::{TaskView, UNLIMITED, initial_view, mark_goal_task};
 
+fn turn_started_kind() -> KnownTaskEventKind {
+    KnownTaskEventKind::TurnStarted {
+        turn: 1,
+        initiator: anybot_protocol::TurnInitiator::You {
+            device: anybot_foundation::DeviceId::generate(&SystemClock),
+        },
+        computer: anybot_protocol::ComputerRef {
+            name: "c".to_owned(),
+            platform: anybot_protocol::ComputerPlatform::BotMachine,
+        },
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        thinking: anybot_protocol::ThinkingChoice::Auto,
+    }
+}
+
 #[test]
 fn t_task_budget_2() {
     let mut kinds = vec![
@@ -131,7 +150,7 @@ fn t_task_budget_6() {
             limit: UNLIMITED,
         },
     );
-    advance(&mut view, &KnownTaskEventKind::TurnStarted);
+    advance(&mut view, &turn_started_kind());
     for kind in asks(50_000) {
         advance(&mut view, &kind);
     }
@@ -164,10 +183,10 @@ fn drive_kinds(view: &mut TaskView, kinds: &[KnownTaskEventKind]) {
 fn goal_budget_rounds() -> TaskView {
     let mut view = initial_view();
     mark_goal_task(&mut view);
-    let mut kinds = vec![created(), KnownTaskEventKind::TurnStarted];
+    let mut kinds = vec![created(), turn_started_kind()];
     kinds.extend(asks(200));
     kinds.push(turns_ended());
-    kinds.push(KnownTaskEventKind::TurnStarted);
+    kinds.push(turn_started_kind());
     kinds.extend(asks(200));
     drive_kinds(&mut view, &kinds);
     view
@@ -175,10 +194,10 @@ fn goal_budget_rounds() -> TaskView {
 
 fn plain_budget_rounds() -> TaskView {
     let mut view = initial_view();
-    let mut kinds = vec![created(), KnownTaskEventKind::TurnStarted];
+    let mut kinds = vec![created(), turn_started_kind()];
     kinds.extend(asks(200));
     kinds.push(turns_ended());
-    kinds.push(KnownTaskEventKind::TurnStarted);
+    kinds.push(turn_started_kind());
     kinds.extend(asks(100));
     drive_kinds(&mut view, &kinds);
     view
@@ -228,7 +247,7 @@ fn time_events() -> Vec<anybot_protocol::TaskEvent> {
         });
     };
     push(1, 0, created());
-    push(2, 1_000, KnownTaskEventKind::TurnStarted);
+    push(2, 1_000, turn_started_kind());
     push(
         3,
         2_000,
@@ -252,7 +271,7 @@ fn time_events() -> Vec<anybot_protocol::TaskEvent> {
         },
     );
     push(6, 3_604_000, turns_ended());
-    push(7, 3_605_000, KnownTaskEventKind::TurnStarted);
+    push(7, 3_605_000, turn_started_kind());
     push(
         8,
         3_606_000,

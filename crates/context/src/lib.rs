@@ -20,6 +20,7 @@ pub mod output;
 mod output_turn;
 pub mod read;
 pub mod state;
+pub mod state_notes;
 pub mod state_render;
 
 use anybot_domain as _;

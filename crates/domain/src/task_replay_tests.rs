@@ -3,6 +3,25 @@ use anybot_protocol::{KnownTaskEventKind, RawTaskEventKind, TaskEvent, TaskEvent
 
 use super::*;
 
+fn turn_started_kind() -> KnownTaskEventKind {
+    KnownTaskEventKind::TurnStarted {
+        turn: 1,
+        initiator: anybot_protocol::TurnInitiator::You {
+            device: anybot_foundation::DeviceId::generate(&SystemClock),
+        },
+        computer: anybot_protocol::ComputerRef {
+            name: "c".to_owned(),
+            platform: anybot_protocol::ComputerPlatform::BotMachine,
+        },
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        thinking: anybot_protocol::ThinkingChoice::Auto,
+    }
+}
+
 fn ev(seq: u64, kind: KnownTaskEventKind) -> TaskEvent {
     TaskEvent {
         event_id: EventId::generate(&SystemClock),
@@ -30,6 +49,9 @@ fn t_task_events_2() {
         1,
         KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
+            opened_by: anybot_protocol::TaskOpener::You,
+            bot: anybot_foundation::BotId::generate(&SystemClock),
+            parent: None,
         },
     );
     let once = replay(std::slice::from_ref(&created)).unwrap();
@@ -43,12 +65,16 @@ fn t_task_events_3() {
         1,
         KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
+            opened_by: anybot_protocol::TaskOpener::You,
+            bot: anybot_foundation::BotId::generate(&SystemClock),
+            parent: None,
         },
     );
-    let b = ev(2, KnownTaskEventKind::TurnStarted);
+    let b = ev(2, turn_started_kind());
     let d = ev(
         4,
         KnownTaskEventKind::TurnEnded {
+            reason: anybot_protocol::TurnEndReason::Answered,
             reply_delivered: true,
         },
     );
@@ -56,8 +82,12 @@ fn t_task_events_3() {
     assert_eq!(err.missing, vec![3]);
     let c = ev(
         3,
-        KnownTaskEventKind::TurnText {
+        KnownTaskEventKind::ModelAnswer {
             text: "x".to_owned(),
+            thinking: None,
+            tool_requests: Vec::new(),
+            finish: anybot_protocol::FinishReason::Finished,
+            native: None,
         },
     );
     let filled = replay(&[a, b, c, d]).unwrap();
@@ -71,9 +101,12 @@ fn t_task_events_4() {
             1,
             KnownTaskEventKind::TaskCreated {
                 goal: "g".to_owned(),
+                opened_by: anybot_protocol::TaskOpener::You,
+                bot: anybot_foundation::BotId::generate(&SystemClock),
+                parent: None,
             },
         ),
-        ev(3, KnownTaskEventKind::TurnStarted),
+        ev(3, turn_started_kind()),
     ];
     let mut with_raw = vec![];
     with_raw.extend_from_slice(std::slice::from_ref(&known[0]));
@@ -84,15 +117,22 @@ fn t_task_events_4() {
             1,
             KnownTaskEventKind::TaskCreated {
                 goal: "g".to_owned(),
+                opened_by: anybot_protocol::TaskOpener::You,
+                bot: anybot_foundation::BotId::generate(&SystemClock),
+                parent: None,
             },
         ),
         ev(
             2,
-            KnownTaskEventKind::TurnText {
+            KnownTaskEventKind::ModelAnswer {
                 text: "x".to_owned(),
+                thinking: None,
+                tool_requests: Vec::new(),
+                finish: anybot_protocol::FinishReason::Finished,
+                native: None,
             },
         ),
-        ev(3, KnownTaskEventKind::TurnStarted),
+        ev(3, turn_started_kind()),
     ];
     let a = replay(&with_raw).unwrap();
     let b = replay(&known_full).unwrap();
@@ -108,12 +148,16 @@ fn t_task_events_5() {
             1,
             KnownTaskEventKind::TaskCreated {
                 goal: "g".to_owned(),
+                opened_by: anybot_protocol::TaskOpener::You,
+                bot: anybot_foundation::BotId::generate(&SystemClock),
+                parent: None,
             },
         ),
-        ev(2, KnownTaskEventKind::TurnStarted),
+        ev(2, turn_started_kind()),
         ev(
             3,
             KnownTaskEventKind::TurnEnded {
+                reason: anybot_protocol::TurnEndReason::Answered,
                 reply_delivered: true,
             },
         ),
@@ -132,13 +176,20 @@ fn t_task_events_6() {
             1,
             KnownTaskEventKind::TaskCreated {
                 goal: "g".to_owned(),
+                opened_by: anybot_protocol::TaskOpener::You,
+                bot: anybot_foundation::BotId::generate(&SystemClock),
+                parent: None,
             },
         ),
-        ev(2, KnownTaskEventKind::TurnStarted),
+        ev(2, turn_started_kind()),
         ev(
             3,
-            KnownTaskEventKind::TurnText {
+            KnownTaskEventKind::ModelAnswer {
                 text: "done, sent".to_owned(),
+                thinking: None,
+                tool_requests: Vec::new(),
+                finish: anybot_protocol::FinishReason::Finished,
+                native: None,
             },
         ),
     ];
@@ -155,9 +206,12 @@ fn test_snapshot_round_trips_through_json() {
             1,
             KnownTaskEventKind::TaskCreated {
                 goal: "g".to_owned(),
+                opened_by: anybot_protocol::TaskOpener::You,
+                bot: anybot_foundation::BotId::generate(&SystemClock),
+                parent: None,
             },
         ),
-        ev(2, KnownTaskEventKind::TurnStarted),
+        ev(2, turn_started_kind()),
     ];
     let snapshot = snapshot_at(&events, 1);
     let text = serde_json::to_string(&snapshot).unwrap();

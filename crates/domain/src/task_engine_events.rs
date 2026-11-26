@@ -10,13 +10,7 @@ pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) ->
             true
         }
         KnownTaskEventKind::ToolStarted { call_id } => {
-            crate::task_engine_lifecycle::wake(view);
-            crate::task_budget::note_action_attempt(view);
-            if view.budget.over.is_none() {
-                view.budget.add_usage(BudgetItem::ToolCalls, 1);
-            }
-            view.evidence.actions_taken = true;
-            view.note_action(&call_id.as_str());
+            started(view, call_id);
             true
         }
         KnownTaskEventKind::ToolFailed {
@@ -37,7 +31,9 @@ pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) ->
             view.verified_actions.insert(call_id.as_str());
             true
         }
-        KnownTaskEventKind::ToolCompleted { .. } | KnownTaskEventKind::EvidenceAdded { .. } => true,
+        KnownTaskEventKind::ToolCompleted { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
+        | KnownTaskEventKind::EvidenceAdded { .. } => true,
         KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
@@ -46,10 +42,12 @@ pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
@@ -96,10 +94,13 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
         | KnownTaskEventKind::ToolStarted { .. }
@@ -119,11 +120,17 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
     }
 }
 
-pub(crate) fn reconcile(
-    view: &mut TaskView,
-    call_id: &anybot_foundation::CallId,
-    outcome: ReconcileOutcome,
-) {
+pub(crate) fn started(view: &mut TaskView, call_id: &anybot_foundation::CallId) {
+    crate::task_engine_lifecycle::wake(view);
+    crate::task_budget::note_action_attempt(view);
+    if view.budget.over.is_none() {
+        view.budget.add_usage(BudgetItem::ToolCalls, 1);
+    }
+    view.evidence.actions_taken = true;
+    view.note_action(&call_id.as_str());
+}
+
+fn reconcile(view: &mut TaskView, call_id: &anybot_foundation::CallId, outcome: ReconcileOutcome) {
     let key = call_id.as_str();
     if outcome == ReconcileOutcome::Unknown {
         view.unresolved_unknowns.insert(key);

@@ -21,6 +21,9 @@ fn sample_turn() -> anybot_models::TurnRequest {
         1,
         anybot_protocol::KnownTaskEventKind::TaskCreated {
             goal: "SHIP-MARK".to_owned(),
+            opened_by: anybot_protocol::TaskOpener::You,
+            bot: anybot_foundation::BotId::generate(&SystemClock),
+            parent: None,
         },
     )];
     let mut read = sup::step_len(0, 40, "r0");

@@ -7,6 +7,25 @@ use super::{
 };
 use crate::task_replay::replay;
 
+fn turn_started_kind() -> KnownTaskEventKind {
+    KnownTaskEventKind::TurnStarted {
+        turn: 1,
+        initiator: anybot_protocol::TurnInitiator::You {
+            device: anybot_foundation::DeviceId::generate(&SystemClock),
+        },
+        computer: anybot_protocol::ComputerRef {
+            name: "c".to_owned(),
+            platform: anybot_protocol::ComputerPlatform::BotMachine,
+        },
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        thinking: anybot_protocol::ThinkingChoice::Auto,
+    }
+}
+
 fn event(seq: u64, kind: TaskEventKind) -> TaskEvent {
     TaskEvent {
         event_id: EventId::generate(&SystemClock),
@@ -68,9 +87,12 @@ fn test_context_events_state_skips_collapse_event() {
             1,
             TaskEventKind::Known(KnownTaskEventKind::TaskCreated {
                 goal: "g".to_owned(),
+                opened_by: anybot_protocol::TaskOpener::You,
+                bot: anybot_foundation::BotId::generate(&SystemClock),
+                parent: None,
             }),
         ),
-        event(2, TaskEventKind::Known(KnownTaskEventKind::TurnStarted)),
+        event(2, TaskEventKind::Known(turn_started_kind())),
     ];
     let with_raw = {
         let mut v = base.clone();

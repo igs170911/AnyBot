@@ -4,6 +4,25 @@ use crate::task_budget::fixtures::{created, drive, ev_at, fold_events, intent};
 use crate::task_engine::advance;
 use crate::task_view::{TaskView, initial_view};
 
+fn turn_started_kind() -> KnownTaskEventKind {
+    KnownTaskEventKind::TurnStarted {
+        turn: 1,
+        initiator: anybot_protocol::TurnInitiator::You {
+            device: anybot_foundation::DeviceId::generate(&anybot_foundation::SystemClock),
+        },
+        computer: anybot_protocol::ComputerRef {
+            name: "c".to_owned(),
+            platform: anybot_protocol::ComputerPlatform::BotMachine,
+        },
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        thinking: anybot_protocol::ThinkingChoice::Auto,
+    }
+}
+
 fn ask() -> KnownTaskEventKind {
     KnownTaskEventKind::BudgetUsage {
         item: BudgetItem::Steps,
@@ -42,7 +61,7 @@ fn drive_view(kinds: &[KnownTaskEventKind]) -> TaskView {
 fn elapsed_limit_blocks_mid_turn_ask() {
     let events = timed(&[
         (0, created()),
-        (1_000, KnownTaskEventKind::TurnStarted),
+        (1_000, turn_started_kind()),
         (1_000 + 14_401_000, ask()),
     ]);
     let view = fold_events(&events);
@@ -57,7 +76,7 @@ fn elapsed_limit_blocks_mid_turn_ask() {
 fn card_wait_not_counted_mid_turn() {
     let events = timed(&[
         (0, created()),
-        (1_000, KnownTaskEventKind::TurnStarted),
+        (1_000, turn_started_kind()),
         (
             1_000,
             KnownTaskEventKind::CardShown {
@@ -81,7 +100,7 @@ fn card_wait_not_counted_mid_turn() {
 fn card_open_mid_turn_not_counted() {
     let events = timed(&[
         (0, created()),
-        (1_000, KnownTaskEventKind::TurnStarted),
+        (1_000, turn_started_kind()),
         (
             1_000,
             KnownTaskEventKind::CardShown {

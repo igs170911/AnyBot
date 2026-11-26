@@ -50,6 +50,9 @@ fn smaller_model_collapses_more_then_larger_restores_recent() {
         1,
         anybot_protocol::KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
+            opened_by: anybot_protocol::TaskOpener::You,
+            bot: anybot_foundation::BotId::generate(&anybot_foundation::SystemClock),
+            parent: None,
         },
     )];
     let big = budget_3_input(steps.clone(), 128_000, events.clone());

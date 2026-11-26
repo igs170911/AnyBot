@@ -4,6 +4,25 @@ use anybot_protocol::{BudgetItem, KnownTaskEventKind, TaskDetail, TaskStatus};
 
 use crate::task_budget::fixtures::{asks, call, created, drive, intent, pair, turns_ended};
 
+fn turn_started_kind() -> KnownTaskEventKind {
+    KnownTaskEventKind::TurnStarted {
+        turn: 1,
+        initiator: anybot_protocol::TurnInitiator::You {
+            device: anybot_foundation::DeviceId::generate(&anybot_foundation::SystemClock),
+        },
+        computer: anybot_protocol::ComputerRef {
+            name: "c".to_owned(),
+            platform: anybot_protocol::ComputerPlatform::BotMachine,
+        },
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        thinking: anybot_protocol::ThinkingChoice::Auto,
+    }
+}
+
 #[derive(Debug, Clone)]
 struct BudgetCase {
     events: Vec<KnownTaskEventKind>,
@@ -14,7 +33,7 @@ fn build_case(item: BudgetItem, limit: u64, extra: u64) -> BudgetCase {
     let mut head = vec![
         created(),
         KnownTaskEventKind::BudgetLimit { item, limit },
-        KnownTaskEventKind::TurnStarted,
+        turn_started_kind(),
     ];
     let tail = vec![turns_ended()];
     let expect;

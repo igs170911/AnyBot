@@ -7,6 +7,18 @@ use crate::output::{Block, BlockKind, Compiled, CompiledRequest};
 
 use crate::compile_tests_support as sup;
 
+fn context_built_kind() -> anybot_protocol::KnownTaskEventKind {
+    anybot_protocol::KnownTaskEventKind::ContextBuilt {
+        manifest_id: "m".to_owned(),
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        estimate_tokens: 1,
+    }
+}
+
 pub(crate) fn step_at(index: usize, len: usize, ref_id: &str) -> StepRecord {
     sup::step_len(index, len, ref_id)
 }
@@ -74,7 +86,7 @@ pub(crate) fn push_built(events: &mut Vec<anybot_protocol::TaskEvent>) {
     let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
     events.push(event_with_seq(
         seq,
-        anybot_protocol::TaskEventKind::Known(anybot_protocol::KnownTaskEventKind::ContextBuilt),
+        anybot_protocol::TaskEventKind::Known(context_built_kind()),
     ));
 }
 

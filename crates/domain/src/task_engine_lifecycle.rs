@@ -1,11 +1,10 @@
 use anybot_protocol::{CardAnswer, DeviceReportKind, KnownTaskEventKind, TaskDetail, TaskStatus};
 
-use crate::task_gate::finish_turn;
 use crate::task_view::TaskView;
 
 pub(crate) fn advance_goal(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
     match event {
-        KnownTaskEventKind::TaskCreated { goal } => {
+        KnownTaskEventKind::TaskCreated { goal, .. } => {
             view.goal.clone_from(goal);
             let step = view.goal.clone();
             view.set_running(TaskDetail::CurrentStep { step });
@@ -18,10 +17,13 @@ pub(crate) fn advance_goal(view: &mut TaskView, event: &KnownTaskEventKind) -> b
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
         | KnownTaskEventKind::ToolStarted { .. }
@@ -60,10 +62,13 @@ pub(crate) fn advance_cancel(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
         | KnownTaskEventKind::ToolStarted { .. }
@@ -99,32 +104,30 @@ pub(crate) fn advance_lifecycle(view: &mut TaskView, event: &KnownTaskEventKind)
             true
         }
         KnownTaskEventKind::GoalPaused { reason } => {
-            view.status = TaskStatus::AwaitingUser;
-            let reason = reason.clone();
-            view.detail = Some(TaskDetail::GoalPaused { reason });
+            pause(view, reason);
             true
         }
         KnownTaskEventKind::ComputerOffline => {
-            view.status = TaskStatus::AwaitingUser;
-            view.detail = Some(TaskDetail::ComputerOffline);
+            offline(view);
             true
         }
         KnownTaskEventKind::ModelUnreachable => {
-            view.status = TaskStatus::Stuck;
-            view.detail = Some(TaskDetail::ModelUnreachable);
+            unreachable(view);
             true
         }
         KnownTaskEventKind::Stalled { minutes } => {
-            view.status = TaskStatus::Stuck;
-            view.detail = Some(TaskDetail::NoActivity { minutes: *minutes });
+            stalled(view, *minutes);
             true
         }
         KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
         | KnownTaskEventKind::ToolStarted { .. }
@@ -150,18 +153,22 @@ pub(crate) fn advance_lifecycle(view: &mut TaskView, event: &KnownTaskEventKind)
 
 pub(crate) fn advance_turn(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
     match event {
-        KnownTaskEventKind::TurnStarted => {
+        KnownTaskEventKind::TurnStarted { .. } => {
             wake(view);
             crate::task_budget::begin_turn(view);
             true
         }
-        KnownTaskEventKind::TurnEnded { reply_delivered } => {
-            view.evidence.turn_reply = *reply_delivered;
-            finish_turn(view);
+        KnownTaskEventKind::TurnEnded {
+            reason,
+            reply_delivered,
+        } => {
+            crate::task_gate::end_turn(view, reason, *reply_delivered);
             true
         }
-        KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
         | KnownTaskEventKind::ModelSwapped { .. } => true,
         KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
@@ -189,7 +196,8 @@ pub(crate) fn advance_turn(view: &mut TaskView, event: &KnownTaskEventKind) -> b
         | KnownTaskEventKind::CardAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
-        | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::ToolNotRun { .. } => false,
     }
 }
 
@@ -218,4 +226,25 @@ pub(crate) fn report_device(view: &mut TaskView, kind: DeviceReportKind) {
         DeviceReportKind::ThumbsDown => {}
     }
     view.upgrade_completed_detail();
+}
+
+fn pause(view: &mut TaskView, reason: &str) {
+    view.status = TaskStatus::AwaitingUser;
+    let reason = reason.to_owned();
+    view.detail = Some(TaskDetail::GoalPaused { reason });
+}
+
+fn offline(view: &mut TaskView) {
+    view.status = TaskStatus::AwaitingUser;
+    view.detail = Some(TaskDetail::ComputerOffline);
+}
+
+fn unreachable(view: &mut TaskView) {
+    view.status = TaskStatus::Stuck;
+    view.detail = Some(TaskDetail::ModelUnreachable);
+}
+
+fn stalled(view: &mut TaskView, minutes: u32) {
+    view.status = TaskStatus::Stuck;
+    view.detail = Some(TaskDetail::NoActivity { minutes });
 }

@@ -57,7 +57,7 @@ pub fn model_swapped_after_last_built(events: &[anybot_protocol::TaskEvent]) -> 
         matches!(
             &e.kind,
             anybot_protocol::TaskEventKind::Known(
-                anybot_protocol::KnownTaskEventKind::ContextBuilt
+                anybot_protocol::KnownTaskEventKind::ContextBuilt { .. }
             )
         )
     };

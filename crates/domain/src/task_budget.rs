@@ -199,7 +199,7 @@ fn reset_round_baseline(view: &mut TaskView) {
 pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind) {
     let millis = at.millis();
     match kind {
-        KnownTaskEventKind::TurnStarted => {
+        KnownTaskEventKind::TurnStarted { .. } => {
             view.budget.last_ms = millis;
             view.budget.turn_start_ms = Some(millis);
             view.budget.turn_paused_ms = 0;
@@ -231,8 +231,11 @@ pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }

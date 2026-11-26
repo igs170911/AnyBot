@@ -8,6 +8,7 @@ pub mod gate_record;
 pub mod known_task_event_kind;
 pub mod task_detail;
 pub mod task_events;
+pub mod turn_records;
 pub mod versions;
 
 pub use account_api::{
@@ -39,5 +40,9 @@ pub use task_detail::{TaskDetail, TaskStatus, detail_matches_status};
 pub use task_events::{
     BudgetItem, CardAnswer, CheckSource, Criterion, DeviceReportKind, DoneWhenChange, Proposer,
     RawTaskEventKind, ReconcileOutcome, TaskEvent, TaskEventKind, ToolEffect, effect_level,
+};
+pub use turn_records::{
+    ComputerRef, FinishReason, ModelName, NativeRef, NotRunReason, TaskOpener, ThinkingChoice,
+    TokenUsage, ToolArgs, ToolRequest, TurnEndReason, TurnInitiator,
 };
 pub use versions::{PROTOCOL_RELEASES, ProtocolRelease, accepts_protocol_version};

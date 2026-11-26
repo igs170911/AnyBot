@@ -48,7 +48,7 @@ pub use task_context_events::{
 pub use task_effects::{ResumeAction, resume_action};
 pub use task_engine::advance;
 pub use task_entry::{EntryInput, EntryTracker};
-pub use task_gate::finish_turn;
+pub use task_gate::{end_turn, finish_turn};
 pub use task_journal::{JournalOp, TaskJournal};
 pub use task_replay::{
     ReplayGap, SNAPSHOT_FORMAT_VERSION, TaskSnapshot, missing_seqs, replay, replay_from,

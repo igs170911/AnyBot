@@ -8,6 +8,25 @@ use anybot_protocol::{
 
 use super::{replay, replay_from, snapshot_at};
 
+fn turn_started_kind() -> KnownTaskEventKind {
+    KnownTaskEventKind::TurnStarted {
+        turn: 1,
+        initiator: anybot_protocol::TurnInitiator::You {
+            device: anybot_foundation::DeviceId::generate(&SystemClock),
+        },
+        computer: anybot_protocol::ComputerRef {
+            name: "c".to_owned(),
+            platform: anybot_protocol::ComputerPlatform::BotMachine,
+        },
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        thinking: anybot_protocol::ThinkingChoice::Auto,
+    }
+}
+
 fn criterion_strategy() -> BoxedStrategy<Criterion> {
     prop_oneof![
         "[a-z]{1,6}".prop_map(|p| Criterion::FileExists { path: p }),
@@ -25,12 +44,24 @@ fn criterion_strategy() -> BoxedStrategy<Criterion> {
 
 fn lifecycle_turn_events() -> BoxedStrategy<KnownTaskEventKind> {
     prop_oneof![
-        "[a-z]{1,8}".prop_map(|goal| KnownTaskEventKind::TaskCreated { goal }),
-        Just(KnownTaskEventKind::TurnStarted),
+        "[a-z]{1,8}".prop_map(|goal| KnownTaskEventKind::TaskCreated {
+            goal,
+            opened_by: anybot_protocol::TaskOpener::You,
+            bot: anybot_foundation::BotId::generate(&SystemClock),
+            parent: None,
+        }),
+        Just(turn_started_kind()),
         (0usize..2usize).prop_map(|v| KnownTaskEventKind::TurnEnded {
+            reason: anybot_protocol::TurnEndReason::Answered,
             reply_delivered: v == 1,
         }),
-        "[a-z]{1,8}".prop_map(|t| KnownTaskEventKind::TurnText { text: t }),
+        "[a-z]{1,8}".prop_map(|t| KnownTaskEventKind::ModelAnswer {
+            text: t,
+            thinking: None,
+            tool_requests: Vec::new(),
+            finish: anybot_protocol::FinishReason::Finished,
+            native: None
+        }),
         Just(KnownTaskEventKind::TaskStopped),
         "[a-z]{1,6}".prop_map(|reason| KnownTaskEventKind::TaskCancelled { reason }),
         Just(KnownTaskEventKind::Wake {

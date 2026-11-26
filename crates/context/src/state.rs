@@ -107,12 +107,12 @@ fn apply_change_to(items: &mut Vec<Criterion>, change: &DoneWhenChange) {
 fn apply_known(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
     apply_criteria(b, seq, known);
     apply_steps(b, seq, known);
-    apply_notes(b, seq, known);
+    crate::state_notes::apply_notes(b, seq, known);
 }
 
 fn apply_criteria(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
     match known {
-        KnownTaskEventKind::TaskCreated { goal } => {
+        KnownTaskEventKind::TaskCreated { goal, .. } => {
             b.goal = Some((goal.clone(), seq));
         }
         KnownTaskEventKind::DoneWhenChange { after, .. } => {
@@ -132,10 +132,13 @@ fn apply_criteria(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
         | KnownTaskEventKind::Wake { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
         | KnownTaskEventKind::ToolStarted { .. }
@@ -190,10 +193,13 @@ fn apply_steps(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
         | KnownTaskEventKind::Wake { .. }
-        | KnownTaskEventKind::TurnStarted
+        | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::EvidenceAdded { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
@@ -228,55 +234,6 @@ impl StateBuilder {
     pub fn open_cards(&self) -> Vec<(u64, String)> {
         let answered = self.answers.len();
         self.questions.iter().skip(answered).cloned().collect()
-    }
-}
-
-fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
-    match known {
-        KnownTaskEventKind::EvidenceAdded { summary } => {
-            b.evidence.push((seq, summary.clone()));
-        }
-        KnownTaskEventKind::BudgetUsage { item, delta } => {
-            let entry = b.budget.entry(*item).or_insert((0, seq));
-            entry.0 = entry.0.saturating_add(*delta);
-            entry.1 = seq;
-        }
-        KnownTaskEventKind::CardShown { action } => {
-            b.questions.push((seq, action.clone()));
-        }
-        KnownTaskEventKind::CardAnswered { answer } => {
-            b.answers.push((seq, format!("{answer:?}")));
-        }
-        KnownTaskEventKind::ModelSwapped { from, to, .. } => {
-            b.swaps.push((seq, from.clone(), to.clone()));
-        }
-        KnownTaskEventKind::TaskCreated { .. }
-        | KnownTaskEventKind::DoneWhenChange { .. }
-        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
-        | KnownTaskEventKind::CriterionPassed { .. }
-        | KnownTaskEventKind::CriterionFailed { .. }
-        | KnownTaskEventKind::AcceptanceUnavailable
-        | KnownTaskEventKind::ClaimChecked { .. }
-        | KnownTaskEventKind::TaskCancelled { .. }
-        | KnownTaskEventKind::TaskStopped
-        | KnownTaskEventKind::Wake { .. }
-        | KnownTaskEventKind::TurnStarted
-        | KnownTaskEventKind::TurnEnded { .. }
-        | KnownTaskEventKind::TurnText { .. }
-        | KnownTaskEventKind::ContextBuilt
-        | KnownTaskEventKind::ToolIntent { .. }
-        | KnownTaskEventKind::ToolStarted { .. }
-        | KnownTaskEventKind::ToolCompleted { .. }
-        | KnownTaskEventKind::ToolFailed { .. }
-        | KnownTaskEventKind::OutcomeUnknown { .. }
-        | KnownTaskEventKind::Reconciled { .. }
-        | KnownTaskEventKind::ActionVerified { .. }
-        | KnownTaskEventKind::BudgetLimit { .. }
-        | KnownTaskEventKind::DeviceReport { .. }
-        | KnownTaskEventKind::ModelUnreachable
-        | KnownTaskEventKind::ComputerOffline
-        | KnownTaskEventKind::GoalPaused { .. }
-        | KnownTaskEventKind::Stalled { .. } => {}
     }
 }
 

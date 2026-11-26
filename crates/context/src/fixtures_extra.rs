@@ -45,3 +45,15 @@ pub(crate) fn tool_spec_at(index: usize) -> ToolSpec {
         parameters: serde_json::json!({ "type": "object" }),
     }
 }
+
+pub(crate) fn context_built_kind() -> anybot_protocol::KnownTaskEventKind {
+    anybot_protocol::KnownTaskEventKind::ContextBuilt {
+        manifest_id: "m".to_owned(),
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        estimate_tokens: 1,
+    }
+}

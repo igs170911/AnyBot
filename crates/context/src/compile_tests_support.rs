@@ -9,6 +9,18 @@ use crate::input::{
 };
 use crate::output::{CollapseReason, NewEvent};
 
+fn context_built_kind() -> KnownTaskEventKind {
+    KnownTaskEventKind::ContextBuilt {
+        manifest_id: "m".to_owned(),
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        estimate_tokens: 1,
+    }
+}
+
 pub(crate) fn capability(context_tokens: u64) -> Capability {
     Capability {
         provider: ProviderKind::OpenAi,
@@ -133,7 +145,7 @@ pub(crate) fn push_new(events: &mut Vec<TaskEvent>, new: &[NewEvent]) {
         let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
         let seq = seq.saturating_add(u64::try_from(offset).unwrap_or(0));
         match e {
-            NewEvent::ContextBuilt => events.push(known(seq, KnownTaskEventKind::ContextBuilt)),
+            NewEvent::ContextBuilt => events.push(known(seq, context_built_kind())),
             NewEvent::MemoryDropped { ids } => {
                 events.push(event(seq, anybot_domain::memory_dropped_kind(ids)));
             }

@@ -1,6 +1,6 @@
 use proptest::prelude::*;
 
-pub(crate) use crate::fixtures_extra::{memory, model_plan, tool_spec_at};
+pub(crate) use crate::fixtures_extra::{context_built_kind, memory, model_plan, tool_spec_at};
 use anybot_foundation::{CallId, EventId, SystemClock, TimestampMs};
 use anybot_protocol::{
     BudgetItem, CheckSource, Criterion, DoneWhenChange, KnownTaskEventKind, Proposer, TaskEvent,
@@ -153,8 +153,8 @@ fn ev(kind: KnownTaskEventKind) -> TaskEventKind {
 
 fn known_event() -> BoxedStrategy<TaskEventKind> {
     use KnownTaskEventKind::{
-        ActionVerified, BudgetUsage, CardShown, ContextBuilt, CriterionFailed, CriterionPassed,
-        EvidenceAdded, ModelSwapped, OutcomeUnknown, ToolIntent, TurnText,
+        ActionVerified, BudgetUsage, CardShown, CriterionFailed, CriterionPassed, EvidenceAdded,
+        ModelAnswer, ModelAsked, ModelSwapped, ModelUsage, OutcomeUnknown, ToolIntent, ToolNotRun,
     };
     prop_oneof![
         3 => criterion().prop_map(|c| ev(KnownTaskEventKind::DoneWhenChange {
@@ -164,7 +164,13 @@ fn known_event() -> BoxedStrategy<TaskEventKind> {
             after: Vec::new(),
             reason: "r".to_owned(),
         })),
-        10 => Just(ev(TurnText { text: "t".to_owned() })),
+        10 => Just(ev(ModelAnswer {
+            text: "t".to_owned(),
+            thinking: None,
+            tool_requests: Vec::new(),
+            finish: anybot_protocol::FinishReason::Finished,
+            native: None,
+        })),
         6 => (0usize..3usize).prop_map(|i| ev(ToolIntent { call_id: CallId::generate(&SystemClock), name: format!("e{i}"), args_summary: "a".to_owned(), level: ToolEffect::ReadOnly })),
         4 => mixed_text(24).prop_map(|summary| ev(EvidenceAdded { summary })),
         2 => Just(ev(CardShown { action: "q?".to_owned() })),
@@ -174,7 +180,13 @@ fn known_event() -> BoxedStrategy<TaskEventKind> {
         1 => (0usize..3).prop_map(|i| ev(CriterionPassed { index: i, source: CheckSource::Program })),
         1 => (0usize..3).prop_map(|i| ev(CriterionFailed { index: i, source: CheckSource::Program, observed: "o".to_owned() })),
         1 => Just(ev(ModelSwapped { from: "a".to_owned(), to: "b".to_owned(), reason: "r".to_owned() })),
-        1 => Just(ev(ContextBuilt)),
+        1 => Just(ev(context_built_kind())),
+        1 => Just(ev(ModelAsked { step: 1 })),
+        1 => Just(ev(ModelUsage { usage: None, manifest_id: "m".to_owned() })),
+        1 => (0usize..2).prop_map(|_| ev(ToolNotRun {
+            call_id: CallId::generate(&SystemClock),
+            reason: anybot_protocol::NotRunReason::NotWired,
+        })),
     ]
     .boxed()
 }
@@ -196,6 +208,9 @@ pub(crate) fn events_strategy(max_len: usize) -> BoxedStrategy<Vec<TaskEvent>> {
                 1,
                 TaskEventKind::Known(KnownTaskEventKind::TaskCreated {
                     goal: "g".to_owned(),
+                    opened_by: anybot_protocol::TaskOpener::You,
+                    bot: anybot_foundation::BotId::generate(&SystemClock),
+                    parent: None,
                 }),
             ));
             for (idx, kind) in kinds.into_iter().enumerate() {

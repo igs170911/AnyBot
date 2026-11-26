@@ -7,12 +7,7 @@ use crate::budget_tests::assemble_input;
 
 #[test]
 fn budget_trims_are_far_fewer_than_steps() {
-    let mut events: Vec<anybot_protocol::TaskEvent> = vec![sup::known(
-        1,
-        anybot_protocol::KnownTaskEventKind::TaskCreated {
-            goal: "g".to_owned(),
-        },
-    )];
+    let mut events: Vec<anybot_protocol::TaskEvent> = vec![sup::known(1, created_kind())];
     let mut trims: Vec<usize> = Vec::new();
     for index in 0..40usize {
         let steps: Vec<StepRecord> = (0..=index)
@@ -55,14 +50,18 @@ fn budget_trims_are_far_fewer_than_steps() {
     }
 }
 
+fn created_kind() -> anybot_protocol::KnownTaskEventKind {
+    anybot_protocol::KnownTaskEventKind::TaskCreated {
+        goal: "g".to_owned(),
+        opened_by: anybot_protocol::TaskOpener::You,
+        bot: anybot_foundation::BotId::generate(&anybot_foundation::SystemClock),
+        parent: None,
+    }
+}
+
 #[test]
 fn each_sent_build_records_one_context_built() {
-    let mut events: Vec<anybot_protocol::TaskEvent> = vec![sup::known(
-        1,
-        anybot_protocol::KnownTaskEventKind::TaskCreated {
-            goal: "g".to_owned(),
-        },
-    )];
+    let mut events: Vec<anybot_protocol::TaskEvent> = vec![sup::known(1, created_kind())];
     let mut sent_builds = 0usize;
     for index in 0..60usize {
         let steps: Vec<StepRecord> = (0..=index)
@@ -89,6 +88,9 @@ fn each_sent_build_records_one_context_built() {
             1,
             anybot_protocol::KnownTaskEventKind::TaskCreated {
                 goal: "g".to_owned(),
+                opened_by: anybot_protocol::TaskOpener::You,
+                bot: anybot_foundation::BotId::generate(&anybot_foundation::SystemClock),
+                parent: None,
             },
         )],
         Vec::new(),
@@ -106,7 +108,7 @@ fn each_sent_build_records_one_context_built() {
             matches!(
                 &e.kind,
                 anybot_protocol::TaskEventKind::Known(
-                    anybot_protocol::KnownTaskEventKind::ContextBuilt
+                    anybot_protocol::KnownTaskEventKind::ContextBuilt { .. }
                 )
             )
         })

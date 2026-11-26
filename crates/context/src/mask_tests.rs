@@ -136,6 +136,9 @@ fn two_collapse_events_replay_the_same_request() {
         1,
         anybot_protocol::KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
+            opened_by: anybot_protocol::TaskOpener::You,
+            bot: anybot_foundation::BotId::generate(&anybot_foundation::SystemClock),
+            parent: None,
         },
     )];
     base.steps = vec![sup::step_len(0, 500, "ra")];

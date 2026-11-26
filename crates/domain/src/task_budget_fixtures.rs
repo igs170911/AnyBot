@@ -19,11 +19,15 @@ pub(crate) fn call() -> CallId {
 pub(crate) fn created() -> KnownTaskEventKind {
     KnownTaskEventKind::TaskCreated {
         goal: "g".to_owned(),
+        opened_by: anybot_protocol::TaskOpener::You,
+        bot: anybot_foundation::BotId::generate(&SystemClock),
+        parent: None,
     }
 }
 
 pub(crate) fn turns_ended() -> KnownTaskEventKind {
     KnownTaskEventKind::TurnEnded {
+        reason: anybot_protocol::TurnEndReason::Answered,
         reply_delivered: true,
     }
 }

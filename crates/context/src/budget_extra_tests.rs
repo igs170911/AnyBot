@@ -4,6 +4,18 @@ use crate::compile_tests_support as sup;
 use crate::input::StepRecord;
 use crate::output::{Compiled, NewEvent};
 
+fn context_built_kind() -> anybot_protocol::KnownTaskEventKind {
+    anybot_protocol::KnownTaskEventKind::ContextBuilt {
+        manifest_id: "m".to_owned(),
+        model: anybot_protocol::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m".to_owned(),
+        },
+        estimate_tokens: 1,
+    }
+}
+
 #[test]
 fn accumulate_collapses_after_fifteen_percent() {
     let usable: u64 = 32_000;
@@ -65,10 +77,7 @@ fn push_events(events: &mut Vec<anybot_protocol::TaskEvent>, new: &[NewEvent], s
     for (offset, e) in new.iter().enumerate() {
         let seq = start_seq.saturating_add(u64::try_from(offset).unwrap_or(0));
         match e {
-            NewEvent::ContextBuilt => events.push(sup::known(
-                seq,
-                anybot_protocol::KnownTaskEventKind::ContextBuilt,
-            )),
+            NewEvent::ContextBuilt => events.push(sup::known(seq, context_built_kind())),
             NewEvent::MemoryDropped { ids } => {
                 events.push(sup::event(seq, anybot_domain::memory_dropped_kind(ids)));
             }

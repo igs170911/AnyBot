@@ -1,4 +1,4 @@
-use anybot_protocol::{TaskDetail, TaskStatus};
+use anybot_protocol::{TaskDetail, TaskStatus, TurnEndReason};
 
 use crate::task_view::TaskView;
 
@@ -41,6 +41,27 @@ pub fn finish_turn(view: &mut TaskView) {
 
 fn is_terminal(status: TaskStatus) -> bool {
     matches!(status, TaskStatus::Cancelled | TaskStatus::Stopped)
+}
+
+pub fn end_turn(view: &mut TaskView, reason: &TurnEndReason, reply_delivered: bool) {
+    if is_terminal(view.status) {
+        return;
+    }
+    match reason {
+        TurnEndReason::Answered => {
+            view.evidence.turn_reply = reply_delivered;
+            finish_turn(view);
+        }
+        TurnEndReason::ContextBudget { .. } => {
+            view.status = TaskStatus::Stuck;
+            view.detail = Some(TaskDetail::ContextBudgetInsufficient);
+        }
+        TurnEndReason::ModelFailed { code } => {
+            view.status = TaskStatus::Failed;
+            let reason = code.clone();
+            view.detail = Some(TaskDetail::Error { reason });
+        }
+    }
 }
 
 impl TaskView {
