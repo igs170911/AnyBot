@@ -10,7 +10,9 @@
 - **`make test` 的結尾碼關卡（HOTFIX）**：`_test-body` 經 `tools/test-gate.sh`（`run` 模式）：nextest 結尾碼不是 0 → 擋；紀錄 `target/nextest.log` 出現 `ignoring unknown configuration keys` → 擋（缺一個都不行）。同一支腳本也是 `make gate-selftest` 的邏輯（在 `check` 和 `check-fast` 裡，幾秒跑完）：`expect-fail` 餵結尾碼非 0 的指令、餵結尾碼 0 但輸出帶那句警告的指令，都要擋；`expect-pass` 餵乾淨指令要過。iron-laws 另有一道 `makefile_recipes` 檢查：recipe 同一邏輯行裡 `;` 接兩個會失敗的指令、管線沒有 `pipefail`、`$(shell ...)` 裡有管線，都擋；要連寫指令一律用 `&&`、条件，或抽成 `tools/` 裡的腳本。
 - `make live-model-check`（`tests/live-model`）：跟真的本機模型比對。先比請求與回應格式（一般／串流／工具呼叫），再用產品客戶端把一般、串流、工具呼叫、思考各送一次給 vllm 假模型和真的模型，比兩邊閘道交出的中立結果結構（結束原因、有沒有文字、有沒有思考、工具呼叫數、用量有沒有）。設定只讀 `.local/live-model/profile.toml`（`cargo clean` 不會刪），只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印、**絕不放進命令列參數**（`ps` 會看到）；要打真的模型一律走這個程式，真的要手動 `curl` 時把標頭寫進 `target/` 裡權限 600 的檔案、用 `curl -H @檔案`，用完刪掉。假模型用 `vllm` 格式跟真的比，三種格式要比到 identical。終端機會印每一種格式差在哪，以及 `product client:` 底下四行結構比較（`identical structure` 或兩邊的結構）。報告寫在 `.local/live-model/format-report.txt`。檔案不在時，程式在連出去之前就列出要建的 `profile.toml`、`base_url`、`model`、`ca_file`、`key_file`。不在 `make check`、`make check-fast`、CI 裡。
 - TypeScript 用 `pnpm vitest run`；端對端用 Playwright（見第二節）。
-- 逾時設定在 `.config/nextest.toml`：每個測試 30 秒慢速警戒，第 4 次逾時就終止。PostgreSQL 相關的測試另有 90 秒寬限，並在同一群組裡序列化執行（平行度 1）。
+- 逾時設定在 `.config/nextest.toml`：每個測試 30 秒慢速警戒，第 4 次逾時就終止。PostgreSQL 相關的測試另有 120 秒寬限，並在同一群組裡序列化執行（平行度 1）。
+- **`make test` 平行跑，不單執行緒**（INFRA-2）：`_test-body` 是 `cargo nextest run --workspace`，執行緒數照機器核心數。會互相干擾的測試靠 `.config/nextest.toml` 的測試分組在組內排隊（每組 `max-threads = 1`），四個群組是 `ports`（會撞固定埠）、`pg`（會啟動 PostgreSQL）、`net`（會改網路控制）、`timing`（會量真實時間、對 CPU 負載敏感）。群組外並行的測試不准碰共用的埠、網路設定、真實時間量測、共用的資料庫檔案。
+- **新測試要放哪個分組**：會啟動 PostgreSQL 的測試檔用 `pg_` 開頭（自動進 `pg` 群）。會占用固定埠、或啟動真伺服器的放進 `ports`；會動網路控制的（`netctl_` 開頭）放進 `net`；會量真實時間、對 CPU 負載敏感（例如快拒時間的統計上限）的放進 `timing`。新增群組成員就改 `.config/nextest.toml` 的 overrides 篩選列；跨工作區的測試鎖照留，擋不同工作區同時跑測試撞同一個固定埠。
 
 ## 並行工作（多個 agent 同時做不同里程碑）
 
