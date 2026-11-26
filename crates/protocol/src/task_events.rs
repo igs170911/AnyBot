@@ -22,6 +22,7 @@ pub fn effect_level(declared: Option<ToolEffect>) -> ToolEffect {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum BudgetItem {
+    Steps,
     ToolCalls,
     Turns,
     Elapsed,

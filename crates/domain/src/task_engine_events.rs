@@ -5,15 +5,18 @@ use crate::task_view::TaskView;
 pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
     match event {
         KnownTaskEventKind::ToolIntent { call_id, level, .. } => {
+            crate::task_budget::note_action_attempt(view);
             view.action_levels.insert(call_id.as_str(), *level);
             true
         }
         KnownTaskEventKind::ToolStarted { call_id } => {
             crate::task_engine_lifecycle::wake(view);
+            crate::task_budget::note_action_attempt(view);
+            if view.budget.over.is_none() {
+                view.budget.add_usage(BudgetItem::ToolCalls, 1);
+            }
             view.evidence.actions_taken = true;
             view.note_action(&call_id.as_str());
-            view.budget.add_usage(BudgetItem::ToolCalls, 1);
-            crate::task_budget::refresh_budget_status(view);
             true
         }
         KnownTaskEventKind::ToolFailed {
