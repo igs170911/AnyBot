@@ -20,7 +20,7 @@ define locked
 endef
 
 # spec-trace baseline compare ref: locally compares against HEAD; CI compares against the commit pushed to before the push on dev and main, otherwise the merge base of origin/dev (K111; CI sets this variable).
-SPEC_TRACE_REF ?= $(shell git merge-base HEAD dev 2>/dev/null || echo HEAD)
+SPEC_TRACE_REF ?= $(shell git merge-base HEAD dev)
 
 .PHONY: check check-fast fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline sqlx-prepare sqlx-check \
 	ironlaws gitleaks versions actionlint ts-install ts-biome ts-typecheck ts-test ts-build \
