@@ -120,10 +120,10 @@ mod tests {
     #[test]
     fn test_params_builder_keeps_keys_sorted_and_typed() {
         let p = Params::new()
-            .with_int("port", 8787)
+            .with_int("port", 31_313)
             .with_text("db_host", "localhost");
         assert_eq!(p.keys(), vec!["db_host", "port"]);
-        assert_eq!(p.get("port"), Some(&ParamValue::Int(8787)));
+        assert_eq!(p.get("port"), Some(&ParamValue::Int(31_313)));
         assert_eq!(p.get("db_host"), Some(&ParamValue::text("localhost")));
         assert!(!p.is_empty());
     }

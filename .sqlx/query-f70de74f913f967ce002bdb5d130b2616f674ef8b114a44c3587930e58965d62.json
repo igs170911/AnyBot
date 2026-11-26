@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions SET last_password_at_ms = $2 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "f70de74f913f967ce002bdb5d130b2616f674ef8b114a44c3587930e58965d62"
+}

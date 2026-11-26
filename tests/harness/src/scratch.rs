@@ -11,6 +11,7 @@ pub fn repo_root() -> PathBuf {
 
 pub fn test_dir(test_name: &str) -> Result<PathBuf, String> {
     let base = repo_root().join("target").join("tests").join(test_name);
+    let _reaped = crate::reap::reap_except(Some(&base));
     clean(&base)?;
     std::fs::create_dir_all(&base).map_err(|e| format!("create {} failed: {e}", base.display()))?;
     Ok(base)

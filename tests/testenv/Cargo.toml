@@ -16,4 +16,4 @@ axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 test-harness = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "signal"] }

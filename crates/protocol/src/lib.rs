@@ -1,3 +1,4 @@
+pub mod account_api;
 pub mod api;
 pub mod events;
 pub mod known_task_event_kind;
@@ -5,6 +6,10 @@ pub mod task_detail;
 pub mod task_events;
 pub mod versions;
 
+pub use account_api::{
+    ActionAck, InviteResponse, LoginRequest, LoginSession, PasswordChangeRequest, PublicUrlRequest,
+    RegisterAck, RegisterRequest, ResetPasswordRequest,
+};
 pub use api::{
     IdempotencyKey, MessageParams, PROBLEM_CODE_BAD_REQUEST, PROBLEM_CODE_INTERNAL,
     PROBLEM_JSON_CONTENT_TYPE, PROBLEM_TITLE_BAD_REQUEST, PROBLEM_TITLE_INTERNAL,

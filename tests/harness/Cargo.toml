@@ -10,6 +10,8 @@ description = "Test support crate: launches real executables, speaks HTTP, prepa
 workspace = true
 
 [dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 anybot-foundation = { workspace = true }
 aes-gcm = { workspace = true }
 axum = { workspace = true, features = ["macros"] }
@@ -25,7 +27,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 socket2 = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true, features = ["time", "net", "rt-multi-thread", "macros", "sync", "io-util"] }
+tokio = { workspace = true, features = ["time", "net", "rt-multi-thread", "macros", "sync", "io-util", "signal"] }
 tokio-rustls = { workspace = true }
 time = { workspace = true }
 rcgen = { workspace = true }
@@ -37,6 +39,8 @@ url = { workspace = true }
 sqlx = { workspace = true, features = ["postgres", "runtime-tokio", "migrate"] }
 
 [dev-dependencies]
+anybot-store-server = { workspace = true }
+tracing-subscriber = { workspace = true }
 sad-web-push = { workspace = true }
 sqlx = { workspace = true, features = ["postgres", "runtime-tokio", "migrate"] }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }

@@ -4,6 +4,226 @@
  */
 
 export interface paths {
+    "/v1/account/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log in and open a session
+         * @description Requires the Idempotency-Key header; replaying the same key opens a new session.
+         */
+        post: operations["post_account_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close the calling session
+         * @description Requires the session bearer key and the Idempotency-Key header.
+         */
+        post: operations["post_account_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close every phone and browser session of the account
+         * @description Requires the session bearer key and the Idempotency-Key header.
+         */
+        post: operations["post_account_logout_all"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the caller password
+         * @description Requires the session bearer key and the Idempotency-Key header; every other session is closed.
+         */
+        post: operations["post_account_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an account with an invite code
+         * @description Requires the Idempotency-Key header; the invite code must match the server setting.
+         */
+        post: operations["post_account_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/accounts/{account}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable an account
+         * @description Admin only; requires the Idempotency-Key header. The caller account cannot be disabled.
+         */
+        post: operations["post_admin_account_disable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/accounts/{account}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable an account
+         * @description Admin only; requires the Idempotency-Key header.
+         */
+        post: operations["post_admin_account_enable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/accounts/{account}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset an account password as admin
+         * @description Admin only; requires the Idempotency-Key header. Closes every session of the account.
+         */
+        post: operations["post_admin_account_reset_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current invite code
+         * @description Admin only.
+         */
+        get: operations["get_admin_invite"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/invite/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate a new invite code
+         * @description Admin only; requires the Idempotency-Key header.
+         */
+        post: operations["post_admin_invite_rotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/public-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the public URL of this server
+         * @description Admin only; requires the Idempotency-Key header.
+         */
+        post: operations["post_admin_public_url"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -24,10 +244,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/server/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public server status
+         * @description Returns version, protocol version, uptime, listen port and the configured public URL; no identity required.
+         */
+        get: operations["get_server_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ActionAck: {
+            /** @example true */
+            ok: boolean;
+        };
         HealthResponse: {
             /** @example 2026-01-01T00:00:00Z */
             now: string;
@@ -39,8 +283,32 @@ export interface components {
             /** @example 0.1.0 */
             version: string;
         };
+        InviteResponse: {
+            /** @example 2kqj-7mnp */
+            invite: string;
+        };
+        LoginRequest: {
+            /** @example alice */
+            account: string;
+            /** @example phone P */
+            label: string;
+            /** @example longenough */
+            password: string;
+        };
+        LoginSession: {
+            /** @example alice */
+            account: string;
+            /** @example a1b2c3d4 */
+            session_key: string;
+        };
         MessageParams: {
             [key: string]: unknown;
+        };
+        PasswordChangeRequest: {
+            /** @example newlongenough */
+            new: string;
+            /** @example longenough */
+            old: string;
         };
         ProblemJson: {
             /** @example problem-bad-request */
@@ -60,6 +328,49 @@ export interface components {
             /** @example https://anybot.test/problems/not-found */
             type: string;
         };
+        PublicUrlRequest: {
+            /** @example https://bot.example.test */
+            public_url: string;
+        };
+        RegisterAck: {
+            /** @example true */
+            admin: boolean;
+            /** @example true */
+            created: boolean;
+        };
+        RegisterRequest: {
+            /** @example bob */
+            account: string;
+            /** @example 2kqj-7mnp */
+            invite: string;
+            /** @example longenough */
+            password: string;
+        };
+        ResetPasswordRequest: {
+            /** @example newlongenough */
+            new: string;
+        };
+        StatusResponse: {
+            /**
+             * Format: int32
+             * @example 8787
+             */
+            listen_port: number;
+            /**
+             * Format: int32
+             * @example 1
+             */
+            protocol_version: number;
+            /** @example https://bot.example.test */
+            public_url?: string | null;
+            /**
+             * Format: int64
+             * @example 1200
+             */
+            uptime_ms: number;
+            /** @example 0.1.0 */
+            version: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -69,6 +380,1425 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    post_account_login: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "account": "alice",
+                 *       "label": "phone",
+                 *       "password": "hunter22"
+                 *     }
+                 */
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Session opened */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "account": "alice",
+                     *       "session_key": "a1b2c3d4e5f6a1b2"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["LoginSession"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Wrong credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "The account or password is wrong.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Disabled account */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-disabled",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "This account is disabled by the server admin.",
+                     *       "type": "https://anybot.test/problems/account_login_disabled"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Login rate limit reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many password failures; try again in 5 minutes.",
+                     *       "type": "https://anybot.test/problems/account_login_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_account_logout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "ok": true
+                 *     }
+                 */
+                "application/json": components["schemas"]["ActionAck"];
+            };
+        };
+        responses: {
+            /** @description Session closed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_account_logout_all: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "ok": true
+                 *     }
+                 */
+                "application/json": components["schemas"]["ActionAck"];
+            };
+        };
+        responses: {
+            /** @description All sessions closed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_account_password: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "new": "sunny2233",
+                 *       "old": "hunter22"
+                 *     }
+                 */
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Password changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description New password too short */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-password-new-short",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The new password is too short.",
+                     *       "type": "https://anybot.test/problems/account_password_new_short"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Password change rate limit reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-password-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many password change attempts; try again in 5 minutes.",
+                     *       "type": "https://anybot.test/problems/account_password_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_account_register: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "account": "alice",
+                 *       "invite": "abcd-efgh",
+                 *       "password": "hunter22"
+                 *     }
+                 */
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Account created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "admin": true,
+                     *       "created": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["RegisterAck"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Invite code rejected */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-invite-invalid",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "The invite code is not valid.",
+                     *       "type": "https://anybot.test/problems/account_invite_invalid"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Registration rate limit reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-register-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many registrations from this address; try again in 5 minutes.",
+                     *       "type": "https://anybot.test/problems/account_register_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_admin_account_disable: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description account name */
+                account: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "ok": true
+                 *     }
+                 */
+                "application/json": components["schemas"]["ActionAck"];
+            };
+        };
+        responses: {
+            /** @description Account disabled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Self disable */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-admin-self-disable",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "The server admin cannot disable this own account.",
+                     *       "type": "https://anybot.test/problems/account_admin_self_disable"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "The account or password is wrong.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_admin_account_enable: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description account name */
+                account: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "ok": true
+                 *     }
+                 */
+                "application/json": components["schemas"]["ActionAck"];
+            };
+        };
+        responses: {
+            /** @description Account enabled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-admin-only",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "Only the server admin can do this.",
+                     *       "type": "https://anybot.test/problems/account_admin_only"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "The account or password is wrong.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_admin_account_reset_password: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description account name */
+                account: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "new": "sunny2233"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Password reset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description New password too short */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-password-new-short",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The new password is too short.",
+                     *       "type": "https://anybot.test/problems/account_password_new_short"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-admin-only",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "Only the server admin can do this.",
+                     *       "type": "https://anybot.test/problems/account_admin_only"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-exists-reset",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "This account already exists on the server; if you forgot the password, ask the server admin to reset it.",
+                     *       "type": "https://anybot.test/problems/account_exists_reset"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    get_admin_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current invite code */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "invite": "2kqj-7mnp"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["InviteResponse"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-admin-only",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "Only the server admin can do this.",
+                     *       "type": "https://anybot.test/problems/account_admin_only"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No invite code set */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-invite-invalid",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "The invite code is not valid.",
+                     *       "type": "https://anybot.test/problems/account_invite_invalid"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_admin_invite_rotate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "ok": true
+                 *     }
+                 */
+                "application/json": components["schemas"]["ActionAck"];
+            };
+        };
+        responses: {
+            /** @description New invite code */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "invite": "2kqj-7mnp"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["InviteResponse"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-admin-only",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "Only the server admin can do this.",
+                     *       "type": "https://anybot.test/problems/account_admin_only"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_admin_public_url: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "public_url": "https://bot.example.test"
+                 *     }
+                 */
+                "application/json": components["schemas"]["PublicUrlRequest"];
+            };
+        };
+        responses: {
+            /** @description URL stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Bad URL */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The public URL is not a valid http or https URL.",
+                     *       "type": "https://anybot.test/problems/problem_bad_request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-admin-only",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "Only the server admin can do this.",
+                     *       "type": "https://anybot.test/problems/account_admin_only"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
     get_health: {
         parameters: {
             query?: never;
@@ -92,6 +1822,71 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description The request was malformed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The request was malformed.",
+                     *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description The server hit an internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    get_server_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "listen_port": 8787,
+                     *       "protocol_version": 1,
+                     *       "public_url": null,
+                     *       "uptime_ms": 1200,
+                     *       "version": "0.1.0"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["StatusResponse"];
                 };
             };
             /** @description The request was malformed */

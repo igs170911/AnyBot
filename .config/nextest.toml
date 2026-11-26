@@ -5,13 +5,22 @@ slow-timeout = { period = "30s", terminate-after = 4 }
 pg = { max-threads = 1 }
 ports = { max-threads = 1 }
 net = { max-threads = 1 }
+timing = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'binary(/^pg_/)'
 test-group = "pg"
 
 [[profile.default.overrides]]
-filter = 'test(/(t_install_n22|t_server_n14_2|health_endpoint_answers|second_server_exits|bind_plan_says_port)/)'
+filter = 'test(/::pg_/)'
+test-group = "pg"
+
+[[profile.default.overrides]]
+filter = 'test(/(install_n22_1|install_n22_3|health_endpoint_answers|second_server_exits|startup_line_reports|server_boot|server_n14_[134]|server_n8_3)/)'
+test-group = "pg"
+
+[[profile.default.overrides]]
+filter = 'test(/(t_install_n22|t_server_n14_2|health_endpoint_answers|second_server_exits|bind_plan_says_port|startup_listens_on_the_addresses|startup_logs_announce)/)'
 test-group = "ports"
 
 [[profile.default.overrides]]
@@ -19,8 +28,12 @@ filter = 'test(netctl_)'
 test-group = "net"
 
 [[profile.default.overrides]]
+filter = 'test(t_account_login_4) or test(t_account_login_9) or test(t_safety_n10_2) or test(t_safety_n10_6)'
+test-group = "timing"
+
+[[profile.default.overrides]]
 filter = 'binary(/^pg_/) + test(t_install|t_server)'
-slow-timeout = { period = "90s", terminate-after = 4 }
+slow-timeout = { period = "120s", terminate-after = 4 }
 
 # Basic tests (make test-basic, Windows and macOS CI). A test that starts
 # PostgreSQL lives in a file named pg_*.rs. That file is the nextest binary name.

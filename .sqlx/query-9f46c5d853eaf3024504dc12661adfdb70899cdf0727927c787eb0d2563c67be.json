@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO auth_events (kind, address, account, at_ms) VALUES ($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "9f46c5d853eaf3024504dc12661adfdb70899cdf0727927c787eb0d2563c67be"
+}

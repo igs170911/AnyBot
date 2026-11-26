@@ -2,6 +2,12 @@
 // Source: locales/en.ftl
 export type MessageCode =
   "server-startup-listening" |
+  "server-db-foreign-data" |
+  "server-db-connect-retry" |
+  "server-migration-failed" |
+  "server-listen-address-invalid" |
+  "server-startup-no-accounts" |
+  "server-startup-invite-generated" |
   "server-port-unusable" |
   "server-arguments-invalid" |
   "server-bootstrap-missing" |
@@ -67,10 +73,38 @@ export type MessageCode =
   "model-handoff-unreachable" |
   "push-payload-short" |
   "push-key-base64" |
+  "account-name-rule" |
+  "account-password-rule" |
+  "account-invite-invalid" |
+  "account-register-rate" |
+  "account-exists" |
+  "account-exists-reset" |
+  "account-login-credentials" |
+  "account-login-disabled" |
+  "account-login-rate" |
+  "account-password-rate" |
+  "account-password-old-wrong" |
+  "account-password-new-short" |
+  "account-admin-only" |
+  "account-admin-self-disable" |
+  "account-idempotency-missing" |
+  "account-idempotency-conflict" |
+  "server-cli-password-short" |
+  "server-cli-password-mismatch" |
+  "server-cli-password-prompt" |
+  "server-cli-password-confirm-prompt" |
+  "server-cli-reset-password-done" |
+  "server-config-invalid" |
   "turn-program-note";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
+  "server-db-foreign-data",
+  "server-db-connect-retry",
+  "server-migration-failed",
+  "server-listen-address-invalid",
+  "server-startup-no-accounts",
+  "server-startup-invite-generated",
   "server-port-unusable",
   "server-arguments-invalid",
   "server-bootstrap-missing",
@@ -136,5 +170,27 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-handoff-unreachable",
   "push-payload-short",
   "push-key-base64",
+  "account-name-rule",
+  "account-password-rule",
+  "account-invite-invalid",
+  "account-register-rate",
+  "account-exists",
+  "account-exists-reset",
+  "account-login-credentials",
+  "account-login-disabled",
+  "account-login-rate",
+  "account-password-rate",
+  "account-password-old-wrong",
+  "account-password-new-short",
+  "account-admin-only",
+  "account-admin-self-disable",
+  "account-idempotency-missing",
+  "account-idempotency-conflict",
+  "server-cli-password-short",
+  "server-cli-password-mismatch",
+  "server-cli-password-prompt",
+  "server-cli-password-confirm-prompt",
+  "server-cli-reset-password-done",
+  "server-config-invalid",
   "turn-program-note",
 ];

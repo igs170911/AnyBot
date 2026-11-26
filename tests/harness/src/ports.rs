@@ -27,6 +27,49 @@ pub fn bind_pair() -> Result<(StdTcpListener, StdTcpListener, u16), String> {
     Ok((v4, v6, port))
 }
 
+pub fn free_dual_port() -> Result<u16, String> {
+    let (v4, v6, port) = bind_pair()?;
+    drop(v4);
+    drop(v6);
+    Ok(port)
+}
+
+pub fn first_lan_ipv4() -> Result<String, String> {
+    let helper = lan_helper()?;
+    let output = std::process::Command::new(&helper)
+        .output()
+        .map_err(|e| format!("list interfaces failed: {e}"))?;
+    if !output.status.success() {
+        return Err("list interfaces was rejected".to_owned());
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    text.lines()
+        .map(str::trim)
+        .find(|ip| !ip.is_empty() && *ip != "127.0.0.1")
+        .map(str::to_owned)
+        .ok_or("no non-loopback IPv4 interface".to_owned())
+}
+
+fn lan_helper() -> Result<std::path::PathBuf, String> {
+    let source = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/lan_ipv4.c");
+    let out_dir = crate::scratch::repo_root()
+        .join("target")
+        .join("tests")
+        .join("signal-helper");
+    std::fs::create_dir_all(&out_dir).map_err(|e| format!("create lan helper dir failed: {e}"))?;
+    let binary = out_dir.join("lan_ipv4");
+    let built = std::process::Command::new("cc")
+        .args(["-O2", "-o"])
+        .arg(&binary)
+        .arg(&source)
+        .status()
+        .map_err(|e| format!("build lan helper failed: {e}"))?;
+    if !built.success() {
+        return Err("build lan helper was rejected".to_owned());
+    }
+    Ok(binary)
+}
+
 #[must_use]
 pub fn port_is_free(port: u16) -> bool {
     StdTcpListener::bind(("127.0.0.1", port)).is_ok()

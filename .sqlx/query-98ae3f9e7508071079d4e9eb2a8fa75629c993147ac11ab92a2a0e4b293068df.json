@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM idempotency WHERE at_ms < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "98ae3f9e7508071079d4e9eb2a8fa75629c993147ac11ab92a2a0e4b293068df"
+}
