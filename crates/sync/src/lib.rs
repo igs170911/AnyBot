@@ -43,5 +43,4 @@ mod after_merge_tests;
 #[cfg(test)]
 mod outbox_tests;
 #[cfg(test)]
-#[cfg(test)]
 mod sync_id_tests;

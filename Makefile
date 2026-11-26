@@ -20,7 +20,7 @@ define locked
 endef
 
 # spec-trace baseline compare ref: locally compares against HEAD; CI compares against the commit pushed to before the push on dev and main, otherwise the merge base of origin/dev (K111; CI sets this variable).
-SPEC_TRACE_REF ?= HEAD
+SPEC_TRACE_REF ?= $(shell git merge-base HEAD dev 2>/dev/null || echo HEAD)
 
 .PHONY: check check-fast fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline sqlx-prepare sqlx-check \
 	ironlaws gitleaks versions actionlint ts-install ts-biome ts-typecheck ts-test ts-build \
@@ -238,8 +238,7 @@ api-compat:
 ifdef OASDIFF
 	$(CARGO) run --locked -p api-docs -- openapi target/api/fresh.yaml
 	$(CARGO) run --locked -p api-docs -- asyncapi target/api/fresh-asyncapi.yaml
-	@oasdiff breaking target/api/fresh.yaml api/openapi.yaml --format markdown || true
-	@oasdiff breaking target/api/fresh-asyncapi.yaml api/asyncapi.yaml --format markdown || true
+	@tests/api-compat-selftest/oasdiff-report.sh api/openapi.yaml target/api/fresh.yaml
 endif
 	$(CARGO) run --locked -p api-compat -- --against $(SPEC_TRACE_REF) --repo .
 
