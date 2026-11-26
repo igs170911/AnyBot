@@ -8,7 +8,11 @@ use crate::context_input::{known_of, row_event_id};
 use crate::error::TurnError;
 use crate::record::Stored;
 
-fn results_of(stored: &[Stored], task: &TaskId) -> BTreeMap<CallId, CallResult> {
+fn results_of(
+    stored: &[Stored],
+    task: &TaskId,
+    lang: anybot_messages::Lang,
+) -> BTreeMap<CallId, CallResult> {
     let mut map: BTreeMap<CallId, CallResult> = BTreeMap::new();
     let mut pool: BTreeMap<anybot_foundation::EvidenceId, anybot_protocol::EvidenceRecord> =
         BTreeMap::new();
@@ -19,7 +23,7 @@ fn results_of(stored: &[Stored], task: &TaskId) -> BTreeMap<CallId, CallResult> 
         let Some(event_id) = row_event_id(row) else {
             continue;
         };
-        apply_row(&mut map, &mut pool, kind, row.stream_seq, event_id);
+        apply_row(&mut map, &mut pool, kind, row.stream_seq, event_id, lang);
     }
     map
 }
@@ -30,8 +34,9 @@ fn apply_row(
     kind: &KnownTaskEventKind,
     seq: u64,
     event_id: anybot_foundation::EventId,
+    lang: anybot_messages::Lang,
 ) {
-    if let Some(entry) = result_entry(kind, seq, event_id) {
+    if let Ok(Some(entry)) = result_entry(kind, seq, event_id, lang) {
         map.insert(entry.0, entry.1);
         return;
     }
@@ -53,34 +58,43 @@ fn result_entry(
     kind: &KnownTaskEventKind,
     seq: u64,
     event_id: anybot_foundation::EventId,
-) -> Option<(CallId, CallResult)> {
+    lang: anybot_messages::Lang,
+) -> Result<Option<(CallId, CallResult)>, TurnError> {
+    if let KnownTaskEventKind::GateResult { call_id, gate } = kind {
+        if gate.outcome != anybot_protocol::GateOutcome::Deny {
+            return Ok(None);
+        }
+        let text = crate::view::render_text(
+            lang,
+            &anybot_trust::OutcomeText::of(
+                "gate-denied-by-rule",
+                vec![("rule".to_owned(), gate.rule.clone())],
+            ),
+        )?;
+        let found = CallResult::of(seq, event_id, StepOutcomeKind::Completed, text);
+        return Ok(Some((*call_id, found)));
+    }
     if let KnownTaskEventKind::ToolCompleted {
         call_id, summary, ..
     } = kind
     {
-        return Some((
-            *call_id,
-            CallResult::of(seq, event_id, StepOutcomeKind::Completed, summary.clone()),
-        ));
+        let found = CallResult::of(seq, event_id, StepOutcomeKind::Completed, summary.clone());
+        return Ok(Some((*call_id, found)));
     }
     if let KnownTaskEventKind::ToolFailed { call_id, error, .. } = kind {
-        return Some((
-            *call_id,
-            CallResult::of(seq, event_id, StepOutcomeKind::Failed, error.clone()),
-        ));
+        let found = CallResult::of(seq, event_id, StepOutcomeKind::Failed, error.clone());
+        return Ok(Some((*call_id, found)));
     }
     if let KnownTaskEventKind::ToolNotRun { call_id, reason } = kind {
-        return Some((
-            *call_id,
-            CallResult::of(
-                seq,
-                event_id,
-                StepOutcomeKind::Unknown,
-                not_run_word(*reason),
-            ),
-        ));
+        let found = CallResult::of(
+            seq,
+            event_id,
+            StepOutcomeKind::Unknown,
+            not_run_word(*reason),
+        );
+        return Ok(Some((*call_id, found)));
     }
-    None
+    Ok(None)
 }
 
 struct CallResult {
@@ -176,7 +190,7 @@ pub(crate) fn steps_of(
     task: &TaskId,
     lang: anybot_messages::Lang,
 ) -> Result<Vec<StepRecord>, TurnError> {
-    let results = results_of(stored, task);
+    let results = results_of(stored, task, lang);
     let mut steps: Vec<StepRecord> = Vec::new();
     for answer in answers_of(stored, task) {
         for request in answer {

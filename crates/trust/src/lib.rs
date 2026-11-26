@@ -60,7 +60,8 @@ pub use claim_levels::{Claim, ClaimLevel, EvidenceKind, Link, Scope, Verificatio
 pub use command_key::{command_action_key, command_tokens};
 pub use command_target::{DeleteBase, DeleteTarget, command_targets, has_expansion_token};
 pub use edit_rule::{
-    EditApplied, EditKind, EditRejection, apply_edit, line_count, occurrences, replace_once,
+    EDIT_MULTIPLE_REASON, EDIT_NOT_FOUND_REASON, EditApplied, EditKind, EditRejection, apply_edit,
+    line_count, occurrences, replace_once,
 };
 pub use evidence::ActionContext;
 pub use gate_engine::{GateLayer, LayerCall, Opinion, Outcome, precedence_decision};

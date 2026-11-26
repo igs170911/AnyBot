@@ -18,6 +18,9 @@ pub enum EditRejection {
     FileMissing,
 }
 
+pub const EDIT_NOT_FOUND_REASON: &str = "the text to replace was not found in the file";
+pub const EDIT_MULTIPLE_REASON: &str = "the text to replace appears more than once in the file:";
+
 #[must_use]
 pub fn line_count(content: &str) -> usize {
     content.lines().count()

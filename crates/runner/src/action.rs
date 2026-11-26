@@ -66,9 +66,10 @@ pub(crate) fn args_json(args: &anybot_protocol::ToolArgs) -> Result<String, Turn
 
 fn view_of(lang: anybot_messages::Lang, args: &anybot_tools::ToolArgs) -> ActionView {
     match args {
-        anybot_tools::ToolArgs::Edit(edit) => {
-            ActionView::new(lang).with_edit_lines(line_count(&edit.new_text))
-        }
+        anybot_tools::ToolArgs::Edit(edit) => ActionView::new(lang)
+            .with_edit_lines(line_count(&edit.new_text))
+            .with_edit_path(&edit.path),
+
         anybot_tools::ToolArgs::Read(read) => {
             let from = read.offset.saturating_add(1);
             let to = from.saturating_add(read.limit.saturating_sub(1));

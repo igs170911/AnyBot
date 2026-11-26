@@ -11,6 +11,7 @@ pub(crate) struct ActionView {
     read_from: u32,
     read_to: u32,
     computer: String,
+    edit_path: String,
     output: std::sync::Mutex<Option<String>>,
 }
 
@@ -23,6 +24,7 @@ impl ActionView {
             read_from: 1,
             read_to: 0,
             computer: String::new(),
+            edit_path: String::new(),
             output: std::sync::Mutex::new(None),
         }
     }
@@ -34,6 +36,11 @@ impl ActionView {
     }
 
     #[must_use]
+    pub(crate) fn with_edit_path(mut self, path: &str) -> Self {
+        path.clone_into(&mut self.edit_path);
+        self
+    }
+
     pub(crate) fn with_computer(mut self, computer: &str) -> Self {
         computer.clone_into(&mut self.computer);
         self
@@ -57,7 +64,7 @@ impl ModelResultView for ActionView {
                 self.capture(&outcome.output);
                 command_text(outcome.exit_code)
             }
-            ActualResult::Write(outcome) => write_text(outcome, self.edit_lines),
+            ActualResult::Write(outcome) => write_text(outcome, self.edit_lines, &self.edit_path),
             ActualResult::Read(outcome) => OutcomeText::of(
                 "tool-read-lines",
                 vec![
@@ -73,6 +80,25 @@ impl ModelResultView for ActionView {
     }
 
     fn failure_text(&self, rejection: &OpRejection) -> OutcomeText {
+        if rejection.reason == anybot_trust::EDIT_NOT_FOUND_REASON {
+            return OutcomeText::of(
+                "tool-edit-not-found",
+                vec![("path".to_owned(), self.edit_path.clone())],
+            );
+        }
+        if let Some(count) = rejection
+            .reason
+            .strip_prefix(anybot_trust::EDIT_MULTIPLE_REASON)
+        {
+            let hits = count.trim().to_owned();
+            return OutcomeText::of(
+                "tool-edit-multiple",
+                vec![
+                    ("path".to_owned(), self.edit_path.clone()),
+                    ("count".to_owned(), hits),
+                ],
+            );
+        }
         OutcomeText::of(
             "tool-operation-failed",
             vec![("reason".to_owned(), rejection.reason.clone())],
@@ -107,7 +133,7 @@ impl ActionView {
 
 fn command_text(exit_code: Option<i32>) -> OutcomeText {
     match exit_code {
-        Some(0) | None => OutcomeText::of("turn-completed", Vec::new()),
+        Some(0) | None => OutcomeText::of("tool-shell-no-output", Vec::new()),
         Some(code) => OutcomeText::of(
             "tool-shell-failed",
             vec![("code".to_owned(), code.to_string())],
@@ -115,20 +141,35 @@ fn command_text(exit_code: Option<i32>) -> OutcomeText {
     }
 }
 
-fn write_text(outcome: &anybot_protocol::WriteOutcome, lines: u32) -> OutcomeText {
+fn write_text(outcome: &anybot_protocol::WriteOutcome, lines: u32, requested: &str) -> OutcomeText {
+    let shown = short_path(&outcome.path, requested);
     match outcome.before {
         anybot_protocol::BeforeDigest::Absent => OutcomeText::of(
             "tool-edit-created",
             vec![
-                ("path".to_owned(), outcome.path.clone()),
+                ("path".to_owned(), shown.clone()),
                 ("lines".to_owned(), lines.to_string()),
             ],
         ),
-        anybot_protocol::BeforeDigest::Present(_) => OutcomeText::of(
-            "tool-edit-modified",
-            vec![("path".to_owned(), outcome.path.clone())],
-        ),
+        anybot_protocol::BeforeDigest::Present(_) => {
+            OutcomeText::of("tool-edit-modified", vec![("path".to_owned(), shown)])
+        }
     }
+}
+
+fn short_path(canonical: &str, requested: &str) -> String {
+    if requested.is_empty() {
+        return canonical.to_owned();
+    }
+    canonical
+        .rsplit_once('/')
+        .map_or(canonical.to_owned(), |(_, tail)| {
+            if tail == requested.rsplit_once('/').map_or(requested, |(_, t)| t) {
+                requested.to_owned()
+            } else {
+                canonical.to_owned()
+            }
+        })
 }
 
 pub(crate) fn render_text(lang: Lang, text: &OutcomeText) -> Result<String, TurnError> {

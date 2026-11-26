@@ -9,8 +9,7 @@ use crate::fake_files::{FileTree, digest_text};
 
 pub(crate) const TIMEOUT_EXIT_CODE: i32 = 124;
 pub const NO_SCRIPT_REASON: &str = "the fake computer has no script for this command";
-pub(crate) const MULTIPLE_REASON: &str = "the text to replace appears more than once in the file:";
-pub(crate) const NOT_FOUND_REASON: &str = "the text to replace was not found in the file";
+use anybot_trust::{EDIT_MULTIPLE_REASON, EDIT_NOT_FOUND_REASON};
 pub const MISSING_FILE_REASON: &str = "no such file on the fake computer";
 pub(crate) const UNREACHABLE_REASON: &str = "the fake computer is set unreachable";
 
@@ -37,10 +36,10 @@ pub(crate) fn write_outcome(
 pub(crate) fn edit_rejection(rejection: &anybot_trust::EditRejection) -> OpRejection {
     match rejection {
         anybot_trust::EditRejection::NotFound => {
-            OpRejection::from_failure(ComputerFailure::operation(NOT_FOUND_REASON.to_owned()))
+            OpRejection::from_failure(ComputerFailure::operation(EDIT_NOT_FOUND_REASON.to_owned()))
         }
         anybot_trust::EditRejection::Multiple { hits } => OpRejection::from_failure(
-            ComputerFailure::operation(format!("{MULTIPLE_REASON} {hits}")),
+            ComputerFailure::operation(format!("{EDIT_MULTIPLE_REASON} {hits}")),
         ),
         anybot_trust::EditRejection::FileMissing => {
             OpRejection::from_failure(ComputerFailure::operation(MISSING_FILE_REASON.to_owned()))

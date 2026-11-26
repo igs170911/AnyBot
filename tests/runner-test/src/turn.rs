@@ -25,6 +25,8 @@ pub struct WorldSetup {
     pub probe_requests: bool,
     pub fail_on_kind: Option<&'static str>,
     pub sandbox: bool,
+    pub files: Vec<(String, String)>,
+    pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
 }
 
 impl Default for WorldSetup {
@@ -40,6 +42,8 @@ impl Default for WorldSetup {
             probe_requests: false,
             fail_on_kind: None,
             sandbox: true,
+            files: Vec::new(),
+            scripts: Vec::new(),
         }
     }
 }
@@ -75,6 +79,7 @@ pub enum Device {
 }
 
 pub struct TurnWorld {
+    pub gated: Arc<crate::fake_computer::FakeComputer>,
     pub runner: Arc<TurnRunner>,
     pub model: Arc<FakeModel>,
     pub port: u16,
@@ -96,16 +101,17 @@ impl TurnWorld {
         let session = build_session(&clock)?;
         let clock_dyn = share_clock(&clock);
         let bot = BotId::generate(clock_dyn.as_ref());
-        let gated = Arc::new(
-            crate::fake_builder::FakeComputerBuilder::default()
-                .named("bot-computer")
-                .bot_machine()
-                .sandbox(setup.sandbox)
-                .clock(Arc::clone(&clock))
-                .build(),
-        );
+        let builder = crate::fake_builder::FakeComputerBuilder::default()
+            .named("bot-computer")
+            .bot_machine()
+            .sandbox(setup.sandbox)
+            .clock(Arc::clone(&clock));
+        let builder = apply_world_files(builder, setup);
+        let built = Arc::new(builder.build());
+        let gated = Arc::clone(&built);
+        let gated_dyn: Arc<dyn anybot_trust::GatedComputer> = built;
         let runner = Arc::new(TurnRunner::new(RunnerParts {
-            gated,
+            gated: gated_dyn,
             record: crate::mem_store::share_record(&record),
             raw: share_raw(&raw),
             session,
@@ -117,6 +123,7 @@ impl TurnWorld {
             computer: computer_of(setup),
         }));
         Ok(Self {
+            gated,
             runner,
             model,
             port,
@@ -129,7 +136,30 @@ impl TurnWorld {
             desktop: DeviceId::generate(clock_dyn.as_ref()),
         })
     }
+}
 
+fn apply_world_files(
+    computer: crate::fake_builder::FakeComputerBuilder,
+    setup: &WorldSetup,
+) -> crate::fake_builder::FakeComputerBuilder {
+    let mut built = computer;
+    for (path, content) in &setup.files {
+        built = built.file(path, content);
+    }
+    for (line, script) in &setup.scripts {
+        built = built.script(line, script.clone());
+    }
+    built
+}
+
+impl TurnWorld {
+    #[must_use]
+    pub fn tree_content(&self, path: &str) -> Option<String> {
+        self.gated.file_content(path)
+    }
+}
+
+impl TurnWorld {
     pub fn script(&self, steps: Vec<Step>) {
         self.model.script_set(steps);
     }

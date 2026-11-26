@@ -92,7 +92,7 @@ pub(crate) async fn record_result(
             .await
             .map(|_| ())
     } else {
-        let error = view.render(&run.model)?;
+        let error = with_output(&text, &run.evidence);
         runner
             .append_task_event(
                 &ctx.task,
