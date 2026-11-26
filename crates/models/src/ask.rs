@@ -56,8 +56,11 @@ pub(crate) async fn wait_retry(
         biased;
         () = &mut sleep => Ok(true),
         changed = stop.changed() => {
-            let stopped = changed.is_ok() && *stop.borrow();
-            if stopped {
+            if changed.is_ok() && *stop.borrow() {
+                return Err(GatewayFail::Stopped);
+            }
+            (&mut sleep).await;
+            if *stop.borrow() {
                 Err(GatewayFail::Stopped)
             } else {
                 Ok(true)
@@ -87,7 +90,7 @@ pub(crate) fn from_status(
         status,
         message: message.clone(),
     });
-    let detail = redact(&clip_detail(&message), secret);
+    let detail = clip_detail(&redact(&message, secret));
     let notice = failure_notice(&classified, provider, &detail);
     AttemptFail {
         classified,

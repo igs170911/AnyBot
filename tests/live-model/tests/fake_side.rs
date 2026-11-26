@@ -10,7 +10,7 @@ use toml as _;
 
 #[tokio::test]
 async fn live_fake_side_completes_all_seven_requests() {
-    let outcome = fake_side("local").await;
+    let outcome = fake_side("local", true).await;
     assert_eq!(outcome.failed, None);
     assert_eq!(outcome.side.probe.len(), 3);
     assert_eq!(outcome.side.product.len(), 4);
@@ -18,7 +18,7 @@ async fn live_fake_side_completes_all_seven_requests() {
 
 #[tokio::test]
 async fn live_fake_side_probe_shapes_match_scripts() {
-    let outcome = fake_side("local").await;
+    let outcome = fake_side("local", true).await;
     assert_eq!(outcome.failed, None);
     let normal = outcome.side.probe.first().expect("probe normal");
     assert!(
@@ -33,7 +33,7 @@ async fn live_fake_side_probe_shapes_match_scripts() {
 
 #[tokio::test]
 async fn live_fake_side_product_shapes_match_scripts_in_order() {
-    let outcome = fake_side("local").await;
+    let outcome = fake_side("local", true).await;
     assert_eq!(outcome.failed, None);
     let product = &outcome.side.product;
     assert_eq!(product.first().expect("product normal").stop, "finished");

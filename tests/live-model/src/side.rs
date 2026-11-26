@@ -40,7 +40,7 @@ pub struct LiveSide {
     pub product: Vec<NeutralShape>,
 }
 
-pub async fn fake_side(model_name: &str) -> Outcome<FakeSide> {
+pub async fn fake_side(model_name: &str, always_thinks: bool) -> Outcome<FakeSide> {
     let started = match model_start_with_format(ModelFormat::Vllm).await {
         Ok(pair) => pair,
         Err(message) => {
@@ -52,13 +52,18 @@ pub async fn fake_side(model_name: &str) -> Outcome<FakeSide> {
         }
     };
     let (model, port) = started;
-    model.script_set(crate::cases::script_for(model_name, true));
-    let outcome = fake_side_requests(&model, port, model_name).await;
+    model.script_set(crate::cases::script_for(model_name, always_thinks));
+    let outcome = fake_side_requests(&model, port, model_name, always_thinks).await;
     drop(model);
     outcome
 }
 
-async fn fake_side_requests(_model: &FakeModel, port: u16, model_name: &str) -> Outcome<FakeSide> {
+async fn fake_side_requests(
+    _model: &FakeModel,
+    port: u16,
+    model_name: &str,
+    always_thinks: bool,
+) -> Outcome<FakeSide> {
     let mut side = FakeSide {
         probe: Vec::new(),
         product: Vec::new(),
@@ -74,7 +79,7 @@ async fn fake_side_requests(_model: &FakeModel, port: u16, model_name: &str) -> 
             Err(message) => return Outcome::partial(side, message),
         }
     }
-    let product = crate::product::fake_product_shapes(port, model_name).await;
+    let product = crate::product::fake_product_shapes(port, model_name, always_thinks).await;
     side.product = product.side;
     match product.failed {
         Some(message) => Outcome::partial(side, message),
@@ -125,8 +130,8 @@ pub fn write_report(repo: &Path, shapes: &Shapes, product: &[String]) -> Result<
 }
 
 pub async fn compare_fake_formats(model_name: &str) -> Result<Vec<String>, String> {
-    let first = fake_side(model_name).await;
-    let second = fake_side(model_name).await;
+    let first = fake_side(model_name, false).await;
+    let second = fake_side(model_name, false).await;
     if let Some(message) = first.failed.or(second.failed) {
         return Err(message);
     }

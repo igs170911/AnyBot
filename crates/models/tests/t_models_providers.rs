@@ -38,6 +38,14 @@ fn key_stays_on_its_own_host() {
         &endpoint,
         "https://evil.test/v1/chat/completions"
     ));
+    assert!(anybot_models::key_allowed(
+        &endpoint,
+        "http://127.0.0.1:9/v1/chat/completions"
+    ));
+    assert!(!anybot_models::key_allowed(
+        &endpoint,
+        "http://203.0.113.5:9/v1/chat/completions"
+    ));
 }
 
 #[tokio::test]

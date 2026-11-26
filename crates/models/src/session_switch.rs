@@ -134,7 +134,49 @@ fn record_failed(session: &mut Session, sent: &crate::session::ModelRef) {
         session.failed_code.take();
         return;
     }
-    let (code, params) = handoff::reason_parts(reason, session.failed_code.take().as_deref());
+    let kind_code = session.failed_code.take();
+    push_handoff(session, &before, sent, reason, kind_code.as_deref());
+}
+
+fn consume_pending(session: &mut Session, sent: &crate::session::ModelRef) {
+    let Some((_wanted, reason)) = crate::session_io::take_matching(session, sent) else {
+        note_return(session, sent);
+        return;
+    };
+    if let Some(before) = session.active.as_ref()
+        && !same_model(before, sent)
+    {
+        let before = crate::model_copy::copy_model(before);
+        push_handoff(session, &before, sent, reason, None);
+    }
+    session.adopted = Some(crate::model_copy::copy_model(sent));
+}
+
+fn note_return(session: &mut Session, sent: &crate::session::ModelRef) {
+    let Some(before) = session.active.as_ref() else {
+        return;
+    };
+    if same_model(before, sent) {
+        return;
+    }
+    let Some(adopted) = session.adopted.as_ref() else {
+        return;
+    };
+    if !same_model(adopted, before) || same_model(adopted, sent) {
+        return;
+    }
+    let before = crate::model_copy::copy_model(before);
+    push_handoff(session, &before, sent, SwitchReason::User, None);
+}
+
+fn push_handoff(
+    session: &mut Session,
+    before: &crate::session::ModelRef,
+    sent: &crate::session::ModelRef,
+    reason: SwitchReason,
+    kind_code: Option<&str>,
+) {
+    let (code, params) = handoff::reason_parts(reason, kind_code);
     session.handoffs.push(handoff::record(
         before.endpoint.kind,
         &before.endpoint.model,
@@ -144,31 +186,6 @@ fn record_failed(session: &mut Session, sent: &crate::session::ModelRef) {
         code,
         params,
     ));
-}
-
-fn consume_pending(session: &mut Session, sent: &crate::session::ModelRef) {
-    let Some((wanted, reason)) = crate::session_io::peek_pending(session) else {
-        return;
-    };
-    if !same_model(&wanted, sent) {
-        return;
-    }
-    if let Some(before) = session.active.as_ref()
-        && !same_model(before, sent)
-    {
-        let (code, params) = handoff::reason_parts(reason, None);
-        session.handoffs.push(handoff::record(
-            before.endpoint.kind,
-            &before.endpoint.model,
-            sent.endpoint.kind,
-            &sent.endpoint.model,
-            reason,
-            code,
-            params,
-        ));
-    }
-    session.adopted = Some(crate::model_copy::copy_model(sent));
-    let _cleared = crate::session_io::clear_pending(session);
 }
 
 fn same_model(left: &crate::session::ModelRef, right: &crate::session::ModelRef) -> bool {

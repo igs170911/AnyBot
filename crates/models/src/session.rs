@@ -81,11 +81,11 @@ impl SwitchHandle {
 pub struct Session {
     gateway: Gateway,
     policy: DataPolicy,
-    clock: Arc<dyn Clock>,
+    pub(crate) clock: Arc<dyn Clock>,
     learned: Vec<Learned>,
     pub(crate) resting: Vec<RestMark>,
-    jitter_milli: i32,
-    stop: watch::Receiver<bool>,
+    pub(crate) jitter_milli: i32,
+    pub(crate) stop: watch::Receiver<bool>,
     pub(crate) pending: Arc<Mutex<Option<(ModelRef, SwitchReason)>>>,
     pub(crate) active: Option<ModelRef>,
     pub(crate) failed: Option<ModelRef>,
@@ -185,7 +185,7 @@ impl Session {
         if let Some(next) = self.adopted.as_ref() {
             self.primary_override = Some(crate::model_copy::copy_model(next));
         }
-        let pending = crate::session_io::peek_pending(self).map(|(model, _)| model);
+        let pending = crate::session_io::read_pending(self).map(|(model, _)| model);
         let chain = crate::session_chain::chain_of(
             plan.primary,
             plan.fallbacks,
@@ -235,7 +235,7 @@ impl Session {
                 },
             }
         }
-        Err(crate::session_io::exhausted(last, skips))
+        Err(crate::session_io::exhausted(last, skips, &self.resting))
     }
 
     pub(crate) async fn wait_or_stop(

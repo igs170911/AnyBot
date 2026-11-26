@@ -114,13 +114,10 @@ async fn dial_target(
         wire.pin(&host, addr);
     }
     if let Some(addr) = crate::client_http::pin_of(&wire.pins, &host) {
-        return Ok(SocketAddr::new(addr.ip(), nonzero_port(addr.port(), port)));
+        let chosen = if port == 0 { addr.port() } else { port };
+        return Ok(SocketAddr::new(addr.ip(), chosen));
     }
     lookup_host(&host, port).await
-}
-
-fn nonzero_port(pinned: u16, url_port: u16) -> u16 {
-    if pinned == 0 { url_port } else { pinned }
 }
 
 async fn lookup_host(host: &str, port: u16) -> Result<SocketAddr, TransportFail> {

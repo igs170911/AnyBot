@@ -21,11 +21,24 @@ pub(crate) fn decide(
 ) -> Step {
     match outcome {
         Ok(result) if ask::blank_result(&result) && blanks == 0 => Step::BlankAgain,
+        Ok(result) if ask::blank_result(&result) => Step::Stop(blank_fail()),
         Ok(result) => Step::Done(result),
+        Err(GatewayFail::Classified {
+            classified,
+            notices,
+        }) if matches!(classified.kind, FailKind::RejectedParam) && dropped => {
+            Step::Stop(ask::classified_fail(classified, notices))
+        }
         Err(GatewayFail::Classified { classified, .. })
-            if matches!(classified.kind, FailKind::RejectedParam) && !dropped =>
+            if matches!(classified.kind, FailKind::RejectedParam) =>
         {
             Step::DropParam
+        }
+        Err(GatewayFail::Classified {
+            classified,
+            notices,
+        }) if matches!(classified.retry, crate::errors::RetryPlan::DropParam) => {
+            Step::Stop(ask::classified_fail(classified, notices))
         }
         Err(GatewayFail::Classified {
             classified,
@@ -64,6 +77,17 @@ pub(crate) fn switch_reason(classified: &Classified) -> SwitchReason {
         | FailKind::Redirect
         | FailKind::Budget => SwitchReason::Fallback,
     }
+}
+
+pub(crate) fn blank_fail() -> GatewayFail {
+    let mut classified = classify(&FailInput::Http {
+        status: 200,
+        message: "blank reply".to_owned(),
+    });
+    classified.kind = FailKind::Other4xx;
+    classified.code = "model-blank";
+    classified.retry = crate::errors::RetryPlan::None;
+    ask::classified_fail(classified, Vec::new())
 }
 
 pub(crate) fn no_tools_fail() -> GatewayFail {

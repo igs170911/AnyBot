@@ -18,6 +18,8 @@ use tokio as _;
 use trybuild as _;
 use url as _;
 
+#[path = "../test_support/drive.rs"]
+mod drive;
 #[path = "../test_support/session.rs"]
 mod support;
 
@@ -128,7 +130,12 @@ async fn t_models_capabilities_4() -> Result<(), String> {
     );
     support::script(&pair.other, vec![model_replies_text("m2", false)]);
     let mut session = support::session(&world)?;
+    let clock = Arc::clone(&world.clock);
+    let driver = tokio::spawn(async move {
+        drive::drive_until(&clock, || false).await;
+    });
     let first = support::ask_watching(&mut session, &pair.primary, &[], ThinkingMode::Deep).await?;
+    driver.abort();
     assert_eq!(first.result.text, "ok");
     assert_eq!(world.model.recorded().len(), 2);
     let dropped = world

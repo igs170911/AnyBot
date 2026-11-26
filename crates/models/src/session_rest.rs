@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::capabilities::{self, Learned};
 use crate::session::{REST_MS, RestMark, Session};
 use crate::types::{ProviderEndpoint, ThinkingMode, TurnRequest, TurnResult, UsageReport};
@@ -87,7 +89,7 @@ pub(crate) async fn send_tries(
         thinking,
         permit,
     } = attempt;
-    let mut sent = 0_u32;
+    let mut counted = 0_u32;
     let mut blanks = 0_u32;
     let mut dropped = false;
     let mut current = request.clone();
@@ -95,27 +97,31 @@ pub(crate) async fn send_tries(
         current.thinking = ThinkingMode::Auto;
     }
     loop {
-        sent = sent.saturating_add(1);
+        counted = counted.saturating_add(1);
         let outcome = session
             .gateway()
             .complete(&model.endpoint, &current, stream, permit)
             .await;
-        match crate::session_step::decide(outcome, sent, blanks, dropped) {
+        match crate::session_step::decide(outcome, counted, blanks, dropped) {
             crate::session_step::Step::Done(result) => {
                 let estimated = crate::session_step::estimate_request(request, calibration);
                 session.remember_estimate(estimated);
                 return Ok(done_try(session, model, estimated, result));
             }
             crate::session_step::Step::DropParam => {
+                counted = counted.saturating_sub(1);
                 current.thinking = ThinkingMode::Auto;
                 note_no_thinking(session.learned_rows(), &model.endpoint);
                 dropped = true;
+                pause_extra(session, audience).await?;
             }
             crate::session_step::Step::BlankAgain => {
+                counted = counted.saturating_sub(1);
                 blanks = blanks.saturating_add(1);
+                pause_extra(session, audience).await?;
             }
             crate::session_step::Step::Wait(mut fail) => {
-                if !wait_try(session, model, &mut fail, sent, audience).await? {
+                if !wait_try(session, model, &mut fail, counted, audience).await? {
                     return Err(ask::classified_fail(fail.classified, fail.notices));
                 }
             }
@@ -132,6 +138,37 @@ fn done_try(
 ) -> TurnResult {
     note_usage(session.learned_rows(), &model.endpoint, estimated, &result);
     result
+}
+
+async fn pause_extra(
+    session: &mut Session,
+    audience: crate::types::Audience,
+) -> Result<(), GatewayFail> {
+    let mut fail = ask::AttemptFail {
+        classified: crate::errors::classify(&crate::errors::FailInput::Http {
+            status: 503,
+            message: String::new(),
+        }),
+        detail: String::new(),
+        retry_after: None,
+        notices: Vec::new(),
+    };
+    let clock = Arc::clone(&session.clock);
+    let again = ask::wait_retry(
+        &clock,
+        &session.stop,
+        &mut fail,
+        1,
+        ask::AttemptLimit {
+            audience,
+            jitter_milli: session.jitter_milli,
+        },
+    )
+    .await?;
+    if again {
+        return Ok(());
+    }
+    Err(ask::classified_fail(fail.classified, fail.notices))
 }
 
 async fn wait_try(

@@ -25,7 +25,7 @@ pub async fn fetch_models(
     }
     let listed = format!("{}/models", endpoint.base_url);
     let dial = gateway.dial_of(&listed);
-    if endpoint.api_key.is_some() && !crate::client::key_for(endpoint, &listed, &dial) {
+    if endpoint.api_key.is_some() && !crate::client_place::key_for(endpoint, &listed, &dial) {
         return Err(GatewayFail::KeyDestination);
     }
     let mut request = crate::client_wire::wire_for(&listed, &serde_json::json!({}), endpoint);
@@ -34,13 +34,13 @@ pub async fn fetch_models(
     match gateway.transport_send(&request, wait).await {
         Ok(bytes) if bytes.status >= 400 => Ok(ListOutcome::Failed {
             code: "model-list-status",
-            detail: redact(
-                &clip_detail(&String::from_utf8_lossy(&bytes.body)),
+            detail: clip_detail(&redact(
+                &String::from_utf8_lossy(&bytes.body),
                 endpoint
                     .api_key
                     .as_ref()
                     .map(anybot_foundation::Secret::expose),
-            ),
+            )),
         }),
         Ok(bytes) => {
             let names = parse_ids(&String::from_utf8_lossy(&bytes.body));

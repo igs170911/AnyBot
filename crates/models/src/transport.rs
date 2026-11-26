@@ -100,6 +100,10 @@ pub(crate) struct StreamOpen {
     pub rx: mpsc::Receiver<Result<Bytes, TransportFail>>,
 }
 
+fn char_started(held: &[u8]) -> bool {
+    std::str::from_utf8(held).is_ok_and(|text| text.chars().next().is_some())
+}
+
 pub(crate) fn retry_after_of(headers: &[(String, String)]) -> Option<u64> {
     headers.iter().find_map(|(name, value)| {
         if name.eq_ignore_ascii_case("retry-after") {
@@ -118,9 +122,9 @@ async fn read_body(
     match body {
         WireBody::Stream(mut stream) => {
             let mut held = Vec::new();
-            let mut saw_byte = false;
+            let mut saw_char = false;
             loop {
-                let wait = if saw_byte {
+                let wait = if saw_char {
                     STALL_AFTER_TEXT
                 } else {
                     first_wait
@@ -132,7 +136,7 @@ async fn read_body(
                     biased;
                     item = &mut next => item,
                     () = timer => {
-                        return if saw_byte {
+                        return if saw_char {
                             Err(TransportFail::Partial(PartialBody {
                                 status: 200,
                                 bytes: held,
@@ -145,10 +149,10 @@ async fn read_body(
                 };
                 match item {
                     Some(Ok(chunk)) => {
-                        saw_byte = true;
                         held.extend_from_slice(&chunk);
+                        saw_char = char_started(&held);
                     }
-                    Some(Err(_)) if saw_byte => {
+                    Some(Err(_)) if saw_char => {
                         return Err(TransportFail::Partial(PartialBody {
                             status: 200,
                             bytes: held,
@@ -182,10 +186,10 @@ async fn pump_stream(
     clock: Arc<dyn Clock>,
     first_wait: Duration,
 ) {
-    let mut saw_byte = false;
+    let mut saw_char = false;
     let mut held = Vec::new();
     loop {
-        let wait = if saw_byte {
+        let wait = if saw_char {
             STALL_AFTER_TEXT
         } else {
             first_wait
@@ -197,7 +201,7 @@ async fn pump_stream(
             biased;
             item = &mut next => item,
             () = timer => {
-                let fail = if saw_byte {
+                let fail = if saw_char {
                     TransportFail::Partial(PartialBody {
                         status: 200,
                         bytes: held,
@@ -212,14 +216,14 @@ async fn pump_stream(
         };
         match item {
             Some(Ok(chunk)) => {
-                saw_byte = true;
                 held.extend_from_slice(&chunk);
+                saw_char = char_started(&held);
                 if tx.send(Ok(chunk)).await.is_err() {
                     return;
                 }
             }
             Some(Err(_)) => {
-                let fail = if saw_byte {
+                let fail = if saw_char {
                     TransportFail::Partial(PartialBody {
                         status: 200,
                         bytes: held,

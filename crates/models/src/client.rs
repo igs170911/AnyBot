@@ -5,10 +5,9 @@ use anybot_foundation::clock::Clock;
 
 use crate::egress::SendPermit;
 use crate::http_wire::{SharedWire, WireRequest};
-use crate::providers::key_allowed;
 use crate::transport::TimedTransport;
 use crate::types::{ProviderEndpoint, TurnRequest, TurnResult};
-use crate::where_run::{RunPlace, classify_url, first_token_wait};
+use crate::where_run::first_token_wait;
 
 pub struct Gateway {
     transport: TimedTransport,
@@ -94,10 +93,12 @@ impl Gateway {
         let listed = crate::client_http::chat_url(endpoint);
         let dial = self.dial_of(&listed);
         let use_kind = permit.use_kind();
-        if !permit.matches(&listed, use_kind) || !place_ok(permit, &listed, &dial, endpoint.kind) {
+        if !permit.matches(&listed, use_kind)
+            || !crate::client_place::place_ok(permit, &listed, &dial, endpoint.kind)
+        {
             return Err(policy_blocked());
         }
-        if endpoint.api_key.is_some() && !key_for(endpoint, &listed, &dial) {
+        if endpoint.api_key.is_some() && !crate::client_place::key_for(endpoint, &listed, &dial) {
             return Err(GatewayFail::KeyDestination);
         }
         let body = crate::client_wire::encode_body(endpoint, request, stream);
@@ -131,7 +132,7 @@ impl Gateway {
     }
 
     pub(crate) fn dial_addr(&self, url: &str) -> Option<SocketAddr> {
-        let host = host_of(url)?;
+        let host = crate::client_place::host_of(url)?;
         self.pins
             .iter()
             .find(|pin| pin.host == host)
@@ -139,13 +140,13 @@ impl Gateway {
     }
 
     pub(crate) fn dial_of(&self, url: &str) -> String {
-        let Some(host) = host_of(url) else {
+        let Some(host) = crate::client_place::host_of(url) else {
             return url.to_owned();
         };
         let Some(pin) = self.pins.iter().find(|pin| pin.host == host) else {
             return url.to_owned();
         };
-        pin_url(url, pin.addr).unwrap_or_else(|| url.to_owned())
+        crate::client_place::pin_url(url, pin.addr).unwrap_or_else(|| url.to_owned())
     }
 
     async fn complete_stream(
@@ -232,50 +233,7 @@ fn finish_open(
 }
 
 pub(crate) fn chat_url_of(endpoint: &ProviderEndpoint) -> String {
-    crate::client_http::chat_url(endpoint)
-}
-
-pub(crate) fn key_for(endpoint: &ProviderEndpoint, listed: &str, dial: &str) -> bool {
-    key_allowed(endpoint, listed) || key_allowed(endpoint, dial)
-}
-
-fn place_ok(
-    permit: &SendPermit,
-    listed: &str,
-    dial: &str,
-    provider: crate::types::ProviderKind,
-) -> bool {
-    let listed_place = classify_url(listed);
-    let dial_place = classify_url(dial);
-    if stricter(dial_place, listed_place) {
-        return permit.allows_url(dial, provider);
-    }
-    true
-}
-
-fn stricter(candidate: RunPlace, baseline: RunPlace) -> bool {
-    place_rank(candidate) > place_rank(baseline)
-}
-
-fn place_rank(place: RunPlace) -> u8 {
-    match place {
-        RunPlace::Local => 0,
-        RunPlace::Lan => 1,
-        RunPlace::Cloud => 2,
-    }
-}
-
-fn host_of(url: &str) -> Option<String> {
-    url::Url::parse(url)
-        .ok()
-        .and_then(|parsed| parsed.host_str().map(str::to_owned))
-}
-
-fn pin_url(url: &str, addr: SocketAddr) -> Option<String> {
-    let mut parsed = url::Url::parse(url).ok()?;
-    parsed.set_ip_host(addr.ip()).ok()?;
-    parsed.set_port(Some(addr.port())).ok()?;
-    Some(parsed.to_string())
+    crate::client_place::chat_url_of(endpoint)
 }
 
 fn policy_blocked() -> GatewayFail {

@@ -49,6 +49,58 @@ async fn configured_proxy_is_used_and_localhost_skips_it() -> Result<(), String>
     Ok(())
 }
 
+#[tokio::test]
+async fn loopback_neighbor_skips_the_configured_proxy() -> Result<(), String> {
+    let (decoy, decoy_port) = model_start_with_format(ModelFormat::OpenAi).await?;
+    let (direct, direct_port) = model_start_with_format(ModelFormat::OpenAi).await?;
+    direct.script_set(vec![model_replies_text("ok", false)]);
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+    let mut gateway = anybot_models::gateway_with_proxy(
+        clock,
+        &TrustedCerts::empty(),
+        Some(&format!("http://127.0.0.1:{decoy_port}")),
+    )?;
+    gateway.pin_host(
+        "localhost",
+        std::net::SocketAddr::from(([127, 0, 0, 1], direct_port)),
+    );
+    let endpoint = resolve_endpoint(
+        ProviderKind::Custom,
+        &format!("http://localhost:{direct_port}/v1"),
+        "",
+        "local",
+        None,
+    );
+    let permit = permit_support::permit_for(&endpoint)?;
+    let sent = gateway
+        .complete(&endpoint, &hi(), false, &permit)
+        .await
+        .map_err(|err| format!("{err:?}"))?;
+    assert_eq!(sent.text, "ok");
+    assert_eq!(direct.recorded().len(), 1);
+    assert!(decoy.recorded().is_empty());
+    Ok(())
+}
+
+#[test]
+fn gateway_source_does_not_read_proxy_environment() {
+    let sources = [
+        include_str!("../src/client.rs"),
+        include_str!("../src/client_http.rs"),
+        include_str!("../src/client_place.rs"),
+        include_str!("../src/reqwest_wire.rs"),
+        include_str!("../src/catalog_fetch.rs"),
+        include_str!("../src/lib.rs"),
+    ];
+    for source in sources {
+        assert!(!source.contains("HTTP_PROXY"));
+        assert!(!source.contains("HTTPS_PROXY"));
+        assert!(!source.contains("ALL_PROXY"));
+        let env_read = format!("{}::{}", "std::env", "var");
+        assert!(!source.contains(&env_read));
+    }
+}
+
 fn hi() -> TurnRequest {
     TurnRequest {
         system: String::new(),

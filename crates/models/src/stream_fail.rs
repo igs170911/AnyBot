@@ -24,6 +24,13 @@ pub(crate) fn partial_outcome(
     if let Some(fail) = event_error(&events) {
         return Err(crate::ask::classified_fail(fail, Vec::new()));
     }
+    if events.is_empty() {
+        return Err(crate::ask::transport_fail(
+            endpoint,
+            &crate::transport::TransportFail::Dropped,
+            false,
+        ));
+    }
     Ok(interrupted(endpoint, &text))
 }
 

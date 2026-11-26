@@ -26,27 +26,6 @@ mod stop_slot;
 mod support;
 
 #[tokio::test]
-async fn blank_reply_is_asked_again() -> Result<(), String> {
-    let world = support::world(ModelFormat::OpenAi).await?;
-    support::script(
-        &world.model,
-        vec![
-            model_replies_text("   ", false),
-            model_replies_text("ok", false),
-        ],
-    );
-    let mut session = support::session(&world)?;
-    let primary = anybot_models::ModelRef {
-        endpoint: support::endpoint(ProviderKind::OpenAi, world.port, "gpt-5", "k"),
-        bot_context: None,
-    };
-    let outcome = support::ask_watching(&mut session, &primary, &[], ThinkingMode::Auto).await?;
-    assert_eq!(outcome.result.text, "ok");
-    assert_eq!(world.model.recorded().len(), 2);
-    Ok(())
-}
-
-#[tokio::test]
 async fn stream_busy_waits_then_retries() -> Result<(), String> {
     let world = support::world(ModelFormat::OpenAi).await?;
     support::script(
@@ -246,28 +225,4 @@ async fn unsupported_tools_are_not_sent() -> Result<(), String> {
     ));
     assert!(world.model.recorded().is_empty());
     Ok(())
-}
-
-#[test]
-fn errors_property_never_retries_terminal_kinds() {
-    let kinds = [
-        anybot_models::FailInput::MissingKey,
-        anybot_models::FailInput::Http {
-            status: 401,
-            message: "no".to_owned(),
-        },
-        anybot_models::FailInput::Http {
-            status: 404,
-            message: "missing".to_owned(),
-        },
-        anybot_models::FailInput::Stalled,
-    ];
-    for _ in 0..250 {
-        for input in &kinds {
-            let row = anybot_models::classify(input);
-            assert_eq!(row.retry, anybot_models::RetryPlan::None);
-        }
-    }
-    assert!(anybot_models::try_limit(Audience::Watching) <= 3);
-    assert!(anybot_models::try_limit(Audience::Unattended) <= 8);
 }

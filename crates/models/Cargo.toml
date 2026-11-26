@@ -80,6 +80,15 @@ path = "tests/t_models_roundtrip.rs"
 name = "t_models_session"
 path = "tests/t_models_session.rs"
 [[test]]
+name = "t_models_session_bounds"
+path = "tests/t_models_session_bounds.rs"
+[[test]]
+name = "t_models_session_chain"
+path = "tests/t_models_session_chain.rs"
+[[test]]
+name = "t_models_session_kinds"
+path = "tests/t_models_session_kinds.rs"
+[[test]]
 name = "t_models_session_more"
 path = "tests/t_models_session_more.rs"
 [[test]]

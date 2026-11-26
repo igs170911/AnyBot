@@ -147,7 +147,19 @@ fn hosts_match(base: &url::Url, target: &url::Url) -> bool {
     let Some(dialed) = target.host_str() else {
         return false;
     };
-    registered.eq_ignore_ascii_case(dialed) && port_matches(base, target)
+    if registered.eq_ignore_ascii_case(dialed) {
+        return port_matches(base, target);
+    }
+    pinned_local(target)
+}
+
+fn pinned_local(target: &url::Url) -> bool {
+    match target.host() {
+        Some(url::Host::Ipv4(addr)) => addr.is_loopback(),
+        Some(url::Host::Ipv6(addr)) => addr.is_loopback(),
+        Some(url::Host::Domain(name)) => name.eq_ignore_ascii_case("localhost"),
+        None => false,
+    }
 }
 
 fn port_matches(base: &url::Url, target: &url::Url) -> bool {

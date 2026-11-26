@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anybot_foundation::clock::{Clock, SystemClock};
 use anybot_models::{ProviderKind, StopKind, TurnResult, gateway, resolve_endpoint};
 
-use crate::cases::product_cases;
+use crate::cases::{product_cases, product_cases_for};
 use crate::profile::LiveProfile;
 use crate::side::Outcome;
 use test_harness::{ModelFormat, model_start_with_format};
@@ -17,7 +17,11 @@ pub struct NeutralShape {
     pub usage: String,
 }
 
-pub async fn fake_product_shapes(port: u16, model: &str) -> Outcome<Vec<NeutralShape>> {
+pub async fn fake_product_shapes(
+    port: u16,
+    model: &str,
+    always_thinks: bool,
+) -> Outcome<Vec<NeutralShape>> {
     let endpoint = resolve_endpoint(
         ProviderKind::Custom,
         &format!("http://127.0.0.1:{port}/v1"),
@@ -25,7 +29,13 @@ pub async fn fake_product_shapes(port: u16, model: &str) -> Outcome<Vec<NeutralS
         model,
         None,
     );
-    complete_product_cases(endpoint, "fake", &anybot_foundation::TrustedCerts::empty()).await
+    complete_product_cases(
+        endpoint,
+        "fake",
+        &anybot_foundation::TrustedCerts::empty(),
+        always_thinks,
+    )
+    .await
 }
 
 pub async fn live_product_shapes(profile: &LiveProfile) -> Outcome<Vec<NeutralShape>> {
@@ -40,7 +50,7 @@ pub async fn live_product_shapes(profile: &LiveProfile) -> Outcome<Vec<NeutralSh
         Ok(trusted) => trusted,
         Err(message) => return Outcome::partial(Vec::new(), message),
     };
-    complete_product_cases(endpoint, "live", &trusted).await
+    complete_product_cases(endpoint, "live", &trusted, profile.always_thinks).await
 }
 
 pub async fn https_product_shapes(
@@ -65,40 +75,48 @@ pub async fn https_product_shapes(
         }
         Err(message) => return Outcome::partial(Vec::new(), message),
     };
-    finish_cases(gateway, endpoint, "live").await
+    finish_cases(gateway, endpoint, "live", false).await
 }
 
 pub async fn complete_labeled(
     endpoint: anybot_models::ProviderEndpoint,
     side: &str,
 ) -> Outcome<Vec<NeutralShape>> {
-    complete_product_cases(endpoint, side, &anybot_foundation::TrustedCerts::empty()).await
+    complete_product_cases(
+        endpoint,
+        side,
+        &anybot_foundation::TrustedCerts::empty(),
+        false,
+    )
+    .await
 }
 
 async fn complete_product_cases(
     endpoint: anybot_models::ProviderEndpoint,
     side: &str,
     trusted: &anybot_foundation::TrustedCerts,
+    always_thinks: bool,
 ) -> Outcome<Vec<NeutralShape>> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     let gateway = match gateway(clock, trusted) {
         Ok(gateway) => gateway,
         Err(message) => return Outcome::partial(Vec::new(), message),
     };
-    finish_cases(gateway, endpoint, side).await
+    finish_cases(gateway, endpoint, side, always_thinks).await
 }
 
 async fn finish_cases(
     gateway: anybot_models::Gateway,
     endpoint: anybot_models::ProviderEndpoint,
     side: &str,
+    always_thinks: bool,
 ) -> Outcome<Vec<NeutralShape>> {
     let mut shapes = Vec::new();
     let permit = match permit_for(&endpoint) {
         Ok(permit) => permit,
         Err(message) => return Outcome::partial(shapes, message),
     };
-    for case in product_cases() {
+    for case in product_cases_for(always_thinks) {
         let request = case.request.clone();
         let result = gateway
             .complete(&endpoint, &request, case.stream, &permit)
@@ -170,7 +188,7 @@ pub async fn compare_fakes() -> Result<(), String> {
 async fn shapes_from(format: ModelFormat) -> Result<Vec<NeutralShape>, String> {
     let (model, port) = model_start_with_format(format).await?;
     model.script_set(crate::cases::product_steps_for(true));
-    let shapes = fake_product_shapes(port, "local").await;
+    let shapes = fake_product_shapes(port, "local", true).await;
     drop(model);
     match shapes.failed {
         Some(message) => Err(message),

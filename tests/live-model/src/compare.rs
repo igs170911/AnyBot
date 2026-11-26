@@ -22,7 +22,7 @@ pub struct Outcome {
 }
 
 async fn run_with_profile(repo: &Path, profile: &LiveProfile) -> Outcome {
-    let fake = fake_side(&profile.model).await;
+    let fake = fake_side(&profile.model, profile.always_thinks).await;
     let live = live_side(profile).await;
     let shapes = Shapes {
         fake: fake.side.probe,

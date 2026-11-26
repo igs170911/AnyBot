@@ -4,6 +4,7 @@ pub mod catalog;
 pub(crate) mod catalog_fetch;
 pub mod client;
 pub(crate) mod client_http;
+pub(crate) mod client_place;
 pub(crate) mod client_wire;
 pub mod egress;
 pub mod errors;

@@ -13,6 +13,8 @@ pub(crate) struct BuiltClient {
 
 pub(crate) type PinMap = Arc<Mutex<HashMap<String, SocketAddr>>>;
 
+const LOCAL_BYPASS: &str = "localhost,127.0.0.0/8,::1";
+
 struct DialResolver {
     pins: PinMap,
 }
@@ -103,7 +105,7 @@ pub(crate) fn pin_of(pins: &PinMap, host: &str) -> Option<SocketAddr> {
 fn explicit_proxy(raw: &str) -> Result<reqwest::Proxy, String> {
     let parsed = reqwest::Url::parse(raw).map_err(|err| format!("proxy url: {err}"))?;
     reqwest::Proxy::all(parsed)
-        .map(|proxy| proxy.no_proxy(reqwest::NoProxy::from_string("localhost,127.0.0.1,::1")))
+        .map(|proxy| proxy.no_proxy(reqwest::NoProxy::from_string(LOCAL_BYPASS)))
         .map_err(|err| format!("proxy: {err}"))
 }
 

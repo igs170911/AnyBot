@@ -68,8 +68,9 @@ fn fill_tool_packages(m: &mut BTreeMap<String, BTreeMap<String, BTreeSet<String>
     insert(m, "api-docs", &FS_STD_M, &[FS_T[0], FS_T[1], FS_T[2]]);
 }
 
-pub(crate) const PERMIT_M: [&str; 2] = [
+pub(crate) const PERMIT_M: [&str; 3] = [
     "anybot_models::SendPermit::for_endpoint",
+    "anybot_models::SendPermit::issue",
     "anybot_models::Gateway::pin_host",
 ];
 
