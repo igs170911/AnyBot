@@ -73,11 +73,12 @@ pub async fn login(
     let path = path_of(&request);
     let (body, raw) = read_json::<LoginRequest>(request).await?;
     let pool = pool_of(&state)?;
-    let scope = request_scope(&Method::POST, &path, &address);
+    let account = normalized_account(&body)?;
+    let scope = request_scope(&Method::POST, &path, &account);
     let _guard = guard_idem(pool, &key, &raw, &scope).await?;
     let limiter = Limiter::new(pool, std::sync::Arc::clone(&state.clock));
     let attempt = limiter
-        .begin_login(&address, &body.account)
+        .begin_login(&address, &account)
         .await
         .map_err(internal_sqlx)?;
     let Some(id) = attempt else {
@@ -92,6 +93,7 @@ pub async fn login(
         pool,
         limiter: &limiter,
         attempt: id,
+        account: &account,
         body: &body,
         key: &key,
         raw: &raw,
@@ -105,6 +107,7 @@ struct LoginRun<'a> {
     pool: &'a Pool,
     limiter: &'a Limiter,
     attempt: i64,
+    account: &'a str,
     body: &'a LoginRequest,
     key: &'a str,
     raw: &'a [u8],
@@ -112,8 +115,7 @@ struct LoginRun<'a> {
 }
 
 async fn run_login(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
-    let account = normalized_account(run.body)?;
-    let row = accounts::find_account(run.pool, &account)
+    let row = accounts::find_account(run.pool, run.account)
         .await
         .map_err(internal_sqlx)?;
     let verified = verify_password(
@@ -129,7 +131,7 @@ async fn run_login(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
     if stored.disabled {
         return disabled(run).await;
     }
-    accepted(run, &stored.account).await
+    accepted(run, run.account).await
 }
 
 fn normalized_account(body: &LoginRequest) -> Result<String, CallerDenied> {

@@ -35,6 +35,7 @@ CREATE INDEX sessions_account_idx ON sessions (account);
 CREATE INDEX sessions_last_active_idx ON sessions (account, last_active_ms);
 
 CREATE TABLE auth_events (
+    id BIGSERIAL PRIMARY KEY,
     kind TEXT NOT NULL,
     address TEXT NOT NULL,
     account TEXT NOT NULL,
@@ -45,10 +46,14 @@ CREATE INDEX auth_events_window_idx ON auth_events (kind, account, at_ms);
 
 CREATE INDEX auth_events_address_idx ON auth_events (kind, address, at_ms);
 
+CREATE INDEX auth_events_account_order_idx ON auth_events (kind, account, id);
+
 CREATE TABLE idempotency (
-    key TEXT PRIMARY KEY,
+    key TEXT NOT NULL,
+    scope TEXT NOT NULL DEFAULT '',
     request_hash TEXT NOT NULL,
     status_code INT NOT NULL,
     body TEXT NOT NULL,
-    at_ms BIGINT NOT NULL
+    at_ms BIGINT NOT NULL,
+    PRIMARY KEY (key, scope)
 );

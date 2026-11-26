@@ -6,6 +6,7 @@ use anybot_foundation::{Clock, TimestampMs};
 use anybot_protocol::RunEvent;
 use serde_json as _;
 
+pub mod account_input;
 pub mod api_account;
 pub mod api_admin;
 pub mod api_admin_accounts;
@@ -35,6 +36,7 @@ pub mod session_key;
 pub mod startup;
 pub mod status;
 
+pub use account_input::{normalize_account, password_long_enough};
 pub use anybot_store_server::{
     Migrator, Pool, SchemaError, ensure_schema, max_applied_version, min_applied_version,
     open_lazy, open_url, probe, probe_pool, product_migrations, read_config_rows, set_config_rows,

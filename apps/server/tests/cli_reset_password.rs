@@ -165,3 +165,66 @@ async fn reset_and_check(
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn reset_password_normalizes_the_account_and_counts_characters() -> Result<(), String> {
+    let db = db_start("reset_password_chars").await?;
+    let program = server_bin()
+        .program(db.args())
+        .with_timeout(std::time::Duration::from_secs(40));
+    let mut running = Running::start(&program, &db.dir).map_err(|e| e.clone())?;
+    let announced = running.next_stdout_line().map_err(|e| e.clone())?;
+    assert!(announced.contains("listening on"), "line: {announced}");
+    let _no_accounts = running.next_stdout_line().map_err(|e| e.clone())?;
+    let invite_line = running.next_stdout_line().map_err(|e| e.clone())?;
+    let invite = invite_code_from_line(&invite_line)?;
+    let base = format!("http://127.0.0.1:{}", db.listen_port);
+    let ok = post(
+        &base,
+        "/v1/account/register",
+        &RequestSpec::new(&register_body("alice", "alicepassword", &invite)).with_key("k-admin"),
+    )
+    .await?;
+    assert_eq!(ok.status, 201, "admin register: {0}", ok.json);
+    reset_normalizes_and_counts_chars(&base, &db.bootstrap).await?;
+    health_ok(db.listen_port).await?;
+    let _killed = running.kill().map_err(|e| e.clone())?;
+    db.stop().await?;
+    Ok(())
+}
+
+async fn reset_normalizes_and_counts_chars(
+    base: &str,
+    bootstrap: &std::path::Path,
+) -> Result<(), String> {
+    let mixed = run_reset_cli(
+        env!("CARGO_BIN_EXE_anybot-server"),
+        &bootstrap.display().to_string(),
+        "Alice",
+        "mixedcasepassword",
+        &std::path::PathBuf::from("."),
+    )?;
+    assert_eq!(mixed, 0, "mixed-case account must normalize");
+    assert_eq!(
+        login_status(base, "alice", "mixedcasepassword", "k-mixed").await?,
+        200,
+        "normalized reset"
+    );
+    let short_chars = run_reset_cli(
+        env!("CARGO_BIN_EXE_anybot-server"),
+        &bootstrap.display().to_string(),
+        "alice",
+        "\u{5BC6}\u{78BC}\u{4E03}\u{500B}\u{5B57}\u{52A0}\u{4E00}",
+        &std::path::PathBuf::from("."),
+    )?;
+    assert_ne!(short_chars, 0, "seven characters must be rejected");
+    let restored = run_reset_cli(
+        env!("CARGO_BIN_EXE_anybot-server"),
+        &bootstrap.display().to_string(),
+        "alice",
+        "brandnewpassword",
+        &std::path::PathBuf::from("."),
+    )?;
+    assert_eq!(restored, 0, "restore password after the short reject");
+    Ok(())
+}

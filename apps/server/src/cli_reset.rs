@@ -5,14 +5,13 @@ use rpassword::prompt_password;
 
 use anybot_foundation::{Clock, MessageRef, Secret, ServerLaunchArgs, SystemClock};
 use anybot_server::pass_hash::PassHash;
+use anybot_server::{normalize_account, password_long_enough};
 use anybot_store_server::{Pool, accounts, sessions};
 
 use crate::Ctx;
 use crate::line_out::emit;
 use crate::server_run::{connect_plan, messages_exit};
 use anybot_store_server::max_applied_version;
-
-pub const MIN_PASSWORD_CHARS: usize = 8;
 
 pub const CODE_CLI_PASSWORD_PROMPT: &str = "server-cli-password-prompt";
 pub const CODE_CLI_CONFIRM_PROMPT: &str = "server-cli-password-confirm-prompt";
@@ -65,7 +64,11 @@ pub async fn reset_main(
     if let Some(code) = schema_gate(&pool, version, ctx).await {
         return code;
     }
-    match reset_account(ctx, &pool, account).await {
+    let account = match normalize_account(account) {
+        Ok(name) => name,
+        Err(reason) => return messages_exit(ctx, &reason),
+    };
+    match reset_account(ctx, &pool, &account).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(ResetFailure::Report(reason)) => {
             let _result = emit(&reason, &mut ctx.stderr);
@@ -113,7 +116,7 @@ async fn reset_account(ctx: &mut Ctx, pool: &Pool, account: &str) -> Result<(), 
 }
 
 fn validate_passwords(first: &str, second: &str) -> Result<(), ResetFailure> {
-    if first.len() < MIN_PASSWORD_CHARS || second.len() < MIN_PASSWORD_CHARS {
+    if !password_long_enough(first) || !password_long_enough(second) {
         return Err(ResetFailure::Message(CODE_CLI_PASSWORD_SHORT));
     }
     if first != second {
