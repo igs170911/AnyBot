@@ -1,0 +1,28 @@
+error[E0433]: cannot find `GateLayer` in `anybot_protocol`
+ --> tests/compilefail/build_gate_verdict_outside_trust.rs:6:33
+  |
+6 |         layer: anybot_protocol::GateLayer::Default,
+  |                                 ^^^^^^^^^ could not find `GateLayer` in `anybot_protocol`
+  |
+help: an enum with a similar name exists
+  |
+6 -         layer: anybot_protocol::GateLayer::Default,
+6 +         layer: anybot_protocol::RuleLayer::Default,
+  |
+
+error[E0422]: cannot find struct, variant or union type `GateVerdict` in crate `anybot_trust`
+ --> tests/compilefail/build_gate_verdict_outside_trust.rs:4:33
+  |
+4 |     let verdict = anybot_trust::GateVerdict {
+  |                                 ^^^^^^^^^^^
+  |
+ ::: src/machine_rules.rs
+  |
+  | pub struct RuleVerdict {
+  | ---------------------- similarly named struct `RuleVerdict` defined here
+  |
+help: a struct with a similar name exists
+  |
+4 -     let verdict = anybot_trust::GateVerdict {
+4 +     let verdict = anybot_trust::RuleVerdict {
+  |

@@ -13,3 +13,5 @@ pub mod test_view;
 pub use test_view::TestView;
 #[cfg(test)]
 mod ops_tests;
+#[cfg(test)]
+mod pipeline_flow_tests;

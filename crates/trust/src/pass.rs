@@ -3,7 +3,7 @@ use anybot_protocol::GateRecord;
 
 use crate::action::ActionKey;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Pass {
     key: ActionKey,
     gate: GateRecord,

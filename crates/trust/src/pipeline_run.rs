@@ -63,10 +63,10 @@ pub struct ActionRun {
     pub summary: Summary,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum RunStep {
     Executed(ActionRun),
-    Ask(AskTicket),
+    Ask(Box<AskTicket>),
     Denied(ActionRun),
 }
 
@@ -76,10 +76,10 @@ impl RunStep {
         match self {
             RunStep::Executed(run) | RunStep::Denied(run) => run,
             RunStep::Ask(ticket) => ActionRun {
-                gate: ticket.gate,
+                gate: ticket.gate().clone(),
                 evidence: Vec::new(),
                 model: OutcomeText::of(crate::message_codes::CODE_GATE_ASK_PENDING, Vec::new()),
-                summary: pending_summary(&ticket.request),
+                summary: pending_summary(ticket.request()),
             },
         }
     }
@@ -100,7 +100,11 @@ fn pending_summary(request: &ActionRequest) -> Summary {
 }
 
 #[must_use]
-pub fn prepared_gate(gate: &GateRecord, answer: GateAnswer, source: JudgementSource) -> GateRecord {
+pub(crate) fn prepared_gate(
+    gate: &GateRecord,
+    answer: GateAnswer,
+    source: JudgementSource,
+) -> GateRecord {
     let mut record = gate.clone();
     record.source = source;
     record.outcome = match answer {
@@ -110,18 +114,17 @@ pub fn prepared_gate(gate: &GateRecord, answer: GateAnswer, source: JudgementSou
     record
 }
 
-pub fn user_approved_run(
-    ticket: &AskTicket,
-    gate: GateRecord,
+pub(crate) fn user_approved_run(
+    request: &ActionRequest,
+    gate: &GateRecord,
+    pass: &Pass,
     computer: &dyn GatedComputer,
     view: &dyn ModelResultView,
     clock: &dyn Clock,
 ) -> ActionRun {
-    let action = ticket.request.gate_action();
-    let approved = approved_evidence(&ticket.request.context, &gate, JudgementSource::You, clock);
-    let pass = Pass::issue(action.key(), gate.clone(), clock.now_ms());
-    let mut run = executed_run(&ticket.request, &pass, computer, view, clock);
-    run.gate = gate;
+    let approved = approved_evidence(&request.context, gate, JudgementSource::You, clock);
+    let mut run = executed_run(request, pass, computer, view, clock);
+    run.gate = gate.clone();
     run.summary
         .evidence_numbers
         .insert(0, approved.short.number());
@@ -129,7 +132,7 @@ pub fn user_approved_run(
     run
 }
 
-pub fn user_rejected_run(
+pub(crate) fn user_rejected_run(
     request: &ActionRequest,
     gate: GateRecord,
     view: &dyn ModelResultView,
@@ -145,7 +148,7 @@ pub fn user_rejected_run(
     finish(gate, vec![evidence], model, &request.context)
 }
 
-pub fn denied_run(
+pub(crate) fn denied_run(
     request: &ActionRequest,
     verdict: &GateVerdict,
     gate: &GateRecord,

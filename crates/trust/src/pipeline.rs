@@ -2,12 +2,13 @@ use crate::action::{GateAction, PathView};
 use crate::card_data::{CardData, build_card};
 use crate::command_target::command_target_paths;
 use crate::evidence::ActionContext;
-use crate::gate_flow::{GateConfig, judge};
+use crate::gate_flow::{GateConfig, GateVerdict, judge};
+use crate::pass::Pass;
 use crate::pipeline_run::{RunStep, denied_run, executed_run, prepared_gate};
 use crate::runner::GatedComputer;
 use crate::safety_n5::{ActionClass, classes_of_command};
 use anybot_foundation::Clock;
-use anybot_protocol::{GateOutcome, JudgementSource};
+use anybot_protocol::{ComputerCaps, GateOutcome, JudgementSource};
 
 use crate::action::ActionSubject;
 
@@ -63,11 +64,7 @@ pub fn run_action(
     let gate = verdict.record();
     match verdict.outcome {
         GateOutcome::Deny => RunStep::Denied(denied_run(request, &verdict, &gate, view, clock)),
-        GateOutcome::Ask => RunStep::Ask(AskTicket {
-            gate,
-            card: build_card(&action, &caps),
-            request: request.clone(),
-        }),
+        GateOutcome::Ask => RunStep::Ask(Box::new(AskTicket::new(verdict, action, &caps, request))),
         GateOutcome::Allow => {
             let Some(pass) = verdict.pass(&action, clock.now_ms()) else {
                 return RunStep::Denied(denied_run(request, &verdict, &gate, view, clock));
@@ -77,46 +74,97 @@ pub fn run_action(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct AskTicket {
-    pub gate: GateRecord,
-    pub card: CardData,
-    pub request: ActionRequest,
+    gate: GateRecord,
+    verdict: GateVerdict,
+    action: GateAction,
+    card: CardData,
+    request: ActionRequest,
+}
+
+impl AskTicket {
+    #[must_use]
+    pub fn card(&self) -> &CardData {
+        &self.card
+    }
+
+    #[must_use]
+    pub fn gate(&self) -> &GateRecord {
+        &self.gate
+    }
+
+    pub fn answer(
+        self,
+        answer: GateAnswer,
+        computer: &dyn GatedComputer,
+        view: &dyn crate::pipeline_run::ModelResultView,
+        clock: &dyn Clock,
+    ) -> crate::pipeline_run::ActionRun {
+        self.finish(answer, computer, view, clock)
+    }
+
+    pub(crate) fn new(
+        verdict: GateVerdict,
+        action: GateAction,
+        caps: &ComputerCaps,
+        request: &ActionRequest,
+    ) -> Self {
+        let card = build_card(&action, caps);
+        AskTicket {
+            gate: verdict.record(),
+            verdict,
+            action,
+            card,
+            request: request.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn request(&self) -> &ActionRequest {
+        &self.request
+    }
+
+    fn finish(
+        self,
+        answer: GateAnswer,
+        computer: &dyn GatedComputer,
+        view: &dyn crate::pipeline_run::ModelResultView,
+        clock: &dyn Clock,
+    ) -> crate::pipeline_run::ActionRun {
+        if self.verdict.outcome != GateOutcome::Ask {
+            return crate::pipeline_run::user_rejected_run(&self.request, self.gate, view, clock);
+        }
+        let gate = prepared_gate(&self.gate, answer, JudgementSource::You);
+        match answer {
+            GateAnswer::Deny => {
+                crate::pipeline_run::user_rejected_run(&self.request, gate, view, clock)
+            }
+            GateAnswer::Allow => {
+                let pass = Pass::issue(self.action.key(), gate.clone(), clock.now_ms());
+                crate::pipeline_run::user_approved_run(
+                    &self.request,
+                    &gate,
+                    &pass,
+                    computer,
+                    view,
+                    clock,
+                )
+            }
+        }
+    }
 }
 
 use anybot_protocol::GateRecord;
 
 pub fn answer_ask(
-    ticket: &AskTicket,
+    ticket: AskTicket,
     answer: GateAnswer,
     computer: &dyn GatedComputer,
     view: &dyn crate::pipeline_run::ModelResultView,
     clock: &dyn Clock,
 ) -> crate::pipeline_run::ActionRun {
-    let gate = prepared_gate(&ticket.gate, answer, JudgementSource::You);
-    match answer {
-        GateAnswer::Deny => denied_answer(ticket, gate, view, clock),
-        GateAnswer::Allow => approved_answer(ticket, gate, computer, view, clock),
-    }
-}
-
-fn denied_answer(
-    ticket: &AskTicket,
-    gate: GateRecord,
-    view: &dyn crate::pipeline_run::ModelResultView,
-    clock: &dyn Clock,
-) -> crate::pipeline_run::ActionRun {
-    crate::pipeline_run::user_rejected_run(&ticket.request, gate, view, clock)
-}
-
-fn approved_answer(
-    ticket: &AskTicket,
-    gate: GateRecord,
-    computer: &dyn GatedComputer,
-    view: &dyn crate::pipeline_run::ModelResultView,
-    clock: &dyn Clock,
-) -> crate::pipeline_run::ActionRun {
-    crate::pipeline_run::user_approved_run(ticket, gate, computer, view, clock)
+    ticket.answer(answer, computer, view, clock)
 }
 
 fn prepared_action(request: &ActionRequest, computer: &dyn GatedComputer) -> GateAction {

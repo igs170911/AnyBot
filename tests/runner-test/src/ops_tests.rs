@@ -14,11 +14,11 @@ use crate::fake_computer::FakeComputer;
 use crate::fake_scripts::CommandScript;
 use crate::test_view::TestView;
 
-fn fresh_clock() -> Arc<FakeClock> {
+pub(crate) fn fresh_clock() -> Arc<FakeClock> {
     FakeClock::new(1_000)
 }
 
-fn context(tool: &str, clock: &Arc<FakeClock>) -> ActionContext {
+pub(crate) fn context(tool: &str, clock: &Arc<FakeClock>) -> ActionContext {
     ActionContext {
         task: TaskId::generate(clock.as_ref()),
         turn: TurnId::generate(clock.as_ref()),
@@ -37,7 +37,7 @@ fn request(tool: &str, subject: ActionSubject, clock: &Arc<FakeClock>) -> Action
     }
 }
 
-fn run(computer: &FakeComputer, req: &ActionRequest) -> RunStep {
+pub(crate) fn run(computer: &FakeComputer, req: &ActionRequest) -> RunStep {
     let clock = computer.clock();
     run_action(
         req,
@@ -78,7 +78,7 @@ fn read_request(path: &str, clock: &Arc<FakeClock>) -> ActionRequest {
     )
 }
 
-fn command_request(line: &str, clock: &Arc<FakeClock>) -> ActionRequest {
+pub(crate) fn command_request(line: &str, clock: &Arc<FakeClock>) -> ActionRequest {
     request(
         "shell",
         ActionSubject::Command {
@@ -89,8 +89,7 @@ fn command_request(line: &str, clock: &Arc<FakeClock>) -> ActionRequest {
     )
 }
 
-fn first_payload(step: &RunStep) -> EvidencePayload {
-    let run = step.clone().into_run();
+fn first_payload(run: &anybot_trust::ActionRun) -> EvidencePayload {
     let Some(record) = run.evidence.first() else {
         panic!("no evidence in {run:?}");
     };
@@ -107,7 +106,7 @@ fn test_fake_computer_write_then_read_returns_matching_content_digests() {
         before,
         after,
         size,
-    } = first_payload(&written)
+    } = first_payload(&written.into_run())
     else {
         panic!("changed payload missing");
     };

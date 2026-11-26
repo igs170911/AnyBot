@@ -41,17 +41,17 @@ impl GateConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GateVerdict {
-    pub outcome: GateOutcome,
-    pub layer: GateLayer,
-    pub rule: String,
-    pub read_only: bool,
-    pub params: Vec<(String, String)>,
+pub(crate) struct GateVerdict {
+    pub(crate) outcome: GateOutcome,
+    pub(crate) layer: GateLayer,
+    pub(crate) rule: String,
+    pub(crate) read_only: bool,
+    pub(crate) params: Vec<(String, String)>,
 }
 
 impl GateVerdict {
     #[must_use]
-    pub fn gate_no(&self) -> GateNo {
+    pub(crate) fn gate_no(&self) -> GateNo {
         GateNo(match self.layer {
             GateLayer::Floor => 1,
             GateLayer::Admin => 2,
@@ -61,7 +61,7 @@ impl GateVerdict {
     }
 
     #[must_use]
-    pub fn record(&self) -> GateRecord {
+    pub(crate) fn record(&self) -> GateRecord {
         GateRecord::new(
             self.gate_no(),
             rule_layer(self.layer),
@@ -73,7 +73,7 @@ impl GateVerdict {
     }
 
     #[must_use]
-    pub fn pass(&self, action: &GateAction, issued_at: TimestampMs) -> Option<Pass> {
+    pub(crate) fn pass(&self, action: &GateAction, issued_at: TimestampMs) -> Option<Pass> {
         if self.outcome != GateOutcome::Allow {
             return None;
         }
@@ -115,7 +115,7 @@ pub fn floor_view(action: &GateAction, caps: &ComputerCaps) -> FloorAction {
 }
 
 #[must_use]
-pub fn judge(action: &GateAction, caps: &ComputerCaps, config: &GateConfig) -> GateVerdict {
+pub(crate) fn judge(action: &GateAction, caps: &ComputerCaps, config: &GateConfig) -> GateVerdict {
     let verdict = default_rule(action, caps);
     let input = EngineInput {
         action: floor_view(action, caps),

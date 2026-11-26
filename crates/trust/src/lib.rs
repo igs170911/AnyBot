@@ -49,7 +49,7 @@ pub use edit_rule::{
 };
 pub use evidence::ActionContext;
 pub use gate_engine::{GateLayer, LayerCall, Opinion, Outcome, precedence_decision};
-pub use gate_flow::{GateConfig, GateVerdict, judge, rule_code};
+pub use gate_flow::{GateConfig, rule_code};
 pub use gate_full::{EngineInput, GateDecision, decide};
 pub use machine_rules::{MachineLevel, RuleVerdict, default_rule, inside_workdir};
 pub use message_codes::{
