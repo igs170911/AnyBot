@@ -1,4 +1,6 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -24,12 +26,14 @@ async fn start_origin_on(bind: SocketAddr) -> Result<SocketAddr, String> {
     let addr = listener
         .local_addr()
         .map_err(|e| format!("origin local addr failed: {e}"))?;
+    let hits = Arc::new(AtomicUsize::new(0));
     tokio::spawn(async move {
         loop {
             let Ok((stream, peer)) = listener.accept().await else {
                 return;
             };
-            tokio::spawn(serve_origin(stream, peer));
+            let counted = Arc::clone(&hits);
+            tokio::spawn(serve_origin_counted(stream, peer, counted));
         }
     });
     Ok(addr)
@@ -62,7 +66,9 @@ async fn read_head(stream: &mut TcpStream) -> Result<String, String> {
 }
 
 fn route_of(head: &str) -> &'static str {
-    for route in ["peer", "hello", "beat", "gap", "stall", "quiet"] {
+    for route in [
+        "peer", "hello", "beat", "gap", "stall", "quiet", "hits", "nobuffer",
+    ] {
         if head.contains(format!("/{route}").as_str()) {
             return route;
         }
@@ -70,7 +76,7 @@ fn route_of(head: &str) -> &'static str {
     "unknown"
 }
 
-async fn serve_origin(stream: TcpStream, peer: SocketAddr) {
+async fn serve_origin_counted(stream: TcpStream, peer: SocketAddr, hits: Arc<AtomicUsize>) {
     let mut buffered = stream;
     let Ok(head) = read_head(&mut buffered).await else {
         return;
@@ -82,6 +88,8 @@ async fn serve_origin(stream: TcpStream, peer: SocketAddr) {
         "gap" => gap(&mut buffered).await,
         "stall" => stall(&mut buffered).await,
         "quiet" => quiet(&mut buffered).await,
+        "hits" => hits_reply(&mut buffered, &hits).await,
+        "nobuffer" => nobuffer(&mut buffered).await,
         _ => simple(&mut buffered, "unknown-route").await,
     }
 }
@@ -121,6 +129,22 @@ async fn gap(stream: &mut TcpStream) {
 
 async fn stall(stream: &mut TcpStream) {
     write_head(stream, 35).await;
+    let _written = stream.write_all(b"first-half-line!\n").await.is_ok();
+    let _flushed = stream.flush().await.is_ok();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let _written = stream.write_all(b"second-half-line!\n").await.is_ok();
+    let _shutdown = stream.shutdown().await.is_ok();
+}
+
+async fn hits_reply(stream: &mut TcpStream, hits: &Arc<AtomicUsize>) {
+    let count = hits.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    simple(stream, &count.to_string()).await;
+}
+
+async fn nobuffer(stream: &mut TcpStream) {
+    let head = "HTTP/1.1 200 OK\r\nX-Accel-Buffering: no\r\nContent-Length: 35\r\n\r\n";
+    let _written = stream.write_all(head.as_bytes()).await.is_ok();
+    let _flushed = stream.flush().await.is_ok();
     let _written = stream.write_all(b"first-half-line!\n").await.is_ok();
     let _flushed = stream.flush().await.is_ok();
     tokio::time::sleep(Duration::from_millis(500)).await;

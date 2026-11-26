@@ -5,6 +5,7 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::Notify;
 
+use crate::fake_clock::FakeClock;
 use crate::netctl_state::NetCtl;
 use crate::netproxy;
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -22,6 +23,10 @@ pub enum NetMode {
     },
     Down,
     HangConnect,
+    Stall,
+    DropResponse {
+        close: bool,
+    },
 }
 
 pub async fn net_start() -> Result<(Arc<NetCtl>, u16), String> {
@@ -219,6 +224,35 @@ pub async fn net_alias(ctl: &Arc<NetCtl>, proxy_port: u16, name: &str) -> Result
 
 pub async fn net_down(ctl: &Arc<NetCtl>, proxy_port: u16) -> Result<(), String> {
     ctl.set_mode(proxy_port, NetMode::Down).await?;
+    ctl.kill_live().await;
+    Ok(())
+}
+
+pub async fn net_stall(ctl: &Arc<NetCtl>, proxy_port: u16) -> Result<(), String> {
+    ctl.set_mode(proxy_port, NetMode::Stall).await?;
+    ctl.kill_live().await;
+    Ok(())
+}
+
+pub async fn net_drop_response(
+    ctl: &Arc<NetCtl>,
+    proxy_port: u16,
+    close: bool,
+) -> Result<(), String> {
+    ctl.set_mode(proxy_port, NetMode::DropResponse { close })
+        .await?;
+    ctl.kill_live().await;
+    Ok(())
+}
+
+pub async fn net_idle_cut_clock(
+    ctl: &Arc<NetCtl>,
+    proxy_port: u16,
+    idle: Duration,
+    clock: &Arc<FakeClock>,
+) -> Result<(), String> {
+    ctl.set_clock(proxy_port, Some(Arc::clone(clock))).await;
+    ctl.set_mode(proxy_port, NetMode::IdleCut { idle }).await?;
     ctl.kill_live().await;
     Ok(())
 }

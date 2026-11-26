@@ -6,6 +6,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, BufStream};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Notify;
 
+use crate::fake_clock::FakeClock;
 use crate::netctl::NetMode;
 use crate::netproxy_flow::{copy_bidirectional_with_kill, sleep_with_kill};
 
@@ -15,6 +16,7 @@ pub struct TargetSpec {
     pub mode: NetMode,
     pub source: Option<IpAddr>,
     pub alias: Option<String>,
+    pub clock: Option<Arc<FakeClock>>,
     pub open: bool,
     pub wake: Arc<Notify>,
 }
@@ -47,10 +49,9 @@ pub async fn serve_target(client: TcpStream, spec: TargetSpec, kill: Arc<Notify>
             return;
         };
         let mut client_stream = buffered.into_inner();
-        let _copied =
-            copy_bidirectional_with_kill(&mut client_stream, &mut upstream, &spec.mode, &kill)
-                .await
-                .is_ok();
+        let _copied = copy_bidirectional_with_kill(&mut client_stream, &mut upstream, &spec, &kill)
+            .await
+            .is_ok();
         return;
     }
     let Ok(mut upstream) = connect_real(&spec).await else {
@@ -64,10 +65,9 @@ pub async fn serve_target(client: TcpStream, spec: TargetSpec, kill: Arc<Notify>
         return;
     };
     let mut client_stream = buffered.into_inner();
-    let _copied =
-        copy_bidirectional_with_kill(&mut client_stream, &mut upstream, &spec.mode, &kill)
-            .await
-            .is_ok();
+    let _copied = copy_bidirectional_with_kill(&mut client_stream, &mut upstream, &spec, &kill)
+        .await
+        .is_ok();
 }
 
 fn connect_delay(mode: &NetMode) -> Duration {
@@ -78,7 +78,9 @@ fn connect_delay(mode: &NetMode) -> Duration {
         | NetMode::Buffer
         | NetMode::IdleCut { .. }
         | NetMode::Down
-        | NetMode::HangConnect => Duration::ZERO,
+        | NetMode::HangConnect
+        | NetMode::Stall
+        | NetMode::DropResponse { .. } => Duration::ZERO,
     }
 }
 

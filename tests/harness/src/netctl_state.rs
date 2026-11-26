@@ -6,6 +6,7 @@ use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::sync::RwLock;
 
+use crate::fake_clock::FakeClock;
 use crate::netctl::NetMode;
 use crate::netproxy::TargetSpec;
 
@@ -30,6 +31,7 @@ pub(crate) struct TargetEntry {
     pub(crate) mode: NetMode,
     pub(crate) source: Option<IpAddr>,
     pub(crate) alias: Option<String>,
+    pub(crate) clock: Option<Arc<FakeClock>>,
     pub(crate) open: bool,
     pub(crate) wake: Arc<Notify>,
     pub(crate) live: Vec<Arc<Notify>>,
@@ -55,6 +57,7 @@ impl NetCtl {
                 mode: NetMode::Open,
                 source: None,
                 alias: None,
+                clock: None,
                 open: true,
                 wake: Arc::new(Notify::new()),
                 live: Vec::new(),
@@ -84,6 +87,7 @@ impl NetCtl {
             },
             source: entry.source,
             alias: entry.alias.clone(),
+            clock: entry.clock.clone(),
             open: entry.open,
             wake: Arc::clone(&entry.wake),
         })
@@ -199,5 +203,14 @@ impl NetCtl {
     pub async fn drain_kills(&self) {
         let mut kills = self.kills.lock().await;
         kills.clear();
+    }
+}
+
+impl NetCtl {
+    pub(crate) async fn set_clock(&self, proxy_port: u16, clock: Option<Arc<FakeClock>>) {
+        let mut state = self.state.write().await;
+        if let Some(entry) = state.entries.get_mut(&proxy_port) {
+            entry.clock = clock;
+        }
     }
 }

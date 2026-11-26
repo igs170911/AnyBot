@@ -45,6 +45,7 @@ pub fn test_tracing() {
 pub(crate) mod netctl_state;
 pub mod netproxy;
 pub(crate) mod netproxy_flow;
+pub(crate) mod netproxy_idle;
 pub mod origin;
 pub mod ports;
 pub mod postgres;
