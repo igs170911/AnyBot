@@ -34,9 +34,21 @@ impl FieldEdit {
 #[must_use = "the corrected time is the clock the merge compares edits on"]
 pub fn corrected_time(device_time: TimestampMs, offset_ms: i64, received_ms: TimestampMs) -> u64 {
     let device_ms = i64::try_from(device_time.millis()).unwrap_or(i64::MAX);
-    let shifted = device_ms.saturating_add(offset_ms);
-    let received = received_ms.millis();
-    u64::try_from(shifted).unwrap_or(received).min(received)
+    let received_ms = i64::try_from(received_ms.millis()).unwrap_or(i64::MAX);
+    device_ms
+        .saturating_add(offset_ms)
+        .clamp(0, received_ms)
+        .to_u64_millis()
+}
+
+trait MillisCast {
+    fn to_u64_millis(self) -> u64;
+}
+
+impl MillisCast for i64 {
+    fn to_u64_millis(self) -> u64 {
+        u64::try_from(self).unwrap_or(u64::MAX)
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -45,7 +57,7 @@ pub struct SettingsState {
 }
 
 impl SettingsState {
-    #[must_use = "the verdict decides whether the incoming edit replaces the stored winner"]
+    #[must_use = "the verdict decides whether the incoming edit beats the stored winner"]
     pub fn wins(incoming: &FieldEdit, existing: &FieldEdit) -> bool {
         let time = existing.corrected_time();
         let device = existing.device.as_str();
@@ -57,10 +69,15 @@ impl SettingsState {
         later || bigger_device || bigger_seq
     }
 
+    #[must_use = "the verdict decides whether the stored winner stays"]
+    pub fn keeps_existing(incoming: &FieldEdit, existing: &FieldEdit) -> bool {
+        Self::wins(existing, incoming)
+    }
+
     pub fn apply(&mut self, edit: &FieldEdit) {
         let key = edit.key();
         match self.winners.get(&key) {
-            Some(existing) if Self::wins(existing, edit) => {}
+            Some(existing) if Self::keeps_existing(edit, existing) => {}
             _ => {
                 self.winners.insert(key, edit.clone());
             }

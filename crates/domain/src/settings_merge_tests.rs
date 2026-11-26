@@ -46,14 +46,14 @@ fn value_of_edit(edit: &FieldEdit) -> String {
 
 fn seed_edits() -> Vec<FieldEdit> {
     let mut out = Vec::new();
-    for field in 0..20 {
+    for field in 0..22 {
         for device in 0..3usize {
             out.push(edit(
                 device,
                 field,
                 0,
                 10,
-                EPOCH + 20,
+                EPOCH.saturating_add(20),
                 u64::try_from(device).unwrap_or(0),
             ));
         }
@@ -61,7 +61,7 @@ fn seed_edits() -> Vec<FieldEdit> {
     out
 }
 
-fn permutation(keys: &[usize]) -> Vec<usize> {
+fn full_shuffle(keys: &[usize]) -> Vec<usize> {
     let mut pairs: Vec<(usize, usize)> = keys.iter().enumerate().map(|(i, k)| (*k, i)).collect();
     pairs.sort_unstable();
     pairs.iter().map(|(_, i)| *i).collect()
@@ -70,10 +70,10 @@ fn permutation(keys: &[usize]) -> Vec<usize> {
 fn edit_strategy(devices: &[usize]) -> BoxedStrategy<FieldEdit> {
     (
         prop::sample::select(devices.to_vec()),
-        0usize..20,
+        0usize..22,
         -600_000i64..600_000,
         0u64..1_200_000,
-        EPOCH..EPOCH + 1_200_000,
+        EPOCH..EPOCH.saturating_add(1_200_000),
         0u64..1_000,
     )
         .prop_map(|(device_index, field, offset, shift, received, seq)| {
@@ -82,9 +82,17 @@ fn edit_strategy(devices: &[usize]) -> BoxedStrategy<FieldEdit> {
         .boxed()
 }
 
-fn sort_key(edit: &FieldEdit) -> (u64, String, u64) {
+fn model_corrected(edit: &FieldEdit) -> u64 {
+    let shift = edit
+        .device_time
+        .millis()
+        .saturating_add_signed(edit.clock_offset_ms);
+    shift.min(edit.received_ms.millis())
+}
+
+fn model_sort_key(edit: &FieldEdit) -> (u64, String, u64) {
     (
-        edit.corrected_time(),
+        model_corrected(edit),
         edit.device.as_str().clone(),
         edit.stream_seq,
     )
@@ -94,7 +102,7 @@ fn expected_values(edits: &[FieldEdit]) -> BTreeMap<String, String> {
     let mut best: BTreeMap<String, (u64, String, u64)> = BTreeMap::new();
     let mut values: BTreeMap<String, String> = BTreeMap::new();
     for edit in edits {
-        let key = sort_key(edit);
+        let key = model_sort_key(edit);
         match best.get(&edit.key()) {
             Some(top) if *top >= key => {}
             _ => {
@@ -106,10 +114,14 @@ fn expected_values(edits: &[FieldEdit]) -> BTreeMap<String, String> {
     values
 }
 
+fn list_key_count(expected: &BTreeMap<String, String>) -> usize {
+    expected.keys().filter(|k| k.contains('#')).count()
+}
+
 fn delivery_orders(count: usize) -> BoxedStrategy<Vec<Vec<usize>>> {
     let size = seed_edits().len().saturating_add(count);
-    prop::collection::vec(prop::collection::vec(0..size, 1..size), size)
-        .prop_map(move |keys| keys.iter().map(|k| permutation(k.as_slice())).collect())
+    prop::collection::vec(prop::collection::vec(0..size, size), size)
+        .prop_map(move |keys| keys.iter().map(|k| full_shuffle(k.as_slice())).collect())
         .boxed()
 }
 
@@ -125,22 +137,60 @@ fn merge_prefers_the_later_edit() {
     state.apply(&edit(1, 1, 0, 200, base, 2));
     let want = value_of_edit(&edit(1, 1, 0, 200, base, 2));
     assert_eq!(state.value_of(&"f1".to_owned()), Some(want));
+    let mut first = SettingsState::default();
+    first.apply(&edit(1, 1, 0, 200, base, 2));
+    first.apply(&edit(0, 1, 0, 100, base, 1));
+    let want = value_of_edit(&edit(1, 1, 0, 200, base, 2));
+    assert_eq!(first.value_of(&"f1".to_owned()), Some(want));
 }
 
 #[test]
 fn merge_respects_the_tie_break_rules() {
     let base = EPOCH.saturating_add(1_000);
+    let by_device = edit(1, 2, 0, 500, base, 1);
+    let by_seq = edit(1, 2, 0, 500, base, 9);
+    let by_time = edit(0, 2, 0, 501, base, 0);
+    let loser_device = edit(0, 2, 0, 500, base, 1);
+    let loser_seq = edit(1, 2, 0, 500, base, 1);
+    let loser_time = edit(0, 2, 0, 500, base, 9);
+
     let mut state = SettingsState::default();
-    state.apply(&edit(0, 2, 0, 500, base, 1));
-    state.apply(&edit(1, 2, 0, 500, base, 1));
-    let by_device = value_of_edit(&edit(1, 2, 0, 500, base, 1));
-    assert_eq!(state.value_of(&"f2".to_owned()), Some(by_device));
-    state.apply(&edit(1, 2, 0, 500, base, 9));
-    let by_seq = value_of_edit(&edit(1, 2, 0, 500, base, 9));
-    assert_eq!(state.value_of(&"f2".to_owned()), Some(by_seq));
-    state.apply(&edit(0, 2, 0, 501, base, 0));
-    let by_time = value_of_edit(&edit(0, 2, 0, 501, base, 0));
-    assert_eq!(state.value_of(&"f2".to_owned()), Some(by_time));
+    state.apply(&loser_device);
+    state.apply(&by_device);
+    let want = value_of_edit(&by_device);
+    assert_eq!(state.value_of(&"f2".to_owned()), Some(want));
+
+    let mut first = SettingsState::default();
+    first.apply(&by_device);
+    first.apply(&loser_device);
+    let want = value_of_edit(&by_device);
+    assert_eq!(first.value_of(&"f2".to_owned()), Some(want));
+
+    let mut state = SettingsState::default();
+    state.apply(&by_device);
+    state.apply(&loser_seq);
+    state.apply(&by_seq);
+    let want = value_of_edit(&by_seq);
+    assert_eq!(state.value_of(&"f2".to_owned()), Some(want));
+
+    let mut first = SettingsState::default();
+    first.apply(&by_seq);
+    first.apply(&loser_seq);
+    let want = value_of_edit(&by_seq);
+    assert_eq!(first.value_of(&"f2".to_owned()), Some(want));
+
+    let mut state = SettingsState::default();
+    state.apply(&by_time);
+    state.apply(&loser_time);
+    let want = value_of_edit(&by_time);
+    assert_eq!(state.value_of(&"f2".to_owned()), Some(want));
+
+    assert!(SettingsState::wins(&by_device, &loser_device));
+    assert!(!SettingsState::wins(&loser_device, &by_device));
+    assert!(SettingsState::wins(&by_seq, &loser_seq));
+    assert!(!SettingsState::wins(&loser_seq, &by_seq));
+    assert!(SettingsState::wins(&by_time, &loser_time));
+    assert!(!SettingsState::wins(&loser_time, &by_time));
 }
 
 #[test]
@@ -155,8 +205,21 @@ fn corrected_time_clamps_to_the_received_instant() {
         corrected_time(edited, -700, received),
         EPOCH.saturating_add(300)
     );
-    let early = TimestampMs::from_millis(EPOCH + 100);
+    let early = TimestampMs::from_millis(EPOCH.saturating_add(100));
     assert_eq!(corrected_time(early, -100, received), EPOCH);
+    assert_eq!(
+        corrected_time(early, -500_000, received),
+        EPOCH.saturating_add(100).saturating_sub(500_000)
+    );
+    assert_eq!(
+        corrected_time(TimestampMs::from_millis(100), -500_000, received),
+        0
+    );
+    let future = TimestampMs::from_millis(u64::MAX);
+    assert_eq!(
+        corrected_time(future, 1, received),
+        EPOCH.saturating_add(500)
+    );
 }
 
 proptest! {
@@ -169,6 +232,7 @@ proptest! {
         state.apply_all(&edits);
         let expected = expected_values(&edits);
         prop_assert!(!expected.is_empty());
+        prop_assert!(list_key_count(&expected) >= 4, "keys {:?}", expected.keys().collect::<Vec<_>>());
         for (key, want) in &expected {
             prop_assert_eq!(state.value_of(key), Some(want.clone()), "key {}", key.clone());
         }
@@ -192,13 +256,15 @@ proptest! {
                     sent.push(e.clone());
                 }
             }
-            sent.extend(edits.iter().cloned());
             state.apply_all(&sent);
         }
         let expected = expected_values(&edits);
         prop_assert!(!expected.is_empty());
-        for (key, want) in &expected {
-            prop_assert_eq!(states[0].value_of(key), Some(want.clone()), "key {}", key.clone());
+        prop_assert!(list_key_count(&expected) >= 4);
+        for state in &states {
+            for (key, want) in &expected {
+                prop_assert_eq!(state.value_of(key), Some(want.clone()), "key {}", key.clone());
+            }
         }
         prop_assert!(agreed(&states));
     }
