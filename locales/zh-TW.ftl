@@ -62,3 +62,4 @@ model-handoff-fallback = 備用：{ $kind }
 model-handoff-unreachable = 連不到
 push-payload-short = web-push 載 payload 太短，缺少 salt 前段
 push-key-base64 = web-push 訂閱金鑰不是有效的 base64
+turn-program-note = 程式整理的，不是使用者說的。

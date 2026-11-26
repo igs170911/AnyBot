@@ -67,6 +67,7 @@ pub enum MessageCode {
     ModelHandoffUnreachable,
     PushPayloadShort,
     PushKeyBase64,
+    TurnProgramNote,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -192,6 +193,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     ),
     (MessageCode::PushPayloadShort, "push-payload-short"),
     (MessageCode::PushKeyBase64, "push-key-base64"),
+    (MessageCode::TurnProgramNote, "turn-program-note"),
 ];
 
 impl MessageCode {

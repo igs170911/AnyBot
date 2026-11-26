@@ -63,7 +63,8 @@ export type MessageCode =
   "model-handoff-fallback" |
   "model-handoff-unreachable" |
   "push-payload-short" |
-  "push-key-base64";
+  "push-key-base64" |
+  "turn-program-note";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -129,4 +130,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-handoff-unreachable",
   "push-payload-short",
   "push-key-base64",
+  "turn-program-note",
 ];

@@ -61,3 +61,4 @@ model-handoff-fallback = Switched to the fallback because of { $kind }.
 model-handoff-unreachable = Switched because the model could not be reached.
 push-payload-short = The web-push payload is too short to contain its salt
 push-key-base64 = The web-push subscription key is not valid base64
+turn-program-note = Program note, not something the user said.

@@ -4,6 +4,7 @@ use anybot_foundation::MessageRef;
 use anybot_models::{Capability, Role, ThinkingMode, ToolSpec, TurnRequest};
 
 use crate::input::ModelPlan;
+use crate::output_turn;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -59,28 +60,22 @@ pub struct CompiledRequest {
 }
 
 impl CompiledRequest {
-    #[must_use]
     pub fn to_turn_request(
         &self,
         tools: Vec<ToolSpec>,
         thinking: ThinkingMode,
         max_output_tokens: Option<u64>,
-    ) -> TurnRequest {
-        TurnRequest {
-            system: self.system.clone(),
-            messages: self
-                .blocks
-                .iter()
-                .filter(|b| b.kind != BlockKind::System)
-                .map(block_message)
-                .collect(),
+    ) -> Result<TurnRequest, anybot_foundation::FoundationError> {
+        Ok(TurnRequest {
+            system: output_turn::join_system(self),
+            messages: output_turn::turn_messages(self)?,
             tools,
             thinking,
             max_output_tokens,
             attachments: Vec::new(),
             cache_prefix: true,
             estimate_override: None,
-        }
+        })
     }
 
     #[must_use]
@@ -96,72 +91,11 @@ impl CompiledRequest {
 impl BlockKind {
     #[must_use]
     pub fn role(self) -> Role {
-        block_role(self)
+        output_turn::block_role(self)
     }
 }
 
-#[must_use]
-fn block_message(block: &Block) -> anybot_models::Message {
-    anybot_models::Message {
-        role: block.kind.role(),
-        text: block.text.clone(),
-        tool_calls: intent_calls(block),
-        tool_call_id: result_call_id(block),
-    }
-}
-
-fn intent_calls(block: &Block) -> Vec<anybot_models::ToolCall> {
-    if block.kind != BlockKind::ToolIntent {
-        return Vec::new();
-    }
-    let (Some(id), Some(name), Some(arguments)) = (
-        block.call_id.clone(),
-        block.tool_name.clone(),
-        block.arguments.clone(),
-    ) else {
-        return Vec::new();
-    };
-    vec![anybot_models::ToolCall {
-        id,
-        name,
-        arguments: anybot_models::ToolArguments::Json(arguments),
-    }]
-}
-
-fn result_call_id(block: &Block) -> Option<String> {
-    if !matches!(
-        block.kind,
-        BlockKind::ToolResultFull | BlockKind::ToolResultMasked | BlockKind::ToolResultDuplicate
-    ) {
-        return None;
-    }
-    block.call_id.clone()
-}
-
-#[must_use]
-fn block_role(kind: BlockKind) -> Role {
-    match kind {
-        BlockKind::UserText
-        | BlockKind::UserRef
-        | BlockKind::PriorChatFull
-        | BlockKind::PriorChatRef => Role::User,
-        BlockKind::ToolResultFull
-        | BlockKind::ToolResultMasked
-        | BlockKind::ToolResultDuplicate => Role::Tool,
-        BlockKind::ToolIntent
-        | BlockKind::System
-        | BlockKind::ToolDoc
-        | BlockKind::Pinned
-        | BlockKind::BotText
-        | BlockKind::Constraint
-        | BlockKind::Criterion
-        | BlockKind::CurrentStep
-        | BlockKind::OpenQuestion
-        | BlockKind::PendingAction
-        | BlockKind::StateSummary
-        | BlockKind::Memory => Role::Assistant,
-    }
-}
+pub const CODE_TURN_PROGRAM_NOTE: &str = "turn-program-note";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

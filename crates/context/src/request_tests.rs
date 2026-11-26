@@ -14,16 +14,10 @@ fn turn_request_carries_plan_fields() {
             description: "read a record".to_owned(),
             parameters: serde_json::Value::Null,
         }];
-        let turn = request.to_turn_request(tools.clone(), ThinkingMode::Auto, Some(1_024));
-        assert_eq!(turn.system, request.system);
-        assert_eq!(
-            turn.messages.len(),
-            request
-                .blocks
-                .iter()
-                .filter(|b| b.kind != BlockKind::System)
-                .count(),
-        );
+        let turn = request
+            .to_turn_request(tools.clone(), ThinkingMode::Auto, Some(1_024))
+            .unwrap();
+        assert!(turn.system.starts_with(&request.system));
         assert_eq!(turn.tools, tools);
         assert_eq!(turn.max_output_tokens, Some(1_024));
         assert_eq!(turn.thinking, ThinkingMode::Auto);
@@ -49,9 +43,9 @@ fn sample_turn() -> anybot_models::TurnRequest {
     grep.arguments = serde_json::json!({ "pattern": "tool" });
     base.steps = vec![read, grep];
     match compile(&base).unwrap() {
-        Compiled::Sent { request, .. } => {
-            request.to_turn_request(Vec::new(), ThinkingMode::Auto, None)
-        }
+        Compiled::Sent { request, .. } => request
+            .to_turn_request(Vec::new(), ThinkingMode::Auto, None)
+            .expect("paired"),
         Compiled::Insufficient(_) => panic!("expected sent"),
     }
 }
@@ -113,7 +107,9 @@ fn intent_and_result_share_one_call_id() {
     base.steps = vec![sup::step_len(0, 400, "r0")];
     let compiled = compile(&base).unwrap();
     if let Compiled::Sent { request, .. } = compiled {
-        let turn = request.to_turn_request(Vec::new(), ThinkingMode::Auto, None);
+        let turn = request
+            .to_turn_request(Vec::new(), ThinkingMode::Auto, None)
+            .expect("paired");
         let intent = turn
             .messages
             .iter()
@@ -139,8 +135,10 @@ fn system_prompt_appears_once() {
     base.system_prompt = "ONLY-SYSTEM-TEXT".to_owned();
     let compiled = compile(&base).unwrap();
     if let Compiled::Sent { request, .. } = compiled {
-        let turn = request.to_turn_request(Vec::new(), ThinkingMode::Auto, None);
-        assert_eq!(turn.system, "ONLY-SYSTEM-TEXT");
+        let turn = request
+            .to_turn_request(Vec::new(), ThinkingMode::Auto, None)
+            .expect("system");
+        assert!(turn.system.starts_with("ONLY-SYSTEM-TEXT"));
         let hits = turn
             .messages
             .iter()

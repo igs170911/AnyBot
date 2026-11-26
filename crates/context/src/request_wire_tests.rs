@@ -14,6 +14,12 @@ const ARGS_GREP: &str = r#"{"pattern":"tool"}"#;
 
 fn sample_turn() -> anybot_models::TurnRequest {
     let mut base = sup::base_input();
+    base.events = vec![sup::known(
+        1,
+        anybot_protocol::KnownTaskEventKind::TaskCreated {
+            goal: "SHIP-MARK".to_owned(),
+        },
+    )];
     let mut read = sup::step_len(0, 40, "r0");
     read.tool = "read_file".to_owned();
     read.arguments = serde_json::json!({ "path": "src/lib.rs" });
@@ -22,9 +28,9 @@ fn sample_turn() -> anybot_models::TurnRequest {
     grep.arguments = serde_json::json!({ "pattern": "tool" });
     base.steps = vec![read, grep];
     match compile(&base).unwrap() {
-        Compiled::Sent { request, .. } => {
-            request.to_turn_request(Vec::new(), ThinkingMode::Auto, None)
-        }
+        Compiled::Sent { request, .. } => request
+            .to_turn_request(Vec::new(), ThinkingMode::Auto, None)
+            .unwrap(),
         Compiled::Insufficient(_) => panic!("expected sent"),
     }
 }
@@ -42,6 +48,26 @@ async fn gateway_openai_and_claude_keep_tool_pairs() {
     .await;
     assert_openai_pairs(&openai);
     assert_claude_pairs(&claude);
+    assert!(openai.contains("\"role\":\"user\""));
+    assert!(openai.contains("turn-program-note"));
+    assert!(openai.contains("SHIP-MARK"));
+    assert!(claude.contains("\"role\":\"user\""));
+    assert!(claude.contains("turn-program-note"));
+    assert!(claude.contains("SHIP-MARK"));
+    assert!(last_is_user_or_tool(&openai));
+    assert!(last_is_user_or_tool(&claude));
+}
+
+fn last_is_user_or_tool(body: &str) -> bool {
+    let value: serde_json::Value = serde_json::from_str(body).expect("wire json");
+    matches!(
+        value
+            .get("messages")
+            .and_then(|m| m.as_array())
+            .and_then(|m| m.last())
+            .and_then(role_of),
+        Some("user" | "tool")
+    )
 }
 
 async fn recorded_body(

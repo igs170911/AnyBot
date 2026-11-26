@@ -17,6 +17,7 @@ pub mod input;
 pub mod mask;
 pub mod numbers;
 pub mod output;
+mod output_turn;
 pub mod read;
 pub mod state;
 pub mod state_render;
@@ -41,9 +42,9 @@ pub use numbers::{
     K114_6_MEMORY_MIN_KEEP, K114_7_STATE_MAX_TOKENS, milli_of,
 };
 pub use output::{
-    Block, BlockForm, BlockKind, CollapseReason, Compiled, CompiledRequest, ExcludedReason,
-    Insufficient, Manifest, ManifestBudget, ManifestEntry, ManifestExcluded, ManifestModel,
-    NewEvent, manifest_model,
+    Block, BlockForm, BlockKind, CODE_TURN_PROGRAM_NOTE, CollapseReason, Compiled, CompiledRequest,
+    ExcludedReason, Insufficient, Manifest, ManifestBudget, ManifestEntry, ManifestExcluded,
+    ManifestModel, NewEvent, manifest_model,
 };
 pub use state::build_state;
 pub use state_render::{StateSummary, fit_summary};
@@ -92,6 +93,9 @@ mod mask_pair_tests;
 #[cfg(test)]
 #[path = "mask_tests.rs"]
 mod mask_tests;
+#[cfg(test)]
+#[path = "request_role_tests.rs"]
+mod request_role_tests;
 #[cfg(test)]
 #[path = "request_tests.rs"]
 mod request_tests;
