@@ -106,12 +106,24 @@ impl ModelResultView for ActionView {
     }
 
     fn rejection_text(&self, gate: &GateRecord, params: &[(String, String)]) -> OutcomeText {
+        if let Some(code) = floor_rule_code(&gate.rule) {
+            return OutcomeText::of(code, params.to_vec());
+        }
         let mut all = vec![
             ("computer".to_owned(), self.computer.clone()),
             ("rule".to_owned(), gate.rule.clone()),
         ];
         all.extend(params.iter().map(|(k, v)| (k.clone(), v.clone())));
         OutcomeText::of("gate-denied", all)
+    }
+}
+
+fn floor_rule_code(rule: &str) -> Option<&'static str> {
+    match rule {
+        "sandbox-deny" => Some("gate-command-denied"),
+        "private-file" => Some("gate-private-file"),
+        "bot-machine-outside" => Some("gate-bot-machine-outside"),
+        _ => None,
     }
 }
 

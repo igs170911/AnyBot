@@ -29,7 +29,7 @@ pub(crate) async fn build_input(
         events,
         user_turns: user_turns_of(&stored, &ctx.task),
         bot_turns: bot_turns_of(&stored, &ctx.task),
-        steps: crate::context_steps::steps_of(&stored, &ctx.task, runner.lang)?,
+        steps: crate::context_denied::steps_of(&stored, &ctx.task, runner.lang)?,
         constraints: Vec::new(),
         open_questions: Vec::new(),
         tool_specs: runner.tools.clone(),

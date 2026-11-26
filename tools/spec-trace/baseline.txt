@@ -794,7 +794,6 @@ T-computer-caps-5
 T-computer-caps-6
 T-computer-caps-7
 T-computer-ops-1
-T-computer-ops-2
 T-computer-ops-3
 T-computer-ops-4
 T-computer-ops-5
@@ -981,7 +980,6 @@ T-context-budget-4
 T-context-budget-5
 T-context-build-2
 T-context-build-3
-T-context-build-4
 T-context-fixed-1
 T-context-fixed-2
 T-context-manifest-1
@@ -1002,7 +1000,6 @@ T-context-ref-1
 T-context-ref-2
 T-context-ref-3
 T-context-state-1
-T-context-state-2
 T-context-state-3
 T-context-state-4
 T-deliver-confirm-1
@@ -1066,8 +1063,6 @@ T-files-edit-3
 T-files-edit-4
 T-files-edit-5
 T-files-edit-6
-T-files-edit-7
-T-files-edit-8
 T-files-edit-9
 T-files-monitor-1
 T-files-monitor-10
@@ -1090,7 +1085,6 @@ T-files-n1-6
 T-files-n1-7
 T-files-n1-8
 T-files-n2-1
-T-files-n2-2
 T-files-n2-3
 T-files-n2-4
 T-files-n2-5
@@ -1110,7 +1104,6 @@ T-files-rewind-9
 T-files-shell-1
 T-files-shell-2
 T-files-shell-3
-T-files-shell-4
 T-files-shell-5
 T-files-shell-6
 T-files-shell-8
@@ -1931,7 +1924,6 @@ T-safety-timeout-5
 T-safety-timeout-6
 T-safety-timeout-7
 T-safety-timeout-8
-T-sandbox-deny-3
 T-sandbox-deny-4
 T-sandbox-exec-1
 T-sandbox-exec-2
@@ -1940,7 +1932,6 @@ T-sandbox-exec-4
 T-sandbox-exec-5
 T-sandbox-levels-2
 T-sandbox-levels-3
-T-sandbox-levels-4
 T-sandbox-n1-1
 T-sandbox-n1-2
 T-sandbox-n2-1
@@ -2468,7 +2459,6 @@ T-team-teach-3
 T-trust-floor-1
 T-trust-floor-2
 T-trust-floor-3
-T-trust-pipeline-1
 T-trust-pipeline-2
 T-trust-pipeline-3
 T-trust-pipeline-4
@@ -2486,7 +2476,6 @@ T-trust-promises-6
 T-trust-promises-7
 T-trust-promises-8
 T-trust-promises-9
-T-trust-verify-1
 T-trust-verify-2
 T-trust-verify-3
 T-trust-verify-4
@@ -2494,14 +2483,12 @@ T-trust-verify-5
 T-trust-verify-6
 T-trust-verify-7
 T-trust-verify-8
-T-turn-loop-1
 T-turn-loop-10
 T-turn-loop-12
 T-turn-loop-13
 T-turn-loop-14
 T-turn-loop-15
 T-turn-loop-2
-T-turn-loop-3
 T-turn-loop-4
 T-turn-loop-5
 T-turn-loop-6

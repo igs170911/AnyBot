@@ -1,14 +1,15 @@
 use std::collections::BTreeMap;
 
-use anybot_context::{StepOutcomeKind, StepRecord};
+use anybot_context::StepOutcomeKind;
 use anybot_foundation::{CallId, TaskId};
-use anybot_protocol::{KnownTaskEventKind, ToolArgs};
+use anybot_protocol::{GateNo, KnownTaskEventKind, ReasonPayload};
 
+use crate::context_denied::{CallResult, denied_text, not_run_word};
 use crate::context_input::{known_of, row_event_id};
 use crate::error::TurnError;
 use crate::record::Stored;
 
-fn results_of(
+pub(crate) fn results_of(
     stored: &[Stored],
     task: &TaskId,
     lang: anybot_messages::Lang,
@@ -16,6 +17,8 @@ fn results_of(
     let mut map: BTreeMap<CallId, CallResult> = BTreeMap::new();
     let mut pool: BTreeMap<anybot_foundation::EvidenceId, anybot_protocol::EvidenceRecord> =
         BTreeMap::new();
+    let mut gates: Vec<(GateNo, ReasonPayload)> = Vec::new();
+    let mut rows: Vec<(&Stored, KnownTaskEventKind, anybot_foundation::EventId)> = Vec::new();
     for row in stored {
         let Some(kind) = known_of(row, task) else {
             continue;
@@ -23,7 +26,19 @@ fn results_of(
         let Some(event_id) = row_event_id(row) else {
             continue;
         };
-        apply_row(&mut map, &mut pool, kind, row.stream_seq, event_id, lang);
+        crate::context_denied::collect_gate(&mut gates, kind);
+        rows.push((row, kind.clone(), event_id));
+    }
+    for (row, kind, event_id) in rows {
+        apply_row(
+            &mut map,
+            &mut pool,
+            &gates,
+            &kind,
+            row.stream_seq,
+            event_id,
+            lang,
+        );
     }
     map
 }
@@ -31,12 +46,13 @@ fn results_of(
 fn apply_row(
     map: &mut BTreeMap<CallId, CallResult>,
     pool: &mut BTreeMap<anybot_foundation::EvidenceId, anybot_protocol::EvidenceRecord>,
+    gates: &[(GateNo, ReasonPayload)],
     kind: &KnownTaskEventKind,
     seq: u64,
     event_id: anybot_foundation::EventId,
     lang: anybot_messages::Lang,
 ) {
-    if let Ok(Some(entry)) = result_entry(kind, seq, event_id, lang) {
+    if let Ok(Some(entry)) = result_entry(kind, seq, event_id, lang, gates) {
         map.insert(entry.0, entry.1);
         return;
     }
@@ -59,18 +75,13 @@ fn result_entry(
     seq: u64,
     event_id: anybot_foundation::EventId,
     lang: anybot_messages::Lang,
+    gates: &[(GateNo, ReasonPayload)],
 ) -> Result<Option<(CallId, CallResult)>, TurnError> {
     if let KnownTaskEventKind::GateResult { call_id, gate } = kind {
         if gate.outcome != anybot_protocol::GateOutcome::Deny {
             return Ok(None);
         }
-        let text = crate::view::render_text(
-            lang,
-            &anybot_trust::OutcomeText::of(
-                "gate-denied-by-rule",
-                vec![("rule".to_owned(), gate.rule.clone())],
-            ),
-        )?;
+        let text = denied_text(lang, gate, gates)?;
         let found = CallResult::of(seq, event_id, StepOutcomeKind::Completed, text);
         return Ok(Some((*call_id, found)));
     }
@@ -97,44 +108,6 @@ fn result_entry(
     Ok(None)
 }
 
-struct CallResult {
-    seq: u64,
-    event_id: anybot_foundation::EventId,
-    outcome: StepOutcomeKind,
-    text: String,
-    records: Vec<anybot_protocol::EvidenceRecord>,
-}
-
-impl CallResult {
-    fn of(
-        seq: u64,
-        event_id: anybot_foundation::EventId,
-        outcome: StepOutcomeKind,
-        text: String,
-    ) -> Self {
-        CallResult {
-            seq,
-            event_id,
-            outcome,
-            text,
-            records: Vec::new(),
-        }
-    }
-
-    fn exit_code(&self) -> Option<i64> {
-        for record in &self.records {
-            if let anybot_protocol::EvidencePayload::Executed {
-                exit_code: Some(code),
-                ..
-            } = &record.payload
-            {
-                return Some(i64::from(*code));
-            }
-        }
-        None
-    }
-}
-
 fn attach_verified(
     map: &mut BTreeMap<CallId, CallResult>,
     pool: &BTreeMap<anybot_foundation::EvidenceId, anybot_protocol::EvidenceRecord>,
@@ -147,108 +120,5 @@ fn attach_verified(
                 entry.records.push(record.clone());
             }
         }
-    }
-}
-
-fn not_run_word(reason: anybot_protocol::NotRunReason) -> String {
-    match reason {
-        anybot_protocol::NotRunReason::NotWired => "not-wired".to_owned(),
-        anybot_protocol::NotRunReason::OverBudget => "over-budget".to_owned(),
-        anybot_protocol::NotRunReason::PreviousRefused => "previous-refused".to_owned(),
-        anybot_protocol::NotRunReason::Stopped => "stopped".to_owned(),
-        anybot_protocol::NotRunReason::ComputerOffline => "computer-unreachable".to_owned(),
-    }
-}
-
-fn answers_of(stored: &[Stored], task: &TaskId) -> Vec<Vec<ToolArgsPair>> {
-    stored
-        .iter()
-        .filter_map(|row| match known_of(row, task) {
-            Some(KnownTaskEventKind::ModelAnswer { tool_requests, .. }) => Some(
-                tool_requests
-                    .iter()
-                    .map(|r| ToolArgsPair {
-                        call_id: r.call_id,
-                        tool: r.tool.clone(),
-                        arguments: r.arguments.clone(),
-                    })
-                    .collect(),
-            ),
-            Some(_) | None => None,
-        })
-        .collect()
-}
-
-struct ToolArgsPair {
-    call_id: CallId,
-    tool: String,
-    arguments: ToolArgs,
-}
-
-pub(crate) fn steps_of(
-    stored: &[Stored],
-    task: &TaskId,
-    lang: anybot_messages::Lang,
-) -> Result<Vec<StepRecord>, TurnError> {
-    let results = results_of(stored, task, lang);
-    let mut steps: Vec<StepRecord> = Vec::new();
-    for answer in answers_of(stored, task) {
-        for request in answer {
-            let Some(found) = results.get(&request.call_id) else {
-                return Err(TurnError::UnpairedToolRequest {
-                    call_id: request.call_id,
-                });
-            };
-            steps.push(step_record_of(lang, &request, found)?);
-        }
-    }
-    Ok(steps)
-}
-
-fn step_record_of(
-    lang: anybot_messages::Lang,
-    request: &ToolArgsPair,
-    found: &CallResult,
-) -> Result<StepRecord, TurnError> {
-    let (summary, value) = args_text(&request.arguments)?;
-    let content = if found.outcome == StepOutcomeKind::Unknown {
-        crate::view::render_text(
-            lang,
-            &anybot_trust::OutcomeText::of(
-                "turn-not-executed",
-                vec![("reason".to_owned(), found.text.clone())],
-            ),
-        )?
-    } else {
-        found.text.clone()
-    };
-    Ok(StepRecord {
-        seq: found.seq,
-        call_id: request.call_id,
-        tool: request.tool.clone(),
-        args_summary: summary,
-        arguments: value,
-        level: level_of(&request.tool),
-        unconfirmed: false,
-        outcome: found.outcome,
-        source_ref: found.event_id.as_str(),
-        content,
-        exit_code: found.exit_code(),
-        error_at: Vec::new(),
-    })
-}
-
-fn level_of(tool: &str) -> anybot_protocol::ToolEffect {
-    match anybot_tools::level_of(tool) {
-        anybot_tools::ToolLevel::ReadOnly => anybot_protocol::ToolEffect::ReadOnly,
-        anybot_tools::ToolLevel::Reversible => anybot_protocol::ToolEffect::Repeatable,
-        anybot_tools::ToolLevel::Irreversible => anybot_protocol::ToolEffect::Irreversible,
-    }
-}
-
-fn args_text(args: &ToolArgs) -> Result<(String, serde_json::Value), TurnError> {
-    match args {
-        ToolArgs::Json { value } => Ok((serde_json::to_string(value)?, value.clone())),
-        ToolArgs::Broken { raw } => Ok((raw.clone(), serde_json::Value::String(raw.clone()))),
     }
 }
