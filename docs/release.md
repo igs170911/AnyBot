@@ -19,11 +19,15 @@
 
 `dev` 推上去之後，`ci.yml` 先跑 Linux 的 `check`、Windows、macOS 基本測試。三個都綠，才呼叫 `release.yml` 開始打包、發佈。有一個紅，就不打包、不發佈。這是一條看得出先後的流程，不是平行跑完再去問結果。
 
-全綠之後：
+全綠之後，發佈工作進自己的排隊位置，動手之前再查一次：這次必須仍是 `dev` 的最新 commit。舊的那次重跑、或兩次建置先後顛倒，到這裡就停，不改頁面、不移標籤、不移映像。
 
-1. 把 `dev-build` 這個標籤移到這次的 commit。標籤會被移動，不是新標籤。
-2. 刪掉舊的那一頁，再建同一個 `dev-build` 預先發佈頁，把這次的安裝檔整頁換上去。舊檔不留。
-3. 把伺服器映像推到 `ghcr.io/` 加上這個 repo 的名稱（轉成小寫），標 `dev` 和該 commit 的 12 字雜湊。名稱不寫死帳號。
+順序是：
+
+1. 把各架構的映像推上去，組成 `dev-<commit>` 這個索引。這一步不移 `:dev`。
+2. 先把新的完整頁面建成另一個草稿，全部上傳成功後才換成看得到的 `dev-build` 頁。換到一半失敗，看得到的仍是完整的舊頁。
+3. 頁面換成功之後，才把 `dev-build` 標籤移到這次的 commit，然後才把映像的 `:dev` 移到 `dev-<commit>`。頁面失敗，`:dev` 不動。
+
+開發版和正式版不共用排隊位置，也不共用任何映像標籤。正式版用版本號和 12 字 commit；開發版用 `:dev` 和 `dev-` 開頭的名字。名稱不寫死帳號。
 
 頁面在：
 
@@ -39,8 +43,8 @@ https://github.com/igs170911/AnyBot/releases/tag/dev-build
 
 1. 確認 `dev` 全綠，而且 `main` 已經停在同一個 commit。
 2. 確認三處版本號一致：`Cargo.toml` 的 `[workspace.package]`、`apps/desktop/src-tauri/tauri.conf.json`、`apps/desktop/package.json`、根目錄 `package.json`。`make check` 裡的 `versions` 關卡平常就擋不一致。
-3. 在那個 commit 上打標籤，形狀是 `v0.1.0`，或預先發佈 `v0.1.0-rc.1`。標籤必須在 `main` 上，而且那個 commit 的 `check` 是綠的。不過就整個停下，不發佈。
-4. 推標籤。`release.yml` 先確認那個 commit 有名稱是 `check`、結論是成功的 check run（GitHub Actions 的工作不會寫 commit status）。對了才編安裝檔和伺服器映像，建 **Release 草稿**。`-rc.N` 標成預先發佈。
+3. 在那個 commit 上打標籤，形狀是 `v0.1.0`，或預先發佈 `v0.1.0-rc.1`。標籤必須在 `main` 上，而且 CI 在 `main` 上對這個 commit 的 Linux、Windows、macOS 三個工作都是成功。只綠 Linux、或只綠別的工作流程，都不發佈。
+4. 推標籤。`release.yml` 先確認上面那三個工作。對了才編安裝檔和伺服器映像，建 **Release 草稿**。`-rc.N` 標成預先發佈。
 5. 打開草稿，對 `SHA256SUMS`，看說明裡的放行步驟還在，再公開。
 6. 公開之後（不是草稿、不是 `-rc`），同一個工作流程把映像的 `latest` 移到這個版本。
 
@@ -56,8 +60,8 @@ https://github.com/igs170911/AnyBot/releases/tag/dev-build
 
 開發版：
 
-- 安裝檔：下一次 `dev` 全綠會把固定的那一頁整個換掉，並把 `dev-build` 標籤移到新的 commit。要立刻拿掉，在 GitHub 刪除 `dev-build` 這個 Release（標籤留著也沒有檔案可下）。
-- 映像：`dev` 標籤指到壞的那次時，在確認好的舊 commit 上重跑，或等下一次綠的 `dev` 蓋過。不要刪除別人還在用的短雜湊標籤。
+- 安裝檔：下一次 `dev` 的最新 commit 全綠，會先建成完整的新頁，再換掉看得到的那一頁，然後才移 `dev-build`。要立刻拿掉，在 GitHub 刪除 `dev-build` 這個 Release（標籤留著也沒有檔案可下）。
+- 映像：不要重跑舊 commit。guard 只接受當時 `dev` 的最新 commit，舊的那次重跑會被拒絕。要蓋過 `:dev`，在要的那個 commit 上再推一次 `dev`（它必須變成最新），等三個系統都綠。不要刪除別人還在用的 `dev-<commit>` 標籤。
 
 正式版：
 

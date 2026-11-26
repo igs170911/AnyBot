@@ -224,6 +224,16 @@ fn test_workflows_gate_blocks_branch_name_in_run_script() {
 }
 
 #[test]
+fn test_workflows_gate_blocks_bracket_ref_and_event_json() {
+    let repo = scratch_repo("iron-workflows-bracket");
+    let body = "name: CI\non:\n  push:\npermissions:\n  contents: read\njobs:\n  check:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n      - run: echo ${{ github['ref'] }}\n      - run: echo ${{ toJSON(github.event) }}\n      - run: echo ${{ github.event.issue.body }}\n";
+    write_workflow(&repo, body);
+    let v = violations(&repo);
+    assert!(v.len() >= 3, "{v:?}");
+    assert!(std::fs::remove_file(repo.join(WORKFLOWS_REL).join("ci.yml")).is_ok());
+}
+
+#[test]
 fn test_workflows_gate_accepts_event_text_passed_through_env() {
     let repo = scratch_repo("iron-workflows-env");
     let body = "name: CI\non:\n  push:\npermissions:\n  contents: read\njobs:\n  check:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n      - env:\n          TITLE: ${{ github.event.pull_request.title }}\n        run: echo \"$TITLE\"\n";

@@ -20,6 +20,7 @@ pub mod redocly;
 pub mod suppressions;
 pub mod table;
 pub mod windows_lists;
+pub mod workflow_needles;
 pub mod workflow_runners;
 pub mod workflows;
 

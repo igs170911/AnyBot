@@ -39,6 +39,7 @@ jobs:
         with:
           # the spec-trace baseline compare and gitleaks need the full history.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: spec-trace baseline ref
         env:
@@ -179,7 +180,7 @@ jobs:
             librsvg2-dev
 
       - name: pnpm
-        run: sudo sh tools/install-pnpm.sh
+        run: sh tools/install-pnpm.sh
 
       - name: install the web workspace
         run: pnpm install --frozen-lockfile
@@ -224,6 +225,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: cache rust toolchains and cargo downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -336,6 +339,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: cache rust toolchains and cargo downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

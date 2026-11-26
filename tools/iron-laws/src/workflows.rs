@@ -218,32 +218,7 @@ fn script_injection_violations(
 }
 
 fn script_embeds_event_text(script: &str) -> bool {
-    const NEEDLES: [&str; 14] = [
-        "github.event.pull_request.title",
-        "github.event.pull_request.body",
-        "github.event.comment.body",
-        "github.event.issue.title",
-        "github.event.head_commit.message",
-        "github.head_ref",
-        "github.event.pull_request.head.ref",
-        "github.ref_name",
-        "github.event.ref",
-        "github.event.release.tag_name",
-        "github.event.workflow_dispatch.inputs",
-        "github.event.inputs",
-        "inputs.",
-        "github.event.workflow_call.inputs",
-    ];
-    for chunk in script.split("${{") {
-        let Some(expr) = chunk.split("}}").next() else {
-            continue;
-        };
-        let compact = expr.split_whitespace().collect::<String>();
-        if NEEDLES.iter().any(|needle| compact.contains(needle)) {
-            return true;
-        }
-    }
-    false
+    crate::workflow_needles::embeds_event_text(script)
 }
 
 #[must_use]

@@ -14,12 +14,15 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: wiki-${{ github.workflow }}
-  cancel-in-progress: true
+# Concurrency stays on the job. A workflow-level group would cancel a main
+# publish when a manual run starts from another ref, even if that job is skipped.
+# https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency
 
 jobs:
   publish:
+    concurrency:
+      group: wiki-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: false
     # A manual run from a work branch would replace the whole wiki from that branch.
     # Push already only fires on main. A manual run must be on main too.
     if: github.ref == 'refs/heads/main'
