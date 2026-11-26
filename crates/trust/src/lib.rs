@@ -75,7 +75,10 @@ pub use message_codes::{
     CODE_TURN_REJECTED, CODE_TURN_TOOL_FAILED, all_codes,
 };
 pub use op_ticket::{OpKind, OpTicket};
-pub use pipeline::{ActionRequest, AskTicket, GateAnswer, RequestedAction, answer_ask, run_action};
+pub use pipeline::{
+    ActionRequest, AskTicket, GateAnswer, GateStep, RequestedAction, answer_ask, ask_declined_run,
+    exec_step, gate_step, run_action,
+};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
 pub use runner::{GatedComputer, OpRejection, OpRejectionKind};
 pub use safety_always::{ActionSpec, concrete_actions};

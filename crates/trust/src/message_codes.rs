@@ -7,6 +7,7 @@ pub const CODE_GATE_DENIED_BY_RULE: &str = "gate-denied-by-rule";
 pub const CODE_GATE_DENIED: &str = "gate-denied";
 pub const CODE_GATE_USER_REJECTED: &str = "gate-user-rejected";
 pub const CODE_GATE_ASK_PENDING: &str = "gate-ask-pending";
+pub const CODE_GATE_ASK_UNAVAILABLE: &str = "gate-ask-unavailable";
 pub const CODE_GATE_TICKET_MISMATCH: &str = "gate-ticket-mismatch";
 pub const CODE_GATE_ASK_COMPUTER_MISMATCH: &str = "gate-ask-computer-mismatch";
 pub const CODE_TURN_COMPLETED: &str = "turn-completed";
