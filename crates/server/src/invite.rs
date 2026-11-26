@@ -12,7 +12,7 @@ mod tests {
     use anybot_domain::is_valid_invite;
 
     #[test]
-    fn t_server_invite_2() {
+    fn drawn_codes_pass_the_product_shape_check() {
         for _round in 0..10_000 {
             let code = draw_invite().unwrap();
             assert!(is_valid_invite(&code), "bad shape: {code}");

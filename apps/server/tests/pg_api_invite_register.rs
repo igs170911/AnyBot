@@ -236,7 +236,7 @@ async fn register_rejects_a_one_character_name_a_space_and_a_short_password() ->
 }
 
 #[tokio::test]
-async fn t_account_login_1() -> Result<(), String> {
+async fn register_stores_the_normalized_account_name() -> Result<(), String> {
     let served = serve_start("t_account_login_1").await?;
     let invite = served
         .started

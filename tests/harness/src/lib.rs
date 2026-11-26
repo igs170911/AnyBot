@@ -12,6 +12,7 @@ use toml as _;
 use url as _;
 
 pub mod capture;
+
 pub mod cloud_map;
 pub mod fake_clock;
 pub mod fake_model;
@@ -94,7 +95,7 @@ pub use postgres::{
 };
 pub use push_crypto::{SubscriptionKeys, subscription_endpoint};
 pub use realtime::{sleep_real, timeout_real};
-pub use reap::{reap_except, reap_leftover_tools, write_tool_pid};
+pub use reap::{reap_except, reap_leftover_tools, remove_tool_pid, write_tool_pid};
 pub use running::Running;
 
 pub use scratch::{repo_root, test_dir, write_file_with_mode};

@@ -114,7 +114,7 @@ async fn t_server_n1_1() -> Result<(), String> {
 }
 
 #[tokio::test]
-async fn t_server_n1_2() -> Result<(), String> {
+async fn trusted_peer_counts_the_forwarded_address() -> Result<(), String> {
     let mut served = serve_start("t_server_n1_2").await?;
     boot_pair(&served).await?;
     set_trust(&mut served, "127.0.0.1").await?;
@@ -193,7 +193,7 @@ async fn t_safety_n11_1() -> Result<(), String> {
 }
 
 #[tokio::test]
-async fn t_safety_n11_2() -> Result<(), String> {
+async fn overlong_forwarded_value_counts_at_the_peer() -> Result<(), String> {
     let mut served = serve_start("t_safety_n11_2").await?;
     boot_pair(&served).await?;
     set_trust(&mut served, "127.0.0.1").await?;

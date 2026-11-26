@@ -22,7 +22,9 @@ use url as _;
 
 use std::path::PathBuf;
 
-use test_harness::{pg_start, pg_stop, reap_leftover_tools, test_dir, write_tool_pid};
+use test_harness::{
+    pg_start, pg_stop, reap_leftover_tools, remove_tool_pid, test_dir, write_tool_pid,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -30,7 +32,7 @@ async fn main() -> Result<(), String> {
     let label = argv.first().ok_or("missing data label")?;
     reap_leftover_tools()?;
     let dir = test_dir(label)?;
-    let _pid = write_tool_pid(&dir)?;
+    let pid_file = write_tool_pid(&dir)?;
     let instance = pg_start(&dir).await?;
     let port = instance.port();
     let mut stdout = std::io::stdout();
@@ -46,6 +48,7 @@ async fn main() -> Result<(), String> {
         format!("pg-hold stop signal failed: {err}")
     })?;
     pg_stop(&instance).await?;
+    remove_tool_pid(&pid_file)?;
     let _removed = std::fs::remove_dir_all(PathBuf::from(&dir));
     Ok(())
 }

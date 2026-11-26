@@ -73,7 +73,7 @@ fn invite_from_line(line: &str) -> Result<String, String> {
 }
 
 #[tokio::test]
-async fn t_account_n10_1() -> Result<(), String> {
+async fn password_change_rejects_a_short_new_password() -> Result<(), String> {
     let db = db_start("account_n10_1").await?;
     let outcome = run_n10_1(&db).await;
     let stopped = pg_stop(&db.pg).await;

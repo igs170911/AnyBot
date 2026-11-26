@@ -81,9 +81,13 @@ fn workspace_record(record: &Record) -> bool {
     if expected.as_os_str().is_empty() {
         return false;
     }
-    match live_exe(record.pid) {
-        Some(live) => resolved(&live) == resolved(expected),
-        None => true,
+    exe_still_matches(live_exe(record.pid).as_deref(), expected)
+}
+
+fn exe_still_matches(live: Option<&Path>, expected: &Path) -> bool {
+    match live {
+        Some(found) => resolved(found) == resolved(expected),
+        None => false,
     }
 }
 
@@ -131,12 +135,24 @@ fn process_alive(_pid: u32) -> bool {
 
 #[cfg(unix)]
 fn live_exe(pid: u32) -> Option<PathBuf> {
+    #[cfg(test)]
+    if lookup_fails() {
+        return None;
+    }
     let link = PathBuf::from(format!("/proc/{pid}/exe"));
     if let Ok(exe) = std::fs::read_link(&link) {
         return Some(exe);
     }
     lsof_field(pid, "txt")
 }
+
+#[cfg(test)]
+fn lookup_fails() -> bool {
+    LOOKUP_FAILS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+#[cfg(test)]
+static LOOKUP_FAILS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[cfg(not(unix))]
 fn live_exe(_pid: u32) -> Option<PathBuf> {
@@ -257,33 +273,17 @@ pub fn write_tool_pid(dir: &Path) -> Result<PathBuf, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+#[path = "reap_record.rs"]
+mod record_tests;
 
-    #[test]
-    fn reap_parse_record_rejects_blank_and_zero() {
-        assert!(parse_record("").is_none());
-        assert!(parse_record("0").is_none());
-        let parsed =
-            parse_record("42\n/work/m6a/target/debug/testenv\n/work/m6a\n").expect("record");
-        assert_eq!(parsed.pid, 42);
-        assert_eq!(
-            parsed.exe.as_deref(),
-            Some(Path::new("/work/m6a/target/debug/testenv"))
-        );
-        assert_eq!(parsed.workspace.as_deref(), Some(Path::new("/work/m6a")));
-    }
+#[cfg(test)]
+#[path = "reap_unread.rs"]
+mod unread_tests;
 
-    #[test]
-    fn reap_path_under_requires_the_workspace_prefix() {
-        let root = Path::new("/work/m6a");
-        assert!(path_under(
-            Path::new("/work/m6a/target/debug/testenv"),
-            root
-        ));
-        assert!(!path_under(
-            Path::new("/work/m7a/target/debug/testenv"),
-            root
-        ));
+pub fn remove_tool_pid(path: &Path) -> Result<(), String> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(format!("remove {} failed: {err}", path.display())),
     }
 }

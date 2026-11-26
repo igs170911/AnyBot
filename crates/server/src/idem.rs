@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn t_conn_post_1() {
+    fn digest_drops_the_password_field() {
         let with = br#"{"account":"bob","password":"secret12345"}"#;
         let without = br#"{"account":"bob"}"#;
         assert_eq!(safe_digest(with).unwrap(), safe_digest(without).unwrap());

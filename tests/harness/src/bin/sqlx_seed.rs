@@ -26,12 +26,14 @@ use std::path::PathBuf;
 
 use sqlx::migrate::Migrator;
 
-use test_harness::{pg_start, pg_stop, reap_leftover_tools, repo_root, test_dir, write_tool_pid};
+use test_harness::{
+    pg_start, pg_stop, reap_leftover_tools, remove_tool_pid, repo_root, test_dir, write_tool_pid,
+};
 
 async fn seed(url_file: &PathBuf, pid_file: &PathBuf) -> Result<(), String> {
     reap_leftover_tools()?;
     let dir = test_dir("sqlx_seed")?;
-    let _marker = write_tool_pid(&dir)?;
+    let marker = write_tool_pid(&dir)?;
     let pg = pg_start(&dir).await?;
     pg.create_database("anybot_prepare").await?;
     let url = pg.url_for("anybot_prepare");
@@ -44,7 +46,7 @@ async fn seed(url_file: &PathBuf, pid_file: &PathBuf) -> Result<(), String> {
     pool.close().await;
     std::fs::write(url_file, format!("{url}\n")).map_err(|e| e.to_string())?;
     std::fs::write(pid_file, format!("{}\n", std::process::id())).map_err(|e| e.to_string())?;
-    match listen_for_stop().await {
+    let stopped = match listen_for_stop().await {
         Ok(()) => pg_stop(&pg).await,
         Err(err) => {
             let mut stderr = std::io::stderr();
@@ -54,7 +56,9 @@ async fn seed(url_file: &PathBuf, pid_file: &PathBuf) -> Result<(), String> {
             );
             Err(format!("sqlx seed stop signal failed: {err}"))
         }
-    }
+    };
+    remove_tool_pid(&marker)?;
+    stopped
 }
 
 #[cfg(unix)]
