@@ -46,13 +46,17 @@ fn is_terminal(status: TaskStatus) -> bool {
 impl TaskView {
     #[must_use]
     pub fn over_budget(&self) -> bool {
-        self.budget.first_over().is_some()
+        self.budget.over.is_some()
     }
 
     pub fn set_over_budget_detail(&mut self) {
-        if let Some((item, used, limit)) = self.budget.first_over() {
+        if let Some(over) = &self.budget.over {
             self.status = TaskStatus::Stuck;
-            self.detail = Some(TaskDetail::OverBudget { item, used, limit });
+            self.detail = Some(TaskDetail::OverBudget {
+                item: over.item,
+                used: over.used,
+                limit: over.limit,
+            });
         }
     }
 }
@@ -60,6 +64,10 @@ impl TaskView {
 #[cfg(test)]
 #[path = "task_gate_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "task_gate_budget_tests.rs"]
+mod budget_tests;
 
 #[cfg(test)]
 #[path = "task_state_prop_tests.rs"]

@@ -1,6 +1,7 @@
-use anybot_protocol::{BudgetItem, TaskDetail, TaskStatus};
+use anybot_protocol::{BudgetItem, KnownTaskEventKind, TaskDetail, TaskStatus};
 
-use super::{BudgetState, initial_view};
+use super::initial_view;
+use crate::task_budget::{apply_limit, note_usage};
 
 #[test]
 fn test_view_initial_state_is_running_and_queued() {
@@ -12,17 +13,48 @@ fn test_view_initial_state_is_running_and_queued() {
 
 #[test]
 fn test_budget_limit_absence_means_no_cap() {
-    let budget = BudgetState::new();
-    assert!(budget.over_item(BudgetItem::Tokens).is_none());
-    assert!(budget.first_over().is_none());
+    let mut view = initial_view();
+    assert!(!view.budget.limits.contains_key(&BudgetItem::Tokens));
+    note_usage(&mut view, BudgetItem::Tokens, 10_000);
+    assert!(view.budget.over.is_none());
+    assert_eq!(view.status, TaskStatus::Running);
 }
 
 #[test]
 fn test_budget_usage_over_limit_reports_pair() {
-    let mut budget = BudgetState::new();
-    budget.limits.insert(BudgetItem::Tokens, 5);
-    budget.add_usage(BudgetItem::Tokens, 6);
-    assert_eq!(budget.over_item(BudgetItem::Tokens), Some((6, 5)));
+    let mut view = initial_view();
+    apply_limit(&mut view, BudgetItem::Tokens, 5);
+    note_usage(&mut view, BudgetItem::Tokens, 5);
+    assert!(view.budget.over.is_none());
+    note_usage(&mut view, BudgetItem::Tokens, 1);
+    assert_eq!(
+        view.budget.over,
+        Some(super::BudgetOver {
+            item: BudgetItem::Tokens,
+            used: 6,
+            limit: 5,
+        })
+    );
+    assert_eq!(view.status, TaskStatus::Stuck);
+}
+
+#[test]
+fn test_budget_attempt_at_cap_stops_new_action() {
+    let mut view = initial_view();
+    apply_limit(&mut view, BudgetItem::ToolCalls, 2);
+    note_usage(&mut view, BudgetItem::ToolCalls, 2);
+    assert_eq!(view.status, TaskStatus::Running);
+    crate::task_engine::advance(
+        &mut view,
+        &KnownTaskEventKind::ToolIntent {
+            call_id: anybot_foundation::CallId::generate(&anybot_foundation::SystemClock),
+            name: "n".to_owned(),
+            args_summary: "a".to_owned(),
+            level: anybot_protocol::ToolEffect::ReadOnly,
+        },
+    );
+    assert_eq!(view.status, TaskStatus::Stuck);
+    assert_eq!(view.budget.used(BudgetItem::ToolCalls), 2);
 }
 
 #[test]
