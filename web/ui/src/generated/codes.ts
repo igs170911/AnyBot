@@ -73,6 +73,46 @@ export type MessageCode =
   "model-handoff-unreachable" |
   "push-payload-short" |
   "push-key-base64" |
+  "gate-command-denied" |
+  "gate-private-file" |
+  "gate-no-sandbox" |
+  "gate-bot-machine-outside" |
+  "gate-outside-write-denied" |
+  "gate-denied-by-rule" |
+  "gate-denied" |
+  "gate-user-rejected" |
+  "gate-ask-pending" |
+  "gate-ticket-mismatch" |
+  "turn-completed" |
+  "turn-failed" |
+  "turn-tool-failed" |
+  "turn-rejected" |
+  "turn-not-executed" |
+  "turn-awaiting-approval" |
+  "tool-empty" |
+  "tool-operation-failed" |
+  "tool-computer-unreachable" |
+  "tool-execution-failed" |
+  "tool-edit-created" |
+  "tool-edit-overwritten" |
+  "tool-edit-modified" |
+  "tool-edit-not-found" |
+  "tool-edit-multiple" |
+  "tool-edit-file-missing" |
+  "tool-read-too-big" |
+  "tool-read-not-text" |
+  "tool-read-directory" |
+  "tool-read-lines" |
+  "tool-shell-no-output" |
+  "tool-shell-failed" |
+  "tool-shell-trimmed" |
+  "tool-shell-timed-out" |
+  "gate-ask-computer-mismatch" |
+  "tool-unreadable-eval" |
+  "tool-unreadable-quotes" |
+  "tool-unreadable-heredoc" |
+  "tool-unreadable-head" |
+  "tool-unreadable-shape" |
   "account-name-rule" |
   "account-password-rule" |
   "account-invite-invalid" |
@@ -170,6 +210,46 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "model-handoff-unreachable",
   "push-payload-short",
   "push-key-base64",
+  "gate-command-denied",
+  "gate-private-file",
+  "gate-no-sandbox",
+  "gate-bot-machine-outside",
+  "gate-outside-write-denied",
+  "gate-denied-by-rule",
+  "gate-denied",
+  "gate-user-rejected",
+  "gate-ask-pending",
+  "gate-ticket-mismatch",
+  "turn-completed",
+  "turn-failed",
+  "turn-tool-failed",
+  "turn-rejected",
+  "turn-not-executed",
+  "turn-awaiting-approval",
+  "tool-empty",
+  "tool-operation-failed",
+  "tool-computer-unreachable",
+  "tool-execution-failed",
+  "tool-edit-created",
+  "tool-edit-overwritten",
+  "tool-edit-modified",
+  "tool-edit-not-found",
+  "tool-edit-multiple",
+  "tool-edit-file-missing",
+  "tool-read-too-big",
+  "tool-read-not-text",
+  "tool-read-directory",
+  "tool-read-lines",
+  "tool-shell-no-output",
+  "tool-shell-failed",
+  "tool-shell-trimmed",
+  "tool-shell-timed-out",
+  "gate-ask-computer-mismatch",
+  "tool-unreadable-eval",
+  "tool-unreadable-quotes",
+  "tool-unreadable-heredoc",
+  "tool-unreadable-head",
+  "tool-unreadable-shape",
   "account-name-rule",
   "account-password-rule",
   "account-invite-invalid",

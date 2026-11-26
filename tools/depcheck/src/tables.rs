@@ -19,9 +19,9 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
     add("trust", &CORE);
     add("models", &CORE);
     add("context", &["foundation", "protocol", "domain", "models"]);
-    add("tools", &CORE);
-    add("computers", &CORE);
-    add("mcp", &CORE);
+    add("tools", &["foundation", "protocol", "domain", "trust"]);
+    add("computers", &["foundation", "protocol", "domain", "trust"]);
+    add("mcp", &["foundation", "protocol", "domain", "trust"]);
     add("blob", &["foundation"]);
     add("bus", &["foundation"]);
     add("store-server", &CORE);
@@ -79,34 +79,7 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert("spec-trace".to_owned(), BTreeSet::new());
     m.insert("api-compat".to_owned(), BTreeSet::new());
     m.insert("iron-laws".to_owned(), BTreeSet::new());
-    m.insert(
-        "test-harness".to_owned(),
-        BTreeSet::from([
-            "anybot-foundation".to_owned(),
-            "anybot-store-server".to_owned(),
-        ]),
-    );
-    m.insert(
-        "testenv".to_owned(),
-        [
-            "test-harness".to_owned(),
-            "anybot-foundation".to_owned(),
-            "anybot-server".to_owned(),
-        ]
-        .into_iter()
-        .collect(),
-    );
-    m.insert(
-        "anybot-app-test".to_owned(),
-        [
-            "anybot-foundation".to_owned(),
-            "anybot-messages".to_owned(),
-            "anybot-server".to_owned(),
-            "test-harness".to_owned(),
-        ]
-        .into_iter()
-        .collect(),
-    );
+    add_test_tools(m);
     m.insert(
         "live-model".to_owned(),
         [
@@ -129,6 +102,48 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     );
     m.insert("locale-gen".to_owned(), BTreeSet::new());
     m.insert("anybot-versions".to_owned(), BTreeSet::new());
+}
+
+fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
+    m.insert(
+        "test-harness".to_owned(),
+        BTreeSet::from([
+            "anybot-foundation".to_owned(),
+            "anybot-store-server".to_owned(),
+        ]),
+    );
+    m.insert(
+        "testenv".to_owned(),
+        [
+            "test-harness".to_owned(),
+            "anybot-foundation".to_owned(),
+            "anybot-server".to_owned(),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    m.insert(
+        "runner-test".to_owned(),
+        [
+            "test-harness".to_owned(),
+            "anybot-foundation".to_owned(),
+            "anybot-protocol".to_owned(),
+            "anybot-trust".to_owned(),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    m.insert(
+        "anybot-app-test".to_owned(),
+        [
+            "anybot-foundation".to_owned(),
+            "anybot-messages".to_owned(),
+            "anybot-server".to_owned(),
+            "test-harness".to_owned(),
+        ]
+        .into_iter()
+        .collect(),
+    );
 }
 
 #[must_use]

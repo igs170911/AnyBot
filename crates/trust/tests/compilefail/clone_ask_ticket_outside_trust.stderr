@@ -1,0 +1,5 @@
+error[E0599]: no method named `clone` found for struct `AskTicket` in the current scope
+ --> tests/compilefail/clone_ask_ticket_outside_trust.rs:2:12
+  |
+2 |     ticket.clone()
+  |            ^^^^^ method not found in `AskTicket`

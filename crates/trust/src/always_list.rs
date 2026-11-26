@@ -28,7 +28,7 @@ pub struct AlwaysEntry {
     pub from_bot: BotId,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AlwaysList {
     pub entries: Vec<AlwaysEntry>,
 }

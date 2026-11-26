@@ -1,0 +1,16 @@
+error[E0624]: associated function `issue` is private
+  --> tests/compilefail/issue_ticket_outside_trust.rs:14:42
+   |
+14 |       let ticket = anybot_trust::OpTicket::issue(
+   |                                            ^^^^^ private associated function
+   |
+  ::: src/op_ticket.rs
+   |
+   | /     pub(crate) fn issue(
+   | |         subject: &ActionSubject,
+   | |         key: ActionKey,
+   | |         gate: GateRecord,
+...  |
+   | |         issued_at: TimestampMs,
+   | |     ) -> Self {
+   | |_____________- private associated function defined here

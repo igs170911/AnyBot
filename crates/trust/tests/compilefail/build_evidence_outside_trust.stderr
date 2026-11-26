@@ -1,0 +1,16 @@
+error[E0603]: function `build_evidence` is private
+ --> tests/compilefail/build_evidence_outside_trust.rs:2:42
+  |
+2 |     let record = anybot_trust::evidence::build_evidence(
+  |                                          ^^^^^^^^^^^^^^ private function
+  |
+note: the function `build_evidence` is defined here
+ --> src/evidence.rs
+  |
+  | / pub(super) fn build_evidence(
+  | |     context: &ActionContext,
+  | |     gate: &GateRecord,
+  | |     result: &ActualResult,
+  | |     clock: &dyn Clock,
+  | | ) -> EvidenceRecord {
+  | |___________________^

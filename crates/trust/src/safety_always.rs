@@ -64,6 +64,14 @@ pub enum ActionSpec {
     AppleScriptOutsideBox {
         computer: String,
     },
+    EditFile {
+        computer: String,
+        path: String,
+    },
+    ReadFile {
+        computer: String,
+        path: String,
+    },
 }
 
 fn connector_key(connector: &str, tool: &str, target: Option<&String>) -> String {
@@ -116,6 +124,8 @@ pub fn concrete_actions(spec: &ActionSpec) -> Vec<String> {
         | ActionSpec::PublishSite { .. }
         | ActionSpec::DeleteItem { .. }
         | ActionSpec::AppleScriptOutsideBox { .. } => tail_actions(spec),
+        ActionSpec::EditFile { computer, path } => vec![format!("edit file {path} on {computer}")],
+        ActionSpec::ReadFile { computer, path } => vec![format!("read file {path} on {computer}")],
     }
 }
 
@@ -127,7 +137,9 @@ fn tail_actions(spec: &ActionSpec) -> Vec<String> {
         | ActionSpec::WatchScreen { .. }
         | ActionSpec::OperateApp { .. }
         | ActionSpec::RemoteComputer { .. }
-        | ActionSpec::ConnectorTool { .. } => vec![],
+        | ActionSpec::ConnectorTool { .. }
+        | ActionSpec::EditFile { .. }
+        | ActionSpec::ReadFile { .. } => vec![],
         ActionSpec::SendMessage { recipients } => {
             recipients.iter().map(|r| format!("send to {r}")).collect()
         }

@@ -22,6 +22,7 @@ pub mod migrations_insert;
 pub mod migrations_parser;
 pub mod migrations_rules;
 pub mod nextest_config;
+pub mod passguard;
 pub mod permit_block;
 pub mod redocly;
 pub mod suppressions;
@@ -52,6 +53,7 @@ pub fn all_violations(repo: &Path, git_ref: &str) -> Vec<String> {
     out.extend(compiled::violations_at_repo(repo));
     out.extend(licensing::violations(repo));
     out.extend(nextest_config::violations(repo));
+    out.extend(passguard::violations(&files));
     out.extend(windows_lists::violations(repo));
     out.extend(redocly::violations(repo));
     out.extend(workflows::violations(repo));

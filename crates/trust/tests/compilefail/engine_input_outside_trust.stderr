@@ -1,0 +1,11 @@
+error[E0603]: struct `EngineInput` is private
+ --> tests/compilefail/engine_input_outside_trust.rs:1:42
+  |
+1 | fn pick(input: &anybot_trust::gate_full::EngineInput) {
+  |                                          ^^^^^^^^^^^ private struct
+  |
+note: the struct `EngineInput` is defined here
+ --> src/gate_full.rs
+  |
+  | pub(super) struct EngineInput {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

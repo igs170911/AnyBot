@@ -225,10 +225,8 @@ dependencies = [
 name = "anybot-computers"
 version = "0.1.0"
 dependencies = [
- "anybot-domain",
- "anybot-foundation",
  "anybot-protocol",
- "reqwest 0.12.28",
+ "anybot-trust",
 ]
 
 [[package]]
@@ -284,6 +282,7 @@ dependencies = [
  "security-framework",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "thiserror 2.0.21",
  "time",
  "tokio",
@@ -435,6 +434,8 @@ dependencies = [
  "anybot-domain",
  "anybot-foundation",
  "anybot-protocol",
+ "anybot-trust",
+ "serde_json",
 ]
 
 [[package]]
@@ -445,6 +446,7 @@ dependencies = [
  "anybot-foundation",
  "anybot-protocol",
  "proptest",
+ "trybuild",
 ]
 
 [[package]]
@@ -4462,6 +4464,16 @@ checksum = "9a1efe12a1469752d0e6ff5ebec0b6ef4924cc5c4c71046b0ec730040535819d"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "runner-test"
+version = "0.1.0"
+dependencies = [
+ "anybot-foundation",
+ "anybot-protocol",
+ "anybot-trust",
+ "test-harness",
 ]
 
 [[package]]

@@ -112,7 +112,43 @@ fn check_harness_rules(
     violations
 }
 
-const HARNESS_RUNTIME_USERS: [&str; 3] = ["testenv", "live-model", "anybot-app-test"];
+const HARNESS_RUNTIME_USERS: [&str; 4] =
+    ["testenv", "live-model", "runner-test", "anybot-app-test"];
+
+const RUNNER_TEST_ALLOWED: [&str; 4] = [
+    "test-harness",
+    "anybot-foundation",
+    "anybot-protocol",
+    "anybot-trust",
+];
+
+fn check_runner_test_rules(
+    pkg: &Package,
+    deps: &BTreeSet<String>,
+    internal: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut violations = Vec::new();
+    if pkg.name == "runner-test" {
+        for dep in deps {
+            if RUNNER_TEST_ALLOWED.contains(&dep.as_str()) {
+                continue;
+            }
+            if internal.contains(dep) {
+                violations.push(format!(
+                    "runner-test depends on {dep}: the fake computer helper stays on foundation, protocol, trust and the harness (spec/07 section 3)"
+                ));
+            }
+        }
+        return violations;
+    }
+    if deps.contains("runner-test") {
+        violations.push(format!(
+            "{} uses runner-test in normal dependencies: the fake computer is allowed only as a dev dependency (spec/09 K87)",
+            pkg.name
+        ));
+    }
+    violations
+}
 
 #[must_use]
 pub fn check_metadata_value(meta: &Metadata) -> Vec<String> {
@@ -129,6 +165,7 @@ pub fn check_metadata_value(meta: &Metadata) -> Vec<String> {
         }
         let deps = normal_deps(pkg);
         violations.extend(check_harness_rules(pkg, &deps, &internal));
+        violations.extend(check_runner_test_rules(pkg, &deps, &internal));
         if pkg.name == "test-harness" {
             continue;
         }

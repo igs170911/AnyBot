@@ -1,0 +1,5 @@
+error[E0616]: field `rule` of struct `GateVerdict` is private
+ --> tests/compilefail/edit_gate_verdict_outside_trust.rs:2:13
+  |
+2 |     verdict.rule = "made-by-me".to_owned();
+  |             ^^^^ private field

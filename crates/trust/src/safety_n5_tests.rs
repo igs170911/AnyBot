@@ -1,6 +1,20 @@
 use crate::safety_n5::*;
 
 #[test]
+fn test_egress_rules_split_segments_and_strip_wrappers() {
+    let joined = classes_of_command("cd repo && git push origin");
+    assert!(joined.contains(&ActionClass::Publish));
+    let global = classes_of_command("git -C repo push origin");
+    assert!(global.contains(&ActionClass::Publish));
+    let wrapped = classes_of_command("nohup npm publish");
+    assert!(wrapped.contains(&ActionClass::Publish));
+    let newline = classes_of_command("ls\nsudo npm publish");
+    assert!(newline.contains(&ActionClass::Publish));
+    let plain = classes_of_command("cd repo && git status");
+    assert!(!plain.contains(&ActionClass::Publish));
+}
+
+#[test]
 fn t_safety_n5_1() {
     let delete_hits = [
         classes_of_command("rm -rf build"),
@@ -50,4 +64,28 @@ fn test_six_class_negative_examples_stay_unclassified() {
     assert_eq!(classes_of_command("echo \"rm old\""), vec![]);
     assert_eq!(classes_of_connector_tool("github_sender", false), vec![]);
     assert_eq!(classes_of_click_label("Search"), vec![]);
+}
+
+#[test]
+fn test_git_global_options_with_equals_still_reach_the_subcommand() {
+    let got = classes_of_command("git --git-dir=.git push origin");
+    assert!(got.contains(&ActionClass::Publish));
+}
+
+#[test]
+fn test_unknown_git_global_options_still_reach_the_subcommand() {
+    let got = classes_of_command("git -P push origin");
+    assert!(got.contains(&ActionClass::Publish));
+}
+
+#[test]
+fn test_a_privilege_wrapper_hides_nothing_from_the_class_scan_on_the_bot_machine() {
+    let got = classes_of_command("sudo nohup git push origin");
+    assert!(got.contains(&ActionClass::Publish));
+}
+
+#[test]
+fn test_a_class_scan_does_not_read_inside_a_shell_quote() {
+    let got = classes_of_command("bash -c 'git push origin'");
+    assert!(got.is_empty());
 }

@@ -1,6 +1,10 @@
 pub mod account_api;
 pub mod api;
+pub mod computer_caps;
+pub mod computer_results;
 pub mod events;
+pub mod evidence_record;
+pub mod gate_record;
 pub mod known_task_event_kind;
 pub mod task_detail;
 pub mod task_events;
@@ -15,10 +19,21 @@ pub use api::{
     PROBLEM_JSON_CONTENT_TYPE, PROBLEM_TITLE_BAD_REQUEST, PROBLEM_TITLE_INTERNAL,
     PROBLEM_TYPE_BASE, PageCursor, ProblemJson, SSE_CONTENT_TYPE,
 };
+pub use computer_caps::{CapState, ComputerCaps, ComputerOwner, ComputerPlatform};
+pub use computer_results::{
+    ActualResult, BeforeDigest, CommandOutcome, CommandRequest, ComputerFailure,
+    ComputerFailureKind, PathOutcome, PathRequest, ReadOutcome, ReadRequest, TargetKind,
+    WriteOutcome, WriteRequest,
+};
 pub use events::{
     EventKind, KnownEventKind, PROTOCOL_VERSION, RUN_ERROR_CODE_PROTOCOL_VERSION,
     RUN_ERROR_CODE_UNSUPPORTED_EVENT, RawEventKind, RecordedEvent, RunEvent,
 };
+pub use evidence_record::{
+    ActionOutcome, EvidenceKind, EvidencePayload, EvidenceRecord, EvidenceShortId,
+    NotExecutedReason, ReasonPayload, VerificationRecord, VerificationResult,
+};
+pub use gate_record::{GateNo, GateOutcome, GateRecord, JudgementSource, RuleLayer};
 pub use known_task_event_kind::KnownTaskEventKind;
 pub use task_detail::{TaskDetail, TaskStatus, detail_matches_status};
 pub use task_events::{

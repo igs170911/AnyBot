@@ -3,7 +3,6 @@ use crate::trust_floor::{FloorAction, floor_check};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModeFlags {
-    pub six_class: bool,
     pub ask_every_time: bool,
     pub yolo: bool,
     pub direct_mode: bool,
@@ -19,9 +18,10 @@ pub struct StyleFlags {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EngineInput {
+pub(super) struct EngineInput {
     pub action: FloorAction,
     pub modes: ModeFlags,
+    pub six_class: bool,
     pub styles: StyleFlags,
     pub admin_hook: Opinion,
     pub user_hook: Opinion,
@@ -29,17 +29,25 @@ pub struct EngineInput {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GateDecision {
+pub(crate) struct GateDecision {
     pub outcome: Outcome,
     pub layer: GateLayer,
     pub rule: String,
 }
 
+fn unreadable_command(action: &FloorAction) -> bool {
+    matches!(
+        action,
+        FloorAction::Command { line, .. } if crate::sandbox_peel::unreadable_reason(line).is_some()
+    )
+}
+
 fn floor_call(input: &EngineInput, floor_hit: bool) -> LayerCall {
+    let unreadable = unreadable_command(&input.action);
     LayerCall {
         layer: GateLayer::Floor,
-        deny: floor_hit || input.modes.ask_every_time,
-        ask: false,
+        deny: (floor_hit && !unreadable) || input.modes.ask_every_time,
+        ask: unreadable,
         allow: false,
     }
 }
@@ -56,9 +64,9 @@ fn admin_call(input: &EngineInput) -> LayerCall {
 fn user_call(input: &EngineInput) -> LayerCall {
     let can_ask = !input.modes.ask_every_time;
     let list_allow = input.styles.always_hit || input.styles.session_allowed;
-    let style_allow = input.styles.allow_style_hit && !input.modes.six_class;
-    let direct_allow = input.modes.direct_mode && !input.modes.six_class;
-    let hook_allow = input.user_hook == Opinion::Allow && !input.modes.six_class;
+    let style_allow = input.styles.allow_style_hit && !input.six_class;
+    let direct_allow = input.modes.direct_mode && !input.six_class;
+    let hook_allow = input.user_hook == Opinion::Allow && !input.six_class;
     LayerCall {
         layer: GateLayer::User,
         deny: input.user_hook == Opinion::Deny || input.modes.ask_every_time,
@@ -77,7 +85,7 @@ fn default_call(input: &EngineInput) -> LayerCall {
 }
 
 #[must_use]
-pub fn decide(input: &EngineInput) -> GateDecision {
+pub(crate) fn decide(input: &EngineInput) -> GateDecision {
     let floor_hit = floor_check(&input.action).is_some();
     let calls = [
         floor_call(input, floor_hit),
@@ -96,7 +104,9 @@ pub fn decide(input: &EngineInput) -> GateDecision {
 }
 
 fn relax_outcome(input: &EngineInput, layer: GateLayer, outcome: Outcome) -> Outcome {
+    let unreadable = unreadable_command(&input.action);
     match outcome {
+        Outcome::Ask if unreadable => Outcome::Ask,
         Outcome::Ask if input.modes.yolo && !input.modes.ask_every_time => Outcome::Allow,
         Outcome::Ask if input.modes.direct_mode && layer == GateLayer::Default => Outcome::Ask,
         Outcome::Ask => Outcome::Ask,

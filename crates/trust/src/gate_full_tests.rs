@@ -7,7 +7,9 @@ use crate::trust_floor::*;
 fn any_floor_action() -> BoxedStrategy<FloorAction> {
     prop_oneof![
         Just(FloorAction::Command {
-            line: "sudo rm -rf /nowhere".to_owned(),
+            line: "sudo rm -rf /".to_owned(),
+            bot_machine: true,
+            has_sandbox: true,
         }),
         Just(FloorAction::FilePath {
             path: "~/.ssh/id_ed25519".to_owned(),
@@ -30,29 +32,26 @@ fn engine_input(action: FloorAction) -> BoxedStrategy<EngineInput> {
         (0usize..2usize),
         (0usize..2usize),
         (0usize..2usize),
-        (0usize..2usize),
     )
-        .prop_map(
-            move |(yolo, direct, mdm, ask_time, six_class)| EngineInput {
-                action: action.clone(),
-                modes: ModeFlags {
-                    six_class: six_class == 1,
-                    ask_every_time: ask_time == 1,
-                    yolo: yolo == 1,
-                    direct_mode: direct == 1,
-                    mdm_locks_direct: mdm == 1,
-                },
-                styles: StyleFlags {
-                    ask_style_hit: false,
-                    allow_style_hit: true,
-                    always_hit: true,
-                    session_allowed: true,
-                },
-                admin_hook: Opinion::Allow,
-                user_hook: Opinion::Allow,
-                default_rule: Opinion::Allow,
+        .prop_map(move |(yolo, direct, mdm, ask_time)| EngineInput {
+            action: action.clone(),
+            modes: ModeFlags {
+                ask_every_time: ask_time == 1,
+                yolo: yolo == 1,
+                direct_mode: direct == 1,
+                mdm_locks_direct: mdm == 1,
             },
-        )
+            six_class: false,
+            styles: StyleFlags {
+                ask_style_hit: false,
+                allow_style_hit: true,
+                always_hit: true,
+                session_allowed: true,
+            },
+            admin_hook: Opinion::Allow,
+            user_hook: Opinion::Allow,
+            default_rule: Opinion::Allow,
+        })
         .boxed()
 }
 
