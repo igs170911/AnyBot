@@ -4,7 +4,10 @@ use clap::{Parser, Subcommand};
 
 use crate::error::{CODE_CLIENT_DATA_DIR_MISSING, FoundationError, MessageRef};
 
-pub const APP_IDENTIFIER: &str = "app.anybot.desktop";
+#[must_use]
+pub fn app_identifier() -> &'static str {
+    crate::release::app_identifier()
+}
 
 #[derive(Debug, Parser)]
 #[command(name = "anybot-client", version)]
@@ -63,6 +66,6 @@ pub fn default_data_dir() -> Option<PathBuf> {
     for part in rel.split('/') {
         dir.push(part);
     }
-    dir.push(APP_IDENTIFIER);
+    dir.push(app_identifier());
     Some(dir)
 }
