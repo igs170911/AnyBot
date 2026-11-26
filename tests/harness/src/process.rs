@@ -1,6 +1,5 @@
 use std::io::Read;
 use std::io::Write as _;
-use std::os::unix::process::ExitStatusExt as _;
 use std::process::ExitStatus;
 use std::sync::mpsc;
 use std::thread;
@@ -83,16 +82,27 @@ pub fn exit_status_code(status: &ExitStatus) -> Result<i32, String> {
     if status.success() {
         return Ok(0);
     }
-    match status.code() {
-        Some(code) => Ok(code),
-        None => match status.signal() {
-            Some(signal) => match 128_i32.checked_add(signal) {
-                Some(total) => Ok(total),
-                None => Err("signal exit code overflow".to_owned()),
-            },
-            None => Err("program exited without a computable exit code".to_owned()),
-        },
+    if let Some(code) = status.code() {
+        return Ok(code);
     }
+    signaled_code(*status)
+}
+
+#[cfg(unix)]
+fn signaled_code(status: ExitStatus) -> Result<i32, String> {
+    use std::os::unix::process::ExitStatusExt as _;
+    match status.signal() {
+        Some(signal) => match 128_i32.checked_add(signal) {
+            Some(total) => Ok(total),
+            None => Err("signal exit code overflow".to_owned()),
+        },
+        None => Err("program exited without a computable exit code".to_owned()),
+    }
+}
+
+#[cfg(not(unix))]
+fn signaled_code(_status: ExitStatus) -> Result<i32, String> {
+    Err("program exited without a computable exit code".to_owned())
 }
 
 pub(crate) fn finish_poll(poll: PollState) -> ExitStatus {
@@ -102,6 +112,8 @@ pub(crate) fn finish_poll(poll: PollState) -> ExitStatus {
 }
 
 pub(crate) fn kill_child(child: &mut std::process::Child, pid: u32, label: &str) {
+    #[cfg(windows)]
+    crate::reap::stop_spawned(pid);
     if let Err(err) = child.kill() {
         let mut stderr = std::io::stderr();
         let _result = writeln!(stderr, "harness: kill PID {pid} ({label}) failed: {err}");

@@ -79,7 +79,9 @@
 
 ## Windows 基本測試還沒跑的（WIN-1 之前）
 
-`tests/harness` 用了只有 Unix 才有的訊號和行程群組，Windows 編不過。在 WIN-1 做完之前，Windows 的自動檢查分兩份清單。`ci.yml` 只呼叫 `tools/windows-skip.sh`，參數從這裡讀。
+每個工作分支（`ws/*`）推上去都會在 Linux、Windows、macOS 三種系統上編譯。`dev` 和 `main` 也一樣。Pull request 只跑 Linux 的 `check`。`release-dev` 仍只在推 `dev` 時跑。
+
+在 WIN-1 做完之前，Windows 的自動檢查分兩份清單。`ci.yml` 只呼叫 `tools/windows-skip.sh`，參數從這裡讀。測試工具的函式庫仍會被產品套件的開發相依拉進來編譯；`--exclude` 只排除套件自己當根。Windows 沒有 Unix 訊號：被結束的行程用 `ExitStatus::code()` 當結束碼（沒有 `128+訊號`）。啟動時用新的行程群組對上 Unix 的 `process_group(0)`；要收掉時用 `taskkill /T /F` 收整棵子行程樹（含記在 `tool.pid` 的行程）。
 
 **不編。** 這些套件自己就是測試工具，或只給測試用，不是產品。編譯那一步 `--exclude` 它們。
 

@@ -35,6 +35,16 @@ pub fn free_dual_port() -> Result<u16, String> {
 }
 
 pub fn first_lan_ipv4() -> Result<String, String> {
+    let text = lan_listing()?;
+    text.lines()
+        .map(str::trim)
+        .find(|ip| !ip.is_empty() && !ip.starts_with("127."))
+        .map(str::to_owned)
+        .ok_or("no non-loopback IPv4 interface".to_owned())
+}
+
+#[cfg(unix)]
+fn lan_listing() -> Result<String, String> {
     let helper = lan_helper()?;
     let output = std::process::Command::new(&helper)
         .output()
@@ -42,14 +52,27 @@ pub fn first_lan_ipv4() -> Result<String, String> {
     if !output.status.success() {
         return Err("list interfaces was rejected".to_owned());
     }
-    let text = String::from_utf8_lossy(&output.stdout);
-    text.lines()
-        .map(str::trim)
-        .find(|ip| !ip.is_empty() && *ip != "127.0.0.1")
-        .map(str::to_owned)
-        .ok_or("no non-loopback IPv4 interface".to_owned())
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
+#[cfg(windows)]
+fn lan_listing() -> Result<String, String> {
+    let output = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Get-NetIPAddress -AddressFamily IPv4 | ForEach-Object { $_.IPAddress }",
+        ])
+        .output()
+        .map_err(|e| format!("list interfaces failed: {e}"))?;
+    if !output.status.success() {
+        return Err("list interfaces was rejected".to_owned());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+#[cfg(unix)]
 fn lan_helper() -> Result<std::path::PathBuf, String> {
     let source = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/lan_ipv4.c");
     let out_dir = crate::scratch::repo_root()
