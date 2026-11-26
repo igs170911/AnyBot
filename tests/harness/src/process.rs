@@ -108,3 +108,7 @@ pub(crate) fn kill_child(child: &mut std::process::Child, pid: u32, label: &str)
     }
     let _result = child.wait();
 }
+
+pub(crate) fn terminate_child(pid: u32, label: &str) -> Result<(), String> {
+    crate::reap::signal_recorded_pid(pid).map_err(|e| format!("harness: TERM {label}: {e}"))
+}

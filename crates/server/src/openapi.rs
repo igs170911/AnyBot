@@ -30,8 +30,35 @@ impl Modify for BearerAuth {
         ),
         contact(name = "AnyBot dev team"),
     ),
-    paths(crate::health::health),
-    components(schemas(crate::health::HealthResponse, anybot_protocol::ProblemJson)),
+    paths(
+        crate::health::health,
+        crate::status::status,
+        crate::api_register::register,
+        crate::api_account::login,
+        crate::api_ops_session::logout,
+        crate::api_ops_session::logout_all,
+        crate::api_ops::change_password,
+        crate::api_admin::invite,
+        crate::api_admin::rotate_invite,
+        crate::api_admin::set_public_url,
+        crate::api_admin_accounts::disable_account,
+        crate::api_admin_accounts::enable_account,
+        crate::api_admin_reset::reset_password,
+    ),
+    components(schemas(
+        crate::health::HealthResponse,
+        crate::status::StatusResponse,
+        anybot_protocol::ActionAck,
+        anybot_protocol::InviteResponse,
+        anybot_protocol::LoginRequest,
+        anybot_protocol::LoginSession,
+        anybot_protocol::PasswordChangeRequest,
+        anybot_protocol::ProblemJson,
+        anybot_protocol::PublicUrlRequest,
+        anybot_protocol::RegisterAck,
+        anybot_protocol::RegisterRequest,
+        anybot_protocol::ResetPasswordRequest,
+    )),
     servers(
         (url = "http://127.0.0.1:8787", description = "loopback development server (M3 listens on loopback only)"),
         (url = "http://[::1]:8787", description = "loopback IPv6 development server"),
@@ -39,7 +66,9 @@ impl Modify for BearerAuth {
     security(("bearer" = [])),
     modifiers(&BearerAuth),
     tags(
-        (name = "system", description = "the server itself: health check and startup state")
+        (name = "system", description = "the server itself: health, status, stop"),
+        (name = "account", description = "accounts, sessions and passwords"),
+        (name = "admin", description = "admin-only server operations")
     )
 )]
 pub struct ApiDoc;

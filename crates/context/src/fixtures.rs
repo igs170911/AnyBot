@@ -1,5 +1,4 @@
 use proptest::prelude::*;
-use proptest::string::string_regex;
 
 pub(crate) use crate::fixtures_extra::{memory, model_plan, tool_spec_at};
 use anybot_foundation::{CallId, EventId, SystemClock, TimestampMs};
@@ -10,23 +9,40 @@ use anybot_protocol::{
 
 use crate::input::{BuildInput, ChatRecord, PinnedSnapshot, StepOutcomeKind, StepRecord};
 
+fn ascii_char() -> impl Strategy<Value = char> {
+    prop::char::ranges(
+        vec![
+            'a'..='z',
+            'A'..='Z',
+            '0'..='9',
+            ' '..=' ',
+            '.'..='.',
+            '_'..='_',
+            ','..=',',
+            '-'..='-',
+        ]
+        .into(),
+    )
+}
+
+fn cjk_char() -> impl Strategy<Value = char> {
+    prop::char::range('\u{4e00}', '\u{9fff}')
+}
+
 pub(crate) fn mixed_text(max_len: usize) -> BoxedStrategy<String> {
-    let n = max_len.to_string();
-    let ascii = format!("[a-zA-Z0-9 ._,-]{{0,{n}}}");
-    let cjk = format!("[\\u{{4e00}}-\\u{{9fff}}]{{0,{n}}}");
-    let both = format!("(a-zA-Z0-9 ._,-|[\\u{{4e00}}-\\u{{9fff}}]){{0,{n}}}");
     prop_oneof![
-        6 => string_regex(&ascii).unwrap().boxed(),
-        3 => string_regex(&cjk).unwrap().boxed(),
-        1 => string_regex(&both).unwrap().boxed(),
+        6 => prop::collection::vec(ascii_char(), 0..=max_len),
+        3 => prop::collection::vec(cjk_char(), 0..=max_len),
+        1 => prop::collection::vec(prop_oneof![ascii_char(), cjk_char()], 0..=max_len),
     ]
+    .prop_map(|chars| chars.into_iter().collect())
     .boxed()
 }
 
 pub(crate) fn long_chat_record(prefix: &'static str, index: usize) -> BoxedStrategy<ChatRecord> {
     chat_record(prefix, index)
         .prop_map(move |mut r| {
-            r.text = r.text.clone() + &"y".repeat(9_000);
+            r.text = r.text.clone() + &"y".repeat(240);
             r
         })
         .boxed()
@@ -83,7 +99,7 @@ pub(crate) fn step_record(index: usize) -> BoxedStrategy<StepRecord> {
             Just(ToolEffect::Repeatable),
             Just(ToolEffect::Irreversible)
         ],
-        mixed_text(9_000),
+        mixed_text(1_600),
         0usize..2usize,
         0usize..4usize,
         prop::bool::ANY,

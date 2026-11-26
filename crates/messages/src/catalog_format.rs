@@ -79,15 +79,15 @@ mod tests {
     fn test_catalog_formats_en_with_number_and_text_params() {
         let mut catalog = Catalog::new();
         let params = Params::new()
-            .with_int("port", 8787)
+            .with_text("addresses", "127.0.0.1:32411, [::1]:32411")
             .with_text("db_host", "localhost")
             .with_text("db_name", "anybot")
             .with_text("version", "0.1.0");
         let got = catalog
             .format_en(&code("server-startup-listening"), &params)
             .unwrap();
-        assert!(got.contains("127.0.0.1:8787"));
-        assert!(got.contains("[::1]:8787"));
+        assert!(got.contains("127.0.0.1:32411"));
+        assert!(got.contains("[::1]:32411"));
         assert!(got.contains("localhost/anybot"));
         assert!(got.contains("v0.1.0"));
     }
@@ -96,14 +96,14 @@ mod tests {
     fn test_catalog_formats_zh_tw_spec_wording_with_escapes() {
         let mut catalog = Catalog::new();
         let params = Params::new()
-            .with_int("port", 8787)
+            .with_text("addresses", "127.0.0.1:32411\u{3001}[::1]:32411")
             .with_text("db_host", "localhost")
             .with_text("db_name", "anybot")
             .with_text("version", "0.1.0");
         let got = catalog
             .format(Lang::ZhTw, &code("server-startup-listening"), &params)
             .unwrap();
-        let expected = "AnyBot \u{4f3a}\u{670d}\u{52d9}\u{5668} v0.1.0\u{ff1a}\u{807d} 127.0.0.1:8787\u{3001}[::1]:8787\u{ff08}\u{8cc7}\u{6599}\u{5eab} localhost/anybot\u{ff09}";
+        let expected = "AnyBot \u{4f3a}\u{670d}\u{52d9}\u{5668} v0.1.0\u{ff1a}\u{807d} 127.0.0.1:32411\u{3001}[::1]:32411\u{ff08}\u{8cc7}\u{6599}\u{5eab} localhost/anybot\u{ff09}";
         assert_eq!(got, expected);
     }
 
@@ -158,9 +158,9 @@ mod tests {
             MessagesError::ParamsMismatch {
                 code: "server-startup-listening".to_owned(),
                 missing: vec![
+                    "addresses".to_owned(),
                     "db_host".to_owned(),
                     "db_name".to_owned(),
-                    "port".to_owned(),
                     "version".to_owned(),
                 ],
                 extra: vec![],
@@ -173,7 +173,7 @@ mod tests {
         let mut catalog = Catalog::new();
         let params = Params::new()
             .with_int("version", 1)
-            .with_int("port", 8787)
+            .with_text("addresses", "127.0.0.1:32411")
             .with_text("db_host", "localhost")
             .with_text("db_name", "anybot")
             .with_text("reason", "extra");
@@ -194,12 +194,12 @@ mod tests {
     fn test_catalog_exact_param_set_formats() {
         let mut catalog = Catalog::new();
         let params = Params::new()
-            .with_int("port", 8787)
+            .with_int("port", 31_313)
             .with_text("reason", "Address already in use");
         let got = catalog
             .format_en(&code("server-port-unusable"), &params)
             .unwrap();
-        assert_eq!(got, "Cannot use port 8787: Address already in use");
+        assert_eq!(got, "Cannot use port 31313: Address already in use");
     }
 
     #[test]

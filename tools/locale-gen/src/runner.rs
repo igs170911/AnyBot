@@ -80,6 +80,10 @@ pub fn read_all(root: &Path, paths: &[String]) -> Result<Vec<(String, String)>, 
         if is_binary_path(path) || Path::new(path).is_symlink() {
             continue;
         }
+        let full = root.join(path);
+        if !full.is_file() {
+            continue;
+        }
         out.push((path.clone(), read_rel(root, path)?));
     }
     Ok(out)
@@ -168,5 +172,18 @@ mod tests {
         assert_eq!(rust, vec!["MessageCode::ACode".to_owned()]);
         assert_eq!(ts, vec!["\"b-code\"".to_owned()]);
         assert_eq!(all.len(), 3);
+    }
+
+    #[test]
+    fn test_read_all_skips_a_tracked_path_that_is_already_gone() {
+        let root =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/scratch/locale-missing");
+        let _created = std::fs::create_dir_all(&root);
+        let kept = root.join("kept.txt");
+        std::fs::write(&kept, "still here").unwrap();
+        let got = read_all(&root, &["kept.txt".to_owned(), "gone.sql".to_owned()]).unwrap();
+        let _removed = std::fs::remove_dir_all(&root);
+        assert_eq!(got.len(), 1);
+        assert!(got.iter().any(|(path, _)| path == "kept.txt"));
     }
 }

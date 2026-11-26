@@ -43,6 +43,7 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
             "blob",
             "bus",
             "channels",
+            "messages",
         ],
     );
     add(
@@ -79,7 +80,10 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert("iron-laws".to_owned(), BTreeSet::new());
     m.insert(
         "test-harness".to_owned(),
-        BTreeSet::from(["anybot-foundation".to_owned()]),
+        BTreeSet::from([
+            "anybot-foundation".to_owned(),
+            "anybot-store-server".to_owned(),
+        ]),
     );
     m.insert(
         "testenv".to_owned(),
@@ -98,6 +102,17 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
             "anybot-foundation".to_owned(),
             "anybot-protocol".to_owned(),
             "anybot-trust".to_owned(),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    m.insert(
+        "anybot-app-test".to_owned(),
+        [
+            "anybot-foundation".to_owned(),
+            "anybot-messages".to_owned(),
+            "anybot-server".to_owned(),
+            "test-harness".to_owned(),
         ]
         .into_iter()
         .collect(),

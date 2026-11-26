@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use test_harness::NetCtl;
+use test_harness::PgInstance;
 use test_harness::fake_clock::FakeClock;
 use test_harness::fake_model::FakeModel;
 use test_harness::fake_push::FakePush;
@@ -21,6 +22,7 @@ pub struct TestEnvState {
     pub model: Arc<FakeModel>,
     pub push: Arc<FakePush>,
     pub net: Arc<NetCtl>,
+    pub pg: PgInstance,
     pub ports: EnvPorts,
 }
 

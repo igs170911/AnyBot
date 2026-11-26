@@ -1,5 +1,7 @@
 #[cfg(test)]
 use anybot_foundation as _;
+#[cfg(test)]
+use anybot_store_server as _;
 use libc as _;
 use rustls_pki_types as _;
 #[cfg(test)]
@@ -9,6 +11,8 @@ use serde as _;
 use sqlx as _;
 use toml as _;
 use url as _;
+
+pub mod capture;
 
 pub mod cloud_map;
 pub mod fake_clock;
@@ -29,6 +33,15 @@ pub mod model_vllm;
 pub mod model_vllm_body;
 pub mod model_vllm_chunks;
 pub mod netctl;
+
+pub fn test_tracing() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let _started = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .try_init();
+    });
+}
 pub(crate) mod netctl_state;
 pub mod netproxy;
 pub(crate) mod netproxy_flow;
@@ -38,9 +51,11 @@ pub mod postgres;
 pub mod process;
 pub mod push_crypto;
 pub mod realtime;
+pub mod reap;
 pub mod running;
 pub mod scratch;
 
+pub use capture::{ArcWriter, Capture, poll_contains};
 pub use cloud_map::{NameMap, cloud_name_matches, mapped_origin};
 pub use fake_clock::{
     ClockGone, FakeClock, advance_clock, sleep_for, sleep_until, timeout as fake_clock_timeout,
@@ -82,12 +97,14 @@ pub use netctl::{
     net_down, net_hang_connect, net_idle_cut, net_mode, net_restore, net_restore_target, net_slow,
     net_source_addr, net_start,
 };
-pub use ports::{bind_pair, bind_v4, bind_v6, port_is_free};
+pub use ports::{bind_pair, bind_v4, bind_v6, first_lan_ipv4, port_is_free};
 pub use postgres::{
-    PgInstance, pg_install_cache_dir, pg_migrations_dir, pg_ready, pg_start, pg_stop,
+    PgInstance, migration_fixture, pg_install_cache_dir, pg_migrations_dir, pg_ready,
+    pg_socket_path, pg_start, pg_stop,
 };
 pub use push_crypto::{SubscriptionKeys, subscription_endpoint};
 pub use realtime::{sleep_real, timeout_real};
+pub use reap::{reap_except, reap_leftover_tools, remove_tool_pid, write_tool_pid};
 pub use running::Running;
 
 pub use scratch::{repo_root, test_dir, write_file_with_mode};

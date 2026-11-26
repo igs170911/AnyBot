@@ -68,12 +68,21 @@ pub fn check_baseline_against_ref(
     current: &BTreeSet<String>,
     ref_baseline: &BTreeSet<String>,
     new_spec_ids: &BTreeSet<String>,
+    returned: &BTreeSet<String>,
 ) -> Vec<String> {
     let mut violations = Vec::new();
     for id in current.difference(ref_baseline) {
-        if !new_spec_ids.contains(id) {
+        if new_spec_ids.contains(id) || returned.contains(id) {
+            continue;
+        }
+        violations.push(format!(
+            "{id} was re-added to the baseline (the ref baseline lacks it) but it is not a spec id added by this change: the baseline may only shrink; deleted tests must not push ids back (M2 item 5)"
+        ));
+    }
+    for id in returned {
+        if !current.contains(id) {
             violations.push(format!(
-                "{id} was re-added to the baseline (the ref baseline lacks it) but it is not a spec id added by this change: the baseline may only shrink; deleted tests must not push ids back (M2 item 5)"
+                "{id} is listed in tools/spec-trace/returned.txt but is not in the baseline"
             ));
         }
     }

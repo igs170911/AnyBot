@@ -1,0 +1,16 @@
+# IDs returned to the baseline after a numbered test was renamed.
+# Each line is a review correction: the old test did not cover the whole row.
+# An id here may re-enter baseline.txt. Any other re-added id still fails.
+T-account-login-1
+T-account-login-3
+T-account-n10-1
+T-conn-post-1
+T-install-n22-1
+T-safety-n11-2
+T-safety-n11-3
+T-server-boot-3
+T-server-invite-1
+T-server-invite-2
+T-server-n1-2
+T-server-n1-3
+T-server-n8-3

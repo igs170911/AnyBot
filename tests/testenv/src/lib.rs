@@ -8,3 +8,4 @@ use tokio as _;
 pub mod control;
 pub mod env;
 pub mod state;
+pub mod stop;
