@@ -13,8 +13,12 @@ pub const DENIED_COMMAND_KINDS: [&str; 10] = [
 
 const NUMERIC_WRAPPERS: [&str; 4] = ["time", "nice", "stdbuf", "timeout"];
 
-const COMMAND_WRAPPERS: [&str; 7] = [
-    "env", "command", "nohup", "time", "nice", "stdbuf", "timeout",
+const COMMAND_WRAPPERS: [&str; 8] = [
+    "env", "command", "nohup", "time", "nice", "stdbuf", "timeout", "xargs",
+];
+
+const WRAPPER_VALUE_OPTIONS: [&str; 12] = [
+    "-u", "-g", "-l", "-c", "-d", "-e", "-i", "-n", "-p", "--user", "--group", "--login",
 ];
 
 const JOIN_TOKENS: [&str; 6] = [";", "&&", "||", "|", "&", "\n"];
@@ -103,11 +107,22 @@ fn peel_wrapper(segment: &str) -> Option<String> {
     let numeric = NUMERIC_WRAPPERS.contains(&head);
     let mut inner: Vec<&str> = Vec::new();
     let mut skipping = true;
+    let mut value_expected = false;
     for token in parts {
-        if skipping && is_wrapper_arg(token, numeric) {
-            continue;
+        if skipping {
+            if value_expected {
+                value_expected = false;
+                continue;
+            }
+            if WRAPPER_VALUE_OPTIONS.contains(&token) && !token.contains('=') {
+                value_expected = true;
+                continue;
+            }
+            if is_wrapper_arg(token, numeric) {
+                continue;
+            }
+            skipping = false;
         }
-        skipping = false;
         inner.push(token);
     }
     if inner.is_empty() {
@@ -128,16 +143,17 @@ fn unsigned_number(token: &str) -> Option<u64> {
     digits.parse::<u64>().ok()
 }
 
+const PRIVILEGE_WRAPPERS: [&str; 2] = ["sudo", "doas"];
+
 #[must_use]
 pub fn deny_token(line: &str, bot_machine: bool) -> Option<&'static str> {
-    let text = normalize_command(line);
-    let text = if bot_machine {
-        strip_sudo_prefix(&text)
-    } else {
-        text
-    };
-    for segment in split_segments(&text) {
+    for segment in split_segments(line) {
         let inner = strip_wrappers(&segment);
+        let inner = if bot_machine {
+            strip_privilege_wrappers(&inner)
+        } else {
+            inner
+        };
         for kind in DENIED_COMMAND_KINDS {
             if inner.starts_with(normalize_command(kind).as_str()) {
                 return Some(kind);
@@ -147,11 +163,59 @@ pub fn deny_token(line: &str, bot_machine: bool) -> Option<&'static str> {
     None
 }
 
-fn strip_sudo_prefix(text: &str) -> String {
-    match text.strip_prefix("sudo ") {
-        Some(rest) => rest.to_owned(),
-        None => text.to_owned(),
+#[must_use]
+pub fn strip_privilege_wrappers(segment: &str) -> String {
+    let mut current = segment.to_owned();
+    for _ in 0..8 {
+        let Some(inner) = peel_privilege(&current) else {
+            return current;
+        };
+        current = inner;
     }
+    current
+}
+
+const PRIVILEGE_VALUE_OPTIONS: [&str; 8] = [
+    "-u",
+    "-g",
+    "-l",
+    "-c",
+    "--user",
+    "--group",
+    "--login",
+    "--command",
+];
+
+fn peel_privilege(segment: &str) -> Option<String> {
+    let mut parts = segment.split_whitespace();
+    let head = parts.next()?;
+    if !PRIVILEGE_WRAPPERS.contains(&head) {
+        return None;
+    }
+    let mut inner: Vec<&str> = Vec::new();
+    let mut skipping = true;
+    let mut value_expected = false;
+    for token in parts {
+        if skipping {
+            if value_expected {
+                value_expected = false;
+                continue;
+            }
+            if PRIVILEGE_VALUE_OPTIONS.contains(&token) && !token.contains('=') {
+                value_expected = true;
+                continue;
+            }
+            if token.starts_with('-') {
+                continue;
+            }
+            skipping = false;
+        }
+        inner.push(token);
+    }
+    if inner.is_empty() {
+        return None;
+    }
+    Some(normalize_command(&inner.join(" ")))
 }
 
 #[cfg(test)]
@@ -166,6 +230,33 @@ mod tests {
         assert_eq!(deny_token(joined, false), Some("dd"));
         assert_eq!(deny_token("ls -la && git status", false), None);
         assert_eq!(deny_token("echo hello | grep hello", false), None);
+    }
+
+    #[test]
+    fn test_sandbox_deny_splits_a_newline_joined_line_before_cleaning_it() {
+        assert_eq!(deny_token("ls\nsudo rm -rf /", false), Some("sudo"));
+        assert_eq!(deny_token("echo hi\ndd of=/x", false), Some("dd"));
+        assert_eq!(deny_token("ls\ntrue", false), None);
+    }
+
+    #[test]
+    fn test_sandbox_deny_sees_through_sudo_with_options_on_the_bot_machine() {
+        assert_eq!(
+            deny_token("sudo -u root mkfs.ext4 /dev/sda1", true),
+            Some("mkfs")
+        );
+        assert_eq!(deny_token("doas -u root dd of=/dev/sda1", true), Some("dd"));
+        assert_eq!(
+            deny_token(
+                "nohup nice -n 0 timeout 5 xargs -d newline sudo rm -rf /",
+                true
+            ),
+            Some("rm -rf /")
+        );
+        assert_eq!(
+            deny_token("env PATH=/bin rm -rf ~", false),
+            Some("rm -rf ~")
+        );
     }
 
     #[test]

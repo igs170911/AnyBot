@@ -1,6 +1,20 @@
 use crate::safety_n5::*;
 
 #[test]
+fn test_egress_rules_split_segments_and_strip_wrappers() {
+    let joined = classes_of_command("cd repo && git push origin");
+    assert!(joined.contains(&ActionClass::Publish));
+    let global = classes_of_command("git -C repo push origin");
+    assert!(global.contains(&ActionClass::Publish));
+    let wrapped = classes_of_command("nohup npm publish");
+    assert!(wrapped.contains(&ActionClass::Publish));
+    let newline = classes_of_command("ls\nsudo npm publish");
+    assert!(newline.contains(&ActionClass::Publish));
+    let plain = classes_of_command("cd repo && git status");
+    assert!(!plain.contains(&ActionClass::Publish));
+}
+
+#[test]
 fn t_safety_n5_1() {
     let delete_hits = [
         classes_of_command("rm -rf build"),

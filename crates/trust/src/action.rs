@@ -4,6 +4,7 @@ use crate::sandbox_deny::normalize_command;
 pub struct PathView {
     pub raw: String,
     pub resolved: Option<String>,
+    pub resolvable: bool,
 }
 
 impl PathView {
@@ -12,6 +13,16 @@ impl PathView {
         PathView {
             raw: path.to_owned(),
             resolved: None,
+            resolvable: true,
+        }
+    }
+
+    #[must_use]
+    pub fn unresolvable(path: &str) -> Self {
+        PathView {
+            raw: path.to_owned(),
+            resolved: None,
+            resolvable: false,
         }
     }
 
@@ -20,6 +31,7 @@ impl PathView {
         PathView {
             raw: raw.to_owned(),
             resolved: Some(canonical.to_owned()),
+            resolvable: true,
         }
     }
 

@@ -17,6 +17,7 @@ pub struct FakeComputerBuilder {
     tree: FileTree,
     scripts: ScriptTable,
     unreachable: bool,
+    unresolvable: Vec<String>,
 }
 
 impl Default for FakeComputerBuilder {
@@ -28,6 +29,7 @@ impl Default for FakeComputerBuilder {
             tree: FileTree::new(),
             scripts: ScriptTable::new(),
             unreachable: false,
+            unresolvable: Vec::new(),
         }
     }
 }
@@ -130,6 +132,12 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
+    pub fn unresolvable(mut self, path: &str) -> Self {
+        self.unresolvable.push(path.to_owned());
+        self
+    }
+
+    #[must_use]
     pub fn unreachable(mut self, on: bool) -> Self {
         self.unreachable = on;
         self
@@ -144,6 +152,7 @@ impl FakeComputerBuilder {
             tree: Mutex::new(self.tree),
             scripts: self.scripts,
             unreachable: AtomicBool::new(self.unreachable),
+            unresolvable: self.unresolvable,
             log: Mutex::new(Vec::new()),
         }
     }

@@ -39,7 +39,13 @@ impl ActionRequest {
         }
         command_target_paths(line)
             .into_iter()
-            .map(|token| PathView::raw(&token))
+            .map(|token| {
+                if crate::command_target::has_expansion_token(&token) {
+                    PathView::unresolvable(&token)
+                } else {
+                    PathView::raw(&token)
+                }
+            })
             .collect()
     }
 }
@@ -169,6 +175,8 @@ pub fn answer_ask(
 
 fn prepared_action(request: &ActionRequest, computer: &dyn GatedComputer) -> GateAction {
     let mut action = request.gate_action();
+    let base = computer.declared_workdir();
+    action.workdir = base;
     action.extra_paths = resolved_targets(&request.delete_targets(), computer, &action.workdir);
     action
 }
@@ -180,10 +188,13 @@ fn resolved_targets(
 ) -> Vec<PathView> {
     raw.iter()
         .map(|view| {
+            if !view.resolvable {
+                return view.clone();
+            }
             let effective = view.effective(workdir);
             match computer.resolve_target(&effective) {
                 Some(canonical) => PathView::resolved(&view.raw, &canonical),
-                None => PathView::raw(&view.raw),
+                None => PathView::unresolvable(&view.raw),
             }
         })
         .collect()

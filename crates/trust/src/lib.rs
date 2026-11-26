@@ -25,6 +25,8 @@ pub mod gate_engine;
 pub mod gate_flow;
 pub mod gate_full;
 pub mod machine_rules;
+#[cfg(test)]
+mod machine_rules_tests;
 pub mod message_codes;
 pub mod pass;
 pub mod pipeline;
@@ -43,7 +45,7 @@ pub use always_list::{AddSource, AlwaysAddEvent, AlwaysEntry, AlwaysList, parse_
 pub use card_data::{CardData, build_card};
 pub use claim_levels::{Claim, ClaimLevel, EvidenceKind, Link, Scope, Verification};
 pub use command_key::{command_action_key, command_tokens};
-pub use command_target::command_target_paths;
+pub use command_target::{command_target_paths, has_expansion_token};
 pub use edit_rule::{
     EditApplied, EditKind, EditRejection, apply_edit, line_count, occurrences, replace_once,
 };

@@ -11,6 +11,7 @@ use crate::fake_builder::FakeComputerBuilder;
 use crate::fake_computer::FakeComputer;
 use crate::fake_scripts::CommandScript;
 use crate::ops_tests::{command_request, fresh_clock, run};
+use crate::spy_computer::SpyComputer;
 use crate::test_view::TestView;
 
 fn push_computer(clock: &Arc<FakeClock>) -> FakeComputer {
@@ -87,115 +88,6 @@ fn test_a_denied_action_produces_no_answer_ticket() {
         "the outside write must be denied, not asked"
     );
     assert_eq!(computer.logged().len(), 0);
-}
-
-#[derive(Debug, Default)]
-pub(crate) struct PassSpy {
-    seen: Vec<bool>,
-}
-
-impl PassSpy {
-    fn note(&mut self, authorized_other: bool) {
-        self.seen.push(authorized_other);
-    }
-}
-
-use std::sync::Mutex;
-
-use anybot_protocol::ActualResult;
-use anybot_trust::{ActionKey, OpRejection, Pass};
-
-pub(crate) struct SpyComputer {
-    inner: FakeComputer,
-    spy: Mutex<PassSpy>,
-}
-
-impl SpyComputer {
-    #[must_use]
-    pub(crate) fn new(inner: FakeComputer) -> Self {
-        SpyComputer {
-            inner,
-            spy: Mutex::new(PassSpy::default()),
-        }
-    }
-
-    fn watch(&self, pass: &Pass) {
-        let other = ActionKey::command("shell", "pwd");
-        let mut spy = self
-            .spy
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        spy.note(pass.authorizes(&other));
-    }
-
-    #[must_use]
-    pub(crate) fn seen(&self) -> Vec<bool> {
-        self.spy
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .seen
-            .clone()
-    }
-}
-
-impl GatedComputer for SpyComputer {
-    fn name(&self) -> &str {
-        self.inner.name()
-    }
-
-    fn declared_caps(&self) -> anybot_protocol::ComputerCaps {
-        self.inner.declared_caps()
-    }
-
-    fn capabilities(&self, pass: &Pass) -> Result<ActualResult, OpRejection> {
-        self.watch(pass);
-        self.inner.capabilities(pass)
-    }
-
-    fn resolve_target(&self, path: &str) -> Option<String> {
-        self.inner.resolve_target(path)
-    }
-
-    fn path_info(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection> {
-        self.watch(pass);
-        self.inner.path_info(pass, path)
-    }
-
-    fn read_file(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection> {
-        self.watch(pass);
-        self.inner.read_file(pass, path)
-    }
-
-    fn write_file(
-        &self,
-        pass: &Pass,
-        path: &str,
-        content: &str,
-    ) -> Result<ActualResult, OpRejection> {
-        self.watch(pass);
-        self.inner.write_file(pass, path, content)
-    }
-
-    fn edit_file(
-        &self,
-        pass: &Pass,
-        path: &str,
-        old_text: &str,
-        new_text: &str,
-    ) -> Result<ActualResult, OpRejection> {
-        self.watch(pass);
-        self.inner.edit_file(pass, path, old_text, new_text)
-    }
-
-    fn run_command(
-        &self,
-        pass: &Pass,
-        command: &str,
-        timeout_ms: u64,
-    ) -> Result<ActualResult, OpRejection> {
-        self.watch(pass);
-        self.inner.run_command(pass, command, timeout_ms)
-    }
 }
 
 #[test]

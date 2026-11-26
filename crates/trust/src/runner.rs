@@ -71,6 +71,8 @@ pub trait GatedComputer: Send + Sync {
     fn path_info(&self, pass: &Pass, path: &str) -> Result<ActualResult, OpRejection>;
 
     fn resolve_target(&self, path: &str) -> Option<String>;
+
+    fn declared_workdir(&self) -> String;
 }
 
 #[cfg(test)]

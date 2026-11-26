@@ -1,7 +1,5 @@
 use std::fmt;
 
-use crate::command_key::command_tokens;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ActionClass {
     Delete,
@@ -115,22 +113,75 @@ pub fn classes_of_connector_tool(name: &str, destructive: bool) -> Vec<ActionCla
     out
 }
 
+const GIT_GLOBAL_OPTIONS: [&str; 10] = [
+    "-C",
+    "-c",
+    "--git-dir",
+    "--work-tree",
+    "--namespace",
+    "--exec-path",
+    "--bare",
+    "--config",
+    "--paginate",
+    "--no-pager",
+];
+
 #[must_use]
 pub fn classes_of_command(line: &str) -> Vec<ActionClass> {
-    let tokens = command_tokens(line);
-    let lower: Vec<String> = tokens.iter().map(|t| t.to_lowercase()).collect();
-    let whole = line.to_lowercase();
-    let mut out = vec![];
-    for class in ALL_CLASSES {
-        let (firsts, seconds) = command_words(class);
-        let hit = firsts.iter().any(|w| lower.first().is_some_and(|t| t == w))
-            || seconds.iter().any(|w| lower.get(1).is_some_and(|t| t == w))
-            || (class == ActionClass::Delete && whole.contains(" -delete"));
-        if hit {
-            out.push(class);
+    let mut out = Vec::new();
+    for segment in crate::sandbox_deny::split_segments(line) {
+        let inner = crate::sandbox_deny::strip_privilege_wrappers(
+            &crate::sandbox_deny::strip_wrappers(&segment),
+        );
+        let lower: Vec<String> = egress_tokens(&inner)
+            .iter()
+            .map(|t| t.to_lowercase())
+            .collect();
+        for class in ALL_CLASSES {
+            let (firsts, seconds) = command_words(class);
+            let hit = firsts.iter().any(|w| lower.first().is_some_and(|t| t == w))
+                || seconds.iter().any(|w| lower.get(1).is_some_and(|t| t == w))
+                || (class == ActionClass::Delete && segment.contains(" -delete"));
+            if hit {
+                out.push(class);
+            }
         }
     }
+    out.sort();
+    out.dedup();
     out
+}
+
+fn egress_tokens(segment: &str) -> Vec<String> {
+    let mut parts = segment.split_whitespace();
+    let head = parts.next().unwrap_or_default().to_owned();
+    if head != "git" {
+        let second = parts.next().unwrap_or_default().to_owned();
+        return vec![head, second];
+    }
+    let mut subcommand = String::new();
+    let mut value_expected = false;
+    for token in parts {
+        if value_expected {
+            value_expected = false;
+            continue;
+        }
+        if GIT_GLOBAL_OPTIONS.contains(&token) && !token.contains('=') {
+            if token == "-C"
+                || token == "-c"
+                || token == "--git-dir"
+                || token == "--work-tree"
+                || token == "--namespace"
+                || token == "--exec-path"
+            {
+                value_expected = true;
+            }
+            continue;
+        }
+        token.clone_into(&mut subcommand);
+        break;
+    }
+    vec![head, subcommand]
 }
 
 #[must_use]

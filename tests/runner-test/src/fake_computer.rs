@@ -25,6 +25,7 @@ pub struct FakeComputer {
     pub(crate) tree: Mutex<FileTree>,
     pub(crate) scripts: ScriptTable,
     pub(crate) unreachable: AtomicBool,
+    pub(crate) unresolvable: Vec<String>,
     pub(crate) log: Mutex<Vec<String>>,
 }
 
@@ -249,7 +250,14 @@ impl GatedComputer for FakeComputer {
         }))
     }
 
+    fn declared_workdir(&self) -> String {
+        "/workspace".to_owned()
+    }
+
     fn resolve_target(&self, path: &str) -> Option<String> {
+        if self.unresolvable.iter().any(|p| p == path) {
+            return None;
+        }
         Some(Self::guard(&self.tree).canonical(path))
     }
 }

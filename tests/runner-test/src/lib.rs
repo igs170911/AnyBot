@@ -15,3 +15,5 @@ pub use test_view::TestView;
 mod ops_tests;
 #[cfg(test)]
 mod pipeline_flow_tests;
+#[cfg(test)]
+mod spy_computer;
