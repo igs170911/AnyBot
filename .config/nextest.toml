@@ -7,7 +7,7 @@ ports = { max-threads = 1 }
 net = { max-threads = 1 }
 
 [[profile.default.overrides]]
-filter = 'test(/postgres_(dropped|install|migration|stop|two)/)'
+filter = 'binary(/^pg_/)'
 test-group = "pg"
 
 [[profile.default.overrides]]
@@ -19,8 +19,10 @@ filter = 'test(netctl_)'
 test-group = "net"
 
 [[profile.default.overrides]]
-filter = 'test(t_install|t_server|postgres)'
+filter = 'binary(/^pg_/) + test(t_install|t_server)'
 slow-timeout = { period = "90s", terminate-after = 4 }
 
+# Basic tests (make test-basic, Windows and macOS CI). A test that starts
+# PostgreSQL lives in a file named pg_*.rs. That file is the nextest binary name.
 [profile.quick]
-default-filter = 'not test(/postgres_(dropped|install|migration|stop|two)/)'
+default-filter = 'not binary(/^pg_/)'

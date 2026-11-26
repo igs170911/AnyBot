@@ -61,6 +61,7 @@ pub enum MessageCode {
     ModelListEmpty,
     ModelListTimeout,
     ModelBudget,
+    ContextSourceDeleted,
     ModelRefusal,
     ModelLengthNote,
     ModelHandoffUser,
@@ -69,6 +70,7 @@ pub enum MessageCode {
     ModelHandoffUnreachable,
     PushPayloadShort,
     PushKeyBase64,
+    TurnProgramNote,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -185,6 +187,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::ModelListEmpty, "model-list-empty"),
     (MessageCode::ModelListTimeout, "model-list-timeout"),
     (MessageCode::ModelBudget, "model-budget"),
+    (MessageCode::ContextSourceDeleted, "context-source-deleted"),
     (MessageCode::ModelRefusal, "model-refusal"),
     (MessageCode::ModelLengthNote, "model-length-note"),
     (MessageCode::ModelHandoffUser, "model-handoff-user"),
@@ -196,6 +199,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     ),
     (MessageCode::PushPayloadShort, "push-payload-short"),
     (MessageCode::PushKeyBase64, "push-key-base64"),
+    (MessageCode::TurnProgramNote, "turn-program-note"),
 ];
 
 impl MessageCode {

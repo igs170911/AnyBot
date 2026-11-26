@@ -63,12 +63,33 @@ pub fn package_of_path(path: &str) -> Option<String> {
         ("crates", Some(_)) => Some(format!("anybot-{dir}")),
         ("apps", Some("src-tauri")) => Some("anybot-app-desktop".to_owned()),
         ("apps", Some(_) | None) => Some(format!("anybot-app-{dir}")),
-        ("tools", Some(_) | None) => Some(dir.to_owned()),
+        ("tools", Some(_) | None) => tool_package_name(dir),
         ("tests", Some(_)) if dir == "harness" => Some("test-harness".to_owned()),
         ("tests", Some(_)) if dir == "live-model" => Some("live-model".to_owned()),
         ("tests", Some(_)) if dir == "os-certs" => Some("os-certs".to_owned()),
         _ => None,
     }
+}
+
+fn tool_package_name(dir: &str) -> Option<String> {
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("tools")
+        .join(dir)
+        .join("Cargo.toml");
+    let text = crate::collect::read_file_lossy(&manifest).ok()?;
+    for raw in text.lines() {
+        let line = raw.trim();
+        let Some(value) = line.strip_prefix("name") else {
+            continue;
+        };
+        let value = value.trim().trim_start_matches('=').trim();
+        let value = value.strip_prefix('"')?.strip_suffix('"')?;
+        if !value.is_empty() {
+            return Some(value.to_owned());
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -195,6 +216,10 @@ mod tests {
         assert_eq!(
             package_of_path("tools/iron-laws/src/main.rs").as_deref(),
             Some("iron-laws")
+        );
+        assert_eq!(
+            package_of_path("tools/versions/src/lib.rs").as_deref(),
+            Some("anybot-versions")
         );
         assert_eq!(
             package_of_path("tests/live-model/src/main.rs").as_deref(),
