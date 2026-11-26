@@ -6,6 +6,7 @@ use crate::computer_results::BeforeDigest;
 use crate::gate_record::{GateOutcome, GateRecord, JudgementSource};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum EvidenceKind {
     Seen,
@@ -18,6 +19,7 @@ pub enum EvidenceKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ActionOutcome {
     Completed,
@@ -27,6 +29,7 @@ pub enum ActionOutcome {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum NotExecutedReason {
     ComputerUnreachable,
@@ -36,6 +39,7 @@ pub enum NotExecutedReason {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum VerificationResult {
     Passed,
@@ -44,6 +48,7 @@ pub enum VerificationResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct VerificationRecord {
     pub result: VerificationResult,
     pub source: JudgementSource,
@@ -51,22 +56,26 @@ pub struct VerificationRecord {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct ReasonPayload {
     pub code: String,
     pub params: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum EvidencePayload {
     Seen {
         path: String,
+        #[cfg_attr(feature = "schema", schema(value_type = String))]
         digest: ContentDigest,
         size: u64,
     },
     Changed {
         path: String,
         before: BeforeDigest,
+        #[cfg_attr(feature = "schema", schema(value_type = String))]
         after: ContentDigest,
         size: u64,
     },
@@ -77,6 +86,7 @@ pub enum EvidencePayload {
         output_head: String,
         output_tail: String,
         output_omitted: u64,
+        #[cfg_attr(feature = "schema", schema(value_type = String))]
         full_digest: ContentDigest,
         elapsed_ms: u64,
     },
@@ -93,6 +103,7 @@ pub enum EvidencePayload {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct EvidenceShortId(pub u32);
 
 impl EvidenceShortId {
@@ -103,11 +114,16 @@ impl EvidenceShortId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct EvidenceRecord {
+    #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
     pub id: EvidenceId,
     pub short: EvidenceShortId,
+    #[cfg_attr(feature = "schema", schema(value_type = u64))]
     pub at: TimestampMs,
+    #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
     pub task: TaskId,
+    #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
     pub turn: TurnId,
     pub computer: String,
     pub workdir: String,
@@ -126,6 +142,48 @@ impl EvidenceRecord {
     #[must_use]
     pub fn gate_outcome(&self) -> GateOutcome {
         self.gate.outcome
+    }
+
+    #[must_use]
+    pub fn display(&self) -> String {
+        let outcome = format!("{:?}", self.outcome).to_lowercase();
+        let detail = match &self.payload {
+            EvidencePayload::Seen { path, digest, .. } => {
+                format!("seen {path} sha256:{digest}")
+            }
+            EvidencePayload::Changed {
+                path,
+                before,
+                after,
+                ..
+            } => {
+                let prior = match before {
+                    BeforeDigest::Absent => "absent".to_owned(),
+                    BeforeDigest::Present(value) => format!("sha256:{value}"),
+                };
+                format!("changed {path} before {prior} after sha256:{after}")
+            }
+            EvidencePayload::Executed {
+                command, exit_code, ..
+            } => {
+                let code = exit_code.map_or("none".to_owned(), |c| c.to_string());
+                format!("ran {command} exit {code}")
+            }
+            EvidencePayload::Approved { .. } => "approved".to_owned(),
+            EvidencePayload::Rejected { reason } => {
+                format!("rejected {code}", code = reason.code)
+            }
+            EvidencePayload::NotExecuted { reason, .. } => {
+                format!("not-executed {reason:?}").to_lowercase()
+            }
+        };
+        format!(
+            "E{} {} {} {}",
+            self.short.number(),
+            self.tool,
+            outcome,
+            detail
+        )
     }
 }
 

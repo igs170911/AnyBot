@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     BudgetItem, CardAnswer, CheckSource, ComputerRef, Criterion, DeviceReportKind, DoneWhenChange,
-    FinishReason, ModelName, NativeRef, NotRunReason, Proposer, ReconcileOutcome, TaskOpener,
-    ThinkingChoice, TokenUsage, ToolEffect, ToolRequest, TurnEndReason, TurnInitiator,
+    EvidenceRecord, FinishReason, GateRecord, ModelName, NativeRef, NotRunReason, Proposer,
+    ReconcileOutcome, TaskOpener, ThinkingChoice, TokenUsage, ToolEffect, ToolRequest,
+    TurnEndReason, TurnInitiator,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,6 +77,11 @@ pub enum KnownTaskEventKind {
         to: String,
         reason: String,
     },
+    GateResult {
+        #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
+        call_id: CallId,
+        gate: GateRecord,
+    },
     ToolIntent {
         #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
         call_id: CallId,
@@ -90,6 +96,8 @@ pub enum KnownTaskEventKind {
     ToolCompleted {
         #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
         call_id: CallId,
+        summary: String,
+        raw_id: Option<String>,
     },
     ToolFailed {
         #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
@@ -113,7 +121,7 @@ pub enum KnownTaskEventKind {
         source: CheckSource,
     },
     EvidenceAdded {
-        summary: String,
+        record: Box<EvidenceRecord>,
     },
     CriterionPassed {
         index: usize,

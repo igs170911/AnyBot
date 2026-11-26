@@ -33,7 +33,8 @@ pub(crate) fn advance_action(view: &mut TaskView, event: &KnownTaskEventKind) ->
         }
         KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolNotRun { .. }
-        | KnownTaskEventKind::EvidenceAdded { .. } => true,
+        | KnownTaskEventKind::EvidenceAdded { .. }
+        | KnownTaskEventKind::GateResult { .. } => true,
         KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
@@ -103,6 +104,7 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }

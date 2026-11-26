@@ -12,6 +12,8 @@ pub mod estimate;
 #[cfg(test)]
 mod fixtures;
 #[cfg(test)]
+pub(crate) mod fixtures_events;
+#[cfg(test)]
 pub(crate) mod fixtures_extra;
 pub mod input;
 pub mod mask;

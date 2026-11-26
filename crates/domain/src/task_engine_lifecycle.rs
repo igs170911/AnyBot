@@ -26,6 +26,7 @@ pub(crate) fn advance_goal(view: &mut TaskView, event: &KnownTaskEventKind) -> b
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
@@ -71,6 +72,7 @@ pub(crate) fn advance_cancel(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
@@ -130,6 +132,7 @@ pub(crate) fn advance_lifecycle(view: &mut TaskView, event: &KnownTaskEventKind)
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
@@ -179,6 +182,7 @@ pub(crate) fn advance_turn(view: &mut TaskView, event: &KnownTaskEventKind) -> b
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }

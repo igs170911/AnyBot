@@ -141,6 +141,7 @@ fn apply_criteria(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
@@ -168,7 +169,7 @@ fn apply_steps(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
             level,
             ..
         } => record_intent(b, seq, call_id, name, *level),
-        KnownTaskEventKind::ToolCompleted { call_id } => {
+        KnownTaskEventKind::ToolCompleted { call_id, .. } => {
             update_step(b, call_id, StepStateKind::Done, seq);
         }
         KnownTaskEventKind::ToolFailed { call_id, .. } => {
@@ -183,7 +184,8 @@ fn apply_steps(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         KnownTaskEventKind::ActionVerified { call_id, .. } => {
             b.pending.remove(&call_id.as_str());
         }
-        KnownTaskEventKind::TaskCreated { .. }
+        KnownTaskEventKind::GateResult { .. }
+        | KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
         | KnownTaskEventKind::CriterionPassed { .. }

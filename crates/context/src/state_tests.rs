@@ -30,18 +30,35 @@ proptest! {
         }
         for e in &events {
             if let anybot_protocol::TaskEventKind::Known(
-                anybot_protocol::KnownTaskEventKind::EvidenceAdded { summary },
+                anybot_protocol::KnownTaskEventKind::EvidenceAdded { record },
             ) = &e.kind
             {
+                let display = record.display();
                 prop_assert!(
-                    a.items.iter().any(|i| i.text.contains(summary) && i.source_seq == e.seq),
-                    "evidence item does not carry the event summary verbatim",
+                    a.items.iter().any(|i| i.text.contains(&display) && i.source_seq == e.seq),
+                    "evidence item does not carry the event display verbatim",
                 );
             }
         }
         let compress = render(&build_state(&events), true);
         prop_assert!(compress.items.len() <= a.items.len());
     }
+}
+
+fn executed_fixture(exit: i32) -> anybot_protocol::EvidenceRecord {
+    let mut record = crate::fixtures::evidence_fixture(9);
+    record.tool = "shell".to_owned();
+    record.payload = anybot_protocol::EvidencePayload::Executed {
+        command: "run".to_owned(),
+        computer: "c".to_owned(),
+        exit_code: Some(exit),
+        output_head: String::new(),
+        output_tail: String::new(),
+        output_omitted: 0,
+        full_digest: anybot_foundation::ContentDigest::sha256(b"o"),
+        elapsed_ms: 1,
+    };
+    record
 }
 
 fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
@@ -69,13 +86,17 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
             seq.saturating_add(1),
             anybot_protocol::KnownTaskEventKind::ToolCompleted {
                 call_id: CallId::generate(&SystemClock),
+                summary: "s".to_owned(),
+                raw_id: None,
             },
         ));
         if i < 3 {
             events.push(sup::known(
                 seq,
                 anybot_protocol::KnownTaskEventKind::EvidenceAdded {
-                    summary: format!("file f{i} sha {i}"),
+                    record: Box::new(crate::fixtures::evidence_fixture(
+                        u32::try_from(i).unwrap_or(0),
+                    )),
                 },
             ));
         }
@@ -83,7 +104,7 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
     events.push(sup::known(
         22,
         anybot_protocol::KnownTaskEventKind::EvidenceAdded {
-            summary: "command exit code 1".to_owned(),
+            record: Box::new(executed_fixture(1)),
         },
     ));
     events
@@ -103,9 +124,9 @@ fn compiled_request_has_one_state_summary() {
             assert_eq!(summaries.len(), 1, "one state summary");
             let text = summaries.first().expect("summary").text.clone();
             for i in 0..3 {
-                assert!(text.contains(&format!("file f{i} sha {i}")));
+                assert!(text.contains(&format!("seen f{i}")));
             }
-            assert!(text.contains("exit code 1"));
+            assert!(text.contains("exit 1"));
             assert!(
                 request
                     .blocks
@@ -184,7 +205,11 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
         if i < 280 {
             events.push(sup::known(
                 seq.saturating_add(1),
-                anybot_protocol::KnownTaskEventKind::ToolCompleted { call_id: call },
+                anybot_protocol::KnownTaskEventKind::ToolCompleted {
+                    call_id: call,
+                    summary: "s".to_owned(),
+                    raw_id: None,
+                },
             ));
         } else {
             open_ids.push(call.as_str().clone());

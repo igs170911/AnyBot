@@ -220,6 +220,7 @@ pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind
         KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. } => {
             view.budget.last_ms = millis;
         }

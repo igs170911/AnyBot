@@ -97,6 +97,10 @@ pub struct TokenUsage {
 #[serde(rename_all = "snake_case")]
 pub enum NotRunReason {
     NotWired,
+    OverBudget,
+    PreviousRefused,
+    Stopped,
+    ComputerOffline,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

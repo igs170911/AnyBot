@@ -4,8 +4,8 @@ use crate::state::StateBuilder;
 
 pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
     match known {
-        KnownTaskEventKind::EvidenceAdded { summary } => {
-            b.evidence.push((seq, summary.clone()));
+        KnownTaskEventKind::EvidenceAdded { record } => {
+            b.evidence.push((seq, record.display()));
         }
         KnownTaskEventKind::BudgetUsage { item, delta } => {
             let entry = b.budget.entry(*item).or_insert((0, seq));
@@ -39,6 +39,7 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
         | KnownTaskEventKind::ModelUsage { .. }
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }

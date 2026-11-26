@@ -77,7 +77,11 @@ fn t_task_state_9() {
             level: ToolEffect::Irreversible,
         },
         KnownTaskEventKind::ToolStarted { call_id: c },
-        KnownTaskEventKind::ToolCompleted { call_id: c },
+        KnownTaskEventKind::ToolCompleted {
+            call_id: c,
+            summary: "s".to_owned(),
+            raw_id: None,
+        },
         KnownTaskEventKind::ActionVerified {
             call_id: c,
             source: CheckSource::Program,

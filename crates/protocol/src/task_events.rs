@@ -174,6 +174,7 @@ impl KnownTaskEventKind {
             KnownTaskEventKind::ModelUsage { .. } => "model_usage",
             KnownTaskEventKind::ToolNotRun { .. } => "tool_not_run",
             KnownTaskEventKind::ModelSwapped { .. } => "model_swapped",
+            KnownTaskEventKind::GateResult { .. } => "gate_result",
             KnownTaskEventKind::ToolIntent { .. } => "tool_intent",
             KnownTaskEventKind::ToolStarted { .. } => "tool_started",
             KnownTaskEventKind::ToolCompleted { .. } => "tool_completed",

@@ -31,6 +31,7 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
@@ -83,6 +84,7 @@ pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKi
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
@@ -132,6 +134,7 @@ pub(crate) fn advance_done_when(view: &mut TaskView, event: &KnownTaskEventKind)
         | KnownTaskEventKind::ToolNotRun { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::GateResult { .. }
         | KnownTaskEventKind::ToolStarted { .. }
         | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
