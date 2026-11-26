@@ -1,3 +1,5 @@
+#[cfg(test)]
+use anybot_app_test as _;
 use std::io::Write;
 
 use axum as _;
