@@ -30,6 +30,7 @@ pub struct AppState {
     pub started_at_ms: TimestampMs,
     pub pass_hash: Arc<tokio::sync::OnceCell<Arc<PassHash>>>,
     pub listen_ports: Arc<Vec<u16>>,
+    pub releases: Arc<anybot_domain::version_release::ReleaseTable>,
 }
 
 impl AppState {
@@ -54,6 +55,7 @@ impl AppState {
             version: version.to_owned(),
             pass_hash: Arc::new(tokio::sync::OnceCell::new()),
             listen_ports: Arc::new(Vec::new()),
+            releases: Arc::new(anybot_domain::version_release::ReleaseTable::empty()),
             clock,
             bootstrap: Arc::new(None),
             pool: Arc::new(None),
@@ -85,6 +87,12 @@ impl AppState {
         state.pool = Arc::new(Some(pool));
         state.config = Arc::new(tokio::sync::Mutex::new(config));
         state
+    }
+
+    #[must_use]
+    pub fn with_releases(mut self, releases: anybot_domain::version_release::ReleaseTable) -> Self {
+        self.releases = Arc::new(releases);
+        self
     }
 
     #[must_use]
@@ -121,10 +129,18 @@ pub fn build_router(state: AppState) -> Router {
         )
         .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
-            state,
+            state.clone(),
             crate::auth_csrf::csrf_layer,
         ))
         .layer(axum::middleware::from_fn(
             crate::auth_pre::pre_session_layer,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::auth_version::version_layer,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state,
+            crate::auth_time::time_layer,
         ))
 }

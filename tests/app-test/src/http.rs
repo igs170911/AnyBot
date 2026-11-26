@@ -13,6 +13,7 @@ pub const FORWARDED_HEADER: &str = "x-forwarded-for";
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 pub const STEP_REAL: Duration = Duration::from_millis(10);
 pub const LOGIN_STEP: Duration = Duration::from_millis(500);
+pub const TEST_CLIENT_VERSION: &str = "0.1.0";
 
 #[derive(Clone)]
 pub struct RequestSpec {
@@ -21,6 +22,7 @@ pub struct RequestSpec {
     pub body: String,
     pub extra: Vec<(String, String)>,
     pub local: Option<IpAddr>,
+    pub version: Option<String>,
 }
 
 impl RequestSpec {
@@ -32,7 +34,14 @@ impl RequestSpec {
             body: body.to_owned(),
             extra: Vec::new(),
             local: None,
+            version: Some(TEST_CLIENT_VERSION.to_owned()),
         }
+    }
+
+    #[must_use]
+    pub fn without_version(mut self) -> Self {
+        self.version = None;
+        self
     }
 
     #[must_use]
@@ -68,6 +77,10 @@ impl RequestSpec {
         if let Some(key) = &self.key {
             let value = HeaderValue::from_str(key).map_err(|e| e.to_string())?;
             map.insert(HeaderName::from_static(IDEMPOTENCY_HEADER), value);
+        }
+        if let Some(version) = &self.version {
+            let value = HeaderValue::from_str(version).map_err(|e| e.to_string())?;
+            map.insert(HeaderName::from_static("anybot-client-version"), value);
         }
         if let Some(bearer) = &self.bearer {
             let value =

@@ -153,6 +153,7 @@ pub enum MessageCode {
     TurnToolNotWired,
     TurnModelFailed,
     ModelBlank,
+    InstallVersionOld,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -439,6 +440,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::TurnToolNotWired, "turn-tool-not-wired"),
     (MessageCode::TurnModelFailed, "turn-model-failed"),
     (MessageCode::ModelBlank, "model-blank"),
+    (MessageCode::InstallVersionOld, "install-version-old"),
 ];
 
 impl MessageCode {

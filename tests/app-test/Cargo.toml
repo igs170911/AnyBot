@@ -10,6 +10,7 @@ description = "Shared test support for the server executable suites (spec/07 §3
 workspace = true
 
 [dependencies]
+anybot-domain = { workspace = true }
 anybot-foundation = { workspace = true }
 anybot-messages = { workspace = true }
 anybot-server = { workspace = true }

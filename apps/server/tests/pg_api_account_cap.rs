@@ -1,3 +1,4 @@
+use anybot_domain as _;
 use anybot_server_test as _;
 use std::sync::Arc;
 

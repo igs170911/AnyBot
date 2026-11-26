@@ -7,6 +7,7 @@ use sqlx::Row as _;
 use anybot_app_test::ClockWalker;
 use anybot_app_test::http::{RequestSpec, ResponseSpec, post};
 use anybot_app_test::serve::Served;
+use anybot_domain::version_release::{ReleaseRow, ReleaseTable};
 
 #[must_use]
 pub fn login_cookie_body(account: &str, password: &str) -> String {
@@ -146,4 +147,17 @@ pub async fn table_counts(served: &Served) -> Result<BTreeMap<String, i64>, Stri
         counts.insert(name, count);
     }
     Ok(counts)
+}
+
+#[must_use]
+pub fn releases(rows: &[(&str, i64)]) -> ReleaseTable {
+    ReleaseTable {
+        rows: rows
+            .iter()
+            .map(|(version, at_ms)| ReleaseRow {
+                version: (*version).to_owned(),
+                at_ms: *at_ms,
+            })
+            .collect(),
+    }
 }

@@ -1,6 +1,7 @@
 use anybot_app_server as _;
 use anybot_app_test as _;
 use anybot_app_test::{ServerDb, ServerProgram, db_start, english};
+use anybot_domain as _;
 use anybot_foundation as _;
 use anybot_messages::{Catalog, MessageCode, Params};
 use anybot_server as _;

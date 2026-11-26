@@ -19,6 +19,8 @@ pub mod app;
 pub mod auth_credential;
 pub mod auth_csrf;
 pub mod auth_pre;
+pub mod auth_time;
+pub mod auth_version;
 pub mod boot;
 pub mod caller;
 pub mod caller_session;

@@ -54,7 +54,7 @@ runner-test = { path = "tests/runner-test", version = "0.1.0" }
 live-model = { path = "tests/live-model", version = "0.1.0" }
 # external crates (spec/06)
 anyhow = "1"
-time = { version = "0.3", features = ["formatting", "macros", "parsing"] }
+time = { version = "0.3", features = ["formatting", "macros", "parsing", "large-dates"] }
 jiff = "1"
 axum = "0.8"
 rand = "0.10"
@@ -62,6 +62,7 @@ schemars = { version = "1", features = ["uuid1"] }
 yaml_serde = "0.10"
 sqlparser = { version = "0.55", default-features = false, features = ["std"] }
 url = "2"
+semver = "1"
 percent-encoding = "2"
 tokio = { version = "1", features = ["macros", "rt", "net", "signal"] }
 socket2 = "0.6"

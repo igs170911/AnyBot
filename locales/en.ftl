@@ -148,3 +148,4 @@ turn-fixed-computer-unknown = The type of this computer is not known.
 turn-tool-not-wired = This version cannot run tools yet, so { $tool } was not run.
 turn-model-failed = The model request failed.
 model-blank = The model returned an empty reply twice.
+install-version-old = This AnyBot is too old (v{ $version }): please update.

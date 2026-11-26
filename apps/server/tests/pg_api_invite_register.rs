@@ -1,5 +1,6 @@
 use anybot_app_server as _;
 use anybot_app_test as _;
+use anybot_domain as _;
 use anybot_foundation as _;
 use anybot_messages as _;
 use anybot_server as _;

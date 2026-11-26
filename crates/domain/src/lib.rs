@@ -24,6 +24,7 @@ pub mod task_journal;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
+pub mod version_release;
 pub mod window;
 
 #[cfg(test)]
@@ -36,6 +37,9 @@ mod settings_merge_proptest;
 pub mod settings_merge_shared;
 #[cfg(test)]
 mod settings_merge_tests;
+#[cfg(test)]
+#[cfg(test)]
+mod version_release_tests;
 
 pub use anybot_foundation::{DeviceId, TimestampMs};
 pub use anybot_protocol::TaskStatus;

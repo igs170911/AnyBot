@@ -1,4 +1,6 @@
 #[cfg(test)]
+use anybot_domain as _;
+#[cfg(test)]
 use anybot_server_test as _;
 
 #[cfg(test)]

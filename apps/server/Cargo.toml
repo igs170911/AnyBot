@@ -23,6 +23,7 @@ tokio = { workspace = true }
 sqlx = { workspace = true }
 [dev-dependencies]
 anybot-app-test = { workspace = true }
+anybot-domain = { workspace = true }
 anybot-server-test = { workspace = true }
 tracing = { workspace = true }
 serde_json = { workspace = true }

@@ -149,7 +149,8 @@ export type MessageCode =
   "turn-fixed-computer-unknown" |
   "turn-tool-not-wired" |
   "turn-model-failed" |
-  "model-blank";
+  "model-blank" |
+  "install-version-old";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -301,4 +302,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "turn-tool-not-wired",
   "turn-model-failed",
   "model-blank",
+  "install-version-old",
 ];

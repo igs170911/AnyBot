@@ -130,7 +130,7 @@ async fn buffered_bytes(body: &mut axum::body::Body) -> Option<Vec<u8>> {
     Some(bytes.to_vec())
 }
 
-async fn drain_body(body: axum::body::Body) {
+pub(crate) async fn drain_body(body: axum::body::Body) {
     match axum::body::to_bytes(body, crate::req_write::MAX_WRITE_BODY).await {
         Ok(bytes) => drop(bytes),
         Err(error) => drop(error),

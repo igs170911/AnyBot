@@ -151,3 +151,4 @@ turn-fixed-computer-unknown = 不知道這台電腦是哪一種。
 turn-tool-not-wired = 這一版還不能執行工具，所以沒有執行 { $tool }。
 turn-model-failed = 問模型失敗了。
 model-blank = 模型兩次都回了空白。
+install-version-old = 這台的 AnyBot 太舊（v{ $version }）：請更新。

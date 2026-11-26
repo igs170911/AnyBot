@@ -167,6 +167,7 @@ name = "anybot-app-server"
 version = "0.1.0"
 dependencies = [
  "anybot-app-test",
+ "anybot-domain",
  "anybot-foundation",
  "anybot-messages",
  "anybot-server",
@@ -186,6 +187,7 @@ dependencies = [
 name = "anybot-app-test"
 version = "0.1.0"
 dependencies = [
+ "anybot-domain",
  "anybot-foundation",
  "anybot-messages",
  "anybot-server",
@@ -252,8 +254,10 @@ version = "0.1.0"
 dependencies = [
  "anybot-foundation",
  "anybot-protocol",
+ "jiff 1.0.3",
  "proptest",
  "regex",
+ "semver",
  "serde",
  "serde_json",
  "url",
@@ -415,6 +419,7 @@ name = "anybot-server-test"
 version = "0.1.0"
 dependencies = [
  "anybot-app-test",
+ "anybot-domain",
  "serde_json",
  "sqlx",
 ]
