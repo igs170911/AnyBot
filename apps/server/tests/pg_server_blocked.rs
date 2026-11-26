@@ -210,13 +210,12 @@ async fn serve_online(db: &ServerDb, capture: &Arc<Capture>) -> Result<(), Strin
     let _closed = pool.close().await;
     let want = startup_want(db)?;
     let mut ctx = ctx_with_capture(capture);
-    let staged =
-        anybot_app_server::server_run::stage_serve(
-            &launched,
-            anybot_foundation::log_version(&anybot_foundation::version_string()),
-            &mut ctx,
-        )
-            .await;
+    let staged = anybot_app_server::server_run::stage_serve(
+        &launched,
+        anybot_foundation::log_version(&anybot_foundation::version_string()),
+        &mut ctx,
+    )
+    .await;
     let staged = match staged {
         Ok(staged) => staged,
         Err(code) => return Err(format!("stage failed {code:?}")),
