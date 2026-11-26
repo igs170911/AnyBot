@@ -1,12 +1,14 @@
 #!/bin/sh
 # Publish the one dev pre-release, or create the stable draft.
-# Dev never edits the visible page in place. A complete new draft is uploaded
-# under a throwaway tag, then the visible page is deleted and the draft is
-# published onto dev-build. A failed step deletes only the throwaway draft.
-# The dev-build git tag moves only after that swap. The caller moves :dev only
+# Dev never edits the visible page in place. A complete draft is uploaded under
+# a throwaway name. The old Release and its git tag are deleted together, then
+# one edit renames the draft onto dev-build and publishes it. GitHub creates
+# the dev-build tag in that edit, so this script does not push a tag.
+# A failed upload deletes only the throwaway draft. The caller moves :dev only
 # after this script exits 0.
-# https://cli.github.com/manual/gh_release_upload (--clobber deletes first)
-# https://cli.github.com/manual/gh_release_create (draft, then publish)
+# https://cli.github.com/manual/gh_release_delete (--cleanup-tag deletes the tag)
+# https://cli.github.com/manual/gh_release_edit (--tag renames; --draft=false publishes)
+# https://docs.github.com/en/rest/releases/releases (one PATCH sets tag_name and draft)
 # https://docs.github.com/en/rest/releases/assets (same name is HTTP 422)
 set -eu
 digest="${IMAGE_DIGEST:-}"
@@ -53,6 +55,7 @@ if [ "$CHANNEL" = "dev" ]; then
   fi
   staging="dev-build-next-${SHA}"
   # A leftover draft from an earlier failed attempt is not the visible page.
+  # --cleanup-tag removes its git tag too, if one was created.
   gh release delete "$staging" --yes --cleanup-tag >/dev/null 2>&1 || true
   # shellcheck disable=SC2086
   if ! gh release create "$staging" \
@@ -65,24 +68,25 @@ if [ "$CHANNEL" = "dev" ]; then
     echo "dev draft was not complete; the visible page is unchanged" >&2
     exit 1
   fi
-  # Publish the complete draft under its own tag first. The visible dev-build
-  # page is still the old one. Only then delete the old page and retag.
-  # gh release edit --tag renames the release; it does not copy assets.
-  if ! gh release edit "$staging" --draft=false --prerelease --latest=false \
-    --target "$SHA" --notes-file "$notes"; then
-    gh release delete "$staging" --yes --cleanup-tag >/dev/null 2>&1 || true
-    echo "dev draft was not published; the visible page is unchanged" >&2
-    exit 1
-  fi
+  # Delete the old Release and its tag together, then rename and publish in
+  # one edit. Publishing first under the throwaway name would leave that tag
+  # behind: edit --tag creates the new tag and does not delete the old one.
+  # https://cli.github.com/manual/gh_release_delete
+  # https://docs.github.com/en/rest/releases/releases
   if gh release view "$TAG" >/dev/null 2>&1; then
-    gh release delete "$TAG" --yes
+    gh release delete "$TAG" --yes --cleanup-tag
   fi
-  if ! gh release edit "$staging" --tag "$TAG" --target "$SHA" --notes-file "$notes"; then
-    echo "dev page rename failed; $staging is the complete new page and $TAG may be gone" >&2
+  if ! gh release edit "$staging" \
+    --tag "$TAG" \
+    --draft=false \
+    --prerelease \
+    --latest=false \
+    --target "$SHA" \
+    --notes-file "$notes"; then
+    gh release delete "$staging" --yes --cleanup-tag >/dev/null 2>&1 || true
+    echo "dev page was not published; dev-build was already removed" >&2
     exit 1
   fi
-  git tag -f "$TAG" "$SHA"
-  git push origin "refs/tags/${TAG}" --force
   exit 0
 fi
 

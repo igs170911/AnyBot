@@ -23,9 +23,10 @@
 
 順序是：
 
-1. 把各架構的映像推上去，組成 `dev-<commit>` 這個索引。這一步不移 `:dev`。
-2. 先把新的完整頁面建成另一個草稿，全部上傳成功後才換成看得到的 `dev-build` 頁。換到一半失敗，看得到的仍是完整的舊頁。
-3. 頁面換成功之後，才把 `dev-build` 標籤移到這次的 commit，然後才把映像的 `:dev` 移到 `dev-<commit>`。頁面失敗，`:dev` 不動。
+1. 發佈工作的第一步再查一次：這次必須仍是 `dev` 的最新 commit。不是就停，不推映像、不改頁面、不移標籤。
+2. 把各架構的映像推上去，組成 `dev-<commit>` 這個索引。這一步不移 `:dev`。
+3. 先把新的完整頁面建成草稿。刪掉舊的 `dev-build` Release 時連它的 git 標籤一起刪，再在同一次編輯裡把草稿改名成 `dev-build` 並公開。GitHub 在這次編輯建立 `dev-build` 標籤，不另推一次。暫時的名字不會留下公開頁面或標籤。這一步若在刪掉舊頁之後失敗，看得到的 `dev-build` 會先空著，完整的新頁留在草稿上，下次成功的發佈會清掉那個草稿再換上。`:dev` 這時候不動。
+4. 頁面換成功之後，才把映像的 `:dev` 移到 `dev-<commit>`。
 
 開發版和正式版不共用排隊位置，也不共用任何映像標籤。正式版用版本號和 12 字 commit；開發版用 `:dev` 和 `dev-` 開頭的名字。名稱不寫死帳號。
 
@@ -44,7 +45,7 @@ https://github.com/igs170911/AnyBot/releases/tag/dev-build
 1. 確認 `dev` 全綠，而且 `main` 已經停在同一個 commit。
 2. 確認三處版本號一致：`Cargo.toml` 的 `[workspace.package]`、`apps/desktop/src-tauri/tauri.conf.json`、`apps/desktop/package.json`、根目錄 `package.json`。`make check` 裡的 `versions` 關卡平常就擋不一致。
 3. 在那個 commit 上打標籤，形狀是 `v0.1.0`，或預先發佈 `v0.1.0-rc.1`。標籤必須在 `main` 上，而且 CI 在 `main` 上對這個 commit 的 Linux、Windows、macOS 三個工作都是成功。只綠 Linux、或只綠別的工作流程，都不發佈。
-4. 推標籤。`release.yml` 先確認上面那三個工作。對了才編安裝檔和伺服器映像，建 **Release 草稿**。`-rc.N` 標成預先發佈。
+4. 推標籤。`release.yml` 先確認上面那三個工作。對了才編安裝檔和伺服器映像。組索引時同時加上版本標籤（`0.1.0` 或 `0.1.0-rc.1`）和 12 字 commit，然後建 **Release 草稿**。`-rc.N` 標成預先發佈。`latest` 這時候不動。
 5. 打開草稿，對 `SHA256SUMS`，看說明裡的放行步驟還在，再公開。
 6. 公開之後（不是草稿、不是 `-rc`），同一個工作流程把映像的 `latest` 移到這個版本。
 
@@ -60,7 +61,7 @@ https://github.com/igs170911/AnyBot/releases/tag/dev-build
 
 開發版：
 
-- 安裝檔：下一次 `dev` 的最新 commit 全綠，會先建成完整的新頁，再換掉看得到的那一頁，然後才移 `dev-build`。要立刻拿掉，在 GitHub 刪除 `dev-build` 這個 Release（標籤留著也沒有檔案可下）。
+- 安裝檔：下一次 `dev` 的最新 commit 全綠，會先建成完整的新草稿，刪掉舊的 Release 和標籤，再在同一次編輯裡改名並公開。要立刻拿掉，在 GitHub 刪除 `dev-build` 這個 Release，並刪掉它的 git 標籤。
 - 映像：不要重跑舊 commit。guard 只接受當時 `dev` 的最新 commit，舊的那次重跑會被拒絕。要蓋過 `:dev`，在要的那個 commit 上再推一次 `dev`（它必須變成最新），等三個系統都綠。不要刪除別人還在用的 `dev-<commit>` 標籤。
 
 正式版：

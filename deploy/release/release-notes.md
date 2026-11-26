@@ -10,7 +10,9 @@ This build is **{{CHANNEL}}**. It is not code-signed and not notarized (spec/09 
 - Tag: {{TAG}}
 - Server image digest: `{{IMAGE_DIGEST}}` (the commit-scoped multi-arch index, not `:latest` and not `:dev`)
 
-When the channel is `dev`, this is the one fixed pre-release page. A new page is uploaded as a complete draft first. The visible page is replaced only after that draft is complete, then the `dev-build` tag moves to this commit, then the image `:dev` tag moves. A failed upload leaves the previous page and the previous `:dev` tag. The digest above is the commit-scoped index (`dev-<commit>`), not the digest of `:dev` after it is moved: moving `:dev` builds a new index.
+When the channel is `dev`, this is the one fixed pre-release page. A new page is uploaded as a complete draft first. The old Release and its git tag are deleted together, then one edit renames that draft onto `dev-build` and publishes it. GitHub creates the `dev-build` tag in that edit. The image `:dev` tag moves only after that. A failed upload leaves the previous page and the previous `:dev` tag, and does not leave a public throwaway tag. The digest above is the commit-scoped index (`dev-<commit>`), not the digest of `:dev` after it is moved: moving `:dev` builds a new index.
+
+When the channel is `stable`, the same digest is also the version tag (`0.1.0`, or `0.1.0-rc.1`). `:latest` is a different index and is not moved while this page is a draft.
 
 The desktop app is still a shell: it opens one window and has no chat, tasks, or account pages. The server image answers `--version` and a health check. Do not use either as a product.
 

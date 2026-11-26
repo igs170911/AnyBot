@@ -1,12 +1,13 @@
 #!/bin/sh
 # Decisions in deploy/release/*.sh. docker, gh, and git on PATH are stubs.
 # The stubs are the only commands those names can resolve to.
-# Does not call GitHub, Docker, or the real git.
+# ANYBOT_DOCKER must not point past the stub. Does not call GitHub, Docker, or git.
 set -eu
+unset ANYBOT_DOCKER || true
 root="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
 cd "$root"
 fail=0
-base="target/release-selftest"
+base="${ANYBOT_SELFTEST_BASE:-target/release-selftest}"
 stub="$root/$base/stub"
 
 say() {
@@ -50,6 +51,10 @@ only_stubs() {
         ;;
     esac
   done
+  if [ -n "${ANYBOT_DOCKER:-}" ]; then
+    echo "ANYBOT_DOCKER is set ($ANYBOT_DOCKER); refusing to run" >&2
+    exit 1
+  fi
 }
 
 prepare() {
@@ -126,10 +131,6 @@ pathlib.Path(gh).write_text(
     "    case \"$*\" in\n"
     "      *--draft=false*) exit 1 ;;\n"
     "    esac ;;\n"
-    "  rename-fail)\n"
-    "    case \"$*\" in\n"
-    "      *\"--tag \"*) exit 1 ;;\n"
-    "    esac ;;\n"
     "esac\n"
     "case \"$1\" in\n"
     "  api)\n"
@@ -186,6 +187,13 @@ run_guard() {
     "$@" sh deploy/release/guard.sh >"$out.stdout" 2>"$out.stderr" || return $?
 }
 
+if [ -n "${ANYBOT_SELFTEST_INNER:-}" ]; then
+  skip_to_images=1
+else
+  skip_to_images=0
+fi
+
+if [ "$skip_to_images" -eq 0 ]; then
 say "--- candidate tag ---"
 prepare rc
 set +e
@@ -383,6 +391,8 @@ set -e
 need_ok "newer latest" "$rc"
 need "latest plan" "$(grep -c 'imagetools create' "$base/newer/docker.log" || true)" "1"
 
+fi
+
 say "--- candidate image tag is the rc, not the cargo version ---"
 prepare push-rc
 mkdir -p "$base/parts"
@@ -399,7 +409,8 @@ rc=$?
 set -e
 need_ok "push rc" "$rc"
 need "rc commit tag planned" "$(grep -c -- '--tag ghcr.io/igs170911/anybot:aaaaaaaaaaaa' "$base/push-rc/docker.log" || true)" "1"
-need "stable moving tag not planned" "$(grep -c 'anybot:0.1.0 ' "$base/push-rc/docker.log" || true)" "0"
+need "rc version tag planned" "$(grep -c -- '--tag ghcr.io/igs170911/anybot:0.1.0-rc.1' "$base/push-rc/docker.log" || true)" "1"
+need "rc did not plan the cargo version" "$(grep -c 'anybot:0.1.0 ' "$base/push-rc/docker.log" || true)" "0"
 need "digest source" "$(grep -c 'sha256:aaa' "$base/push-rc/docker.log" || true)" "1"
 need "index digest emitted" "$(grep '^digest=' "$base/push-out" | cut -d= -f2-)" "sha256:index"
 need "no shared verify tag" "$(grep -c ':verify' "$base/push-rc/docker.log" || true)" "0"
@@ -421,6 +432,7 @@ need "dev arch tag" "$(grep -c 'dev-amd64-' "$base/push-dev/docker.log" || true)
 need "dev commit tag" "$(grep -c -- '--tag ghcr.io/igs170911/anybot:dev-bbbbbbbbbbbb' "$base/push-dev/docker.log" || true)" "1"
 need "dev did not move :dev yet" "$(grep -c -- '--tag ghcr.io/igs170911/anybot:dev ' "$base/push-dev/docker.log" || true)" "0"
 need "dev did not use the stable short tag" "$(grep -c 'anybot:bbbbbbbbbbbb ' "$base/push-dev/docker.log" || true)" "0"
+need "dev has no version tag" "$(grep 'imagetools create' "$base/push-dev/docker.log" | grep -c -- '--tag ' || true)" "1"
 
 say "--- a real push uses the digest docker printed ---"
 prepare push-real
@@ -437,6 +449,7 @@ need "real push has no verify tag" "$(grep -c ':verify' "$base/push-real/docker.
 need "index built from pushed digests" "$(grep -c '@sha256:pushed' "$base/push-real/docker.log" || true)" "1"
 need "real index digest" "$(grep '^digest=' "$base/push-real-out" | cut -d= -f2-)" "sha256:index"
 need "real arch tag is commit scoped" "$(grep -c 'amd64-aaaaaaaaaaaa' "$base/push-real/docker.log" || true)" "2"
+need "real version tag planned" "$(grep -c -- '--tag ghcr.io/igs170911/anybot:0.1.0' "$base/push-real/docker.log" || true)" "1"
 
 say "--- :dev moves only when asked, onto the dev commit tag ---"
 prepare move-dev
@@ -447,7 +460,15 @@ rc=$?
 set -e
 need_ok "move dev" "$rc"
 need "moved onto dev commit tag" "$(grep -c 'anybot:dev-bbbbbbbbbbbb' "$base/move-dev/docker.log" || true)" "1"
+need "recheck is the first publish step" "$(
+  awk '
+    /^  publish:/{job=1}
+    job && /^  latest:/{exit}
+    job && /^      - name: /{print; exit}
+  ' .github/workflows/release.yml
+)" "      - name: re-check the dev tip before any write"
 
+if [ "$skip_to_images" -eq 0 ]; then
 say "--- spaces are removed before the checksum ---"
 src="$base/spaced"
 out="$base/page"
@@ -494,24 +515,12 @@ rc=$?
 cd "$here"
 set -e
 need "swap failure refuses" "$rc" "1"
-need "tag not moved after a failed swap" "$(grep -c 'git tag' "$base/pub-swap/git.log" || true)" "0"
+need "swap failure reason" "$(grep -c 'was not published' "$base/pub-swap.err" || true)" "1"
+need "old page deleted with its tag" "$(grep -c 'release delete dev-build --yes --cleanup-tag' "$base/pub-swap/gh.log" || true)" "1"
 need "swap did not call docker" "$(wc -c < "$base/pub-swap/docker.log" | tr -d ' ')" "0"
+need "swap did not push a git tag" "$(grep -c 'git tag' "$base/pub-swap/git.log" || true)" "0"
 
-say "--- dev rename failure does not move the tag ---"
-prepare pub-rename rename-fail
-publish_work
-set +e
-cd "$work"
-rc=0
-CHANNEL=dev TAG=dev-build SHA=bbbbbbbbbbbb IMAGE_DIGEST=sha256:ccc \
-  sh "$root/deploy/release/publish-release.sh" >"$root/$base/pub-rename.out" 2>"$root/$base/pub-rename.err" || rc=$?
-cd "$here"
-set -e
-need "rename failure refuses" "$rc" "1"
-need "rename failure reason" "$(grep -c 'page rename failed' "$base/pub-rename.err" || true)" "1"
-need "tag not moved after a failed rename" "$(grep -c 'git tag' "$base/pub-rename/git.log" || true)" "0"
-
-say "--- dev upload then tag move, then :dev ---"
+say "--- dev upload then one edit publishes onto dev-build ---"
 prepare pub-ok
 publish_work
 set +e
@@ -523,10 +532,29 @@ cd "$here"
 set -e
 need "dev publish succeeds" "$rc" "0"
 need "draft created first" "$(grep -c 'release create dev-build-next-' "$base/pub-ok/gh.log" || true)" "1"
-need "old page deleted after the draft" "$(grep -c 'release delete dev-build ' "$base/pub-ok/gh.log" || true)" "1"
-need "renamed onto dev-build" "$(grep -c -- '--tag dev-build' "$base/pub-ok/gh.log" || true)" "1"
-need "tag moved after the page update" "$(grep -c 'git tag -f' "$base/pub-ok/git.log" || true)" "1"
+need "old page deleted with its tag" "$(grep -c 'release delete dev-build --yes --cleanup-tag' "$base/pub-ok/gh.log" || true)" "1"
+need "one edit renames and publishes" "$(grep 'release edit' "$base/pub-ok/gh.log" | grep -c -- '--tag dev-build' || true)" "1"
+need "that edit publishes" "$(grep 'release edit' "$base/pub-ok/gh.log" | grep -c -- '--draft=false' || true)" "1"
+need "only one release edit" "$(grep -c 'release edit' "$base/pub-ok/gh.log" || true)" "1"
+need "publish did not push a git tag" "$(grep -c 'git tag' "$base/pub-ok/git.log" || true)" "0"
 need "publish itself did not move :dev" "$(wc -c < "$base/pub-ok/docker.log" | tr -d ' ')" "0"
+
+fi
+
+if [ -z "${ANYBOT_SELFTEST_INNER:-}" ]; then
+  say "--- ANYBOT_DOCKER cannot point past the stub ---"
+  trap_bin="$root/$base/trap-docker"
+  printf '%s\n' '#!/bin/sh' 'printf "%s\n" "$*" >> "$ANYBOT_DOCKER_LOG"' 'exit 99' > "$trap_bin"
+  chmod 755 "$trap_bin"
+  : > "$root/$base/trap-docker.log"
+  env ANYBOT_DOCKER="$trap_bin" \
+    ANYBOT_DOCKER_LOG="$root/$base/trap-docker.log" \
+    ANYBOT_SELFTEST_INNER=1 \
+    ANYBOT_SELFTEST_BASE="target/release-selftest-inner" \
+    sh "$root/deploy/release/release-selftest.sh" >"$base/nested.out" 2>"$base/nested.err" || fail=1
+  need "nested selftest passed" "$(grep -c 'release-selftest: pass' "$base/nested.out" || true)" "1"
+  need "ANYBOT_DOCKER was not called" "$(wc -c < "$root/$base/trap-docker.log" | tr -d ' ')" "0"
+fi
 
 if [ "$fail" -ne 0 ]; then
   say "release-selftest: failed"

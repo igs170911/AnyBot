@@ -76,14 +76,26 @@ esac
 meta="${IMAGE_META:-target/image-index.json}"
 mkdir -p "$(dirname "$meta")"
 index_tag="${image}:${prefix}${short}"
-# The moving tag (:dev, or a version) is applied by the caller after the page
-# exists. Here we only publish the commit-scoped index.
+# Dev does not apply :dev here. The caller moves it only after the page swap.
+# Stable applies the version tag in this same create, so the draft's image
+# exists before anyone publishes the Release. :latest stays with the caller.
 # Sources must already be OCI. A Docker manifest list rejects index annotations
 # (docs.docker.com/reference/cli/docker/buildx/imagetools/create/). The image
 # job sets oci-mediatypes=true on the docker exporter. imagetools create has
-# no format flag.
+# no format flag. Repeating --tag attaches every name to one index.
+version_tag=""
+if [ -z "$prefix" ]; then
+  case "$moving" in
+    [0-9]*.[0-9]*.[0-9]*) version_tag="${image}:${moving}" ;;
+    *)
+      echo "stable channel requires a version tag, not $moving" >&2
+      exit 1
+      ;;
+  esac
+fi
 "$docker" buildx imagetools create \
   --tag "$index_tag" \
+  ${version_tag:+--tag "$version_tag"} \
   --annotation "index:org.opencontainers.image.revision=${COMMIT}" \
   --metadata-file "$meta" \
   "${image}@${amd64_digest}" \
