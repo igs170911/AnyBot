@@ -232,7 +232,8 @@ pub fn rule_code(rule: &str) -> String {
         "tool-unreadable-eval"
         | "tool-unreadable-quotes"
         | "tool-unreadable-heredoc"
-        | "tool-unreadable-head" => rule.to_owned(),
+        | "tool-unreadable-head"
+        | "tool-unreadable-shape" => rule.to_owned(),
         _ => crate::message_codes::CODE_GATE_DENIED_BY_RULE.to_owned(),
     }
 }

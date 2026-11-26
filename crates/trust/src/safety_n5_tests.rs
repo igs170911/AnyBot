@@ -85,7 +85,7 @@ fn test_a_privilege_wrapper_hides_nothing_from_the_class_scan_on_the_bot_machine
 }
 
 #[test]
-fn test_a_class_scan_reads_the_command_inside_a_shell_quote() {
+fn test_a_class_scan_does_not_read_inside_a_shell_quote() {
     let got = classes_of_command("bash -c 'git push origin'");
-    assert!(got.contains(&ActionClass::Publish));
+    assert!(got.is_empty());
 }

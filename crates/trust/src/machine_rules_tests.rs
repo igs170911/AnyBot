@@ -201,14 +201,14 @@ fn test_a_wrapped_push_asks_on_the_bot_machine() {
 fn test_an_unreadable_command_asks_every_time_on_the_bot_machine() {
     let verdict = default_rule(&shell("eval ls", "/workspace"), &bot_caps());
     assert_eq!(verdict.level, MachineLevel::AskEveryTime);
-    assert_eq!(verdict.rule, "tool-unreadable-eval");
+    assert_eq!(verdict.rule, "tool-unreadable-shape");
 }
 
 #[test]
 fn test_an_unreadable_command_asks_every_time_on_the_user_machine() {
     let verdict = default_rule(&shell("bash << EOF", "/workspace"), &user_caps());
     assert_eq!(verdict.level, MachineLevel::AskEveryTime);
-    assert_eq!(verdict.rule, "tool-unreadable-heredoc");
+    assert_eq!(verdict.rule, "tool-unreadable-shape");
 }
 
 fn delete_command(line: &str) -> GateAction {
@@ -243,5 +243,5 @@ fn test_an_unreadable_cd_target_makes_the_delete_ask() {
     let action = delete_command("cd $HOME && rm notes.md");
     let verdict = default_rule(&action, &bot_caps());
     assert_eq!(verdict.level, MachineLevel::AskEveryTime);
-    assert_eq!(verdict.rule, "bot-machine-outside-delete");
+    assert_eq!(verdict.rule, "tool-unreadable-shape");
 }

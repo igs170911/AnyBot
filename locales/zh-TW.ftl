@@ -106,4 +106,5 @@ tool-unreadable-eval = 這串指令用了 eval，事先看不出會做什麼。
 tool-unreadable-quotes = 這串指令的引號沒有配對，事先看不出會做什麼。
 tool-unreadable-heredoc = 這串指令把 here-document 餵給 shell，事先看不出會做什麼。
 tool-unreadable-head = 拿掉包裝之後，這串指令的第一個字還是看不出來。
+tool-unreadable-shape = 這串指令的寫法不在把關認得的那一套裡，所以先問。
 turn-program-note = 程式整理的，不是使用者說的。

@@ -7,7 +7,7 @@ use crate::trust_floor::*;
 fn any_floor_action() -> BoxedStrategy<FloorAction> {
     prop_oneof![
         Just(FloorAction::Command {
-            line: "sudo rm -rf /nowhere".to_owned(),
+            line: "sudo rm -rf /".to_owned(),
             bot_machine: true,
             has_sandbox: true,
         }),

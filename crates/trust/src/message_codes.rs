@@ -19,9 +19,10 @@ pub const CODE_TOOL_EMPTY: &str = "tool-empty";
 pub const CODE_TOOL_OPERATION_FAILED: &str = "tool-operation-failed";
 pub const CODE_TOOL_COMPUTER_UNREACHABLE: &str = "tool-computer-unreachable";
 pub const CODE_TOOL_EXECUTION_FAILED: &str = "tool-execution-failed";
+pub const CODE_TOOL_UNREADABLE_SHAPE: &str = "tool-unreadable-shape";
 
 #[must_use]
-pub fn all_codes() -> [&'static str; 21] {
+pub fn all_codes() -> [&'static str; 22] {
     [
         CODE_GATE_COMMAND_DENIED,
         CODE_GATE_PRIVATE_FILE,
@@ -44,6 +45,7 @@ pub fn all_codes() -> [&'static str; 21] {
         CODE_TOOL_OPERATION_FAILED,
         CODE_TOOL_COMPUTER_UNREACHABLE,
         CODE_TOOL_EXECUTION_FAILED,
+        CODE_TOOL_UNREADABLE_SHAPE,
     ]
 }
 
@@ -59,6 +61,6 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), 21);
+        assert_eq!(seen.len(), 22);
     }
 }

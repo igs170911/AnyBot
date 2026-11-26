@@ -1,6 +1,4 @@
-use crate::sandbox_peel::bare_name;
-use crate::sandbox_peel::peel_segment;
-use crate::sandbox_peel::visible_segments;
+use crate::command_read::{ReadCommand, ReadLine, read_line};
 
 const DELETE_TOOLS: [&str; 6] = ["rm", "rmdir", "unlink", "shred", "trash", "find"];
 
@@ -22,27 +20,25 @@ pub struct DeleteTarget {
 
 #[must_use]
 pub fn command_targets(line: &str) -> Vec<DeleteTarget> {
+    let ReadLine::Read(commands) = read_line(line) else {
+        return Vec::new();
+    };
     let mut out = Vec::new();
     let mut cwd = String::new();
     let mut cwd_known = true;
-    for segment in visible_segments(line) {
-        let inner = peel_segment(&segment, true);
-        let head = inner.split_whitespace().next().unwrap_or_default();
-        if head == "cd" {
-            let (next, known) = cd_step(&inner, &cwd, cwd_known);
+    for command in commands {
+        if command.name == "cd" {
+            let (next, known) = cd_step(&command, &cwd, cwd_known);
             cwd = next;
             cwd_known = known;
             continue;
         }
-        if !DELETE_TOOLS.contains(&bare_name(head).as_str()) {
+        if !DELETE_TOOLS.contains(&command.name.as_str()) {
             continue;
         }
-        for token in inner.split_whitespace().skip(1) {
-            if token.starts_with('-') || token.contains('=') {
-                continue;
-            }
+        for token in command.args.iter().filter(|token| !token.starts_with('-')) {
             out.push(DeleteTarget {
-                token: token.to_owned(),
+                token: token.clone(),
                 base: target_base(cwd_known, &cwd),
                 cd_path: cwd.clone(),
             });
@@ -61,14 +57,14 @@ fn target_base(cwd_known: bool, cwd: &str) -> DeleteBase {
     DeleteBase::Cd
 }
 
-fn cd_step(inner: &str, cwd: &str, known: bool) -> (String, bool) {
-    let Some(token) = inner
-        .split_whitespace()
-        .skip(1)
-        .find(|t| !t.starts_with('-') && !t.contains('='))
-    else {
-        return (cwd.to_owned(), known);
+fn cd_step(command: &ReadCommand, cwd: &str, known: bool) -> (String, bool) {
+    let Some(token) = command.args.iter().find(|token| !token.starts_with('-')) else {
+        return (cwd.to_owned(), false);
     };
+    let token = token.as_str();
+    if token == "-" {
+        return (cwd.to_owned(), false);
+    }
     if has_expansion_token(token) || !known {
         return (cwd.to_owned(), false);
     }
@@ -116,10 +112,10 @@ mod tests {
     }
 
     #[test]
-    fn test_command_targets_mark_targets_unresolvable_after_an_unreadable_cd() {
-        let got = command_targets("cd $HOME && rm notes.md");
-        assert_eq!(got.len(), 1);
-        assert_eq!(got.first().unwrap().base, DeleteBase::Unresolved);
+    fn test_command_targets_drop_a_line_whose_cd_is_not_a_plain_path() {
+        assert!(command_targets("cd $HOME && rm notes.md").is_empty());
+        assert!(command_targets("cd ; rm notes.md").is_empty());
+        assert!(command_targets("cd - && rm notes.md").is_empty());
     }
 
     #[test]

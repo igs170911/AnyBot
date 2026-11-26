@@ -106,6 +106,7 @@ export type MessageCode =
   "tool-unreadable-quotes" |
   "tool-unreadable-heredoc" |
   "tool-unreadable-head" |
+  "tool-unreadable-shape" |
   "turn-program-note";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
@@ -214,5 +215,6 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-unreadable-quotes",
   "tool-unreadable-heredoc",
   "tool-unreadable-head",
+  "tool-unreadable-shape",
   "turn-program-note",
 ];

@@ -17,7 +17,10 @@ pub mod always_list;
 pub mod card_data;
 pub mod claim_levels;
 pub mod command_key;
+pub mod command_lex;
+pub mod command_read;
 pub mod command_target;
+pub mod command_wrappers;
 pub mod edit_rule;
 pub mod evidence;
 pub mod evidence_payload;
@@ -43,8 +46,8 @@ pub mod safety_n5;
 pub mod sandbox_deny;
 pub mod sandbox_levels;
 pub mod sandbox_peel;
-pub mod sandbox_subshell;
 pub mod trust_floor;
+mod wrapper_flags;
 
 pub use action::{ActionKey, ActionSubject, DEFAULT_COMMAND_TIMEOUT_MS, GateAction, PathView};
 pub use always_list::{AddSource, AlwaysAddEvent, AlwaysEntry, AlwaysList, parse_untrusted_adds};
@@ -64,9 +67,9 @@ pub use message_codes::{
     CODE_GATE_DENIED, CODE_GATE_DENIED_BY_RULE, CODE_GATE_NO_SANDBOX,
     CODE_GATE_OUTSIDE_WRITE_DENIED, CODE_GATE_PRIVATE_FILE, CODE_GATE_TICKET_MISMATCH,
     CODE_GATE_USER_REJECTED, CODE_TOOL_COMPUTER_UNREACHABLE, CODE_TOOL_EMPTY,
-    CODE_TOOL_EXECUTION_FAILED, CODE_TOOL_OPERATION_FAILED, CODE_TURN_AWAITING_APPROVAL,
-    CODE_TURN_COMPLETED, CODE_TURN_FAILED, CODE_TURN_NOT_EXECUTED, CODE_TURN_REJECTED,
-    CODE_TURN_TOOL_FAILED, all_codes,
+    CODE_TOOL_EXECUTION_FAILED, CODE_TOOL_OPERATION_FAILED, CODE_TOOL_UNREADABLE_SHAPE,
+    CODE_TURN_AWAITING_APPROVAL, CODE_TURN_COMPLETED, CODE_TURN_FAILED, CODE_TURN_NOT_EXECUTED,
+    CODE_TURN_REJECTED, CODE_TURN_TOOL_FAILED, all_codes,
 };
 pub use op_ticket::{OpKind, OpTicket};
 pub use pipeline::{ActionRequest, AskTicket, GateAnswer, answer_ask, run_action};
@@ -100,6 +103,8 @@ pub fn status_needs_attention(status: TaskStatus) -> bool {
 mod always_list_tests;
 #[cfg(test)]
 mod claim_levels_tests;
+#[cfg(test)]
+mod command_shape_tests;
 #[cfg(test)]
 mod gate_engine_tests;
 #[cfg(test)]

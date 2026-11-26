@@ -103,4 +103,5 @@ tool-unreadable-eval = The command uses eval, which cannot be read ahead.
 tool-unreadable-quotes = The command has quotes that do not match, so it cannot be read ahead.
 tool-unreadable-heredoc = The command feeds a here-document into a shell, so it cannot be read ahead.
 tool-unreadable-head = The first word of the command cannot be read after peeling its wrappers.
+tool-unreadable-shape = This command uses a form the approval gate does not read ahead, so it asks first.
 turn-program-note = Program note, not something the user said.

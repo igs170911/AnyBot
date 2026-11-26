@@ -109,6 +109,7 @@ pub enum MessageCode {
     ToolUnreadableQuotes,
     ToolUnreadableHeredoc,
     ToolUnreadableHead,
+    ToolUnreadableShape,
     TurnProgramNote,
 }
 
@@ -292,6 +293,7 @@ const TABLE: &[(MessageCode, &str)] = &[
         "tool-unreadable-heredoc",
     ),
     (MessageCode::ToolUnreadableHead, "tool-unreadable-head"),
+    (MessageCode::ToolUnreadableShape, "tool-unreadable-shape"),
     (MessageCode::TurnProgramNote, "turn-program-note"),
 ];
 

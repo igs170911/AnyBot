@@ -35,11 +35,19 @@ pub(crate) struct GateDecision {
     pub rule: String,
 }
 
+fn unreadable_command(action: &FloorAction) -> bool {
+    matches!(
+        action,
+        FloorAction::Command { line, .. } if crate::sandbox_peel::unreadable_reason(line).is_some()
+    )
+}
+
 fn floor_call(input: &EngineInput, floor_hit: bool) -> LayerCall {
+    let unreadable = unreadable_command(&input.action);
     LayerCall {
         layer: GateLayer::Floor,
-        deny: floor_hit || input.modes.ask_every_time,
-        ask: false,
+        deny: (floor_hit && !unreadable) || input.modes.ask_every_time,
+        ask: unreadable,
         allow: false,
     }
 }
@@ -96,7 +104,9 @@ pub(crate) fn decide(input: &EngineInput) -> GateDecision {
 }
 
 fn relax_outcome(input: &EngineInput, layer: GateLayer, outcome: Outcome) -> Outcome {
+    let unreadable = unreadable_command(&input.action);
     match outcome {
+        Outcome::Ask if unreadable => Outcome::Ask,
         Outcome::Ask if input.modes.yolo && !input.modes.ask_every_time => Outcome::Allow,
         Outcome::Ask if input.modes.direct_mode && layer == GateLayer::Default => Outcome::Ask,
         Outcome::Ask => Outcome::Ask,

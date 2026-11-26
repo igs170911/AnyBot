@@ -5,6 +5,7 @@ use crate::gate_engine::GateLayer;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FloorDeny {
     DeniedCommand,
+    UnreadableCommand,
     NoSandbox,
     PrivateFile,
     AnyBotWindow,
@@ -15,6 +16,7 @@ impl fmt::Display for FloorDeny {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let text = match self {
             FloorDeny::DeniedCommand => "sandbox-deny",
+            FloorDeny::UnreadableCommand => crate::command_read::CODE_TOOL_UNREADABLE_SHAPE,
             FloorDeny::NoSandbox => "computer-no-sandbox",
             FloorDeny::PrivateFile => "private-file",
             FloorDeny::AnyBotWindow => "cannot-operate-anybot-window",
@@ -114,14 +116,16 @@ pub fn floor_check(action: &FloorAction) -> Option<FloorDeny> {
 
 #[must_use]
 fn floor_command_check(line: &str, bot_machine: bool, has_sandbox: bool) -> Option<FloorDeny> {
+    if is_denied_command(line, bot_machine) {
+        return Some(FloorDeny::DeniedCommand);
+    }
+    if crate::sandbox_peel::unreadable_reason(line).is_some() {
+        return Some(FloorDeny::UnreadableCommand);
+    }
     if !has_sandbox {
         return Some(FloorDeny::NoSandbox);
     }
-    if is_denied_command(line, bot_machine) {
-        Some(FloorDeny::DeniedCommand)
-    } else {
-        None
-    }
+    None
 }
 
 #[must_use]

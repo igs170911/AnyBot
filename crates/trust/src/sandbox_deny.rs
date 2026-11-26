@@ -11,15 +11,15 @@ pub const DENIED_COMMAND_KINDS: [&str; 10] = [
     "chmod -R 777 /",
 ];
 
-const NUMERIC_WRAPPERS: [&str; 4] = ["time", "nice", "stdbuf", "timeout"];
-
-const COMMAND_WRAPPERS: [&str; 9] = [
-    "env", "command", "nohup", "time", "nice", "stdbuf", "timeout", "xargs", "exec",
-];
-
-pub const WRAPPER_VALUE_OPTIONS: [&str; 12] = [
-    "-u", "-g", "-l", "-c", "-d", "-e", "-i", "-n", "-p", "--user", "--group", "--login",
-];
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DeniedShape {
+    Name(&'static str),
+    NamePrefix(&'static str),
+    RmRoot,
+    RmHome,
+    DiskutilErase,
+    ChmodRoot,
+}
 
 const JOIN_TOKENS: [&str; 6] = [";", "&&", "||", "|", "&", "\n"];
 
@@ -80,135 +80,121 @@ fn starts_with_at(bytes: &[u8], pos: usize, token: &[u8]) -> bool {
 }
 
 #[must_use]
-pub fn strip_wrappers(segment: &str) -> String {
-    let mut current = segment.to_owned();
-    for _ in 0..8 {
-        let Some(inner) = peel_wrapper(&current) else {
-            return current;
-        };
-        current = inner;
-    }
-    current
-}
-
-fn peel_wrapper(segment: &str) -> Option<String> {
-    let mut parts = segment.split_whitespace();
-    let head = parts.next()?;
-    if head.contains('=') {
-        let kept: Vec<&str> = parts.collect();
-        if kept.is_empty() {
-            return None;
-        }
-        return Some(normalize_command(&kept.join(" ")));
-    }
-    if !COMMAND_WRAPPERS.contains(&head) {
-        return None;
-    }
-    let numeric = NUMERIC_WRAPPERS.contains(&head);
-    let mut inner: Vec<&str> = Vec::new();
-    let mut skipping = true;
-    let mut value_expected = false;
-    for token in parts {
-        if skipping {
-            if value_expected {
-                value_expected = false;
-                continue;
-            }
-            if WRAPPER_VALUE_OPTIONS.contains(&token) && !token.contains('=') {
-                value_expected = true;
-                continue;
-            }
-            if is_wrapper_arg(token, numeric) {
-                continue;
-            }
-            skipping = false;
-        }
-        inner.push(token);
-    }
-    if inner.is_empty() {
-        return None;
-    }
-    Some(normalize_command(&inner.join(" ")))
-}
-
-fn is_wrapper_arg(token: &str, numeric: bool) -> bool {
-    if token.contains('=') || token.starts_with('-') {
-        return true;
-    }
-    numeric && unsigned_number(token).is_some()
-}
-
-fn unsigned_number(token: &str) -> Option<u64> {
-    let digits = token.strip_suffix('s').unwrap_or(token);
-    digits.parse::<u64>().ok()
-}
-
-const PRIVILEGE_WRAPPERS: [&str; 2] = ["sudo", "doas"];
-
-#[must_use]
 pub fn deny_token(line: &str, bot_machine: bool) -> Option<&'static str> {
-    for segment in crate::sandbox_peel::visible_segments(line) {
-        let inner = crate::sandbox_peel::peel_segment(&segment, bot_machine);
-        for kind in DENIED_COMMAND_KINDS {
-            if inner.starts_with(normalize_command(kind).as_str()) {
-                return Some(kind);
-            }
-        }
+    let crate::command_read::ReadLine::Read(commands) = crate::command_read::read_line(line) else {
+        return None;
+    };
+    commands
+        .iter()
+        .find_map(|command| denied_kind(command, bot_machine))
+}
+
+fn denied_kind(
+    command: &crate::command_read::ReadCommand,
+    bot_machine: bool,
+) -> Option<&'static str> {
+    let name = command.name.as_str();
+    if !bot_machine && (matches!(name, "sudo" | "doas") || command.peeled_privilege) {
+        return Some("sudo");
+    }
+    match denied_shape(name, &command.args) {
+        Some(DeniedShape::Name(kind) | DeniedShape::NamePrefix(kind)) => Some(kind),
+        Some(DeniedShape::RmRoot) => Some("rm -rf /"),
+        Some(DeniedShape::RmHome) => Some("rm -rf ~"),
+        Some(DeniedShape::DiskutilErase) => Some("diskutil erase"),
+        Some(DeniedShape::ChmodRoot) => Some("chmod -R 777 /"),
+        None => None,
+    }
+}
+
+fn denied_shape(name: &str, args: &[String]) -> Option<DeniedShape> {
+    if matches!(name, "su" | "dd" | "shutdown" | "reboot") {
+        return Some(DeniedShape::Name(name_kind(name)));
+    }
+    if name == "mkfs" || name.starts_with("mkfs.") {
+        return Some(DeniedShape::NamePrefix("mkfs"));
+    }
+    if name == "rm" && removes_root(args) {
+        return Some(if home_target(args) {
+            DeniedShape::RmHome
+        } else {
+            DeniedShape::RmRoot
+        });
+    }
+    if name == "diskutil"
+        && args
+            .first()
+            .is_some_and(|arg| arg == "erase" || arg.starts_with("erase"))
+    {
+        return Some(DeniedShape::DiskutilErase);
+    }
+    if name == "chmod" && chmod_root(args) {
+        return Some(DeniedShape::ChmodRoot);
     }
     None
 }
 
-#[must_use]
-pub fn strip_privilege_wrappers(segment: &str) -> String {
-    let mut current = segment.to_owned();
-    for _ in 0..8 {
-        let Some(inner) = peel_privilege(&current) else {
-            return current;
-        };
-        current = inner;
+fn name_kind(name: &str) -> &'static str {
+    match name {
+        "su" => "su",
+        "dd" => "dd",
+        "shutdown" => "shutdown",
+        _ => "reboot",
     }
-    current
 }
 
-const PRIVILEGE_VALUE_OPTIONS: [&str; 8] = [
-    "-u",
-    "-g",
-    "-l",
-    "-c",
-    "--user",
-    "--group",
-    "--login",
-    "--command",
-];
-
-fn peel_privilege(segment: &str) -> Option<String> {
-    let mut parts = segment.split_whitespace();
-    let head = parts.next()?;
-    if !PRIVILEGE_WRAPPERS.contains(&head) {
-        return None;
-    }
-    let mut inner: Vec<&str> = Vec::new();
-    let mut skipping = true;
-    let mut value_expected = false;
-    for token in parts {
-        if skipping {
-            if value_expected {
-                value_expected = false;
-                continue;
+fn removes_root(args: &[String]) -> bool {
+    let mut recursive = false;
+    let mut force = false;
+    let mut targets = Vec::new();
+    for arg in args {
+        if let Some(flags) = arg.strip_prefix('-') {
+            if flags.chars().any(|ch| ch == 'r' || ch == 'R') {
+                recursive = true;
             }
-            if PRIVILEGE_VALUE_OPTIONS.contains(&token) && !token.contains('=') {
-                value_expected = true;
-                continue;
+            if flags.contains('f') {
+                force = true;
             }
-            if token.starts_with('-') {
-                continue;
-            }
-            skipping = false;
+            continue;
         }
-        inner.push(token);
+        targets.push(arg.as_str());
     }
-    if inner.is_empty() {
-        return None;
+    recursive
+        && force
+        && targets
+            .iter()
+            .any(|target| is_root(target) || is_home(target))
+}
+
+fn home_target(args: &[String]) -> bool {
+    args.iter().any(|arg| !arg.starts_with('-') && is_home(arg))
+}
+
+fn is_root(target: &str) -> bool {
+    target == "/" || target == "/*"
+}
+
+fn is_home(target: &str) -> bool {
+    target == "~" || target == "~/" || target.starts_with("~/")
+}
+
+fn chmod_root(args: &[String]) -> bool {
+    let mut recursive = false;
+    let mut mode = String::new();
+    let mut targets = Vec::new();
+    for arg in args {
+        if arg == "-r" || arg == "-R" || arg == "--recursive" {
+            recursive = true;
+            continue;
+        }
+        if arg.starts_with('-') {
+            continue;
+        }
+        if mode.is_empty() {
+            mode.clone_from(arg);
+            continue;
+        }
+        targets.push(arg.as_str());
     }
-    Some(normalize_command(&inner.join(" ")))
+    recursive && mode == "777" && targets.iter().any(|target| is_root(target))
 }
