@@ -801,6 +801,10 @@ T-computer-caps-5
 T-computer-caps-6
 T-computer-caps-7
 T-computer-ops-1
+T-computer-ops-2
+T-computer-ops-3
+T-computer-ops-4
+T-computer-ops-5
 T-computer-platforms-1
 T-computer-platforms-2
 T-computer-platforms-3
@@ -1119,6 +1123,7 @@ T-files-shell-3
 T-files-shell-4
 T-files-shell-5
 T-files-shell-6
+T-files-shell-7
 T-files-shell-8
 T-files-shell-9
 T-files-terminal-1
@@ -2611,5 +2616,4 @@ T-workflow-run-5
 T-workflow-run-6
 T-workflow-run-7
 T-workflow-run-8
-
 
