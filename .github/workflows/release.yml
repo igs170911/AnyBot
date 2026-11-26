@@ -249,6 +249,13 @@ jobs:
             ANYBOT_GIT_DESCRIBE=${{ needs.guard.outputs.describe }}
             SOURCE_DATE_EPOCH=${{ needs.guard.outputs.built_at }}
           tags: ${{ needs.guard.outputs.image }}:${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          # Index annotations are rejected when the pushed sources are a Docker
+          # manifest list. load is the docker exporter, whose oci-mediatypes
+          # default is false, so the type is set here.
+          # https://docs.docker.com/build/exporters/oci-docker/
+          # https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/
+          provenance: false
+          outputs: type=docker,oci-mediatypes=true
 
       - name: run --version inside the image
         env:
@@ -291,10 +298,11 @@ jobs:
   publish:
     needs: [guard, desktop, image]
     if: github.event_name != 'release' && needs.guard.outputs.mode == 'publish' && needs.desktop.result == 'success' && needs.image.result == 'success'
-    # One publish at a time. A new one waits; it does not cancel the one already pushing.
-    # https://docs.github.com/en/actions/using-jobs/using-concurrency
+    # Dev and stable do not share a queue. A newly queued run cancels the one
+    # already waiting in the same group (docs.github.com control-workflow-concurrency).
+    # Separate groups mean a dev publish cannot cancel a waiting stable publish.
     concurrency:
-      group: release-publish-${{ github.repository }}
+      group: release-publish-${{ needs.guard.outputs.channel }}-${{ github.repository }}
       cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -365,6 +373,12 @@ jobs:
           IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
         run: sh deploy/release/render-notes.sh "$CHANNEL" "$COMMIT" "$BUILT_AT" "$TAG" "$IMAGE_DIGEST"
 
+      - name: re-check the dev tip before any write
+        env:
+          CHANNEL: ${{ needs.guard.outputs.channel }}
+          SHA: ${{ needs.guard.outputs.commit }}
+        run: sh deploy/release/recheck-dev.sh
+
       - name: publish the dev pre-release or the stable draft
         env:
           CHANNEL: ${{ needs.guard.outputs.channel }}
@@ -373,6 +387,13 @@ jobs:
           IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
           GH_TOKEN: ${{ github.token }}
         run: sh deploy/release/publish-release.sh
+
+      - name: move the dev image only after the page swap
+        if: needs.guard.outputs.channel == 'dev'
+        env:
+          IMAGE: ${{ needs.guard.outputs.image }}
+          COMMIT: ${{ needs.guard.outputs.commit }}
+        run: sh deploy/release/move-dev.sh
 
   latest:
     # spec/09 K111: move `latest` only after a non-rc Release is published. A draft does not.

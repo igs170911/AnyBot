@@ -1,8 +1,13 @@
 #!/bin/sh
 # Publish the one dev pre-release, or create the stable draft.
-# Dev uploads every new file first. Old assets are deleted only after that upload
-# succeeds, and the dev-build tag moves only after the page notes match this commit.
-# A failed step leaves the previous page and the previous tag untouched.
+# Dev never edits the visible page in place. A complete new draft is uploaded
+# under a throwaway tag, then the visible page is deleted and the draft is
+# published onto dev-build. A failed step deletes only the throwaway draft.
+# The dev-build git tag moves only after that swap. The caller moves :dev only
+# after this script exits 0.
+# https://cli.github.com/manual/gh_release_upload (--clobber deletes first)
+# https://cli.github.com/manual/gh_release_create (draft, then publish)
+# https://docs.github.com/en/rest/releases/assets (same name is HTTP 422)
 set -eu
 digest="${IMAGE_DIGEST:-}"
 
@@ -46,26 +51,35 @@ if [ "$CHANNEL" = "dev" ]; then
     echo "notes do not name this commit and image digest" >&2
     exit 1
   fi
+  staging="dev-build-next-${SHA}"
+  # A leftover draft from an earlier failed attempt is not the visible page.
+  gh release delete "$staging" --yes --cleanup-tag >/dev/null 2>&1 || true
+  # shellcheck disable=SC2086
+  if ! gh release create "$staging" \
+    --draft \
+    --title "$TAG" \
+    --target "$SHA" \
+    --notes-file "$notes" \
+    "$page"/*; then
+    gh release delete "$staging" --yes --cleanup-tag >/dev/null 2>&1 || true
+    echo "dev draft was not complete; the visible page is unchanged" >&2
+    exit 1
+  fi
+  # Publish the complete draft under its own tag first. The visible dev-build
+  # page is still the old one. Only then delete the old page and retag.
+  # gh release edit --tag renames the release; it does not copy assets.
+  if ! gh release edit "$staging" --draft=false --prerelease --latest=false \
+    --target "$SHA" --notes-file "$notes"; then
+    gh release delete "$staging" --yes --cleanup-tag >/dev/null 2>&1 || true
+    echo "dev draft was not published; the visible page is unchanged" >&2
+    exit 1
+  fi
   if gh release view "$TAG" >/dev/null 2>&1; then
-    old="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
-    # shellcheck disable=SC2086
-    gh release upload "$TAG" --clobber "$page"/*
-    new="$(find "$page" -type f -exec basename {} \;)"
-    printf '%s\n' "$old" | while IFS= read -r name; do
-      [ -n "$name" ] || continue
-      if ! printf '%s\n' "$new" | grep -qx "$name"; then
-        gh release delete-asset "$TAG" "$name" --yes
-      fi
-    done
-    gh release edit "$TAG" --notes-file "$notes" --target "$SHA"
-  else
-    # shellcheck disable=SC2086
-    gh release create "$TAG" \
-      --title "$TAG" \
-      --target "$SHA" \
-      --notes-file "$notes" \
-      $flags \
-      "$page"/*
+    gh release delete "$TAG" --yes
+  fi
+  if ! gh release edit "$staging" --tag "$TAG" --target "$SHA" --notes-file "$notes"; then
+    echo "dev page rename failed; $staging is the complete new page and $TAG may be gone" >&2
+    exit 1
   fi
   git tag -f "$TAG" "$SHA"
   git push origin "refs/tags/${TAG}" --force

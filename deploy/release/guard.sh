@@ -1,25 +1,17 @@
 #!/bin/sh
 # Decide rehearsal vs publish, and refuse a tag that is not ready to publish.
 # Writes GitHub Actions step outputs. Does not create directories.
-# Tests inject MAIN_ANCESTOR, MAIN_CHECK, DEV_HEAD, BUILT_AT, and GIT_DESCRIBE
-# so a fake commit never needs a git query.
+# Tests put stub git and gh on PATH. BUILT_AT and GIT_DESCRIBE stay injectable
+# because they are build inputs, not the publish decision.
 set -eu
 
 on_main() {
   sha="$1"
-  if [ -n "${MAIN_ANCESTOR:-}" ]; then
-    [ "$MAIN_ANCESTOR" = "yes" ]
-    return
-  fi
   git fetch --no-tags origin main
   git merge-base --is-ancestor "$sha" origin/main
 }
 
 dev_tip() {
-  if [ -n "${DEV_HEAD:-}" ]; then
-    printf '%s\n' "$DEV_HEAD"
-    return
-  fi
   if [ -n "${DEV_HEAD_FILE:-}" ] && [ -f "$DEV_HEAD_FILE" ]; then
     tr -d '[:space:]' < "$DEV_HEAD_FILE"
     return
@@ -28,23 +20,38 @@ dev_tip() {
   git rev-parse origin/dev
 }
 
-main_check() {
+# CI workflow on this commit, head branch main. Linux, Windows, and macOS must
+# all be success. A check suite has no workflow id, so the workflow run is the
+# source (docs.github.com/en/rest/actions/workflow-runs, path and head_sha).
+# Jobs: docs.github.com/en/rest/actions/workflow-jobs.
+main_ci() {
   sha="$1"
-  if [ -n "${MAIN_CHECK:-}" ]; then
-    printf '%s\n' "$MAIN_CHECK"
+  run_id="$(gh api --paginate \
+    --method GET \
+    -H "Accept: application/vnd.github+json" \
+    "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs" \
+    -f "head_sha=${sha}" \
+    -F "exclude_pull_requests=true" \
+    --jq '[.workflow_runs[] | select(.head_branch=="main" and .head_sha=="'"$sha"'")] | first | .id // ""')"
+  case "$run_id" in
+    ''|*[!0-9]*)
+      printf '%s\n' "missing"
+      return
+      ;;
+  esac
+  names="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs" \
+    --jq '[.jobs[] | select(.name=="check" or .name=="build-windows" or .name=="build-macos")] | map(select(.conclusion=="success")) | length')"
+  if [ "$names" = "3" ]; then
+    printf '%s\n' "success"
     return
   fi
-  # Suites carry head_branch. A check run does not, so the branch is chosen here.
-  # https://docs.github.com/en/rest/checks/suites
-  # https://docs.github.com/en/rest/checks/runs (check_suite_id)
-  suite="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${sha}/check-suites" \
-    --jq '[.check_suites[] | select(.head_branch=="main")] | first | .id // ""')"
-  if [ -z "$suite" ]; then
-    printf '%s\n' ""
+  pending="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs" \
+    --jq '[.jobs[] | select(.name=="check" or .name=="build-windows" or .name=="build-macos") | select(.status!="completed")] | length')"
+  if [ "$pending" != "0" ]; then
+    printf '%s\n' "running"
     return
   fi
-  gh api --paginate "repos/${GITHUB_REPOSITORY}/check-suites/${suite}/check-runs" \
-    --jq '[.check_runs[] | select(.name=="check")] | first | if .status != "completed" then "running" else (.conclusion // "") end'
+  printf '%s\n' "failure"
 }
 
 version="$(awk 'BEGIN{p=0} /^\[workspace\.package\]/{p=1; next} /^\[/{p=0} p && /^version[[:space:]]*=/{gsub(/"/, "", $3); print $3; exit}' Cargo.toml)"
@@ -105,12 +112,12 @@ if [ "$channel" = "stable" ]; then
     echo "tag $tag is not on main" >&2
     exit 1
   fi
-  # Only the completed check run from main's own push counts. Another branch's
-  # green check on the same commit does not. A run that has not finished is refused.
-  check="$(main_check "$SHA")"
+  # Only CI's own run on main counts. A wiki suite, or a green dev run of the
+  # same commit, does not. Linux, Windows, and macOS must all be success.
+  check="$(main_ci "$SHA")"
   case "$check" in
     success) ;;
-    running|queued|in_progress|"")
+    running)
       echo "main check for $SHA is not finished" >&2
       exit 1
       ;;

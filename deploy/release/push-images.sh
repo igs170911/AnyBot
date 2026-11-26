@@ -1,13 +1,27 @@
 #!/bin/sh
 # Push each native image by digest, then build the multi-arch tag from those digests.
+# Dev and stable never share a tag: dev names are dev- and dev-<commit>.
+# This script does not move :dev. The caller moves it only after the page swap.
 # Shared arch-* and :verify tags are not used: two publishes can overwrite them.
 # ANYBOT_DOCKER replaces docker in tests. Digests may be injected the same way.
+# Annotations require an OCI index. Docker manifest lists reject them.
 # https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/
 set -eu
 docker="${ANYBOT_DOCKER:-docker}"
 short="$(printf '%s' "$COMMIT" | cut -c1-12)"
 moving="${IMAGE_TAG:?IMAGE_TAG is required}"
 image="${IMAGE:?IMAGE is required}"
+prefix=""
+if [ "${CHANNEL:-}" = "dev" ]; then
+  prefix="dev-"
+  case "$moving" in
+    dev) ;;
+    *)
+      echo "dev channel pushes only the dev tag name, not $moving" >&2
+      exit 1
+      ;;
+  esac
+fi
 dir="${IMAGE_DIR:-target/image-parts}"
 amd64="$(find "$dir" -name 'amd64.tar' -type f | head -n 1)"
 arm64="$(find "$dir" -name 'arm64.tar' -type f | head -n 1)"
@@ -42,8 +56,8 @@ push_one() {
   printf '%s\n' "$pushed" | sed -n 's/.*digest: //p' | awk '{print $1; exit}'
 }
 
-amd64_digest="$(push_one "$amd64" "${AMD64_DIGEST:-}" "${image}:amd64-${short}")"
-arm64_digest="$(push_one "$arm64" "${ARM64_DIGEST:-}" "${image}:arm64-${short}")"
+amd64_digest="$(push_one "$amd64" "${AMD64_DIGEST:-}" "${image}:${prefix}amd64-${short}")"
+arm64_digest="$(push_one "$arm64" "${ARM64_DIGEST:-}" "${image}:${prefix}arm64-${short}")"
 case "$amd64_digest" in
   sha256:*) ;;
   *)
@@ -61,9 +75,15 @@ esac
 
 meta="${IMAGE_META:-target/image-index.json}"
 mkdir -p "$(dirname "$meta")"
+index_tag="${image}:${prefix}${short}"
+# The moving tag (:dev, or a version) is applied by the caller after the page
+# exists. Here we only publish the commit-scoped index.
+# Sources must already be OCI. A Docker manifest list rejects index annotations
+# (docs.docker.com/reference/cli/docker/buildx/imagetools/create/). The image
+# job sets oci-mediatypes=true on the docker exporter. imagetools create has
+# no format flag.
 "$docker" buildx imagetools create \
-  --tag "${image}:${moving}" \
-  --tag "${image}:${short}" \
+  --tag "$index_tag" \
   --annotation "index:org.opencontainers.image.revision=${COMMIT}" \
   --metadata-file "$meta" \
   "${image}@${amd64_digest}" \
@@ -82,4 +102,4 @@ esac
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
 fi
-echo "pushed ${image}:${moving} ${digest}"
+echo "pushed ${index_tag} ${digest}"

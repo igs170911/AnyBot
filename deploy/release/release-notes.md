@@ -8,9 +8,9 @@ This build is **{{CHANNEL}}**. It is not code-signed and not notarized (spec/09 
 - Commit: `{{COMMIT}}`
 - Built at: {{BUILT_AT}} (UTC)
 - Tag: {{TAG}}
-- Server image digest: `{{IMAGE_DIGEST}}`
+- Server image digest: `{{IMAGE_DIGEST}}` (the commit-scoped multi-arch index, not `:latest` and not `:dev`)
 
-When the channel is `dev`, this is the one fixed pre-release page. Each green `dev` build replaces the whole page: the previous installers are removed and these files are the only ones left. The `dev-build` tag is moved to this commit; it is not a new page and not a new tag name.
+When the channel is `dev`, this is the one fixed pre-release page. A new page is uploaded as a complete draft first. The visible page is replaced only after that draft is complete, then the `dev-build` tag moves to this commit, then the image `:dev` tag moves. A failed upload leaves the previous page and the previous `:dev` tag. The digest above is the commit-scoped index (`dev-<commit>`), not the digest of `:dev` after it is moved: moving `:dev` builds a new index.
 
 The desktop app is still a shell: it opens one window and has no chat, tasks, or account pages. The server image answers `--version` and a health check. Do not use either as a product.
 
@@ -50,4 +50,4 @@ On macOS the same file is checked with `shasum -a 256 -c SHA256SUMS`.
 
 2. Install only after that line says OK. A mismatch means the file is not the one this release published.
 
-The server image is also unsigned. `docker pull` will not show a signature. The digest above is the multi-arch index this release pushed. Compare it with `docker buildx imagetools inspect` before you run the image.
+The server image is also unsigned. `docker pull` will not show a signature. The digest above is the commit-scoped multi-arch index (`<commit>` on stable, `dev-<commit>` on dev). It is not the digest of `:latest`: moving `:latest` adds an annotation and creates a new index. Compare the commit-scoped tag with `docker buildx imagetools inspect` before you run the image.
