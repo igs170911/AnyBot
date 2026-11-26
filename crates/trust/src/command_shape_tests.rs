@@ -47,7 +47,6 @@ fn bot_caps() -> ComputerCaps {
 fn direct_config() -> GateConfig {
     let mut config = GateConfig::plain();
     config.modes = ModeFlags {
-        six_class: false,
         ask_every_time: false,
         yolo: true,
         direct_mode: true,

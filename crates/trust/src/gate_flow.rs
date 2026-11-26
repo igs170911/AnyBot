@@ -43,7 +43,6 @@ impl GateConfig {
     pub fn plain() -> Self {
         GateConfig {
             modes: ModeFlags {
-                six_class: false,
                 ask_every_time: false,
                 yolo: false,
                 direct_mode: false,
@@ -151,6 +150,7 @@ pub(crate) fn judge(
     let input = EngineInput {
         action: floor_view(action, caps),
         modes: config.modes.clone(),
+        six_class: crate::six_class::holds_a_class(action, caps.owner == ComputerOwner::Bot),
         styles: style_hits(action, computer, &config.user),
         admin_hook: hook_opinion(&config.admin.hook, &action.key()),
         user_hook: hook_opinion(&config.user.hook, &action.key()),

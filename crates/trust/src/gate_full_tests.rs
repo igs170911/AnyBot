@@ -32,29 +32,26 @@ fn engine_input(action: FloorAction) -> BoxedStrategy<EngineInput> {
         (0usize..2usize),
         (0usize..2usize),
         (0usize..2usize),
-        (0usize..2usize),
     )
-        .prop_map(
-            move |(yolo, direct, mdm, ask_time, six_class)| EngineInput {
-                action: action.clone(),
-                modes: ModeFlags {
-                    six_class: six_class == 1,
-                    ask_every_time: ask_time == 1,
-                    yolo: yolo == 1,
-                    direct_mode: direct == 1,
-                    mdm_locks_direct: mdm == 1,
-                },
-                styles: StyleFlags {
-                    ask_style_hit: false,
-                    allow_style_hit: true,
-                    always_hit: true,
-                    session_allowed: true,
-                },
-                admin_hook: Opinion::Allow,
-                user_hook: Opinion::Allow,
-                default_rule: Opinion::Allow,
+        .prop_map(move |(yolo, direct, mdm, ask_time)| EngineInput {
+            action: action.clone(),
+            modes: ModeFlags {
+                ask_every_time: ask_time == 1,
+                yolo: yolo == 1,
+                direct_mode: direct == 1,
+                mdm_locks_direct: mdm == 1,
             },
-        )
+            six_class: false,
+            styles: StyleFlags {
+                ask_style_hit: false,
+                allow_style_hit: true,
+                always_hit: true,
+                session_allowed: true,
+            },
+            admin_hook: Opinion::Allow,
+            user_hook: Opinion::Allow,
+            default_rule: Opinion::Allow,
+        })
         .boxed()
 }
 

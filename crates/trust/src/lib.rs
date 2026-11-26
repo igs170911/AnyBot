@@ -47,6 +47,7 @@ pub mod safety_n5;
 pub mod sandbox_deny;
 pub mod sandbox_levels;
 pub mod sandbox_peel;
+mod six_class;
 pub mod trust_floor;
 mod wrapper_flags;
 

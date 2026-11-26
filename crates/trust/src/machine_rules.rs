@@ -138,7 +138,11 @@ fn user_machine_rule(action: &GateAction, caps: &ComputerCaps) -> RuleVerdict {
 
 fn user_file_rule(action: &GateAction, path: &PathView, read_only: bool) -> RuleVerdict {
     if !read_only && !inside_workdir(path, &action.workdir) {
-        return RuleVerdict::of(MachineLevel::Deny, "user-machine-outside-write", false);
+        return RuleVerdict::of(
+            MachineLevel::AskEveryTime,
+            "user-machine-outside-write",
+            false,
+        );
     }
     RuleVerdict::of(MachineLevel::AskEveryTime, "user-machine-files", read_only)
 }

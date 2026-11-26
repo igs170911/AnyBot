@@ -64,7 +64,6 @@ fn test_gate_flow_private_path_is_denied_by_the_floor_rule() {
 fn config_with(user: UserRules) -> GateConfig {
     GateConfig {
         modes: ModeFlags {
-            six_class: false,
             ask_every_time: false,
             yolo: false,
             direct_mode: false,
@@ -148,4 +147,98 @@ fn test_an_empty_config_cannot_be_silently_relaxed_by_the_caller() {
     let action = GateAction::command("shell", "git push origin main", "/workspace", Vec::new());
     let verdict = judge(&action, &bot_caps(), &GateConfig::plain(), "fake-computer");
     assert_eq!(verdict.outcome, GateOutcome::Ask);
+}
+
+fn direct_config() -> GateConfig {
+    let mut config = GateConfig::plain();
+    config.modes.direct_mode = true;
+    config
+}
+
+fn user_caps() -> ComputerCaps {
+    ComputerCaps {
+        owner: ComputerOwner::User,
+        platform: ComputerPlatform::Mac,
+        run_commands: CapState::Supported,
+        read_files: CapState::Supported,
+        write_files: CapState::Supported,
+        check_path: CapState::Supported,
+        command_sandbox: CapState::Supported,
+        ..ComputerCaps::declared(ComputerPlatform::Mac, ComputerOwner::User)
+    }
+}
+
+fn write_file(path: &str) -> GateAction {
+    GateAction {
+        tool: "edit_file".to_owned(),
+        subject: ActionSubject::WriteFile {
+            path: PathView::resolved(path, path),
+            content: "x".to_owned(),
+        },
+        extra_paths: Vec::new(),
+        workdir: "/workspace".to_owned(),
+    }
+}
+
+#[test]
+fn test_direct_mode_still_asks_before_a_bot_publish() {
+    let verdict = judge(&git_push_action(), &bot_caps(), &direct_config(), "bot-1");
+    assert_eq!(verdict.outcome, GateOutcome::Ask);
+}
+
+#[test]
+fn test_direct_mode_still_asks_before_a_delete_outside_the_workdir() {
+    let action = GateAction::command(
+        "shell",
+        "rm /etc/hosts",
+        "/workspace",
+        vec![PathView::resolved("/etc/hosts", "/etc/hosts")],
+    );
+    let verdict = judge(&action, &bot_caps(), &direct_config(), "bot-1");
+    assert_eq!(verdict.outcome, GateOutcome::Ask);
+}
+
+#[test]
+fn test_direct_mode_still_asks_before_a_write_outside_the_workdir_on_the_user_machine() {
+    let verdict = judge(
+        &write_file("/Users/me/.zshrc"),
+        &user_caps(),
+        &direct_config(),
+        "user-mac",
+    );
+    assert_eq!(verdict.outcome, GateOutcome::Ask);
+}
+
+#[test]
+fn test_an_always_list_still_allows_a_six_class_under_direct_mode() {
+    let user = UserRules {
+        always: AlwaysList {
+            entries: vec![AlwaysEntry {
+                action: format!(
+                    "command {} on bot-1",
+                    crate::command_key::command_action_key("git push origin main"),
+                ),
+                added_at: TimestampMs::from_millis(1),
+                from_bot: anybot_foundation::BotId::generate(&anybot_foundation::SystemClock),
+            }],
+        },
+        ..UserRules::default()
+    };
+    let mut config = config_with(user);
+    config.modes.direct_mode = true;
+    let verdict = judge(&git_push_action(), &bot_caps(), &config, "bot-1");
+    assert_eq!(verdict.outcome, GateOutcome::Allow);
+    assert_eq!(verdict.layer, GateLayer::User);
+}
+
+#[test]
+fn test_direct_mode_still_runs_a_delete_inside_the_bot_folder() {
+    let action = GateAction::command(
+        "shell",
+        "rm notes.md",
+        "/workspace",
+        vec![PathView::resolved("notes.md", "/workspace/notes.md")],
+    );
+    let verdict = judge(&action, &bot_caps(), &direct_config(), "bot-1");
+    assert_eq!(verdict.outcome, GateOutcome::Allow);
 }

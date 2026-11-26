@@ -169,7 +169,14 @@ fn test_machine_rules_user_machine_splits_read_only_chains_and_file_tools() {
         extra_paths: Vec::new(),
         workdir: "/workspace".to_owned(),
     };
-    assert_eq!(default_rule(&write, &caps).level, MachineLevel::Deny);
+    assert_eq!(
+        default_rule(&write, &caps).level,
+        MachineLevel::AskEveryTime
+    );
+    assert_eq!(
+        default_rule(&write, &caps).rule,
+        "user-machine-outside-write"
+    );
     assert_eq!(
         default_rule(&read("notes.md"), &caps).level,
         MachineLevel::AskEveryTime

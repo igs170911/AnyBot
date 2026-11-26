@@ -3,7 +3,6 @@ use crate::trust_floor::{FloorAction, floor_check};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModeFlags {
-    pub six_class: bool,
     pub ask_every_time: bool,
     pub yolo: bool,
     pub direct_mode: bool,
@@ -22,6 +21,7 @@ pub struct StyleFlags {
 pub(crate) struct EngineInput {
     pub action: FloorAction,
     pub modes: ModeFlags,
+    pub six_class: bool,
     pub styles: StyleFlags,
     pub admin_hook: Opinion,
     pub user_hook: Opinion,
@@ -64,9 +64,9 @@ fn admin_call(input: &EngineInput) -> LayerCall {
 fn user_call(input: &EngineInput) -> LayerCall {
     let can_ask = !input.modes.ask_every_time;
     let list_allow = input.styles.always_hit || input.styles.session_allowed;
-    let style_allow = input.styles.allow_style_hit && !input.modes.six_class;
-    let direct_allow = input.modes.direct_mode && !input.modes.six_class;
-    let hook_allow = input.user_hook == Opinion::Allow && !input.modes.six_class;
+    let style_allow = input.styles.allow_style_hit && !input.six_class;
+    let direct_allow = input.modes.direct_mode && !input.six_class;
+    let hook_allow = input.user_hook == Opinion::Allow && !input.six_class;
     LayerCall {
         layer: GateLayer::User,
         deny: input.user_hook == Opinion::Deny || input.modes.ask_every_time,
