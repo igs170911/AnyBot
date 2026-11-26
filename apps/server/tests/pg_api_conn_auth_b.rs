@@ -29,7 +29,7 @@ use anybot_app_test::ClockWalker;
 use anybot_app_test::http::ResponseSpec;
 use anybot_app_test::http::{RequestSpec, get, post};
 use anybot_app_test::serve::serve_start;
-use anybot_server_test::table_counts;
+use anybot_app_test::sse::open_sse;
 
 use anybot_server_test::{count_sessions, make_admin, set_public_url};
 
@@ -161,6 +161,49 @@ async fn t_conn_auth_2() -> Result<(), String> {
     Ok(())
 }
 
+async fn sse_bearer_checks(base: &str, admin: &str) -> Result<(), String> {
+    let sse_query = open_sse(
+        base,
+        "/v1/streams/notifications",
+        "",
+        &format!("session_key={admin}"),
+    )
+    .await;
+    match sse_query {
+        Ok(opened) => {
+            opened.close();
+            return Err("sse with the key in the url must refuse".to_owned());
+        }
+        Err(refused) => {
+            assert!(refused.contains("401"), "sse query auth: {refused}");
+        }
+    }
+    let mut sse_header = open_sse(base, "/v1/streams/notifications", admin, "").await?;
+    sse_header.recv_block().await?;
+    sse_header.close();
+    Ok(())
+}
+
+async fn leaks_absent(pool: &anybot_store_server::Pool, admin: &str) -> Result<(), String> {
+    let rows = sqlx::query("SELECT body FROM idempotency")
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    for row in rows {
+        let body: String = row.try_get("body").map_err(|e| e.to_string())?;
+        assert!(!body.contains(admin), "stored body leaks the bearer");
+    }
+    let events = sqlx::query("SELECT address, account FROM auth_events")
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    for row in events {
+        let account: String = row.try_get("account").map_err(|e| e.to_string())?;
+        assert!(!account.contains(admin), "auth event leaks the bearer");
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn t_conn_auth_3() -> Result<(), String> {
     let served = serve_start("t_conn_auth_3").await?;
@@ -187,6 +230,7 @@ async fn t_conn_auth_3() -> Result<(), String> {
     )
     .await?;
     assert_eq!(in_header.status, 200, "{}", in_header.json);
+    sse_bearer_checks(&base, &admin).await?;
     let in_header_post = post(
         &base,
         "/v1/account/logout",
@@ -194,43 +238,7 @@ async fn t_conn_auth_3() -> Result<(), String> {
     )
     .await?;
     assert_eq!(in_header_post.status, 200, "{}", in_header_post.json);
-    let rows = sqlx::query("SELECT body FROM idempotency")
-        .fetch_all(&served.pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    for row in rows {
-        let body: String = row.try_get("body").map_err(|e| e.to_string())?;
-        assert!(!body.contains(&admin), "stored body leaks the bearer");
-    }
-    let events = sqlx::query("SELECT address, account FROM auth_events")
-        .fetch_all(&served.pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    for row in events {
-        let account: String = row.try_get("account").map_err(|e| e.to_string())?;
-        assert!(!account.contains(&admin), "auth event leaks the bearer");
-    }
-    served.stop().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn t_conn_auth_6() -> Result<(), String> {
-    let served = serve_start("t_conn_auth_6").await?;
-    let base = served.base_url();
-    let admin = make_admin(&served).await?;
-    let before = table_counts(&served).await?;
-    for path in ["/v1/health", "/v1/server/status", "/v1/admin/invite"] {
-        let spec = if path == "/v1/admin/invite" {
-            RequestSpec::new("{}").with_bearer(&admin)
-        } else {
-            RequestSpec::new("{}")
-        };
-        let answer = get(&base, path, &spec).await?;
-        assert_eq!(answer.status, 200, "{path}: {}", answer.json);
-    }
-    let after = table_counts(&served).await?;
-    assert_eq!(before, after, "GET routes must not change stored data");
+    leaks_absent(&served.pool, &admin).await?;
     served.stop().await?;
     Ok(())
 }

@@ -26,6 +26,8 @@ pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
 pub mod version_release;
+#[cfg(test)]
+mod version_release_tests;
 pub mod window;
 
 #[cfg(test)]

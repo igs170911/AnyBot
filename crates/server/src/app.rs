@@ -143,7 +143,8 @@ pub fn build_router(state: AppState) -> Router {
             state.clone(),
             crate::auth_csrf::csrf_layer,
         ))
-        .layer(axum::middleware::from_fn(
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
             crate::auth_pre::pre_session_layer,
         ))
         .layer(axum::middleware::from_fn_with_state(

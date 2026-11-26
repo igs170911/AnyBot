@@ -96,8 +96,8 @@ async fn test_health_ok_json_matches_schema_fields() {
 }
 
 #[tokio::test]
-async fn test_health_unknown_path_is_not_found() {
+async fn version_gate_blocks_unknown_path_without_header() {
     let port = start_test_server().unwrap();
     let (head, _body) = get_response(port, "/v1/nosuch").await.unwrap();
-    assert!(head.contains("HTTP/1.1 404"));
+    assert!(head.contains("HTTP/1.1 403"));
 }

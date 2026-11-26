@@ -18,16 +18,29 @@ fn header_name() -> HeaderName {
     HeaderName::from_static(CLIENT_VERSION_HEADER)
 }
 
-fn header_of(headers: &axum::http::HeaderMap) -> Option<String> {
+#[must_use]
+pub fn header_of(headers: &axum::http::HeaderMap) -> Option<String> {
     let text = headers.get(header_name())?.to_str().ok()?;
     Some(text.to_owned())
 }
 
-fn exempt(path: &str, method: &Method) -> bool {
-    if method == Method::GET {
+#[must_use]
+fn exempt(path: &str) -> bool {
+    VERSION_EXEMPT_PATHS.contains(&path)
+}
+
+#[must_use]
+fn pre_session(method: &Method, path: &str) -> bool {
+    method == Method::POST
+        && ["v1/account/login", "v1/account/register"].contains(&path.trim_start_matches('/'))
+}
+
+#[must_use]
+fn passes(verdict: VersionVerdict, method: &Method, path: &str) -> bool {
+    if pre_session(method, path) {
         return true;
     }
-    VERSION_EXEMPT_PATHS.contains(&path)
+    verdict == VersionVerdict::Accept
 }
 
 fn denied(header: Option<&str>) -> Response {
@@ -51,7 +64,7 @@ pub async fn version_layer(
     let raw = header_of(&parts.headers);
     let now_ms = i64::try_from(state.clock.now_ms().millis()).unwrap_or(i64::MAX);
     let verdict = judge_client_version(raw.as_deref(), &state.releases, now_ms);
-    if exempt(&path, &method) || verdict == VersionVerdict::Accept {
+    if exempt(&path) || passes(verdict, &method, &path) {
         let request = Request::from_parts(parts, body);
         return next.run(request).await;
     }

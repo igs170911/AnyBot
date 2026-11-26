@@ -46,14 +46,15 @@ impl Served {
         let config = anybot_server::ServerConfig::from_rows(rows)?;
         let clock_fast: Arc<FakeClock> = Arc::clone(&self.clock);
         let clock_arc: Arc<dyn Clock> = clock_fast;
-        let (shutdown, task, v6_port) = bind_fake(
+        let (shutdown, task, v6_port, fresh) = bind_fake(
             &self.db,
             clock_arc,
             self.pool.clone(),
             config,
-            &anybot_domain::version_release::ReleaseTable::empty(),
+            &Arc::clone(&self.state.releases),
         )
         .await?;
+        let _old = std::mem::replace(&mut self.state, fresh);
         let _old = std::mem::replace(&mut self.server_shutdown, shutdown);
         self.server_tasks = task;
         self.v6_port = v6_port;
@@ -113,14 +114,15 @@ impl ServedReal {
             .map_err(|e| e.to_string())?;
         let config = anybot_server::ServerConfig::from_rows(rows)?;
         let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-        let (shutdown, task, v6_port) = bind_fake(
+        let (shutdown, task, v6_port, fresh) = bind_fake(
             &self.db,
             clock,
             self.pool.clone(),
             config,
-            &anybot_domain::version_release::ReleaseTable::empty(),
+            &Arc::clone(&self.state.releases),
         )
         .await?;
+        let _old = std::mem::replace(&mut self.state, fresh);
         let _old = std::mem::replace(&mut self.server_shutdown, shutdown);
         self.server_tasks = task;
         self.v6_port = v6_port;

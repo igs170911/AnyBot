@@ -19,6 +19,7 @@ pub struct Served {
     pub pool: anybot_server::Pool,
     pub started: anybot_server::Started,
     pub startup: Arc<Capture>,
+    pub state: anybot_server::AppState,
     server_shutdown: Arc<tokio::sync::Notify>,
     server_tasks: Vec<tokio::task::JoinHandle<()>>,
     v6_port: u16,
@@ -28,6 +29,7 @@ pub struct ServedReal {
     pub db: ServerDb,
     pub pool: anybot_server::Pool,
     pub started: anybot_server::Started,
+    pub state: anybot_server::AppState,
     server_shutdown: Arc<tokio::sync::Notify>,
     server_tasks: Vec<tokio::task::JoinHandle<()>>,
     v6_port: u16,
@@ -80,6 +82,7 @@ async fn bind_fake(
         Arc<tokio::sync::Notify>,
         Vec<tokio::task::JoinHandle<()>>,
         u16,
+        anybot_server::AppState,
     ),
     String,
 > {
@@ -96,7 +99,7 @@ async fn bind_fake(
     let cleanup = anybot_server::cleanup::cleanup_loop(pool, clock, Arc::clone(&shutdown));
     let app = anybot_server::build_router(state.clone())
         .into_make_service_with_connect_info::<std::net::SocketAddr>();
-    let app_v6 = anybot_server::build_router(state)
+    let app_v6 = anybot_server::build_router(state.clone())
         .into_make_service_with_connect_info::<std::net::SocketAddr>();
     let spawned_shutdown = Arc::clone(&shutdown);
     let v4_task = tokio::spawn(async move {
@@ -105,6 +108,7 @@ async fn bind_fake(
                 drop(serve);
             }
             _stop = spawned_shutdown.notified() => {}
+
         }
     });
     let spawned_shutdown_v6 = Arc::clone(&shutdown);
@@ -116,5 +120,5 @@ async fn bind_fake(
             _stop = spawned_shutdown_v6.notified() => {}
         }
     });
-    Ok((shutdown, vec![v4_task, v6_task, cleanup], v6_port))
+    Ok((shutdown, vec![v4_task, v6_task, cleanup], v6_port, state))
 }

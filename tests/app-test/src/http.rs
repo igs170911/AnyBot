@@ -68,7 +68,13 @@ impl RequestSpec {
         self
     }
 
-    fn headers(&self) -> Result<HeaderMap, String> {
+    #[must_use]
+    pub fn dump(&self) -> String {
+        let built = self.headers().unwrap_or_default();
+        format!("{built:?}")
+    }
+
+    pub fn headers(&self) -> Result<HeaderMap, String> {
         let mut map = HeaderMap::new();
         map.insert(
             reqwest::header::CONTENT_TYPE,

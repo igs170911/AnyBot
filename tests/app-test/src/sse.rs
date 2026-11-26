@@ -80,6 +80,52 @@ pub async fn open_sse(
     bearer: &str,
     query: &str,
 ) -> Result<SseOpen, String> {
+    open_sse_with(base, path, bearer, query, None, None, None).await
+}
+
+fn apply_sec_fetch(
+    request: reqwest::RequestBuilder,
+    sec_fetch: Option<&str>,
+) -> Result<reqwest::RequestBuilder, String> {
+    Ok(match sec_fetch {
+        Some(value) => request.header(
+            reqwest::header::HeaderName::from_static("sec-fetch-site"),
+            HeaderValue::from_str(value).map_err(|e| e.to_string())?,
+        ),
+        None => request,
+    })
+}
+
+fn apply_cookie_and_origin(
+    request: reqwest::RequestBuilder,
+    cookie: Option<&str>,
+    origin: Option<&str>,
+) -> Result<reqwest::RequestBuilder, String> {
+    let request = match cookie {
+        Some(value) => request.header(
+            reqwest::header::COOKIE,
+            HeaderValue::from_str(value).map_err(|e| e.to_string())?,
+        ),
+        None => request,
+    };
+    Ok(match origin {
+        Some(value) => request.header(
+            reqwest::header::ORIGIN,
+            HeaderValue::from_str(value).map_err(|e| e.to_string())?,
+        ),
+        None => request,
+    })
+}
+
+pub async fn open_sse_with(
+    base: &str,
+    path: &str,
+    bearer: &str,
+    query: &str,
+    cookie: Option<&str>,
+    origin: Option<&str>,
+    sec_fetch: Option<&str>,
+) -> Result<SseOpen, String> {
     let url = format!("{base}{path}?{query}");
     let client = Client::builder()
         .read_timeout(SSE_DEADLINE.saturating_mul(2))
@@ -87,14 +133,18 @@ pub async fn open_sse(
         .map_err(|e| e.to_string())?;
     let request = client
         .request(Method::GET, &url)
-        .header(ACCEPT, HeaderValue::from_static("text/event-stream"))
-        .header(
+        .header(ACCEPT, HeaderValue::from_static("text/event-stream"));
+    let request = if bearer.is_empty() {
+        request
+    } else {
+        request.header(
             AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {bearer}")).map_err(|e| e.to_string())?,
         )
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    };
+    let request = apply_sec_fetch(request, sec_fetch)?;
+    let request = apply_cookie_and_origin(request, cookie, origin)?;
+    let request = request.send().await.map_err(|e| e.to_string())?;
     let status = request.status().as_u16();
     if status != 200 {
         let body = request.text().await.map_err(|e| e.to_string())?;

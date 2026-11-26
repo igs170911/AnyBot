@@ -43,3 +43,15 @@
 - GateResult 的 `Ask` 判定也會給模型結果（context_steps 的 result_entry），不然上下文配對失敗。
 - 交付報告在 `crates/trust/src/report.rs`（純函式，不看時鐘）；runner 端 emit 在 `report_out.rs`。
 - 代碼數 156（§6 串流新增 6 個代碼）。
+
+## M6b-1 §7 第二批（conn-auth 整合測試 + install-n25-5）
+
+- `T-conn-auth-2/3/6/7` 在 `apps/server/tests/pg_api_conn_auth_b.rs`（SSE 帶金鑰在網址要被擋、來源網址攔截、GET 路由穩定）。
+- `T-conn-auth-4/6` 在 `apps/server/tests/pg_api_conn_auth_c.rs`。
+- `T-install-n25-5` 在 `apps/server/tests/pg_api_version_n25.rs`（拆檔後 pg_api_version.rs 193 行、pg_api_version_n25.rs 249 行，都低於 300）。
+- 修正：`walk_past_release` 210 天→220 天（六個月視窗從取代版發佈日算起，210 天還在視窗內，判定會變成 Accept）。
+- 修正：pre-session 閘門只放 Accept；不帶版本的登入/註冊也要被擋（T-install-n25-5 的 plain 用戶）。
+- `crates/domain/src/version_release_tests.rs`：judge 的取樣測試（220 天 TooOld、200 天 Accept、0.3.0 Accept、讀不到的標頭 Unreadable、空表 Accept、六個月視窗 >180 天）。
+- `Served` 多了 `state: AppState` 欄位（serve_start.rs 回傳 4 元組）；`serve_lifecycle.rs` 重啟用 `Arc::clone(&self.state.releases)`。
+- `open_sse_with` 多了 `sec_fetch` 參數（CSRF cookie GET 需要 `sec-fetch-site`）。
+- 驗證數字：`make check-fast` 900/900 全綠。代碼數 156 不變。

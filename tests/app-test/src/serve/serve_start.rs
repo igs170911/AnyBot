@@ -28,7 +28,7 @@ pub async fn serve_start_with(
     let clock_fast: Arc<FakeClock> = Arc::clone(&clock);
     let clock_arc: Arc<dyn Clock> = clock_fast;
     let config = anybot_server::ServerConfig::from_rows(started.config.rows())?;
-    let (server_shutdown, server_tasks, v6_port) =
+    let (server_shutdown, server_tasks, v6_port, state) =
         bind_fake(&db, clock_arc, pool.clone(), config, releases).await?;
     Ok(Served {
         db,
@@ -36,6 +36,7 @@ pub async fn serve_start_with(
         pool,
         started,
         startup,
+        state,
         server_shutdown,
         server_tasks,
         v6_port,
@@ -52,7 +53,7 @@ pub async fn serve_start_real(test: &str) -> Result<ServedReal, String> {
         .map_err(|e| format!("{e:?}"))?;
     let clock_arc: Arc<dyn Clock> = clock;
     let config = anybot_server::ServerConfig::from_rows(started.config.rows())?;
-    let (server_shutdown, server_tasks, v6_port) = bind_fake(
+    let (server_shutdown, server_tasks, v6_port, state) = bind_fake(
         &db,
         clock_arc,
         pool.clone(),
@@ -64,6 +65,7 @@ pub async fn serve_start_real(test: &str) -> Result<ServedReal, String> {
         db,
         pool,
         started,
+        state,
         server_shutdown,
         server_tasks,
         v6_port,
