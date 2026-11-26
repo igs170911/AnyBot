@@ -1,6 +1,8 @@
+fn copy(ticket: anybot_trust::AskTicket) -> anybot_trust::AskTicket {
+    ticket.clone()
+}
+
 fn main() {
-    let config = anybot_trust::GateConfig::plain();
-    let ticket: Option<anybot_trust::AskTicket> = None;
-    let copied = ticket.clone();
-    println!("{config:?} {copied:?}");
+    let referenced = copy;
+    let _ = referenced;
 }

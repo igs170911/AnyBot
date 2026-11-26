@@ -1,19 +1,5 @@
-error[E0599]: the method `clone` exists for enum `Option<AskTicket>`, but its trait bounds were not satisfied
- --> tests/compilefail/clone_ask_ticket_outside_trust.rs:4:25
+error[E0599]: no method named `clone` found for struct `AskTicket` in the current scope
+ --> tests/compilefail/clone_ask_ticket_outside_trust.rs:2:12
   |
-4 |     let copied = ticket.clone();
-  |                         ^^^^^ method cannot be called on `Option<AskTicket>` due to unsatisfied trait bounds
-  |
- ::: $RUST/core/src/option.rs
-  |
-  | pub enum Option<T> {
-  | ------------------ doesn't satisfy `Option<AskTicket>: Clone`
-  |
- ::: src/pipeline.rs
-  |
-  | pub struct AskTicket {
-  | -------------------- doesn't satisfy `AskTicket: Clone`
-  |
-  = note: the following trait bounds were not satisfied:
-          `AskTicket: Clone`
-          which is required by `Option<AskTicket>: Clone`
+2 |     ticket.clone()
+  |            ^^^^^ method not found in `AskTicket`
