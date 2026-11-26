@@ -1,10 +1,2 @@
-pub mod command;
-pub mod endpoint;
-pub mod fs_helpers;
-pub mod paths;
-
-#[cfg(test)]
-use runner_test as _;
-
-pub use anybot_trust::{GatedComputer, OpRejection, Pass};
-pub use endpoint::BotComputer;
+pub use anybot_protocol::{ActualResult, ComputerCaps, ComputerOwner, ComputerPlatform};
+pub use anybot_trust::{GatedComputer, OpRejection, OpRejectionKind, Pass};

@@ -1,25 +1,6 @@
-use anybot_protocol::{
-    ActualResult, CommandOutcome, ComputerCaps, ComputerFailure, ComputerFailureKind, PathOutcome,
-    ReadOutcome, WriteOutcome,
-};
+use anybot_protocol::{ActualResult, ComputerCaps, ComputerFailure, ComputerFailureKind};
 
 use crate::pass::Pass;
-
-pub trait ComputerRunner: Send + Sync {
-    fn capabilities(&self) -> ComputerCaps;
-
-    fn run_command(
-        &self,
-        command: &str,
-        timeout_ms: u64,
-    ) -> Result<CommandOutcome, ComputerFailure>;
-
-    fn read_file(&self, path: &str) -> Result<ReadOutcome, ComputerFailure>;
-
-    fn write_file(&self, path: &str, content: &str) -> Result<WriteOutcome, ComputerFailure>;
-
-    fn path_info(&self, path: &str) -> Result<PathOutcome, ComputerFailure>;
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpRejectionKind {

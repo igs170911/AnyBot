@@ -69,7 +69,7 @@ pub fn run_action(
             let Some(pass) = verdict.pass(&action, clock.now_ms()) else {
                 return RunStep::Denied(denied_run(request, &verdict, &gate, view, clock));
             };
-            RunStep::Executed(executed_run(request, &pass, computer, view, clock))
+            RunStep::Executed(executed_run(request, pass, computer, view, clock))
         }
     }
 }
@@ -145,7 +145,7 @@ impl AskTicket {
                 crate::pipeline_run::user_approved_run(
                     &self.request,
                     &gate,
-                    &pass,
+                    pass,
                     computer,
                     view,
                     clock,

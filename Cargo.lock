@@ -202,11 +202,8 @@ dependencies = [
 name = "anybot-computers"
 version = "0.1.0"
 dependencies = [
- "anybot-foundation",
  "anybot-protocol",
  "anybot-trust",
- "runner-test",
- "tokio",
 ]
 
 [[package]]

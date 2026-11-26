@@ -55,9 +55,10 @@ pub struct Summary {
     pub evidence_numbers: Vec<u32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ActionRun {
     pub gate: GateRecord,
+    pub pass: Option<Pass>,
     pub evidence: Vec<EvidenceRecord>,
     pub model: OutcomeText,
     pub summary: Summary,
@@ -77,6 +78,7 @@ impl RunStep {
             RunStep::Executed(run) | RunStep::Denied(run) => run,
             RunStep::Ask(ticket) => ActionRun {
                 gate: ticket.gate().clone(),
+                pass: None,
                 evidence: Vec::new(),
                 model: OutcomeText::of(crate::message_codes::CODE_GATE_ASK_PENDING, Vec::new()),
                 summary: pending_summary(ticket.request()),
@@ -117,7 +119,7 @@ pub(crate) fn prepared_gate(
 pub(crate) fn user_approved_run(
     request: &ActionRequest,
     gate: &GateRecord,
-    pass: &Pass,
+    pass: Pass,
     computer: &dyn GatedComputer,
     view: &dyn ModelResultView,
     clock: &dyn Clock,
@@ -171,21 +173,23 @@ fn gate_params(verdict: &GateVerdict, request: &ActionRequest) -> Vec<(String, S
     params
 }
 
-pub fn executed_run(
+pub(crate) fn executed_run(
     request: &ActionRequest,
-    pass: &Pass,
+    pass: Pass,
     computer: &dyn GatedComputer,
     view: &dyn ModelResultView,
     clock: &dyn Clock,
 ) -> ActionRun {
     let gate = pass.gate().clone();
-    let op = perform(pass, &request.subject, computer);
+    let op = perform(&pass, &request.subject, computer);
     match op {
         Ok(result) => {
-            let verification = verify(pass, &request.subject, &result, computer);
+            let verification = verify(&pass, &request.subject, &result, computer);
             let evidence = verified_evidence(&request.context, &gate, &result, verification, clock);
             let model = view.result_text(&request.context.tool, &result);
-            finish(gate, vec![evidence], model, &request.context)
+            let mut run = finish(gate, vec![evidence], model, &request.context);
+            run.pass = Some(pass);
+            run
         }
         Err(rejection) => failed_run(request, gate, &rejection, view, clock),
     }
@@ -232,6 +236,7 @@ fn unreachable_run(
     };
     ActionRun {
         gate: gate.clone(),
+        pass: None,
         evidence: Vec::new(),
         model: view.failure_text(rejection),
         summary,
@@ -255,6 +260,7 @@ pub fn finish(
         evidence_numbers: numbers,
     };
     ActionRun {
+        pass: None,
         gate,
         evidence,
         model,

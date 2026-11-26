@@ -199,6 +199,25 @@ impl GatedComputer for SpyComputer {
 }
 
 #[test]
+fn test_the_computer_rejects_a_pass_issued_for_a_different_action() {
+    let clock = fresh_clock();
+    let computer = FakeComputerBuilder::default()
+        .bot_machine()
+        .clock(Arc::clone(&clock))
+        .script("ls", CommandScript::ok("files"))
+        .build();
+    let ls_run = run(&computer, &command_request("ls", &clock)).into_run();
+    let Some(pass) = ls_run.pass else {
+        panic!("an executed run must carry the pass it used");
+    };
+    let result = computer.run_command(&pass, "pwd", 1000);
+    assert!(
+        result.is_err(),
+        "a pass issued for ls must be rejected by the computer for pwd"
+    );
+}
+
+#[test]
 fn test_a_pass_for_one_command_never_authorizes_another_command() {
     let clock = fresh_clock();
     let inner = FakeComputerBuilder::default()

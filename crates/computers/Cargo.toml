@@ -6,12 +6,7 @@ edition.workspace = true
 license.workspace = true
 description = "AnyBot computers skeleton crate (spec/07 section 2)"
 [dependencies]
-anybot-foundation.workspace = true
 anybot-protocol.workspace = true
 anybot-trust = { workspace = true }
-tokio = { workspace = true, features = ["rt", "process", "fs", "time"] }
 [lints]
 workspace = true
-
-[dev-dependencies]
-runner-test.workspace = true

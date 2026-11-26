@@ -64,7 +64,7 @@ pub use message_codes::{
 pub use pass::Pass;
 pub use pipeline::{ActionRequest, AskTicket, GateAnswer, answer_ask, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
-pub use runner::{ComputerRunner, GatedComputer, OpRejection, OpRejectionKind};
+pub use runner::{GatedComputer, OpRejection, OpRejectionKind};
 pub use safety_always::{ActionSpec, concrete_actions};
 pub use safety_lock::{LockState, PolicyKey, parse_lock_value, parse_policy};
 pub use safety_n5::{
