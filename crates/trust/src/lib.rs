@@ -4,27 +4,52 @@ use anybot_protocol::RunEvent;
 #[cfg(test)]
 use proptest as _;
 
+pub mod action;
 pub mod always_list;
+pub mod card_data;
 pub mod claim_levels;
 pub mod command_key;
+pub mod command_target;
+pub mod evidence;
+pub mod evidence_payload;
 pub mod gate_engine;
+pub mod gate_flow;
 pub mod gate_full;
+pub mod machine_rules;
+pub mod pass;
+pub mod pipeline;
+pub mod pipeline_run;
+pub mod runner;
 pub mod safety_always;
 pub mod safety_lock;
 pub mod safety_n5;
+pub mod sandbox_deny;
+pub mod sandbox_levels;
 pub mod trust_floor;
 
+pub use action::{ActionKey, ActionSubject, DEFAULT_COMMAND_TIMEOUT_MS, GateAction, PathView};
 pub use always_list::{AddSource, AlwaysAddEvent, AlwaysEntry, AlwaysList, parse_untrusted_adds};
+pub use card_data::{CardData, build_card};
 pub use claim_levels::{Claim, ClaimLevel, EvidenceKind, Link, Scope, Verification};
 pub use command_key::{command_action_key, command_tokens};
+pub use command_target::command_target_paths;
+pub use evidence::ActionContext;
 pub use gate_engine::{GateLayer, LayerCall, Opinion, Outcome, precedence_decision};
+pub use gate_flow::{GateConfig, GateVerdict, judge, rule_code};
 pub use gate_full::{EngineInput, GateDecision, decide};
+pub use machine_rules::{MachineLevel, RuleVerdict, default_rule, inside_workdir};
+pub use pass::Pass;
+pub use pipeline::{ActionRequest, AskTicket, GateAnswer, answer_ask, run_action};
+pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
+pub use runner::{ComputerRunner, GatedComputer, OpRejection, OpRejectionKind};
 pub use safety_always::{ActionSpec, concrete_actions};
 pub use safety_lock::{LockState, PolicyKey, parse_lock_value, parse_policy};
 pub use safety_n5::{
     ActionClass, classes_of_click_label, classes_of_command, classes_of_connector_tool, word_hit,
 };
-pub use trust_floor::{FloorAction, FloorDeny, floor_check};
+pub use sandbox_deny::{DENIED_COMMAND_KINDS, deny_token, normalize_command, split_segments};
+pub use sandbox_levels::{CommandLevel, READ_ONLY_COMMANDS, command_level};
+pub use trust_floor::{FloorAction, FloorDeny, floor_check, is_denied_command};
 
 #[derive(Debug, Clone)]
 pub struct Evidence {
@@ -52,3 +77,5 @@ mod safety_always_tests;
 mod safety_lock_tests;
 #[cfg(test)]
 mod safety_n5_tests;
+#[cfg(test)]
+mod sandbox_deny_tests;

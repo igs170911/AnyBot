@@ -1,5 +1,6 @@
 pub mod bootstrap;
 pub mod clock;
+pub mod digest;
 pub mod error;
 pub mod ids;
 pub mod secret;
@@ -9,6 +10,7 @@ mod startup_tests;
 
 pub use bootstrap::ServerBootstrap;
 pub use clock::{Clock, ClockExpired, PinBoxFuture, SystemClock, TimestampMs};
+pub use digest::ContentDigest;
 pub use error::{
     CODE_BOOTSTRAP_CREDENTIALS_MISSING, CODE_BOOTSTRAP_DATABASE_MISSING,
     CODE_BOOTSTRAP_HOST_MISSING, CODE_BOOTSTRAP_MISSING, CODE_BOOTSTRAP_NOT_FOUND,

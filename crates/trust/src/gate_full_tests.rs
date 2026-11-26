@@ -8,6 +8,8 @@ fn any_floor_action() -> BoxedStrategy<FloorAction> {
     prop_oneof![
         Just(FloorAction::Command {
             line: "sudo rm -rf /nowhere".to_owned(),
+            bot_machine: true,
+            has_sandbox: true,
         }),
         Just(FloorAction::FilePath {
             path: "~/.ssh/id_ed25519".to_owned(),
