@@ -12,8 +12,9 @@
 5. **不動這個資料夾以外的東西。** 可以安裝的開發工具只有：`rustup component add rustfmt clippy`；`cargo install --locked` 這幾個：`cargo-deny`、`cargo-machete`、`cargo-nextest`、`sqlx-cli`、`tauri-cli`；`npm install -g pnpm`；`brew install gitleaks`、`brew install oasdiff`；`pnpm exec playwright install chromium webkit`；測試用的 PostgreSQL 程式由 harness 下載到 `target/`。**不准用 Docker**（`spec/09` K90，這台電腦的 Docker 上有使用者真的在用的東西）。要裝別的先停下來回報。
 6. **不放任何金鑰、帳號、個人資料進 repo。** 新版也不讀環境變數做設定（`spec/02` A10）。
 7. **暫存檔、紀錄檔一律放在 repo 的 `target/` 裡**（已經在 `.gitignore`），不要寫到 `/tmp` 或其他地方。
-8. **不准改寫 git 歷史**：不准用 `filter-branch`、`rebase`、`reset --hard`、`commit --amend` 改已經存在的 commit，也不准把好幾個 commit 壓成一個。遇到「要改歷史才能過」的情況，停下來回報。
-9. **不准按名字或樣式殺程式**：不准用 `pkill`、`killall`、`kill $(pgrep …)` 這類寫法。這台電腦上有使用者真的在用的程式。只准用 PID 收掉你自己啟動的程式。
+8. **commit 用 repo 原本設定的身分**：不准加 `-c user.name`、`-c user.email`、`--author`（雲端檢查會擋，而且擋了就只能改寫歷史才推得上去）。
+9. **不准改寫 git 歷史**：不准用 `filter-branch`、`rebase`、`reset --hard`、`commit --amend` 改已經存在的 commit，也不准把好幾個 commit 壓成一個。遇到「要改歷史才能過」的情況，停下來回報。
+10. **不准按名字或樣式殺程式**：不准用 `pkill`、`killall`、`kill $(pgrep …)` 這類寫法。這台電腦上有使用者真的在用的程式。只准用 PID 收掉你自己啟動的程式。
 
 ## 二、寫程式的五條鐵律（使用者定的，`spec/05` §2a、`spec/09` K75–K78、K91）
 
