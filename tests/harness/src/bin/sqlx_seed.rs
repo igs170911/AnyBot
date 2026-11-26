@@ -26,10 +26,12 @@ use std::path::PathBuf;
 
 use sqlx::migrate::Migrator;
 
-use test_harness::{pg_start, pg_stop, repo_root, test_dir};
+use test_harness::{pg_start, pg_stop, reap_leftover_tools, repo_root, test_dir, write_tool_pid};
 
 async fn seed(url_file: &PathBuf, pid_file: &PathBuf) -> Result<(), String> {
+    reap_leftover_tools()?;
     let dir = test_dir("sqlx_seed")?;
+    let _marker = write_tool_pid(&dir)?;
     let pg = pg_start(&dir).await?;
     pg.create_database("anybot_prepare").await?;
     let url = pg.url_for("anybot_prepare");
@@ -42,11 +44,37 @@ async fn seed(url_file: &PathBuf, pid_file: &PathBuf) -> Result<(), String> {
     pool.close().await;
     std::fs::write(url_file, format!("{url}\n")).map_err(|e| e.to_string())?;
     std::fs::write(pid_file, format!("{}\n", std::process::id())).map_err(|e| e.to_string())?;
-    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-        .map_err(|e| e.to_string())?
-        .recv()
-        .await;
-    pg_stop(&pg).await
+    match listen_for_stop().await {
+        Ok(()) => pg_stop(&pg).await,
+        Err(err) => {
+            let mut stderr = std::io::stderr();
+            let _written = std::io::Write::write_fmt(
+                &mut stderr,
+                format_args!("sqlx seed stop signal failed: {err}\n"),
+            );
+            Err(format!("sqlx seed stop signal failed: {err}"))
+        }
+    }
+}
+
+#[cfg(unix)]
+async fn listen_for_stop() -> Result<(), std::io::Error> {
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    tokio::select! {
+        _ctrl = tokio::signal::ctrl_c() => Ok(()),
+        Some(_sig) = terminate.recv() => Ok(()),
+    }
+}
+
+#[cfg(windows)]
+async fn listen_for_stop() -> Result<(), std::io::Error> {
+    let mut ctrl_break = tokio::signal::windows::ctrl_break()?;
+    let mut ctrl_close = tokio::signal::windows::ctrl_close()?;
+    tokio::select! {
+        _ctrl = tokio::signal::ctrl_c() => Ok(()),
+        _break = ctrl_break.recv() => Ok(()),
+        _close = ctrl_close.recv() => Ok(()),
+    }
 }
 
 #[tokio::main]

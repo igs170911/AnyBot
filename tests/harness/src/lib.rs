@@ -47,6 +47,7 @@ pub mod postgres;
 pub mod process;
 pub mod push_crypto;
 pub mod realtime;
+pub mod reap;
 pub mod running;
 pub mod scratch;
 
@@ -93,6 +94,7 @@ pub use postgres::{
 };
 pub use push_crypto::{SubscriptionKeys, subscription_endpoint};
 pub use realtime::{sleep_real, timeout_real};
+pub use reap::{reap_except, reap_leftover_tools, write_tool_pid};
 pub use running::Running;
 
 pub use scratch::{repo_root, test_dir, write_file_with_mode};

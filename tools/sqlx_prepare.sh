@@ -15,13 +15,40 @@ rm -f "$url_file" "$pid_file"
   --url-file "$url_file" --pid-file "$pid_file" &
 seed_pid=$!
 
-trap 'kill -TERM $seed_pid 2>/dev/null || true; wait $seed_pid 2>/dev/null || true' EXIT
+wait_deadline() {
+  local pid="$1"
+  local seconds="$2"
+  local ticks=$((seconds * 2))
+  local tick=0
+  while [ "$tick" -lt "$ticks" ]; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid" 2>/dev/null || true
+      return 0
+    fi
+    sleep 0.5
+    tick=$((tick + 1))
+  done
+  echo "sqlx seed PID $pid did not exit within ${seconds}s" >&2
+  kill -TERM "$pid" 2>/dev/null || true
+  sleep 2
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -KILL "$pid" 2>/dev/null || true
+  fi
+  wait "$pid" 2>/dev/null || true
+  return 1
+}
+
+trap 'kill -TERM $seed_pid 2>/dev/null || true; wait_deadline $seed_pid 15 || true' EXIT
 
 for _ in $(seq 1 240); do
   [ -s "$url_file" ] && break
+  if ! kill -0 "$seed_pid" 2>/dev/null; then
+    echo "sqlx seed exited before writing the url file" >&2
+    exit 1
+  fi
   sleep 0.5
 done
-[ -s "$url_file" ] || { echo "sqlx seed did not write the url file" >&2; exit 1; }
+[ -s "$url_file" ] || { echo "sqlx seed did not write the url file within 120s" >&2; exit 1; }
 db_url="$(cat "$url_file")"
 
 if [ "$mode" = "check" ]; then
@@ -32,5 +59,5 @@ else
 fi
 
 kill -TERM "$seed_pid"
-wait "$seed_pid"
+wait_deadline "$seed_pid" 15
 trap - EXIT

@@ -157,19 +157,28 @@ async fn harness_http_get_reports_connection_failure_without_crashing() {
 fn harness_running_dies_when_the_test_panics_midway() {
     let dir = test_dir("harness-drop").unwrap();
     let program = Program::new("/bin/sleep", vec!["60".to_owned()]);
+    let recorded = Mutex::new(0_u32);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _running = test_harness::Running::start(&program, &dir).unwrap();
+        let running = test_harness::Running::start(&program, &dir).unwrap();
+        *recorded.lock().unwrap() = running.pid();
         panic!("deliberate midway failure");
     }));
     assert!(result.is_err(), "the panic must escape the closure");
-    let pid_out = std::process::Command::new("/bin/sh")
-        .args(["-c", "sleep 1; pgrep -f 'sleep 60' || true"])
-        .output()
-        .unwrap();
-    let found = String::from_utf8_lossy(&pid_out.stdout).into_owned();
-    let own = format!("{}", std::process::id());
-    assert!(
-        !found.contains("sleep 60") || found.contains(&own),
-        "child survived the drop: {found}"
-    );
+    let pid = *recorded.lock().unwrap();
+    assert!(pid > 0, "the child pid was not recorded");
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert!(!pid_alive(pid), "child PID {pid} survived the drop");
+}
+
+#[cfg(unix)]
+fn pid_alive(pid: u32) -> bool {
+    std::process::Command::new("/bin/kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .is_ok_and(|code| code.success())
+}
+
+#[cfg(not(unix))]
+fn pid_alive(_pid: u32) -> bool {
+    false
 }

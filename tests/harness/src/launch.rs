@@ -51,6 +51,11 @@ impl Program {
         }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt as _;
+            let _detached = cmd.process_group(0);
+        }
         cmd
     }
 
