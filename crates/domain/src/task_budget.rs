@@ -278,7 +278,11 @@ fn turn_ended(view: &mut TaskView, at: u64) {
 
 #[cfg(test)]
 #[path = "task_budget_tests.rs"]
-mod tests;
+pub mod tests;
+
+#[cfg(test)]
+#[path = "task_budget_tests_b.rs"]
+mod tests_b;
 
 #[cfg(test)]
 #[path = "task_budget_prop_tests.rs"]

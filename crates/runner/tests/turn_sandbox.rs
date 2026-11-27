@@ -112,7 +112,7 @@ async fn t_sandbox_deny_3() -> Result<(), String> {
     let wanted = fmt_text(
         Lang::En,
         "gate-command-denied",
-        &Params::new().with_text("command", "rm -rf /"),
+        &Params::new().with_text("command", "sudo rm -rf /"),
     )?;
     let second = tool_text(&world, &task, 1, 1)?;
     if !second.contains(&wanted) {
@@ -172,7 +172,7 @@ async fn t_files_n2_2() -> Result<(), String> {
     let wanted = fmt_text(
         Lang::En,
         "gate-command-denied",
-        &Params::new().with_text("command", "rm -rf /"),
+        &Params::new().with_text("command", "sudo rm -rf /"),
     )?;
     let first = tool_text(&world, &task, 0, 1)?;
     if !first.contains(&wanted) {

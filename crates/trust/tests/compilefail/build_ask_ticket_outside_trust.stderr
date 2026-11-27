@@ -11,6 +11,6 @@ error[E0624]: associated function `new` is private
   | |         gate: GateRecord,
   | |         action: GateAction,
 ... |
-  | |         computer: &str,
+  | |         ctx: &CallContext,
   | |     ) -> Self {
   | |_____________- private associated function defined here

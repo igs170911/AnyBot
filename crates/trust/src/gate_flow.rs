@@ -183,9 +183,10 @@ fn verdict_params(
     denied_token: Option<&'static str>,
 ) -> Vec<(String, String)> {
     match (layer, floor_hit, denied_token) {
-        (GateLayer::Floor, Some(FloorDeny::DeniedCommand), Some(token)) => {
-            vec![("token".to_owned(), token.to_owned())]
-        }
+        (GateLayer::Floor, Some(FloorDeny::DeniedCommand), Some(token)) => vec![
+            ("token".to_owned(), token.to_owned()),
+            ("command".to_owned(), command_label(action)),
+        ],
         (GateLayer::Floor, Some(FloorDeny::PrivateFile), _) => {
             vec![("path".to_owned(), path_label(action))]
         }
@@ -207,6 +208,17 @@ fn floor_denied_token(action: &GateAction, bot_machine: bool) -> Option<&'static
         | ActionSubject::EditFile { .. }
         | ActionSubject::PathCheck { .. }
         | ActionSubject::Capabilities => None,
+    }
+}
+
+fn command_label(action: &GateAction) -> String {
+    match &action.subject {
+        ActionSubject::Command { line, .. } => line.clone(),
+        ActionSubject::ReadFile { .. }
+        | ActionSubject::WriteFile { .. }
+        | ActionSubject::EditFile { .. }
+        | ActionSubject::PathCheck { .. }
+        | ActionSubject::Capabilities => String::new(),
     }
 }
 

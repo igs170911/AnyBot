@@ -61,6 +61,11 @@ pub fn end_turn(view: &mut TaskView, reason: &TurnEndReason, reply_delivered: bo
             view.status = TaskStatus::Stuck;
             view.detail = Some(TaskDetail::ContextBudgetInsufficient);
         }
+        TurnEndReason::PendingApproval => {
+            view.status = TaskStatus::AwaitingUser;
+            let action = pending_action(view);
+            view.detail = Some(TaskDetail::ApprovalPending { action });
+        }
         TurnEndReason::ModelFailed { code } => {
             view.status = TaskStatus::Failed;
             let reason = code.clone();
@@ -98,3 +103,10 @@ mod budget_tests;
 #[cfg(test)]
 #[path = "task_state_prop_tests.rs"]
 mod state_props;
+
+fn pending_action(view: &TaskView) -> String {
+    match &view.detail {
+        Some(TaskDetail::ApprovalPending { action }) => action.clone(),
+        _ => view.goal.clone(),
+    }
+}

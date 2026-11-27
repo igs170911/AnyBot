@@ -4,9 +4,7 @@ use anybot_foundation::TurnId;
 use anybot_foundation::{BotId, Clock, DeviceId, EventId, RecordId, TaskId};
 use anybot_messages::Lang;
 use anybot_models::{Calibration, Capability, ModelRef, Session, ThinkingMode, ToolSpec};
-use anybot_protocol::{
-    ComputerRef, KnownTaskEventKind, TaskEventKind, TaskOpener, TurnEndReason, TurnInitiator,
-};
+use anybot_protocol::{ComputerRef, KnownTaskEventKind, TaskEventKind, TaskOpener, TurnEndReason};
 
 use crate::error::TurnError;
 use crate::record::{NewTaskEvent, RawStore, Record, RecordEntry, Stored, UserLine};
@@ -44,26 +42,7 @@ pub struct TurnCtx {
     pub(crate) task: TaskId,
     pub(crate) turn: u32,
     pub(crate) turn_id: TurnId,
-    evidence: tokio::sync::Mutex<u32>,
-}
-
-impl TurnCtx {
-    #[must_use]
-    pub(crate) fn peek_evidence(&self) -> u32 {
-        let Ok(guard) = self.evidence.try_lock() else {
-            return 1;
-        };
-        *guard
-    }
-
-    pub(crate) fn next_evidence(&self) -> u32 {
-        let Ok(mut guard) = self.evidence.try_lock() else {
-            return 1;
-        };
-        let value = *guard;
-        *guard = value.saturating_add(1);
-        value
-    }
+    pub(crate) evidence: tokio::sync::Mutex<u32>,
 }
 
 pub struct UserMessage {
@@ -75,6 +54,7 @@ pub struct TurnOutcome {
     pub task: TaskId,
     pub turn: u32,
     pub reason: TurnEndReason,
+    pub pending: Vec<crate::approvals::PendingCard>,
 }
 
 pub struct TurnRunner {
@@ -89,6 +69,8 @@ pub struct TurnRunner {
     pub(crate) lang: Lang,
     pub(crate) computer: ComputerRef,
     active: Arc<tokio::sync::Mutex<()>>,
+    pub(crate) parked: std::sync::Mutex<Vec<crate::approvals::PendingCard>>,
+    pub(crate) last_ctx: std::sync::Mutex<Option<TurnCtx>>,
 }
 
 impl TurnRunner {
@@ -107,6 +89,8 @@ impl TurnRunner {
             lang,
             computer: parts.computer,
             active: Arc::new(tokio::sync::Mutex::new(())),
+            parked: std::sync::Mutex::new(Vec::new()),
+            last_ctx: std::sync::Mutex::new(None),
         }
     }
 
@@ -145,7 +129,11 @@ impl TurnRunner {
             turn_id: TurnId::generate(&*self.clock),
             evidence: tokio::sync::Mutex::new(1),
         };
-        self.run_steps(&ctx, task).await
+        let outcome = self.run_steps(&ctx, task).await?;
+        if let Ok(mut guard) = self.last_ctx.lock() {
+            *guard = Some(ctx.clone());
+        }
+        Ok(outcome)
     }
 
     async fn run_steps(&self, ctx: &TurnCtx, task: TaskId) -> Result<TurnOutcome, TurnError> {
@@ -158,13 +146,14 @@ impl TurnRunner {
                         task,
                         turn: ctx.turn,
                         reason,
+                        pending: crate::approvals::take_parked(self),
                     });
                 }
             }
         }
     }
 
-    pub(crate) async fn append_task_event(
+    pub async fn append_task_event(
         &self,
         task: &TaskId,
         kind: KnownTaskEventKind,
@@ -202,79 +191,10 @@ impl TurnRunner {
             .map(|_| ())
             .map_err(TurnError::Record)
     }
-
-    pub(crate) async fn count_task_kind(
-        &self,
-        task: &TaskId,
-        which: KindCount,
-    ) -> Result<u32, TurnError> {
-        let rows = self
-            .record
-            .task_events(*task)
-            .await
-            .map_err(TurnError::Record)?;
-        Ok(count_rows(&rows, which))
-    }
-
-    fn turn_started_kind(&self, turn: u32, device: DeviceId) -> KnownTaskEventKind {
-        KnownTaskEventKind::TurnStarted {
-            turn,
-            initiator: TurnInitiator::You { device },
-            computer: self.computer.clone(),
-            model: crate::answer::model_name_of(&self.model.primary.endpoint),
-            thinking: thinking_choice_of(self.model.thinking),
-        }
-    }
-
-    pub(crate) async fn append_turn_end(
-        &self,
-        task: &TaskId,
-        reason: TurnEndReason,
-        reply_delivered: bool,
-    ) -> Result<(), TurnError> {
-        self.append_task_event(
-            task,
-            KnownTaskEventKind::TurnEnded {
-                reason,
-                reply_delivered,
-            },
-        )
-        .await
-        .map(|_| ())
-    }
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KindCount {
     TurnStarted,
     ModelAsked,
-}
-
-fn count_rows(rows: &[anybot_protocol::TaskEvent], which: KindCount) -> u32 {
-    let mut count: u32 = 0;
-    for row in rows {
-        let TaskEventKind::Known(kind) = &row.kind else {
-            continue;
-        };
-        let matched = matches!(
-            (which, kind),
-            (
-                KindCount::TurnStarted,
-                KnownTaskEventKind::TurnStarted { .. }
-            ) | (KindCount::ModelAsked, KnownTaskEventKind::ModelAsked { .. })
-        );
-        if matched {
-            count = count.saturating_add(1);
-        }
-    }
-    count
-}
-
-pub(crate) fn thinking_choice_of(mode: ThinkingMode) -> anybot_protocol::ThinkingChoice {
-    match mode {
-        ThinkingMode::Auto => anybot_protocol::ThinkingChoice::Auto,
-        ThinkingMode::Fast => anybot_protocol::ThinkingChoice::Fast,
-        ThinkingMode::Balanced => anybot_protocol::ThinkingChoice::Balanced,
-        ThinkingMode::Deep => anybot_protocol::ThinkingChoice::Deep,
-    }
+    TurnEnded,
 }

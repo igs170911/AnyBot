@@ -1,0 +1,159 @@
+use std::sync::atomic::Ordering;
+
+use crate::fake_helpers::{
+    MISSING_FILE_REASON, NO_SCRIPT_REASON, apply_writes, target_kind, write_outcome,
+};
+use anybot_protocol::{
+    ActualResult, CommandOutcome, ComputerCaps, ComputerFailure, PathOutcome, ReadOutcome,
+    TargetKind,
+};
+use anybot_trust::{GateConfig, GatedComputer, OpKind, OpRejection, OpTicket, normalize_command};
+
+use crate::fake_files::digest_text;
+
+use super::FakeComputer;
+
+impl FakeComputer {
+    pub(crate) fn bound_path_still(&self, ticket: &OpTicket) -> bool {
+        let Some(path) = ticket.path() else {
+            return true;
+        };
+        let current = Self::guard(&self.tree).canonical(path);
+        let mut bound = Self::guard(&self.bound);
+        if let Some(seen) = bound.get(path) {
+            return *seen == current;
+        }
+        bound.insert(path.to_owned(), current);
+        true
+    }
+
+    pub(crate) fn accept(&self, ticket: &OpTicket, kind: OpKind) -> Result<(), OpRejection> {
+        if self.shift_declaration.swap(false, Ordering::SeqCst) {
+            "/".clone_into(&mut Self::guard(&self.workdir));
+        }
+        let workdir = Self::guard(&self.workdir).clone();
+        if ticket.fits(&self.name, kind)
+            && ticket.matches_computer(&self.name, &self.caps, &workdir)
+        {
+            return Ok(());
+        }
+        Err(OpRejection::mismatch(format!(
+            "the ticket is for {name} doing a {kind:?} operation",
+            name = ticket.computer(),
+            kind = ticket.kind(),
+        )))
+    }
+}
+
+impl GatedComputer for FakeComputer {
+    fn gate_config(&self) -> GateConfig {
+        Self::guard(&self.gate).clone()
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn declared_caps(&self) -> ComputerCaps {
+        self.caps.clone()
+    }
+
+    fn capabilities(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.accept(&ticket, OpKind::Caps)?;
+        self.record("capabilities".to_owned());
+        self.reachable()?;
+        Ok(ActualResult::Caps(self.caps.clone()))
+    }
+
+    fn run_command(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.accept(&ticket, OpKind::Run)?;
+        let (command, timeout_ms) = ticket.command_line().unwrap_or(("", 0));
+        let command = command.to_owned();
+        self.record(format!("run_command {}", normalize_command(&command)));
+        self.reachable()?;
+        let Some(script) = self.scripts.lookup(&command) else {
+            return Err(OpRejection::from_failure(ComputerFailure::operation(
+                NO_SCRIPT_REASON.to_owned(),
+            )));
+        };
+        let (elapsed_ms, exit_code, wakes) = self.measured(script, timeout_ms);
+        self.record(format!("run_command done wakes {wakes}"));
+        apply_writes(&self.tree, &script.writes);
+        Ok(ActualResult::Command(CommandOutcome {
+            command,
+            computer: self.name.clone(),
+            exit_code: Some(exit_code),
+            output: script.output.clone(),
+            elapsed_ms,
+        }))
+    }
+
+    fn read_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.accept_path(&ticket, &self.name, OpKind::Read)?;
+        let path = Self::ticket_path(&ticket)?;
+        self.record(format!("read_file {path}"));
+        self.reachable()?;
+        let content = Self::guard(&self.tree).read(path).ok_or_else(|| {
+            OpRejection::from_failure(ComputerFailure::operation(MISSING_FILE_REASON.to_owned()))
+        })?;
+        let canonical = self.resolve_target(path).unwrap_or_else(|| path.to_owned());
+        Ok(ActualResult::Read(ReadOutcome {
+            path: canonical,
+            kind: TargetKind::File,
+            digest: digest_text(&content),
+            size: content.len() as u64,
+            content,
+        }))
+    }
+
+    fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.accept_path(&ticket, &self.name, OpKind::Write)?;
+        let path = Self::ticket_path(&ticket)?.to_owned();
+        let content = ticket.content().unwrap_or("").to_owned();
+        self.record(format!("write_file {}", ticket.path().unwrap_or(&path)));
+        self.reachable()?;
+        let before = Self::guard(&self.tree).digest(&path);
+        let outcome = write_outcome(&self.tree, &path, &content, before);
+        self.apply_mutation(&path, &content);
+        Ok(ActualResult::Write(outcome))
+    }
+
+    fn edit_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.accept_path(&ticket, &self.name, OpKind::Edit)?;
+        let path = Self::ticket_path(&ticket)?.to_owned();
+        let (old_text, new_text) = ticket.texts().unwrap_or(("", ""));
+        self.record(format!("edit_file {path}"));
+        self.reachable()?;
+        let before = Self::guard(&self.tree).digest(&path);
+        let content = self.apply_edit_exact(&path, old_text, new_text)?;
+        let outcome = write_outcome(&self.tree, &path, &content, before);
+        self.apply_mutation(&path, &content);
+        Ok(ActualResult::Write(outcome))
+    }
+
+    fn path_info(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.accept_path(&ticket, &self.name, OpKind::Path)?;
+        let path = Self::ticket_path(&ticket)?;
+        self.record(format!("path_info {path}"));
+        self.reachable()?;
+        let tree = Self::guard(&self.tree);
+        let canonical = tree.canonical(path);
+        let kind = target_kind(&tree, path);
+        Ok(ActualResult::Path(PathOutcome {
+            path: path.to_owned(),
+            canonical,
+            kind,
+        }))
+    }
+
+    fn declared_workdir(&self) -> String {
+        Self::guard(&self.workdir).clone()
+    }
+
+    fn resolve_target(&self, path: &str) -> Option<String> {
+        if self.unresolvable.iter().any(|p| p == path) {
+            return None;
+        }
+        Some(Self::guard(&self.tree).canonical(path))
+    }
+}

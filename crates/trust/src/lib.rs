@@ -70,8 +70,8 @@ pub use gate_flow::{AdminRules, GateConfig, GateVerdict, RuleEntry, UserRules, r
 pub use gate_full::{ModeFlags, StyleFlags};
 pub use machine_rules::{MachineLevel, RuleVerdict, default_rule, inside_workdir};
 pub use message_codes::{
-    CODE_GATE_ASK_PENDING, CODE_GATE_BOT_MACHINE_OUTSIDE, CODE_GATE_COMMAND_DENIED,
-    CODE_GATE_DENIED, CODE_GATE_DENIED_BY_RULE, CODE_GATE_NO_SANDBOX,
+    CODE_GATE_ASK_DECLINED, CODE_GATE_ASK_PENDING, CODE_GATE_BOT_MACHINE_OUTSIDE,
+    CODE_GATE_COMMAND_DENIED, CODE_GATE_DENIED, CODE_GATE_DENIED_BY_RULE, CODE_GATE_NO_SANDBOX,
     CODE_GATE_OUTSIDE_WRITE_DENIED, CODE_GATE_PRIVATE_FILE, CODE_GATE_TICKET_MISMATCH,
     CODE_GATE_USER_REJECTED, CODE_TOOL_COMPUTER_UNREACHABLE, CODE_TOOL_EMPTY,
     CODE_TOOL_EXECUTION_FAILED, CODE_TOOL_OPERATION_FAILED, CODE_TOOL_UNREADABLE_SHAPE,
@@ -81,7 +81,7 @@ pub use message_codes::{
 pub use message_codes::{CODE_REPORT_SUMMARY_MISSING, CODE_TURN_ANSWER_EMPTY};
 pub use op_ticket::{OpKind, OpTicket};
 pub use pipeline::{ActionRequest, GateAnswer, RequestedAction};
-pub use pipeline_ask::{AskTicket, answer_ask};
+pub use pipeline_ask::{AskTicket, CallContext, answer_ask};
 pub use pipeline_gate::{GateStep, ask_declined_run, exec_step, gate_step, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
 pub use report::{ReportFail, delivery_report, report_summary};

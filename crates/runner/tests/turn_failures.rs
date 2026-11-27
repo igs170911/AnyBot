@@ -106,7 +106,7 @@ async fn turn_blank_reply_fails_task() -> Result<(), String> {
         model_replies_text("", false),
         model_replies_text("", false),
     ]);
-    let outcome = drive(&world.clock, world.send(Device::Phone, "go")).await?;
+    let outcome = Box::pin(drive(&world.clock, world.send(Device::Phone, "go"))).await?;
     let outcome = outcome.map_err(|e| format!("{e:?}"))?;
     let task = task_of(&outcome);
     assert_eq!(chat_requests(&world.model).len(), 2);

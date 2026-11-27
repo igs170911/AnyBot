@@ -23,6 +23,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]
+anybot-foundation = { workspace = true }
+anybot-messages = { workspace = true }
 runner-test = { workspace = true }
 test-harness = { workspace = true }
 proptest = { workspace = true }

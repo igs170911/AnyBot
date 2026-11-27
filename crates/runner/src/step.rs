@@ -188,6 +188,12 @@ async fn finish_answer(
         return Ok(StepFlow::Ended(TurnEndReason::Answered));
     }
     run_actions(runner, ctx, &requests).await?;
+    if crate::approvals::has_parked(runner) {
+        runner
+            .append_turn_end(&ctx.task, TurnEndReason::PendingApproval, false)
+            .await?;
+        return Ok(StepFlow::Ended(TurnEndReason::PendingApproval));
+    }
     Ok(StepFlow::Continue)
 }
 

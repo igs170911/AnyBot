@@ -81,6 +81,7 @@ fn card_wait_not_counted_mid_turn() {
             1_000,
             KnownTaskEventKind::CardShown {
                 action: "a".to_owned(),
+                card: "card-1".to_owned(),
             },
         ),
         (
@@ -105,6 +106,7 @@ fn card_open_mid_turn_not_counted() {
             1_000,
             KnownTaskEventKind::CardShown {
                 action: "a".to_owned(),
+                card: "card-1".to_owned(),
             },
         ),
         (1_000 + 14_401_000, ask()),

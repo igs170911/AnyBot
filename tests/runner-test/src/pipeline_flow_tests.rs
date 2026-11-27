@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anybot_foundation::CallId;
 use anybot_protocol::{EvidencePayload, GateOutcome, JudgementSource};
 use anybot_trust::GatedComputer;
 use anybot_trust::{GateAnswer, GateConfig, RequestedAction, RunStep, answer_ask, run_action};
@@ -8,7 +9,7 @@ use test_harness::FakeClock;
 use crate::fake_builder::FakeComputerBuilder;
 use crate::fake_computer::FakeComputer;
 use crate::fake_scripts::CommandScript;
-use crate::ops_tests::{command_request, fresh_clock, run};
+use crate::ops_support::{command_request, fresh_clock, run};
 use crate::test_view::TestView;
 
 #[test]
@@ -19,7 +20,7 @@ fn test_a_forged_resolved_path_cannot_hide_the_path_the_computer_uses() {
         .clock(Arc::clone(&clock))
         .build();
     let request = anybot_trust::ActionRequest {
-        context: crate::ops_tests::context("edit_file", &clock),
+        context: crate::ops_support::context("edit_file", &clock),
         subject: RequestedAction::WriteFile {
             path: "/Users/me/.zshrc".to_owned(),
             content: "alias".to_owned(),
@@ -27,6 +28,11 @@ fn test_a_forged_resolved_path_cannot_hide_the_path_the_computer_uses() {
     };
     let step = run_action(
         &request,
+        &anybot_trust::CallContext::new(
+            CallId::generate(clock.as_ref()),
+            anybot_foundation::TurnId::generate(clock.as_ref()),
+            "c1",
+        ),
         &computer,
         &GateConfig::plain(),
         &TestView,
@@ -46,7 +52,7 @@ fn test_a_workspace_symlink_to_the_outside_is_judged_as_outside() {
         .link("/workspace/notes.md", "/Users/me/.zshrc")
         .build();
     let request = anybot_trust::ActionRequest {
-        context: crate::ops_tests::context("edit_file", &clock),
+        context: crate::ops_support::context("edit_file", &clock),
         subject: RequestedAction::WriteFile {
             path: "notes.md".to_owned(),
             content: "alias".to_owned(),
@@ -54,6 +60,11 @@ fn test_a_workspace_symlink_to_the_outside_is_judged_as_outside() {
     };
     let step = run_action(
         &request,
+        &anybot_trust::CallContext::new(
+            CallId::generate(clock.as_ref()),
+            anybot_foundation::TurnId::generate(clock.as_ref()),
+            "c1",
+        ),
         &computer,
         &GateConfig::plain(),
         &TestView,
@@ -73,7 +84,7 @@ fn test_a_symlink_swapped_between_gate_and_execution_is_refused() {
         .link("/workspace/notes.md", "/workspace/notes.md")
         .build();
     let request = anybot_trust::ActionRequest {
-        context: crate::ops_tests::context("edit_file", &clock),
+        context: crate::ops_support::context("edit_file", &clock),
         subject: RequestedAction::WriteFile {
             path: "notes.md".to_owned(),
             content: "kept".to_owned(),
@@ -81,6 +92,11 @@ fn test_a_symlink_swapped_between_gate_and_execution_is_refused() {
     };
     let step = run_action(
         &request,
+        &anybot_trust::CallContext::new(
+            CallId::generate(clock.as_ref()),
+            anybot_foundation::TurnId::generate(clock.as_ref()),
+            "c1",
+        ),
         &computer,
         &GateConfig::plain(),
         &TestView,
@@ -91,7 +107,7 @@ fn test_a_symlink_swapped_between_gate_and_execution_is_refused() {
     };
     computer.retarget_link("/workspace/notes.md", "/Users/me/.zshrc");
     let run = answer_ask(
-        *ticket,
+        &ticket,
         GateAnswer::Allow,
         &computer,
         &TestView,
@@ -120,7 +136,7 @@ fn test_an_ask_step_answered_allow_executes_the_asking_action() {
     };
     assert_eq!(ticket.gate().outcome, GateOutcome::Ask);
     let run = answer_ask(
-        *ticket,
+        &ticket,
         GateAnswer::Allow,
         &computer,
         &TestView,
@@ -140,7 +156,7 @@ fn test_an_ask_step_answered_deny_never_reaches_the_computer() {
         panic!("the sending action must ask");
     };
     let run = answer_ask(
-        *ticket,
+        &ticket,
         GateAnswer::Deny,
         &computer,
         &TestView,
@@ -166,7 +182,7 @@ fn test_answering_an_ask_on_a_different_computer_refuses_the_action() {
         .script("git push origin", CommandScript::ok("done"))
         .build();
     let run = answer_ask(
-        *ticket,
+        &ticket,
         GateAnswer::Allow,
         &answering,
         &TestView,
@@ -190,7 +206,7 @@ fn test_a_denied_action_produces_no_answer_ticket() {
         .clock(Arc::clone(&clock))
         .build();
     let request = anybot_trust::ActionRequest {
-        context: crate::ops_tests::context("edit_file", &clock),
+        context: crate::ops_support::context("edit_file", &clock),
         subject: RequestedAction::WriteFile {
             path: "/tmp/outside.md".to_owned(),
             content: "x".to_owned(),
@@ -198,6 +214,11 @@ fn test_a_denied_action_produces_no_answer_ticket() {
     };
     let step = run_action(
         &request,
+        &anybot_trust::CallContext::new(
+            CallId::generate(clock.as_ref()),
+            anybot_foundation::TurnId::generate(clock.as_ref()),
+            "c1",
+        ),
         &computer,
         &GateConfig::plain(),
         &TestView,
@@ -230,57 +251,6 @@ fn test_an_approved_command_runs_the_exact_line_that_was_written() {
     );
 }
 
-#[test]
-fn test_a_finished_run_leaves_nothing_to_ask_the_computer_again() {
-    let clock = fresh_clock();
-    let computer = FakeComputerBuilder::default()
-        .bot_machine()
-        .clock(Arc::clone(&clock))
-        .script("ls", CommandScript::ok("files"))
-        .script("pwd", CommandScript::ok("/workspace"))
-        .build();
-    let ls_run = run(&computer, &command_request("ls", &clock)).into_run();
-    assert_eq!(ls_run.gate.outcome, GateOutcome::Allow);
-    let debug = format!("{ls_run:?}");
-    assert!(
-        !debug.contains("OpTicket") && !debug.contains("ticket"),
-        "the returned run must not carry anything a caller can hand to a computer"
-    );
-    assert_eq!(
-        computer.logged(),
-        vec!["run_command ls", "run_command done wakes 0"],
-        "a finished run leaves nothing behind to ask the computer again",
-    );
-}
-
-#[test]
-fn test_a_wrapper_with_the_real_name_and_a_root_workdir_cannot_spend_the_ticket() {
-    let clock = fresh_clock();
-    let computer = FakeComputerBuilder::default()
-        .bot_machine()
-        .named("bot-1")
-        .clock(Arc::clone(&clock))
-        .script("pwd", CommandScript::ok("/workspace"))
-        .build();
-    computer.shift_declaration_before_the_operation();
-    let step = run_action(
-        &command_request("pwd", &clock),
-        &computer,
-        &GateConfig::plain(),
-        &TestView,
-        clock.as_ref(),
-    );
-    let RunStep::Executed(run) = step else {
-        panic!("the gate issued a ticket before the declaration changed");
-    };
-    assert_eq!(computer.logged().len(), 0, "{run:?}");
-    assert!(
-        run.evidence.iter().any(|item| {
-            matches!(
-                &item.payload,
-                EvidencePayload::Rejected { reason, .. } if reason.code == "gate-ticket-mismatch"
-            )
-        }),
-        "{run:?}"
-    );
-}
+#[cfg(test)]
+#[path = "pipeline_flow_tests_b.rs"]
+mod flow_b;

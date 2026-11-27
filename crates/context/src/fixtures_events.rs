@@ -70,7 +70,10 @@ pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
                 record: Box::new(evidence_fixture(i)),
             })
         }),
-        2 => Just(ev(CardShown { action: "q?".to_owned() })),
+        2 => Just(ev(CardShown {
+            action: "q?".to_owned(),
+            card: "card-q".to_owned(),
+        })),
         2 => Just(ev(OutcomeUnknown { call_id: CallId::generate(&SystemClock) })),
         1 => Just(ev(ActionVerified {
             call_id: CallId::generate(&SystemClock),

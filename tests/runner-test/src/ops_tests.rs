@@ -1,93 +1,15 @@
 use std::sync::Arc;
 
-use anybot_foundation::{ContentDigest, TaskId, TurnId};
+use anybot_foundation::ContentDigest;
 use anybot_protocol::{
     ActionOutcome, BeforeDigest, ComputerPlatform, EvidencePayload, VerificationResult,
 };
-use anybot_trust::{
-    ActionContext, ActionRequest, GateConfig, GatedComputer, RequestedAction, RunStep,
-};
-use test_harness::FakeClock;
+use anybot_trust::GatedComputer;
 
 use crate::fake_builder::FakeComputerBuilder;
-use crate::fake_computer::FakeComputer;
-use crate::fake_scripts::CommandScript;
-use crate::test_view::TestView;
-
-pub(crate) fn fresh_clock() -> Arc<FakeClock> {
-    FakeClock::new(1_000)
-}
-
-pub(crate) fn context(tool: &str, clock: &Arc<FakeClock>) -> ActionContext {
-    ActionContext {
-        task: TaskId::generate(clock.as_ref()),
-        turn: TurnId::generate(clock.as_ref()),
-        evidence_no: 7,
-        computer: "fake-computer".to_owned(),
-        workdir: "/workspace".to_owned(),
-        tool: tool.to_owned(),
-        classes: Vec::new(),
-    }
-}
-
-fn request(tool: &str, subject: RequestedAction, clock: &Arc<FakeClock>) -> ActionRequest {
-    ActionRequest {
-        context: context(tool, clock),
-        subject,
-    }
-}
-
-pub(crate) fn run(computer: &FakeComputer, req: &ActionRequest) -> RunStep {
-    let clock = computer.clock();
-    run_action(
-        req,
-        computer,
-        &GateConfig::plain(),
-        &TestView,
-        clock.as_ref(),
-    )
-}
-
-use anybot_trust::run_action;
-
-pub(crate) fn bot_computer(clock: &Arc<FakeClock>) -> FakeComputer {
-    FakeComputerBuilder::default()
-        .bot_machine()
-        .clock(Arc::clone(clock))
-        .build()
-}
-
-pub(crate) fn write_request(content: &str, clock: &Arc<FakeClock>) -> ActionRequest {
-    request(
-        "edit_file",
-        RequestedAction::WriteFile {
-            path: "notes.md".to_owned(),
-            content: content.to_owned(),
-        },
-        clock,
-    )
-}
-
-fn read_request(path: &str, clock: &Arc<FakeClock>) -> ActionRequest {
-    request(
-        "read_file",
-        RequestedAction::ReadFile {
-            path: path.to_owned(),
-        },
-        clock,
-    )
-}
-
-pub(crate) fn command_request(line: &str, clock: &Arc<FakeClock>) -> ActionRequest {
-    request(
-        "shell",
-        RequestedAction::Command {
-            line: line.to_owned(),
-            timeout_ms: 30_000,
-        },
-        clock,
-    )
-}
+use crate::ops_support::{
+    bot_computer, command_request, fresh_clock, read_request, run, write_request,
+};
 
 fn first_payload(run: &anybot_trust::ActionRun) -> EvidencePayload {
     let Some(record) = run.evidence.first() else {
@@ -194,7 +116,10 @@ fn test_fake_computer_command_duration_follows_the_fake_clock() {
     let computer = FakeComputerBuilder::default()
         .bot_machine()
         .clock(Arc::clone(&clock))
-        .script("ls -la", CommandScript::ok("files").with_duration(250))
+        .script(
+            "ls -la",
+            crate::fake_scripts::CommandScript::ok("files").with_duration(250),
+        )
         .build();
     let run = run(&computer, &command_request("ls -la", &clock)).into_run();
     let EvidencePayload::Executed {
@@ -220,7 +145,10 @@ fn test_command_with_a_nonzero_exit_code_is_recorded_as_failed() {
     let computer = FakeComputerBuilder::default()
         .bot_machine()
         .clock(Arc::clone(&clock))
-        .script("check.sh", CommandScript::failing("nope", 3))
+        .script(
+            "check.sh",
+            crate::fake_scripts::CommandScript::failing("nope", 3),
+        )
         .build();
     let run = run(&computer, &command_request("check.sh", &clock)).into_run();
     let record = run.evidence.first().unwrap();
@@ -253,7 +181,7 @@ fn test_fake_computer_records_operations_in_the_order_it_receives_them() {
         .bot_machine()
         .clock(Arc::clone(&clock))
         .file("a.txt", "one")
-        .script("cat a.txt", CommandScript::ok("one"))
+        .script("cat a.txt", crate::fake_scripts::CommandScript::ok("one"))
         .build();
     let first = run(&computer, &read_request("a.txt", &clock)).into_run();
     let second = run(&computer, &command_request("cat a.txt", &clock)).into_run();

@@ -2,7 +2,7 @@ use crate::evidence::rejected_evidence;
 use crate::gate_flow::{GateConfig, judge};
 use crate::op_ticket::OpTicket;
 use crate::pipeline::ActionRequest;
-use crate::pipeline_ask::{AskTicket, prepared_action};
+use crate::pipeline_ask::{AskTicket, CallContext, prepared_action};
 use crate::pipeline_exec::executed_run;
 use crate::pipeline_run::{ActionRun, ModelResultView, RunStep, denied_run};
 use crate::runner::GatedComputer;
@@ -10,6 +10,7 @@ use anybot_foundation::Clock;
 use anybot_protocol::GateOutcome;
 
 #[must_use]
+#[derive(Debug)]
 pub enum GateStep {
     Denied(ActionRun),
     Ask(Box<AskTicket>),
@@ -18,6 +19,7 @@ pub enum GateStep {
 
 pub fn gate_step(
     request: &ActionRequest,
+    ctx: &CallContext,
     computer: &dyn GatedComputer,
     config: &GateConfig,
     view: &dyn ModelResultView,
@@ -36,6 +38,7 @@ pub fn gate_step(
             &caps,
             request,
             computer.name(),
+            ctx,
         ))),
         GateOutcome::Allow => {
             let fresh = prepared_action(request, computer);
@@ -64,7 +67,11 @@ pub fn ask_declined_run(
         params: Vec::new(),
     };
     let evidence = rejected_evidence(&request.context, gate, reason, clock);
-    let model = view.rejection_text(gate, &Vec::new());
+    let refusal = [(
+        "refusal".to_owned(),
+        crate::message_codes::CODE_GATE_ASK_DECLINED.to_owned(),
+    )];
+    let model = view.rejection_text(gate, &refusal);
     super::pipeline_exec::finish(gate.clone(), vec![evidence], model, &request.context)
 }
 
@@ -81,12 +88,13 @@ pub fn exec_step(
 #[must_use]
 pub fn run_action(
     request: &ActionRequest,
+    ctx: &CallContext,
     computer: &dyn GatedComputer,
     config: &GateConfig,
     view: &dyn ModelResultView,
     clock: &dyn Clock,
 ) -> RunStep {
-    match gate_step(request, computer, config, view, clock) {
+    match gate_step(request, ctx, computer, config, view, clock) {
         GateStep::Denied(run) => RunStep::Denied(run),
         GateStep::Ask(ticket) => RunStep::Ask(ticket),
         GateStep::Allow(ticket) => {

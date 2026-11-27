@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::fake_builder::FakeComputerBuilder;
 use crate::fake_computer::FakeComputer;
 use crate::fake_scripts::CommandScript;
-use crate::ops_tests::{bot_computer, command_request, fresh_clock, write_request};
+use crate::ops_support::{bot_computer, command_request, fresh_clock, write_request};
 use crate::test_view::TestView;
 use anybot_protocol::{
     ActionOutcome, EvidenceKind, EvidencePayload, JudgementSource, VerificationResult,
@@ -14,6 +14,11 @@ fn gate_and_exec(computer: &FakeComputer, req: &anybot_trust::ActionRequest) -> 
     let clock = computer.clock();
     let step = gate_step(
         req,
+        &anybot_trust::CallContext::new(
+            anybot_foundation::CallId::generate(clock.as_ref()),
+            anybot_foundation::TurnId::generate(clock.as_ref()),
+            "c1",
+        ),
         computer,
         &anybot_trust::GateConfig::plain(),
         &TestView,
@@ -78,7 +83,7 @@ fn t_trust_verify_1() -> Result<(), String> {
         .clock(Arc::clone(&clock))
         .build();
     let edit = anybot_trust::ActionRequest {
-        context: crate::ops_tests::context("edit_file", &clock),
+        context: crate::ops_support::context("edit_file", &clock),
         subject: RequestedAction::WriteFile {
             path: "r.txt".to_owned(),
             content: "content".to_owned(),

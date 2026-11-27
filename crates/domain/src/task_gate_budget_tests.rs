@@ -50,6 +50,7 @@ fn t_task_state_9() {
         turn_started_kind(),
         KnownTaskEventKind::CardShown {
             action: "a".to_owned(),
+            card: "card-a".to_owned(),
         },
         KnownTaskEventKind::CardAnswered {
             answer: CardAnswer::Deny,

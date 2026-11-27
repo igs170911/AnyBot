@@ -149,6 +149,7 @@ pub enum KnownTaskEventKind {
     },
     CardShown {
         action: String,
+        card: String,
     },
     CardAnswered {
         answer: CardAnswer,

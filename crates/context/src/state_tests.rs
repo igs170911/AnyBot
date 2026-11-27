@@ -220,6 +220,7 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
             q.saturating_add(400),
             anybot_protocol::KnownTaskEventKind::CardShown {
                 action: format!("question {q}"),
+                card: format!("card-{q}"),
             },
         ));
     }

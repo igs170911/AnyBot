@@ -4,8 +4,26 @@ use crate::op_ticket::OpTicket;
 use crate::pipeline::{ActionRequest, GateAnswer};
 use crate::pipeline_run::{ActionRun, ModelResultView, prepared_gate};
 use crate::runner::GatedComputer;
-use anybot_foundation::Clock;
+use anybot_foundation::{CallId, Clock, ContentDigest, TurnId};
 use anybot_protocol::{ComputerCaps, GateOutcome, GateRecord, JudgementSource};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallContext {
+    pub call: CallId,
+    pub turn: TurnId,
+    pub provider: String,
+}
+
+impl CallContext {
+    #[must_use]
+    pub fn new(call: CallId, turn: TurnId, provider: &str) -> Self {
+        CallContext {
+            call,
+            turn,
+            provider: provider.to_owned(),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct AskTicket {
@@ -16,6 +34,9 @@ pub struct AskTicket {
     request: ActionRequest,
     computer: String,
     caps: ComputerCaps,
+    call: CallId,
+    turn: TurnId,
+    provider: String,
 }
 
 impl AskTicket {
@@ -46,6 +67,7 @@ impl AskTicket {
         caps: &ComputerCaps,
         request: &ActionRequest,
         computer: &str,
+        ctx: &CallContext,
     ) -> Self {
         let card = build_card(&action, caps);
         AskTicket {
@@ -56,7 +78,26 @@ impl AskTicket {
             request: request.clone(),
             computer: computer.to_owned(),
             caps: caps.clone(),
+            call: ctx.call,
+            turn: ctx.turn,
+            provider: ctx.provider.clone(),
         }
+    }
+
+    #[must_use]
+    pub fn card_digest(&self) -> String {
+        let text = format!(
+            "{}|{}|{}|{}|{}",
+            self.gate.rule,
+            self.gate.gate.value(),
+            self.turn,
+            self.call,
+            self.provider
+        );
+        let bytes = ContentDigest::sha256(text.as_bytes());
+        let full = bytes.hex();
+        full.get(..12)
+            .map_or_else(|| full.to_owned(), ToOwned::to_owned)
     }
 
     #[must_use]
@@ -132,13 +173,13 @@ impl AskTicket {
 }
 
 pub fn answer_ask(
-    ticket: AskTicket,
+    ticket: &AskTicket,
     answer: GateAnswer,
     computer: &dyn GatedComputer,
     view: &dyn ModelResultView,
     clock: &dyn Clock,
 ) -> ActionRun {
-    ticket.answer(answer, computer, view, clock)
+    ticket.clone_ticket().answer(answer, computer, view, clock)
 }
 
 pub(crate) fn prepared_action(request: &ActionRequest, computer: &dyn GatedComputer) -> GateAction {
@@ -150,4 +191,21 @@ pub(crate) fn prepared_action(request: &ActionRequest, computer: &dyn GatedCompu
     action.extra_paths =
         crate::path_resolve::resolved_targets(&request.delete_targets(), computer, &action.workdir);
     action
+}
+
+impl AskTicket {
+    pub(crate) fn clone_ticket(&self) -> Self {
+        AskTicket {
+            gate: self.gate.clone(),
+            outcome: self.outcome,
+            action: self.action.clone(),
+            card: self.card.clone(),
+            request: self.request.clone(),
+            computer: self.computer.clone(),
+            caps: self.caps.clone(),
+            call: self.call,
+            turn: self.turn,
+            provider: self.provider.clone(),
+        }
+    }
 }

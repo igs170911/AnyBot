@@ -25,4 +25,10 @@ pub enum TurnError {
     Replay(anybot_domain::ReplayGap),
     #[error(transparent)]
     Report(#[from] anybot_trust::ReportFail),
+    #[error("the parked approval list is busy")]
+    ParkedBusy,
+    #[error("no parked card matches digest {digest}")]
+    ApprovalNotFound { digest: String },
+    #[error("the runner is not serving the parked card of digest {digest}")]
+    ApprovalForeign { digest: String },
 }

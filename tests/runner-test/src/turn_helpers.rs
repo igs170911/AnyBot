@@ -183,3 +183,38 @@ pub fn task_of(outcome: &anybot_runner::TurnOutcome) -> TaskId {
 pub fn record_len(record: &MemoryRecord) -> usize {
     record.len()
 }
+
+#[must_use]
+pub fn card_of<'a>(
+    outcome: &'a anybot_runner::TurnOutcome,
+    digest: &str,
+) -> Option<&'a anybot_runner::PendingCard> {
+    outcome.pending.iter().find(|c| c.is_for(digest))
+}
+
+#[must_use]
+pub fn shown_card(
+    outcome: &anybot_runner::TurnOutcome,
+    kinds: &[KnownTaskEventKind],
+) -> Option<String> {
+    for kind in kinds.iter().rev() {
+        if let KnownTaskEventKind::CardShown { card, .. } = kind {
+            let _kept = outcome.pending.iter().find(|c| c.is_for(card));
+            return Some(card.clone());
+        }
+    }
+    None
+}
+
+pub async fn answer_card(
+    world: &TurnWorld,
+    outcome: &anybot_runner::TurnOutcome,
+    digest: &str,
+    answer: anybot_protocol::CardAnswer,
+) -> Result<(), String> {
+    let card = card_of(outcome, digest).ok_or_else(|| format!("no parked card {digest}"))?;
+    let ctx = world.runner().approval_context(outcome.task, outcome.turn);
+    anybot_runner::approvals::resolve_approval(world.runner(), &ctx, card, answer)
+        .await
+        .map_err(|e| format!("approval answer failed: {e}"))
+}

@@ -46,6 +46,11 @@ impl ActionView {
         self
     }
 
+    #[must_use]
+    pub(crate) fn computer_name(&self) -> &str {
+        &self.computer
+    }
+
     pub(crate) fn with_read_range(mut self, from: u32, to: u32) -> Self {
         self.read_from = from;
         self.read_to = to;
@@ -107,14 +112,31 @@ impl ModelResultView for ActionView {
 
     fn rejection_text(&self, gate: &GateRecord, params: &[(String, String)]) -> OutcomeText {
         if let Some(code) = floor_rule_code(&gate.rule) {
-            return OutcomeText::of(code, params.to_vec());
+            let wanted = floor_params(code);
+            let kept: Vec<(String, String)> = params
+                .iter()
+                .filter(|(k, _)| wanted.contains(&k.as_str()))
+                .cloned()
+                .collect();
+            return OutcomeText::of(code, kept);
         }
-        let mut all = vec![
-            ("computer".to_owned(), self.computer.clone()),
-            ("rule".to_owned(), gate.rule.clone()),
-        ];
-        all.extend(params.iter().map(|(k, v)| (k.clone(), v.clone())));
+        let mut merged: std::collections::BTreeMap<String, String> =
+            params.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        merged
+            .entry("computer".to_owned())
+            .or_insert_with(|| self.computer.clone());
+        merged.insert("rule".to_owned(), gate.rule.clone());
+        merged.insert("refusal".to_owned(), String::new());
+        let all: Vec<(String, String)> = merged.into_iter().collect();
         OutcomeText::of("gate-denied", all)
+    }
+}
+
+fn floor_params(code: &str) -> Vec<&'static str> {
+    match code {
+        "gate-command-denied" => vec!["command"],
+        "gate-private-file" | "gate-bot-machine-outside" => vec!["path"],
+        _ => Vec::new(),
     }
 }
 
@@ -198,4 +220,19 @@ pub(crate) fn render_text(lang: Lang, text: &OutcomeText) -> Result<String, Turn
     catalog
         .format(lang, &code, &params)
         .map_err(TurnError::Messages)
+}
+
+impl Clone for ActionView {
+    fn clone(&self) -> Self {
+        let output = self.output.lock().map_or(None, |guard| guard.clone());
+        ActionView {
+            lang: self.lang,
+            edit_lines: self.edit_lines,
+            read_from: self.read_from,
+            read_to: self.read_to,
+            computer: self.computer.clone(),
+            edit_path: self.edit_path.clone(),
+            output: std::sync::Mutex::new(output),
+        }
+    }
 }

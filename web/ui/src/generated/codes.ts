@@ -82,6 +82,7 @@ export type MessageCode =
   "gate-denied" |
   "gate-user-rejected" |
   "gate-ask-pending" |
+  "gate-ask-declined" |
   "gate-ask-unavailable" |
   "turn-answer-empty" |
   "report-summary-missing" |
@@ -240,6 +241,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "gate-denied",
   "gate-user-rejected",
   "gate-ask-pending",
+  "gate-ask-declined",
   "gate-ask-unavailable",
   "turn-answer-empty",
   "report-summary-missing",

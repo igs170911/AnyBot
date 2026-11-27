@@ -2,6 +2,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use anybot_protocol::{ComputerCaps, ComputerOwner, ComputerPlatform};
+use anybot_trust::GateConfig;
 use test_harness::FakeClock;
 
 use crate::fake_computer::FakeComputer;
@@ -19,6 +20,7 @@ pub struct FakeComputerBuilder {
     unreachable: bool,
     unresolvable: Vec<String>,
     workdir: String,
+    gate: GateConfig,
 }
 
 impl Default for FakeComputerBuilder {
@@ -32,6 +34,7 @@ impl Default for FakeComputerBuilder {
             unreachable: false,
             unresolvable: Vec::new(),
             workdir: "/workspace".to_owned(),
+            gate: GateConfig::plain(),
         }
     }
 }
@@ -146,6 +149,12 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
+    pub fn gate(mut self, gate: GateConfig) -> Self {
+        self.gate = gate;
+        self
+    }
+
+    #[must_use]
     pub fn unreachable(mut self, on: bool) -> Self {
         self.unreachable = on;
         self
@@ -162,6 +171,8 @@ impl FakeComputerBuilder {
             unreachable: AtomicBool::new(self.unreachable),
             unresolvable: self.unresolvable,
             workdir: Mutex::new(self.workdir),
+            gate: Mutex::new(self.gate),
+            bound: Mutex::new(std::collections::BTreeMap::new()),
             shift_declaration: AtomicBool::new(false),
             mutate_after_write: AtomicBool::new(false),
             log: Mutex::new(Vec::new()),

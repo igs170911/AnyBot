@@ -73,7 +73,10 @@ fn lifecycle_turn_events() -> BoxedStrategy<KnownTaskEventKind> {
 
 fn card_goal_events() -> BoxedStrategy<KnownTaskEventKind> {
     prop_oneof![
-        "[a-z]{1,4}".prop_map(|a| KnownTaskEventKind::CardShown { action: a }),
+        "[a-z]{1,4}".prop_map(|a| KnownTaskEventKind::CardShown {
+            action: a.clone(),
+            card: a,
+        }),
         Just(CardAnswer::AllowOnce).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),
         Just(CardAnswer::Deny).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),
         (0usize..4usize, criterion_strategy()).prop_map(|(index, item)| {

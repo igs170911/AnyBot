@@ -110,6 +110,7 @@ pub enum NotRunReason {
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum TurnEndReason {
     Answered,
+    PendingApproval,
     ContextBudget { deficit_tokens: Option<u64> },
     ModelFailed { code: String },
 }

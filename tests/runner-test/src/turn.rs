@@ -11,6 +11,7 @@ use test_harness::{
     FakeClock, FakeModel, ModelFormat, RecordedRequest, Step, model_start_with_format,
 };
 
+use crate::fake_computer::FakeComputer;
 use crate::mem_store::{MemoryRaw, MemoryRecord};
 
 #[derive(Clone)]
@@ -27,6 +28,7 @@ pub struct WorldSetup {
     pub sandbox: bool,
     pub files: Vec<(String, String)>,
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
+    pub gate: anybot_trust::GateConfig,
 }
 
 impl Default for WorldSetup {
@@ -44,6 +46,7 @@ impl Default for WorldSetup {
             sandbox: true,
             files: Vec::new(),
             scripts: Vec::new(),
+            gate: anybot_trust::GateConfig::plain(),
         }
     }
 }
@@ -79,7 +82,7 @@ pub enum Device {
 }
 
 pub struct TurnWorld {
-    pub gated: Arc<crate::fake_computer::FakeComputer>,
+    pub gated: Arc<FakeComputer>,
     pub runner: Arc<TurnRunner>,
     pub model: Arc<FakeModel>,
     pub port: u16,
@@ -105,6 +108,7 @@ impl TurnWorld {
             .named("bot-computer")
             .bot_machine()
             .sandbox(setup.sandbox)
+            .gate(setup.gate.clone())
             .clock(Arc::clone(&clock));
         let builder = apply_world_files(builder, setup);
         let built = Arc::new(builder.build());
@@ -154,8 +158,42 @@ fn apply_world_files(
 
 impl TurnWorld {
     #[must_use]
+    pub fn runner_gated(&self) -> Arc<dyn anybot_trust::GatedComputer> {
+        self.runner.gated_ref()
+    }
+
+    #[must_use]
+    pub fn runner_gate_config(&self) -> anybot_trust::GateConfig {
+        self.runner.gated_ref().gate_config().clone()
+    }
+
+    #[must_use]
+    pub fn gate_config(&self) -> anybot_trust::GateConfig {
+        self.gated.gate_config().clone()
+    }
+
+    #[must_use]
+    pub fn clock(&self) -> Arc<FakeClock> {
+        Arc::clone(&self.clock)
+    }
+
+    #[must_use]
     pub fn tree_content(&self, path: &str) -> Option<String> {
         self.gated.file_content(path)
+    }
+
+    pub async fn append_task_stopped(&self, task: TaskId) -> Result<(), String> {
+        let kind = KnownTaskEventKind::TaskStopped;
+        self.runner
+            .append_task_event(&task, kind)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
+    }
+
+    pub fn set_gate(&self, gate: anybot_trust::GateConfig) {
+        let computer: &FakeComputer = &self.gated;
+        *FakeComputer::guard(&computer.gate) = gate;
     }
 }
 
@@ -215,6 +253,11 @@ impl TurnWorld {
     #[must_use]
     pub fn chat_requests(&self) -> Vec<RecordedRequest> {
         self.model.recorded()
+    }
+
+    #[must_use]
+    pub fn runner(&self) -> &Arc<TurnRunner> {
+        &self.runner
     }
 
     #[must_use]

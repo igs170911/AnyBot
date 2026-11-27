@@ -82,6 +82,7 @@ fn answered_card_is_not_an_open_question() {
             1,
             anybot_protocol::KnownTaskEventKind::CardShown {
                 action: "which colour?".to_owned(),
+                card: "card-1".to_owned(),
             },
         ),
         sup::known(
@@ -94,6 +95,7 @@ fn answered_card_is_not_an_open_question() {
             3,
             anybot_protocol::KnownTaskEventKind::CardShown {
                 action: "which file?".to_owned(),
+                card: "card-1".to_owned(),
             },
         ),
     ];

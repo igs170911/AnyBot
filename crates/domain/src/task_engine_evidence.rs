@@ -54,7 +54,7 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
 
 pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
     match event {
-        KnownTaskEventKind::CardShown { action } => {
+        KnownTaskEventKind::CardShown { action, .. } => {
             view.status = TaskStatus::AwaitingUser;
             let action = action.clone();
             view.detail = Some(TaskDetail::ApprovalPending { action });

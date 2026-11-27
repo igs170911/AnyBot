@@ -12,7 +12,7 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
             entry.0 = entry.0.saturating_add(*delta);
             entry.1 = seq;
         }
-        KnownTaskEventKind::CardShown { action } => {
+        KnownTaskEventKind::CardShown { action, .. } => {
             b.questions.push((seq, action.clone()));
         }
         KnownTaskEventKind::CardAnswered { answer } => {

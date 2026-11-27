@@ -30,6 +30,11 @@ fn main() {
             },
         },
         "c",
+        &anybot_trust::CallContext::new(
+            anybot_foundation::CallId::generate(&anybot_foundation::SystemClock),
+            anybot_foundation::TurnId::generate(&anybot_foundation::SystemClock),
+            "c1",
+        ),
     );
     println!("{}", ticket.computer_name());
 }
