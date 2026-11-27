@@ -4,6 +4,7 @@ use url::form_urlencoded;
 
 use crate::core::Core;
 use crate::error::SyncError;
+use crate::flush::selector_of;
 use crate::reply_gate::{Gate, gate};
 use crate::wire::{WireLimits, WireMethod, WireReply, WireRequest};
 
@@ -60,7 +61,7 @@ pub(crate) async fn fetch_page(
     match core.wire.call(request).await {
         Ok(reply) => {
             core.note_reply(&reply)?;
-            read_reply(core, &reply)
+            read_reply(core, stream, &reply)
         }
         Err(failure) => {
             core.note_failure(&crate::flush::failure_text(&failure))?;
@@ -69,11 +70,15 @@ pub(crate) async fn fetch_page(
     }
 }
 
-fn read_reply(core: &Core, reply: &WireReply) -> Result<Fetch, SyncError> {
+fn read_reply(core: &Core, stream: &str, reply: &WireReply) -> Result<Fetch, SyncError> {
     match gate(core, reply) {
         Gate::Fine => {
-            let page =
+            let page: AfterPage =
                 serde_json::from_slice(&reply.body).map_err(|e| SyncError::Reply(e.to_string()))?;
+            if page.stream != selector_of(stream)? {
+                core.note_server_trouble();
+                return Ok(Fetch::Failed(Pulled::Retry));
+            }
             Ok(Fetch::Page(page))
         }
         Gate::Halted => Ok(Fetch::Failed(Pulled::Halted)),
@@ -109,7 +114,7 @@ pub(crate) async fn pull_stream(core: &Core, stream: &str) -> Result<Pulled, Syn
             core.note_server_trouble();
             return Ok(Pulled::Retry);
         }
-        if !page.has_more && !outcome.gap {
+        if !page.has_more && !outcome.gap && outcome.through_seq >= page.max_seq {
             return Ok(Pulled::Caught);
         }
     }

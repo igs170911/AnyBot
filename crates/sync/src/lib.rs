@@ -64,4 +64,6 @@ mod flush_tests;
 #[cfg(test)]
 mod outbox_tests;
 #[cfg(test)]
+mod pull_tests;
+#[cfg(test)]
 mod sync_id_tests;

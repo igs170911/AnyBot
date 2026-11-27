@@ -1,3 +1,4 @@
+pub(crate) mod chaos;
 pub(crate) mod tap;
 
 use anybot_app_test::http::{RequestSpec, post};

@@ -1,3 +1,4 @@
+mod chaos;
 mod corrupt;
 mod outbox;
 mod pull;

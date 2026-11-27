@@ -20,7 +20,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(300))]
 
     #[test]
-    fn t_sync_after_2(
+    fn replica_model_ignores_duplicates_and_order(
         server in server_strategy(),
         start in 0u64..4u64,
         pushes in prop::collection::vec(0usize..8, 3),
