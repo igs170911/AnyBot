@@ -6,14 +6,12 @@ use anybot_store_client::Store;
 use tokio::sync::Notify;
 
 use crate::error::SyncError;
+use crate::link::Link;
 use crate::outbox::retry_delay_secs;
-use crate::random::{RandomSource, span_ms};
+use crate::reconnect_random::{RandomSource, jitter_ms};
 use crate::status::{ConnectionState, StatusCell, SyncStatus};
 use crate::wanted::Wanted;
 use crate::wire::{Wire, WireReply};
-
-const JITTER_LOW_MS: u64 = 500;
-const JITTER_HIGH_MS: u64 = 2_000;
 
 #[derive(Debug, Default)]
 pub(crate) struct Pace {
@@ -32,6 +30,7 @@ pub(crate) struct Core {
     pub wake: Notify,
     pub retry_now: Notify,
     pub wanted: Wanted,
+    pub link: Link,
     pace: Mutex<Pace>,
 }
 
@@ -43,11 +42,13 @@ impl Core {
         random: Arc<dyn RandomSource>,
         status: SyncStatus,
     ) -> Self {
+        let link = Link::new(&clock, Arc::clone(&random));
         Core {
             store,
             wire,
             clock,
             random,
+            link,
             status: StatusCell::new(status),
             wake: Notify::new(),
             retry_now: Notify::new(),
@@ -100,6 +101,7 @@ impl Core {
                 pace.offset_probed = false;
             }
         }
+        self.link.pacer.connected();
         self.status.update(|status| {
             if !matches!(
                 status.connection,
@@ -112,7 +114,7 @@ impl Core {
     }
 
     pub(crate) fn note_connected(&self) {
-        self.pace().failures = 0;
+        self.link.pacer.connected();
         self.status.update(|status| {
             if !matches!(
                 status.connection,
@@ -127,10 +129,12 @@ impl Core {
         let at = self.now_ms()?;
         {
             let mut pace = self.pace();
-            pace.failures = pace.failures.saturating_add(1);
             pace.offset_ms = None;
             pace.offset_probed = false;
         }
+        self.link
+            .failed()
+            .map_err(|e| SyncError::Config(format!("randomness unavailable: {}", e.reason)))?;
         let reason = reason.to_owned();
         self.status.update(|status| {
             if let ConnectionState::Unreachable { since_ms, .. } = status.connection {
@@ -157,10 +161,13 @@ impl Core {
         self.status.update(|status| status.connection = state);
     }
 
-    pub(crate) fn backoff_delay(&self) -> Duration {
+    pub(crate) fn trouble_delay(&self) -> Result<Duration, SyncError> {
         let failures = self.pace().failures;
         let base_secs = retry_delay_secs(failures.saturating_sub(1));
-        let jitter = span_ms(self.random.as_ref(), JITTER_LOW_MS, JITTER_HIGH_MS);
-        Duration::from_millis(base_secs.saturating_mul(1_000).saturating_add(jitter))
+        let jitter = jitter_ms(self.random.as_ref())
+            .map_err(|e| SyncError::Config(format!("randomness unavailable: {}", e.reason)))?;
+        Ok(Duration::from_millis(
+            base_secs.saturating_mul(1_000).saturating_add(jitter),
+        ))
     }
 }

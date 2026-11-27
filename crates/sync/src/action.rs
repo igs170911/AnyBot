@@ -113,7 +113,7 @@ async fn attempt_once(
 ) -> Result<Verdict, ActionError> {
     let answered = tokio::select! {
         biased;
-        reply = core.wire.call(request) => reply,
+        reply = core.call(request) => reply,
         () = deadline => return Err(ActionError::Unreachable),
     };
     let Ok(reply) = answered else {

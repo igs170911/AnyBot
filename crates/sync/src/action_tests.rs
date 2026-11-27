@@ -8,15 +8,15 @@ use test_harness::{FakeClock, sleep_real, test_dir};
 use crate::action::{ACTION_UNREACHABLE_CODE, ActionError, ActionReply};
 use crate::client::SyncClient;
 use crate::fake_wire::{FakeWire, problem};
-use crate::random::RandomSource;
+use crate::reconnect_random::{RandomSource, RandomUnavailable};
 use crate::status::ConnectionState;
 use crate::wire::{Wire, WireFailure};
 
 struct Fixed;
 
 impl RandomSource for Fixed {
-    fn next_u64(&self) -> u64 {
-        0
+    fn next_u64(&self) -> Result<u64, RandomUnavailable> {
+        Ok(0)
     }
 }
 

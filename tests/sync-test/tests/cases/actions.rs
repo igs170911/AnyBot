@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use anybot_foundation::{Clock, Secret, TrustedCerts};
 use anybot_sync::http_wire::HttpWire;
+use anybot_sync::reconnect_status::RequestGuard;
 use anybot_sync::{
     ActionError, ActionReply, NewRecord, SyncClient, Wire, WireFailure, WireFuture, WireRequest,
 };
@@ -122,12 +123,12 @@ struct Recording {
 }
 
 impl Wire for Recording {
-    fn call(&self, request: WireRequest) -> WireFuture<'_> {
+    fn call<'a>(&'a self, request: WireRequest, guard: &'a RequestGuard) -> WireFuture<'a> {
         Box::pin(async move {
             let started = self.clock.now_ms();
             let path = request.path.clone();
             let key = request.idempotency_key.clone();
-            let answer = self.inner.call(request).await;
+            let answer = self.inner.call(request, guard).await;
             let ended = self.clock.now_ms();
             let failure = answer.as_ref().err().cloned();
             self.seen

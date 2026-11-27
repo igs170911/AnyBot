@@ -100,7 +100,7 @@ async fn send_batch(core: &Core, stream: &str, rows: Vec<OutboxRow>) -> Result<F
         idempotency_key: Some(append_key(stream, &ids)),
         limits: WireLimits::BACKGROUND,
     };
-    match core.wire.call(request).await {
+    match core.call(request).await {
         Ok(reply) => {
             core.note_reply(&reply)?;
             settle(core, &rows, &reply).await

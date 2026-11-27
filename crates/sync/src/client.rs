@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anybot_foundation::{Clock, RecordId};
+use anybot_foundation::{Clock, RecordId, Secret};
 use anybot_store_client::{
     ACCOUNT_STREAM, LocalRecord, NewOutbox, OpenOutcome, OutboxRow, Recovery, Store, bot_stream,
 };
@@ -13,7 +13,10 @@ use crate::core::Core;
 use crate::error::SyncError;
 use crate::hooks::SyncHooks;
 use crate::http_wire::HttpWire;
-use crate::random::RandomSource;
+use crate::link_task::{LinkParts, run_keepalive, run_link, run_slowness, run_status_mirror};
+use crate::reconnect_http::build_sync_http;
+use crate::reconnect_random::RandomSource;
+use crate::sse_session::SseTarget;
 use crate::status::{ReplicaNotice, SyncStatus};
 use crate::wire::Wire;
 
@@ -51,7 +54,7 @@ impl Drop for TaskGuard {
 
 pub struct SyncClient {
     pub(crate) core: Arc<Core>,
-    task: TaskGuard,
+    tasks: Vec<TaskGuard>,
 }
 
 impl SyncClient {
@@ -65,8 +68,31 @@ impl SyncClient {
             Arc::clone(&config.clock),
         )
         .map_err(SyncError::Config)?;
+        let http = build_sync_http(
+            &config.trusted,
+            config.proxy.as_deref(),
+            Arc::clone(&config.clock),
+        )
+        .map_err(SyncError::Config)?;
+        let target = SseTarget {
+            base_url: config.server_url.clone(),
+            credential: Secret::from_untrusted(config.credential.expose().to_owned()),
+            client_version: config.client_version.clone(),
+        };
         let opened = open_store(&config).await?;
-        SyncClient::assemble(opened, Arc::new(wire), config.clock, config.random).await
+        let mut client =
+            SyncClient::assemble(opened, Arc::new(wire), config.clock, config.random).await?;
+        client.start_link(LinkParts { http, target });
+        Ok(client)
+    }
+
+    fn start_link(&mut self, parts: LinkParts) {
+        let core = &self.core;
+        self.tasks.extend([
+            TaskGuard(tokio::spawn(run_link(Arc::clone(core), parts))),
+            TaskGuard(tokio::spawn(run_keepalive(Arc::clone(core)))),
+            TaskGuard(tokio::spawn(run_slowness(Arc::clone(core)))),
+        ]);
     }
 
     pub async fn start_with_wire(
@@ -91,16 +117,19 @@ impl SyncClient {
         let core = Arc::new(Core::new(opened.store, wire, clock, random, status));
         core.refresh_counts().await?;
         want_everything_known(&core).await?;
-        let task = tokio::spawn(crate::worker::run(Arc::clone(&core)));
+        let worker = tokio::spawn(crate::worker::run(Arc::clone(&core)));
+        let mirror = tokio::spawn(run_status_mirror(Arc::clone(&core)));
         core.wake.notify_one();
         Ok(SyncClient {
             core,
-            task: TaskGuard(task),
+            tasks: vec![TaskGuard(worker), TaskGuard(mirror)],
         })
     }
 
     pub async fn close(self) {
-        self.task.0.abort();
+        for task in &self.tasks {
+            task.0.abort();
+        }
         self.core.store.close().await;
     }
 
@@ -173,7 +202,7 @@ impl SyncClient {
     }
 }
 
-async fn want_everything_known(core: &Core) -> Result<(), SyncError> {
+pub(crate) async fn want_everything_known(core: &Core) -> Result<(), SyncError> {
     core.wanted.pull(ACCOUNT_STREAM);
     for stream in core.store.replica_streams().await? {
         core.wanted.pull(&stream);

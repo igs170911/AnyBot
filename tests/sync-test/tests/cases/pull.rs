@@ -45,11 +45,14 @@ async fn t_sync_replica_1() -> Result<(), String> {
     let reopened = open_client(&rig, &tap, &dir).await?;
     wait_local(&reopened, 8).await?;
     let asked = after_requests(&tap, BOT_STREAM_ID, mark);
-    assert!(!asked.is_empty());
+    assert!(
+        asked.first().is_some_and(|line| line.contains("after=5&")),
+        "requests: {asked:?}"
+    );
     assert!(
         asked
             .iter()
-            .all(|line| line.contains("after=5") && !line.contains("after=0")),
+            .all(|line| line.contains("after=5&") || line.contains("after=8&")),
         "requests: {asked:?}"
     );
     let server = rig.server_rows(BOT_STREAM_ID).await?;
@@ -79,7 +82,16 @@ async fn t_sync_after_1() -> Result<(), String> {
         .filter_map(|line| line.split("after=").nth(1))
         .filter_map(|rest| rest.split(['&', ' ']).next())
         .collect();
-    assert_eq!(afters, ["100", "1100", "2100"]);
+    let fetching: Vec<&str> = afters
+        .iter()
+        .copied()
+        .take_while(|after| *after != "2500")
+        .collect();
+    assert_eq!(fetching, ["100", "1100", "2100"]);
+    assert!(
+        afters.iter().skip(3).all(|after| *after == "2500"),
+        "afters: {afters:?}"
+    );
     let local = local_bot_records(&reopened).await?;
     let server = rig.server_rows(BOT_STREAM_ID).await?;
     assert!(same_as_server(&local, &server));

@@ -2,6 +2,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
+use crate::reconnect_status::RequestGuard;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WireMethod {
     Get,
@@ -52,5 +54,5 @@ pub enum WireFailure {
 pub type WireFuture<'a> = Pin<Box<dyn Future<Output = Result<WireReply, WireFailure>> + Send + 'a>>;
 
 pub trait Wire: Send + Sync {
-    fn call(&self, request: WireRequest) -> WireFuture<'_>;
+    fn call<'a>(&'a self, request: WireRequest, guard: &'a RequestGuard) -> WireFuture<'a>;
 }

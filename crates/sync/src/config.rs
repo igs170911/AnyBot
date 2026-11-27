@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anybot_foundation::{Clock, Secret, TrustedCerts};
 
-use crate::random::RandomSource;
+use crate::reconnect_random::RandomSource;
 
 pub struct SyncConfig {
     pub data_dir: PathBuf,

@@ -14,6 +14,7 @@ use crate::scene::{
 };
 
 const STEP: Duration = Duration::from_millis(250);
+const SETTLE_STEP: Duration = Duration::from_secs(2);
 const TOTAL_RECORDS: u64 = 10_000;
 const DEVICES: usize = 3;
 
@@ -143,7 +144,7 @@ async fn after_two() -> Result<(), String> {
     drive_until(
         "all three replicas equal the server",
         &rig.clock(),
-        STEP,
+        SETTLE_STEP,
         || {
             rounds = rounds.saturating_add(1);
             let step = rounds;

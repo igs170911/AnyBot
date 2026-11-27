@@ -63,6 +63,7 @@ impl SyncHooks {
     }
 
     pub fn retry_now(&self) {
+        self.core.link.retry.notify_waiters();
         self.core.retry_now.notify_one();
         self.core.wake.notify_one();
     }

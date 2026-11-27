@@ -7,14 +7,14 @@ use test_harness::{FakeClock, sleep_real, test_dir};
 
 use crate::client::{StreamTarget, SyncClient};
 use crate::fake_wire::{FakeWire, page_reply, problem, stored};
-use crate::random::RandomSource;
+use crate::reconnect_random::{RandomSource, RandomUnavailable};
 use crate::wire::Wire;
 
 struct Fixed;
 
 impl RandomSource for Fixed {
-    fn next_u64(&self) -> u64 {
-        0
+    fn next_u64(&self) -> Result<u64, RandomUnavailable> {
+        Ok(0)
     }
 }
 

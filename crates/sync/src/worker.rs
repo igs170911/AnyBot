@@ -135,7 +135,21 @@ async fn idle(core: &Core) {
 }
 
 pub(crate) async fn backoff(core: &Core) {
-    let delay = core.backoff_delay();
+    if core.link.waiting() {
+        let retry = core.retry_now.notified();
+        tokio::select! {
+            () = core.link.wait_turn() => {}
+            () = retry => {}
+        }
+        return;
+    }
+    let delay = match core.trouble_delay() {
+        Ok(delay) => delay,
+        Err(error) => {
+            report(core, &error);
+            return core.link.wait_turn().await;
+        }
+    };
     let wake = core.clock.sleep(delay);
     tokio::select! {
         () = wake => {}

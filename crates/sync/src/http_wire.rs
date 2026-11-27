@@ -1,10 +1,11 @@
-use std::net::IpAddr;
 use std::sync::Arc;
 
 use anybot_foundation::{Clock, Secret, TrustStore, TrustedCerts};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderValue};
 
 use crate::http_gate::{ConnectGate, GateLayer};
+use crate::reconnect_direct::goes_direct;
+use crate::reconnect_status::RequestGuard;
 use crate::wire::{Wire, WireFailure, WireFuture, WireLimits, WireMethod, WireReply, WireRequest};
 
 pub const CLIENT_VERSION_HEADER: &str = "anybot-client-version";
@@ -100,7 +101,11 @@ impl HttpWire {
         Ok(builder)
     }
 
-    async fn run(&self, request: WireRequest) -> Result<WireReply, WireFailure> {
+    async fn run(
+        &self,
+        request: WireRequest,
+        guard: &RequestGuard,
+    ) -> Result<WireReply, WireFailure> {
         let gate = ConnectGate::new();
         let client = self
             .client(&gate, request.limits)
@@ -109,38 +114,23 @@ impl HttpWire {
             .request(&client, &request)
             .map_err(WireFailure::Network)?;
         let response = crate::http_phase::send(&self.clock, &gate, request.limits, builder).await?;
-        crate::http_phase::collect(&self.clock, request.limits, response).await
+        guard.bytes_arrived();
+        crate::http_phase::collect(&self.clock, request.limits, response, guard).await
     }
 }
 
 impl Wire for HttpWire {
-    fn call(&self, request: WireRequest) -> WireFuture<'_> {
-        Box::pin(self.run(request))
+    fn call<'a>(&'a self, request: WireRequest, guard: &'a RequestGuard) -> WireFuture<'a> {
+        Box::pin(self.run(request, guard))
     }
 }
 
 fn proxy_rule(proxy: url::Url) -> reqwest::Proxy {
     reqwest::Proxy::custom(move |target| {
-        if is_direct(target) {
+        if goes_direct(target) {
             None
         } else {
             Some(proxy.clone())
         }
     })
-}
-
-fn is_direct(target: &url::Url) -> bool {
-    match target.host() {
-        None => true,
-        Some(url::Host::Domain(name)) => name.eq_ignore_ascii_case("localhost"),
-        Some(url::Host::Ipv4(addr)) => direct_ip(IpAddr::V4(addr)),
-        Some(url::Host::Ipv6(addr)) => direct_ip(IpAddr::V6(addr)),
-    }
-}
-
-fn direct_ip(addr: IpAddr) -> bool {
-    match addr {
-        IpAddr::V4(v4) => v4.is_loopback() || v4.is_private() || v4.is_link_local(),
-        IpAddr::V6(v6) => v6.is_loopback() || v6.is_unique_local() || v6.is_unicast_link_local(),
-    }
 }

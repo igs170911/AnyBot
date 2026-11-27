@@ -58,7 +58,7 @@ pub(crate) async fn fetch_page(
         idempotency_key: None,
         limits: WireLimits::BACKGROUND,
     };
-    match core.wire.call(request).await {
+    match core.call(request).await {
         Ok(reply) => {
             core.note_reply(&reply)?;
             read_reply(core, stream, &reply)

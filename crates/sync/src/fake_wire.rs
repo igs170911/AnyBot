@@ -5,6 +5,7 @@ use anybot_foundation::Clock as _;
 use serde_json::{Value, json};
 use test_harness::FakeClock;
 
+use crate::reconnect_status::RequestGuard;
 use crate::wire::{Wire, WireFailure, WireFuture, WireMethod, WireReply, WireRequest};
 
 pub(crate) type Scripted = Result<WireReply, WireFailure>;
@@ -179,7 +180,7 @@ pub(crate) fn problem(status: u16, code: &str) -> WireReply {
 }
 
 impl Wire for FakeWire {
-    fn call(&self, request: WireRequest) -> WireFuture<'_> {
+    fn call<'a>(&'a self, request: WireRequest, _guard: &'a RequestGuard) -> WireFuture<'a> {
         if request.method == WireMethod::Get {
             let answer = self.answer_get(&request.path);
             return Box::pin(async move { answer });

@@ -11,7 +11,7 @@ use anybot_app_test::clockwalk::ClockWalker;
 use anybot_app_test::http::{RequestSpec, post};
 use anybot_app_test::serve::{Served, boot_pair, serve_start};
 use anybot_foundation::{Clock, Secret, TrustedCerts};
-use anybot_sync::{RandomSource, SyncClient, SyncConfig};
+use anybot_sync::{RandomSource, RandomUnavailable, SyncClient, SyncConfig};
 use serde_json::{Value, json};
 use sqlx::Row as _;
 use test_harness::netctl::{net_attach, net_start};
@@ -36,8 +36,8 @@ impl Counting {
 }
 
 impl RandomSource for Counting {
-    fn next_u64(&self) -> u64 {
-        self.0.fetch_add(1, Ordering::SeqCst)
+    fn next_u64(&self) -> Result<u64, RandomUnavailable> {
+        Ok(self.0.fetch_add(1, Ordering::SeqCst))
     }
 }
 

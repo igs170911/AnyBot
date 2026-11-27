@@ -5,6 +5,7 @@ use futures_util::StreamExt as _;
 
 use crate::http_gate::ConnectGate;
 use crate::http_wire::SERVER_TIME_HEADER;
+use crate::reconnect_status::RequestGuard;
 use crate::wire::{WireFailure, WireLimits, WireReply};
 
 pub(crate) async fn send(
@@ -44,6 +45,7 @@ pub(crate) async fn collect(
     clock: &Arc<dyn Clock>,
     limits: WireLimits,
     response: reqwest::Response,
+    guard: &RequestGuard,
 ) -> Result<WireReply, WireFailure> {
     let status = response.status().as_u16();
     let server_time_ms = response
@@ -62,7 +64,10 @@ pub(crate) async fn collect(
         };
         match next {
             None => break,
-            Some(Ok(bytes)) => body.extend_from_slice(&bytes),
+            Some(Ok(bytes)) => {
+                guard.bytes_arrived();
+                body.extend_from_slice(&bytes);
+            }
             Some(Err(error)) => return Err(WireFailure::Network(error.to_string())),
         }
     }

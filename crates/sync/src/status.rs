@@ -1,5 +1,7 @@
 use tokio::sync::watch;
 
+use crate::reconnect_status::LinkStatus;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectionState {
     Connecting,
@@ -40,6 +42,7 @@ pub struct SyncStatus {
     pub resyncs: Vec<ResyncNotice>,
     pub local_error: Option<String>,
     pub actions_retrying: u32,
+    pub link: Option<LinkStatus>,
 }
 
 impl SyncStatus {
@@ -55,6 +58,7 @@ impl SyncStatus {
             resyncs: Vec::new(),
             local_error: None,
             actions_retrying: 0,
+            link: None,
         }
     }
 

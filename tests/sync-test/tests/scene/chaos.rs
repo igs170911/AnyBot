@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use anybot_protocol::{AfterPage, StoredRecord};
+use anybot_sync::reconnect_status::RequestGuard;
 use anybot_sync::{Wire, WireFailure, WireFuture, WireMethod, WireReply, WireRequest};
 
 const SEEN_PAGES_KEPT: usize = 40;
@@ -141,10 +142,10 @@ fn scramble(state: &mut State, records: Vec<StoredRecord>) -> Vec<StoredRecord> 
 }
 
 impl Wire for Chaos {
-    fn call(&self, request: WireRequest) -> WireFuture<'_> {
+    fn call<'a>(&'a self, request: WireRequest, guard: &'a RequestGuard) -> WireFuture<'a> {
         Box::pin(async move {
             let after = request.method == WireMethod::Get;
-            let reply = self.inner.call(request).await?;
+            let reply = self.inner.call(request, guard).await?;
             if after {
                 self.disturb(reply)
             } else {
