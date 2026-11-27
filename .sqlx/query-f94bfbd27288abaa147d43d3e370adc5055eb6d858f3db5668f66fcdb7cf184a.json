@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE computers SET credential_used_ms = $2 WHERE device_id = $1 AND credential_used_ms IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "f94bfbd27288abaa147d43d3e370adc5055eb6d858f3db5668f66fcdb7cf184a"
+}

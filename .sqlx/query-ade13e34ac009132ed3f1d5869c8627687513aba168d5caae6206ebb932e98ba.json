@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE computers SET delegate_enabled = $2 WHERE device_id = $1 AND removed_at_ms IS NULL AND delegate_enabled <> $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Bool"]
+    },
+    "nullable": []
+  },
+  "hash": "ade13e34ac009132ed3f1d5869c8627687513aba168d5caae6206ebb932e98ba"
+}

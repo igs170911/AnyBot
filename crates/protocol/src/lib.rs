@@ -2,6 +2,7 @@ pub mod account_api;
 pub mod api;
 pub mod computer_caps;
 pub mod computer_results;
+pub mod computers_api;
 pub mod events;
 pub mod evidence_record;
 pub mod gate_record;
@@ -31,6 +32,10 @@ pub use computer_results::{
     ActualResult, BeforeDigest, CommandOutcome, CommandRequest, ComputerFailure,
     ComputerFailureKind, PathOutcome, PathRequest, ReadOutcome, ReadRequest, TargetKind,
     WriteOutcome, WriteRequest,
+};
+pub use computers_api::{
+    ComputerDelegateRequest, ComputerRemoveRequest, ComputerRenameRequest, ComputerView,
+    ComputersView, PairRedeemRequest, PairingCodeReply, PairingCodeRequest, PasswordReenterRequest,
 };
 pub use events::{
     EventKind, KnownEventKind, PROTOCOL_VERSION, RUN_ERROR_CODE_PROTOCOL_VERSION,

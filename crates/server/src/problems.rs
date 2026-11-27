@@ -21,12 +21,21 @@ pub fn auth_problem(status: u16, code: MessageCode) -> Box<ProblemJson> {
 pub fn auth_problem_params(status: u16, code: MessageCode, params: &Params) -> Box<ProblemJson> {
     let code_text = code.as_str();
     let title = format_en(code, params);
-    Box::new(ProblemJson::new(
-        status,
-        title,
-        format!("{PROBLEM_TYPE_BASE}/{}", code_text.replace('-', "_")),
-        code_text.to_owned(),
-    ))
+    let carried: Vec<(String, serde_json::Value)> =
+        if let serde_json::Value::Object(map) = params.to_json_value() {
+            map.into_iter().collect()
+        } else {
+            Vec::new()
+        };
+    Box::new(
+        ProblemJson::new(
+            status,
+            title,
+            format!("{PROBLEM_TYPE_BASE}/{}", code_text.replace('-', "_")),
+            code_text.to_owned(),
+        )
+        .with_params(anybot_protocol::MessageParams::from_pairs(carried)),
+    )
 }
 
 #[must_use]

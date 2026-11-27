@@ -100,6 +100,7 @@ pub async fn login(
         ));
     };
     let cookie_mode = credential_is_cookie(&body)?;
+    let computer = crate::api_login_flow::credential_is_computer(&body);
     let run = LoginRun {
         state: &state,
         pool,
@@ -112,6 +113,7 @@ pub async fn login(
         scope: &scope,
         origin,
         cookie_mode,
+        computer,
     };
     run_login(&run).await
 }
@@ -128,6 +130,7 @@ struct LoginRun<'a> {
     scope: &'a str,
     origin: Option<String>,
     cookie_mode: bool,
+    computer: bool,
 }
 
 async fn run_login(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
@@ -222,6 +225,7 @@ async fn accepted(run: &LoginRun<'_>, account: &str) -> Result<Response, CallerD
         account,
         label: &run.body.label,
         cookie_mode: run.cookie_mode,
+        computer: run.computer,
         origin: run.origin.as_deref(),
         key: run.key,
         raw: run.raw,

@@ -3,6 +3,9 @@ use serde_json as _;
 #[cfg(test)]
 use serde_json as _;
 pub mod account_name;
+pub mod computer_actions;
+pub mod computer_name;
+pub mod computer_presence;
 pub mod conn_auth;
 pub mod goal_brake;
 pub mod goal_followup;

@@ -12,6 +12,7 @@ use crate::two_step_check::now_ms;
 
 pub(crate) const CREDENTIAL_COOKIE: &str = "cookie";
 pub(crate) const CREDENTIAL_BEARER: &str = "bearer";
+pub(crate) const CREDENTIAL_COMPUTER: &str = "computer";
 
 #[must_use]
 pub(crate) fn challenge_hash(token: &str) -> Vec<u8> {
@@ -29,6 +30,8 @@ pub(crate) async fn open_challenge(issue: &SessionIssue<'_>) -> Result<Response,
     let id_hash = challenge_hash(&token);
     let credential = if issue.cookie_mode {
         CREDENTIAL_COOKIE
+    } else if issue.computer {
+        CREDENTIAL_COMPUTER
     } else {
         CREDENTIAL_BEARER
     };

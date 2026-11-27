@@ -19,6 +19,7 @@ pub(crate) struct SessionIssue<'a> {
     pub account: &'a str,
     pub label: &'a str,
     pub cookie_mode: bool,
+    pub computer: bool,
     pub origin: Option<&'a str>,
     pub key: &'a str,
     pub raw: &'a [u8],
@@ -26,14 +27,18 @@ pub(crate) struct SessionIssue<'a> {
 }
 
 pub(crate) async fn issue_session(issue: &SessionIssue<'_>) -> Result<Response, CallerDenied> {
-    let session = open_session(
-        issue.state,
-        issue.pool,
-        issue.label,
-        issue.account,
-        issue.cookie_mode,
-    )
-    .await?;
+    let session = if issue.computer {
+        crate::api_login_computer::open_computer(issue).await?
+    } else {
+        open_session(
+            issue.state,
+            issue.pool,
+            issue.label,
+            issue.account,
+            issue.cookie_mode,
+        )
+        .await?
+    };
     let value = value_of(&session)?;
     let answer = record_outcome(
         issue.pool,

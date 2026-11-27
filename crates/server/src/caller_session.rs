@@ -29,10 +29,9 @@ pub(crate) async fn resolve_session(
     let row = sessions::find_session_by_key_hash(&pool, &key_digest(&credential.1))
         .await
         .map_err(internal)?;
-    let row = row.ok_or(denied_code(
-        StatusCode::UNAUTHORIZED,
-        MessageCode::AccountLoginCredentials,
-    ))?;
+    let Some(row) = row else {
+        return resolve_device_credential(credential, address, state).await;
+    };
     let now_ms = state.clock.now_ms().millis();
     let last_active =
         u64::try_from(row.last_active_ms).map_err(|e| internal_detail(&e.to_string()))?;
@@ -75,5 +74,20 @@ pub(crate) async fn resolve_session(
         device_id,
         credential: credential.0,
         address: address.to_owned(),
+        paired: false,
     })
+}
+
+async fn resolve_device_credential(
+    credential: (CredentialKind, Secret),
+    address: &str,
+    state: &AppState,
+) -> Result<Caller, crate::caller::CallerDenied> {
+    if credential.0 != CredentialKind::Bearer {
+        return Err(denied_code(
+            StatusCode::UNAUTHORIZED,
+            MessageCode::AccountLoginCredentials,
+        ));
+    }
+    crate::caller_device::resolve_device(&credential.1, address, state).await
 }

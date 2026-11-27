@@ -33,6 +33,7 @@ pub struct AppState {
     pub releases: Arc<anybot_domain::version_release::ReleaseTable>,
     pub bus: anybot_bus::SharedBus,
     pub secrets: Option<Arc<anybot_store_server::SecretKeys>>,
+    pub presence: Arc<crate::presence::PresenceBook>,
 }
 
 impl AppState {
@@ -66,6 +67,7 @@ impl AppState {
             started_at_ms,
             bus: anybot_bus::shared_memory_bus(),
             secrets: None,
+            presence: Arc::new(crate::presence::PresenceBook::new(started_at_ms.millis())),
         }
     }
 
@@ -154,6 +156,7 @@ pub fn build_router(state: AppState) -> Router {
             post(reset_password),
         )
         .merge(two_step_routes())
+        .merge(crate::computers_routes::routes())
         .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),

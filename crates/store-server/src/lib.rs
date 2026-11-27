@@ -4,6 +4,7 @@ use anybot_protocol::RunEvent;
 
 pub mod accounts;
 pub mod auth_events;
+pub mod computers;
 pub mod config;
 pub mod connect;
 pub mod idempotency;

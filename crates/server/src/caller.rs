@@ -23,6 +23,8 @@ use crate::problems::{auth_problem, problem_response};
 pub enum CredentialKind {
     Cookie,
     Bearer,
+    Computer,
+    Runner,
 }
 
 impl Caller {
@@ -34,6 +36,7 @@ impl Caller {
             device_id: String::new(),
             credential: CredentialKind::Bearer,
             address,
+            paired: false,
         }
     }
 }
@@ -45,6 +48,7 @@ pub struct Caller {
     pub device_id: String,
     pub credential: CredentialKind,
     pub address: String,
+    pub paired: bool,
 }
 
 #[derive(Debug)]

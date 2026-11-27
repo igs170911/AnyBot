@@ -185,6 +185,14 @@ pub enum MessageCode {
     AccountTwoStepNoPending,
     AccountTwoStepUnreadable,
     ServerTwoStepResetDone,
+    ComputerRemoved,
+    ComputerNameTooLong,
+    ComputerNameEmpty,
+    ComputerNameTaken,
+    ComputerNotFound,
+    ComputerDelegateSelfOnly,
+    ComputerPairedForbidden,
+    DeviceNoPermission,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -548,6 +556,20 @@ const TABLE: &[(MessageCode, &str)] = &[
         MessageCode::ServerTwoStepResetDone,
         "server-two-step-reset-done",
     ),
+    (MessageCode::ComputerRemoved, "computer-removed"),
+    (MessageCode::ComputerNameTooLong, "computer-name-too-long"),
+    (MessageCode::ComputerNameEmpty, "computer-name-empty"),
+    (MessageCode::ComputerNameTaken, "computer-name-taken"),
+    (MessageCode::ComputerNotFound, "computer-not-found"),
+    (
+        MessageCode::ComputerDelegateSelfOnly,
+        "computer-delegate-self-only",
+    ),
+    (
+        MessageCode::ComputerPairedForbidden,
+        "computer-paired-forbidden",
+    ),
+    (MessageCode::DeviceNoPermission, "device-no-permission"),
 ];
 
 impl MessageCode {

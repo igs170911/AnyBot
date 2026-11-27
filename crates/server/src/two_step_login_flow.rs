@@ -163,6 +163,7 @@ pub(crate) async fn issue_for(
         account: &row.account,
         label: &row.label,
         cookie_mode: row.credential == CREDENTIAL_COOKIE,
+        computer: row.credential == crate::two_step_challenge::CREDENTIAL_COMPUTER,
         origin: step.origin,
         key: step.key,
         raw: step.fingerprint,

@@ -181,7 +181,15 @@ export type MessageCode =
   "account-two-step-rate" |
   "account-two-step-no-pending" |
   "account-two-step-unreadable" |
-  "server-two-step-reset-done";
+  "server-two-step-reset-done" |
+  "computer-removed" |
+  "computer-name-too-long" |
+  "computer-name-empty" |
+  "computer-name-taken" |
+  "computer-not-found" |
+  "computer-delegate-self-only" |
+  "computer-paired-forbidden" |
+  "device-no-permission";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -365,4 +373,12 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "account-two-step-no-pending",
   "account-two-step-unreadable",
   "server-two-step-reset-done",
+  "computer-removed",
+  "computer-name-too-long",
+  "computer-name-empty",
+  "computer-name-taken",
+  "computer-not-found",
+  "computer-delegate-self-only",
+  "computer-paired-forbidden",
+  "device-no-permission",
 ];

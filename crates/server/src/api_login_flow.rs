@@ -26,12 +26,16 @@ pub(crate) async fn verify_password(
 pub(crate) fn credential_is_cookie(body: &LoginRequest) -> Result<bool, CallerDenied> {
     match body.credential.as_str() {
         "cookie" => Ok(true),
-        "bearer" => Ok(false),
+        "bearer" | "computer" => Ok(false),
         _ => Err(crate::caller::denied_code(
             axum::http::StatusCode::UNAUTHORIZED,
             anybot_messages::MessageCode::AccountLoginCredentials,
         )),
     }
+}
+
+pub(crate) fn credential_is_computer(body: &LoginRequest) -> bool {
+    body.credential == crate::two_step_challenge::CREDENTIAL_COMPUTER
 }
 
 pub(crate) async fn open_session(

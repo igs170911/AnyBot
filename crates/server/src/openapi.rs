@@ -55,6 +55,10 @@ impl Modify for BearerAuth {
         crate::api_two_step_setup::setup_two_step,
         crate::api_two_step_toggle::confirm_two_step,
         crate::api_two_step_toggle::disable_two_step,
+        crate::api_computers::list_computers,
+        crate::api_computers::rename_computer,
+        crate::api_computers_act::remove_computer,
+        crate::api_computers_act::delegate_computer,
     ),
     components(schemas(
         crate::health::HealthResponse,
@@ -88,6 +92,11 @@ impl Modify for BearerAuth {
         anybot_protocol::TwoStepCodeRequest,
         anybot_protocol::TwoStepLoginRequest,
         anybot_protocol::TwoStepSetup,
+        anybot_protocol::ComputerView,
+        anybot_protocol::ComputersView,
+        anybot_protocol::ComputerRenameRequest,
+        anybot_protocol::ComputerRemoveRequest,
+        anybot_protocol::ComputerDelegateRequest,
     )),
     servers(
         (url = "http://127.0.0.1:8787", description = "loopback development server (M3 listens on loopback only)"),
@@ -99,7 +108,8 @@ impl Modify for BearerAuth {
         (name = "system", description = "the server itself: health, status, stop"),
         (name = "account", description = "accounts, sessions and passwords"),
         (name = "admin", description = "admin-only server operations"),
-        (name = "streams", description = "record streams: append and replay after N")
+        (name = "streams", description = "record streams: append and replay after N"),
+        (name = "computers", description = "the computers of an account: list, rename, remove")
     )
 )]
 pub struct ApiDoc;
