@@ -1,10 +1,12 @@
+mod rig;
 mod support;
 
 use std::time::Duration;
 
 use anybot_sync::sse_hint::Hint;
 use anybot_sync::sse_session::{SseEnd, SseSignal};
-use support::{append_one, end_of, http_on, next_signal, rig, settle, start_session, target, walk};
+use rig::{append_one, next_signal, rig};
+use support::{end_of, http_on, settle, start_session, target, walk};
 use test_harness::{FakeClock, advance_clock};
 
 use anybot_app_test as _;
