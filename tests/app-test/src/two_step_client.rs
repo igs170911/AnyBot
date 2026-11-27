@@ -29,14 +29,13 @@ pub fn fake_now_ms(clock: &Arc<FakeClock>) -> u64 {
 
 pub async fn login_password(
     base: &str,
-    clock: &Arc<FakeClock>,
     account: &str,
     password: &str,
     key: &str,
 ) -> Result<ResponseSpec, String> {
     let body = json!({"account": account, "password": password, "label": "test-device", "credential": "bearer"});
     let spec = RequestSpec::new(&body.to_string()).with_key(key);
-    walked_post(base, clock, "/v1/account/login", &spec).await
+    post(base, "/v1/account/login", &spec).await
 }
 
 pub async fn walked_post(
@@ -53,12 +52,11 @@ pub async fn walked_post(
 
 pub async fn bearer_of(
     base: &str,
-    clock: &Arc<FakeClock>,
     account: &str,
     password: &str,
     key: &str,
 ) -> Result<String, String> {
-    let answer = login_password(base, clock, account, password, key).await?;
+    let answer = login_password(base, account, password, key).await?;
     if answer.status != 200 {
         return Err(format!(
             "login {account}: {} {}",
@@ -68,16 +66,80 @@ pub async fn bearer_of(
     answer.bearer()
 }
 
+#[must_use]
+pub fn step_two_spec(challenge: &str, code: &str, key: &str) -> RequestSpec {
+    let body = json!({"challenge": challenge, "code": code});
+    RequestSpec::new(&body.to_string()).with_key(key)
+}
+
 pub async fn step_two(
+    base: &str,
+    challenge: &str,
+    code: &str,
+    key: &str,
+) -> Result<ResponseSpec, String> {
+    post(
+        base,
+        TWO_STEP_LOGIN_PATH,
+        &step_two_spec(challenge, code, key),
+    )
+    .await
+}
+
+pub async fn step_two_walked(
     base: &str,
     clock: &Arc<FakeClock>,
     challenge: &str,
     code: &str,
     key: &str,
 ) -> Result<ResponseSpec, String> {
-    let body = json!({"challenge": challenge, "code": code});
-    let spec = RequestSpec::new(&body.to_string()).with_key(key);
+    let spec = step_two_spec(challenge, code, key);
     walked_post(base, clock, TWO_STEP_LOGIN_PATH, &spec).await
+}
+
+const TIMED_TICK_MS: u64 = 50;
+const TIMED_ROUNDS: usize = 500;
+
+pub async fn timed_post(
+    base: &str,
+    clock: &Arc<FakeClock>,
+    path: &str,
+    spec: &RequestSpec,
+) -> Result<(ResponseSpec, u64), String> {
+    let (owned_base, owned_path, spec) = (base.to_owned(), path.to_owned(), spec.clone());
+    let task = tokio::spawn(async move { post(&owned_base, &owned_path, &spec).await });
+    let mut advanced: u64 = 0;
+    for _round in 0..TIMED_ROUNDS {
+        test_harness::sleep_real(crate::http::STEP_REAL).await;
+        if task.is_finished() {
+            break;
+        }
+        let _woken = clock.advance(std::time::Duration::from_millis(TIMED_TICK_MS));
+        advanced = advanced.saturating_add(TIMED_TICK_MS);
+    }
+    if !task.is_finished() {
+        task.abort();
+        return Err(format!(
+            "{path} did not answer after {advanced} ms of fake time"
+        ));
+    }
+    let answer = task.await.map_err(|e| e.to_string())??;
+    Ok((answer, advanced))
+}
+
+pub fn wrong_code_for(authenticator: &FakeAuthenticator, now_ms: u64) -> Result<String, String> {
+    let taken = [
+        authenticator.previous_code_at(now_ms)?,
+        authenticator.code_at(now_ms)?,
+        authenticator.next_code_at(now_ms)?,
+    ];
+    for digit in ['0', '1', '2', '3'] {
+        let candidate: String = std::iter::repeat_n(digit, 6).collect();
+        if !taken.contains(&candidate) {
+            return Ok(candidate);
+        }
+    }
+    Err("no wrong code found".to_owned())
 }
 
 pub async fn signed_post(
@@ -99,14 +161,16 @@ pub async fn enable_two_step(
     account: &str,
     password: &str,
 ) -> Result<TwoStepUser, String> {
-    let bearer = bearer_of(
-        base,
-        clock,
-        account,
-        password,
-        &format!("enable-login-{account}"),
-    )
-    .await?;
+    enable_two_step_at(base, account, password, || fake_now_ms(clock)).await
+}
+
+pub async fn enable_two_step_at(
+    base: &str,
+    account: &str,
+    password: &str,
+    now_ms: impl Fn() -> u64,
+) -> Result<TwoStepUser, String> {
+    let bearer = bearer_of(base, account, password, &format!("enable-login-{account}")).await?;
     let setup = signed_post(
         base,
         &bearer,
@@ -121,7 +185,7 @@ pub async fn enable_two_step(
     let secret_base32 = setup.field_str("secret")?;
     let authenticator = FakeAuthenticator::from_base32(&secret_base32)?;
     let recovery_codes = string_list(&setup.json, "recovery_codes")?;
-    let code = authenticator.code_at(fake_now_ms(clock))?;
+    let code = authenticator.code_at(now_ms())?;
     let confirm = signed_post(
         base,
         &bearer,
@@ -161,13 +225,8 @@ pub fn string_list(json: &Value, field: &str) -> Result<Vec<String>, String> {
         .collect()
 }
 
-pub async fn challenge_of(
-    base: &str,
-    clock: &Arc<FakeClock>,
-    user: &TwoStepUser,
-    key: &str,
-) -> Result<String, String> {
-    let answer = login_password(base, clock, &user.account, &user.password, key).await?;
+pub async fn challenge_of(base: &str, user: &TwoStepUser, key: &str) -> Result<String, String> {
+    let answer = login_password(base, &user.account, &user.password, key).await?;
     if answer.status != 202 {
         return Err(format!(
             "expected the second step: {} {}",

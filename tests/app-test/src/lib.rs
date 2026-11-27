@@ -28,7 +28,10 @@ pub use install_live::{
 };
 
 pub use clockwalk::{ClockWalker, WAVE_FAKE_STEP, WAVE_INSERT_STEP, settle_handles};
-pub use db_dump::{dump_database, found_spelling, migrator_up_to};
+pub use db_dump::{
+    comparable_dump, dump_database, found_digest, found_raw_bytes, found_spelling, migrator_up_to,
+    unkeyed_sha256,
+};
 pub use serverdb::{ServerDb, bootstrap_text, db_start, db_start_with};
 
 pub fn english(

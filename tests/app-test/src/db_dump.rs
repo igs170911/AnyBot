@@ -38,12 +38,23 @@ fn pg_dump_path() -> Result<PathBuf, String> {
 }
 
 pub fn dump_database(db: &ServerDb) -> Result<String, String> {
+    dump_with(db, Vec::new())
+}
+
+pub fn comparable_dump(db: &ServerDb) -> Result<String, String> {
+    dump_with(db, vec![format!("--restrict-key={COMPARE_RESTRICT_KEY}")])
+}
+
+const COMPARE_RESTRICT_KEY: &str = "anybotcompare";
+
+fn dump_with(db: &ServerDb, extra: Vec<String>) -> Result<String, String> {
     let bin = pg_dump_path()?;
-    let args = vec![
+    let mut args = vec![
         "--format=plain".to_owned(),
         "--no-owner".to_owned(),
         format!("--dbname={}", db.url),
     ];
+    args.extend(extra);
     let outcome = run_program(&Program::new(&bin.display().to_string(), args), &db.dir)?;
     if outcome.code != 0 {
         return Err(format!("pg_dump exit {}: {}", outcome.code, outcome.stderr));
@@ -75,4 +86,35 @@ pub fn found_spelling(haystack: &str, raw: &[u8]) -> Option<&'static str> {
         .into_iter()
         .find(|(_label, spelled)| !spelled.is_empty() && haystack.contains(spelled.as_str()))
         .map(|(label, _spelled)| label)
+}
+
+#[must_use]
+pub fn unkeyed_sha256(raw: &[u8]) -> Vec<u8> {
+    ring::digest::digest(&ring::digest::SHA256, raw)
+        .as_ref()
+        .to_vec()
+}
+
+#[must_use]
+pub fn found_raw_bytes(haystack: &str, raw: &[u8]) -> bool {
+    !raw.is_empty()
+        && haystack
+            .as_bytes()
+            .windows(raw.len())
+            .any(|window| window == raw)
+}
+
+#[must_use]
+pub fn found_digest(haystack: &str, raw: &[u8]) -> Option<&'static str> {
+    let digest = unkeyed_sha256(raw);
+    let spelled = [
+        ("sha256-hex", HEXLOWER.encode(&digest)),
+        ("sha256-HEX", HEXUPPER.encode(&digest)),
+        ("sha256-base64", BASE64.encode(&digest)),
+        ("sha256-base64-nopad", BASE64_NOPAD.encode(&digest)),
+    ];
+    spelled
+        .into_iter()
+        .find(|(_label, text)| haystack.contains(text.as_str()))
+        .map(|(label, _text)| label)
 }
