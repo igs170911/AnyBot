@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE records SET content = ?, purged = 1 WHERE stream = ? AND seq = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "be6fcafb70a49b131bc425563f3d5e6dc070627edede318eef0b452318e935c9"
+}

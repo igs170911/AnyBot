@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT code_id, device_id FROM pairing_redeems WHERE key = $1 AND address = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "code_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pairing_redeems",
+            "name": "code_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pairing_redeems",
+            "name": "device_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Text"]
+    },
+    "nullable": [false, false]
+  },
+  "hash": "847f52827b12019e9c899080f150a3e8c72355825cadf3f174c2e1f91506b273"
+}

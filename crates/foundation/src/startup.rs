@@ -19,6 +19,8 @@ pub struct ClientLaunchArgs {
 #[derive(Debug, Subcommand)]
 pub enum ServerCommand {
     ResetPassword { account: String },
+    ResetTwoStep { account: String },
+    NewMasterKey,
     Logs,
     UpdateBotComputers,
     MigrateOld,

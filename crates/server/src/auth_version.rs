@@ -32,7 +32,12 @@ fn exempt(path: &str) -> bool {
 #[must_use]
 fn pre_session(method: &Method, path: &str) -> bool {
     method == Method::POST
-        && ["v1/account/login", "v1/account/register"].contains(&path.trim_start_matches('/'))
+        && [
+            "v1/account/login",
+            "v1/account/register",
+            "v1/computers/pair",
+        ]
+        .contains(&path.trim_start_matches('/'))
 }
 
 #[must_use]

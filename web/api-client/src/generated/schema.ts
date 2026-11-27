@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/login/two-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish a login with the two-step code
+         * @description Second step after the password was accepted. Requires the Idempotency-Key header; the record is bound to the source address. The credential kind is the one the first step asked for.
+         */
+        post: operations["post_account_login_two_step"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/account/logout": {
         parameters: {
             query?: never;
@@ -84,6 +104,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/reauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enter the password again
+         * @description Starts a fresh 15 minutes for actions that need a recent password.
+         */
+        post: operations["post_account_reauth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/account/register": {
         parameters: {
             query?: never;
@@ -98,6 +138,66 @@ export interface paths {
          * @description Requires the Idempotency-Key header; the invite code must match the server setting.
          */
         post: operations["post_account_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/two-step/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm the two-step setup
+         * @description Turns two-step verification on with the pending secret once the current code from it is given; the recovery codes of that setup replace the old ones. Requires the Idempotency-Key header.
+         */
+        post: operations["post_account_two_step_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/two-step/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn two-step verification off
+         * @description Requires the current code; the secret and the recovery codes are removed. Answers ok when two-step was already off. Requires the Idempotency-Key header.
+         */
+        post: operations["post_account_two_step_disable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/two-step/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start setting up two-step verification
+         * @description Returns a new authenticator secret and 8 recovery codes, shown only this once. Nothing changes until the setup is confirmed. When two-step is already on, the current code is required. Requires the Idempotency-Key header.
+         */
+        post: operations["post_account_two_step_setup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -224,6 +324,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/computers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the computers of the account
+         * @description Every live computer with its online state, and when and why it went offline.
+         */
+        get: operations["get_computers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/computers/delegate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switch delegation of the calling computer
+         * @description Only the computer itself may change its own switch.
+         */
+        post: operations["post_computers_delegate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/computers/pair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a computer with a pairing code
+         * @description No account credential is needed. A wrong code waits 0.3 seconds. The same Idempotency-Key and code from the same address replace the credential of a computer that never used it.
+         */
+        post: operations["post_computers_pair"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/computers/pairing-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a pairing code for a new computer
+         * @description Six digits, valid for 10 minutes, one use. The password must have been entered in the last 15 minutes. A retry makes a new code: the code itself is never stored.
+         */
+        post: operations["post_computers_pairing_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/computers/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove a computer from the account
+         * @description A computer may remove itself; removing another one is refused for computers added with a pairing code.
+         */
+        post: operations["post_computers_remove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/computers/rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rename a computer
+         * @description Control characters become spaces; at most 60 characters; the name must be free in the account.
+         */
+        post: operations["post_computers_rename"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -238,6 +458,46 @@ export interface paths {
         get: operations["get_health"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mailbox/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim one letter from the calling computer's mailbox
+         * @description The server lets exactly one claim win, with one conditional update. A refused claim says why: already reassigned, taken by another computer, already claimed by the caller, or withdrawn. A letter that waited ten seconds without being claimed is reassigned to the Bot's computer before the claim is decided. Only computers and the runner service can call this.
+         */
+        post: operations["post_mailbox_claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mailbox/round": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand one round to a computer's mailbox
+         * @description The server picks the computer from the credential, the optional named computer and the availability rules, puts one letter into its mailbox and sends a hint on that computer's notification stream. A computer that is offline or has the delegate switch off is replaced by the Bot's computer and a line is written on the Bot stream. Computers added with a pairing code cannot call this.
+         */
+        post: operations["post_mailbox_round"];
         delete?: never;
         options?: never;
         head?: never;
@@ -397,7 +657,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel, stop, wake, answer a card or change the done criteria of a task
-         * @description A device asks the server to decide. The server records the decision on the bot stream with the task id. A card answer is accepted once per card: the second answer is refused and names the device that answered first.
+         * @description A device asks the server to decide. The server records the decision on the bot stream with the task id. A card answer is accepted once per card: the second answer is refused with card-already-answered and names the device that answered first. An answer without a card id is refused with card-answer-stale. An answer for a card that is not the one the task waits for (never shown, replaced by a later card, or the task was stopped or cancelled) is refused with card-not-waiting.
          *     The Idempotency-Key header is required.
          */
         post: operations["post_streams_referee"];
@@ -445,6 +705,55 @@ export interface components {
              */
             seq?: number | null;
         };
+        ClaimReply: {
+            content: Record<string, never>;
+            /** @example round */
+            kind: string;
+            /** @example 018f-letter-uuidv7 */
+            letter_id: string;
+        };
+        ClaimRequest: {
+            /** @example 018f-letter-uuidv7 */
+            letter_id: string;
+        };
+        ComputerDelegateRequest: {
+            /** @example 018f-device-uuidv7 */
+            device_id: string;
+            /** @example true */
+            enabled: boolean;
+        };
+        ComputerRemoveRequest: {
+            /** @example 018f-device-uuidv7 */
+            device_id: string;
+        };
+        ComputerRenameRequest: {
+            /** @example 018f-device-uuidv7 */
+            device_id: string;
+            /** @example study Mac */
+            name: string;
+        };
+        ComputerView: {
+            /** @example false */
+            delegate_enabled: boolean;
+            /** @example 018f-device-uuidv7 */
+            device_id: string;
+            /** @example desk */
+            name: string;
+            /**
+             * Format: int64
+             * @example 1700000000000
+             */
+            offline_at_ms?: number | null;
+            /** @example computers-offline-no-signal */
+            offline_reason?: string | null;
+            /** @example true */
+            online: boolean;
+            /** @example false */
+            paired: boolean;
+        };
+        ComputersView: {
+            computers: components["schemas"]["ComputerView"][];
+        };
         HealthResponse: {
             /** @example 2026-01-01T00:00:00Z */
             now: string;
@@ -477,15 +786,37 @@ export interface components {
             bearer_key?: string | null;
             /** @example d1 */
             device_id: string;
+            /** @example true */
+            used_recovery?: boolean | null;
         };
         MessageParams: {
             [key: string]: unknown;
         };
+        PairRedeemRequest: {
+            /** @example 048213 */
+            code: string;
+            /** @example server room */
+            name: string;
+        };
+        PairingCodeReply: {
+            /** @example 048213 */
+            code: string;
+            /**
+             * Format: int64
+             * @example 1700000600000
+             */
+            expires_at_ms: number;
+        };
+        PairingCodeRequest: Record<string, never>;
         PasswordChangeRequest: {
             /** @example newlongenough */
             new: string;
             /** @example longenough */
             old: string;
+        };
+        PasswordReenterRequest: {
+            /** @example longenough */
+            password: string;
         };
         ProblemJson: {
             /** @example problem-bad-request */
@@ -589,6 +920,20 @@ export interface components {
             /** @example newlongenough */
             new: string;
         };
+        RoundReply: {
+            /** @example 018f-device-uuidv7 */
+            device_id: string;
+            /** @example 018f-letter-uuidv7 */
+            letter_id: string;
+            /** @example offline */
+            reassigned?: string | null;
+        };
+        RoundRequest: {
+            /** @example 018f-bot-uuidv7 */
+            bot: string;
+            /** @example 018f-device-uuidv7 */
+            computer?: string | null;
+        };
         SettingEntry: {
             /** @example accent_color */
             field: string;
@@ -653,6 +998,35 @@ export interface components {
                 id: string;
             };
         };
+        TwoStepChallenge: {
+            /** @example alice */
+            account: string;
+            /** @example 9f2c4e7a1b3d5f60 */
+            challenge: string;
+        };
+        TwoStepCodeRequest: {
+            /** @example 123456 */
+            code?: string | null;
+        };
+        TwoStepLoginRequest: {
+            /** @example 9f2c4e7a1b3d5f60 */
+            challenge: string;
+            /** @example 123456 */
+            code: string;
+        };
+        TwoStepSetup: {
+            /** @example otpauth://totp/AnyBot:alice?secret=GEZDGNBVGY3TQOJQ&issuer=AnyBot&period=30&digits=6 */
+            otpauth_uri: string;
+            /**
+             * @example [
+             *       "0a1b2c3d4e",
+             *       "5f6a7b8c9d"
+             *     ]
+             */
+            recovery_codes: string[];
+            /** @example GEZDGNBVGY3TQOJQ */
+            secret: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -700,6 +1074,21 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["LoginSession"];
+                };
+            };
+            /** @description Password accepted; the two-step code is required next */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "account": "alice",
+                     *       "challenge": "9f2c4e7a1b3d5f60"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["TwoStepChallenge"];
                 };
             };
             /** @description Missing idempotency key */
@@ -805,6 +1194,136 @@ export interface operations {
                      *       "status": 500,
                      *       "title": "The server hit an internal error.",
                      *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_account_login_two_step: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "challenge": "9f2c4e7a1b3d5f60",
+                 *       "code": "123456"
+                 *     }
+                 */
+                "application/json": components["schemas"]["TwoStepLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Session opened */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "account": "alice",
+                     *       "bearer_key": "a1b2c3d4e5f6a1b2",
+                     *       "device_id": "d1"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["LoginSession"];
+                };
+            };
+            /** @description Challenge expired or used up */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-expired",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "This login has expired; enter your password again.",
+                     *       "type": "https://anybot.test/problems/account_two_step_expired"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Wrong code */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-code-wrong",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "The verification code is wrong.",
+                     *       "type": "https://anybot.test/problems/account_two_step_code_wrong"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Too many wrong codes */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many wrong verification codes; try again in 5 minutes.",
+                     *       "type": "https://anybot.test/problems/account_two_step_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description The stored secret cannot be opened */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-unreadable",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The two-step secret of this account cannot be opened on this server.",
+                     *       "type": "https://anybot.test/problems/account_two_step_unreadable"
                      *     }
                      */
                     "application/problem+json": components["schemas"]["ProblemJson"];
@@ -1158,6 +1677,151 @@ export interface operations {
             };
         };
     };
+    post_account_reauth: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "password": "longenough"
+                 *     }
+                 */
+                "application/json": components["schemas"]["PasswordReenterRequest"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description The password is wrong */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-reauth-password-wrong",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "The password is wrong",
+                     *       "type": "https://anybot.test/problems/account_reauth_password_wrong"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Too many password attempts */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-password-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many password change attempts; try again in 5 minutes.",
+                     *       "type": "https://anybot.test/problems/account_password_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
     post_account_register: {
         parameters: {
             query?: never;
@@ -1263,6 +1927,302 @@ export interface operations {
                      *       "status": 429,
                      *       "title": "Too many registrations from this address; try again in 5 minutes.",
                      *       "type": "https://anybot.test/problems/account_register_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_account_two_step_confirm: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "code": "123456"
+                 *     }
+                 */
+                "application/json": components["schemas"]["TwoStepCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Two-step verification is on */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description No setup is waiting */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-no-pending",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "There is no setup waiting for confirmation.",
+                     *       "type": "https://anybot.test/problems/account_two_step_no_pending"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Code missing or wrong */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-setup-code-wrong",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "The verification code is wrong.",
+                     *       "type": "https://anybot.test/problems/account_two_step_setup_code_wrong"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Too many wrong codes */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many wrong verification codes; try again in 5 minutes.",
+                     *       "type": "https://anybot.test/problems/account_two_step_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_account_two_step_disable: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "code": "123456"
+                 *     }
+                 */
+                "application/json": components["schemas"]["TwoStepCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Two-step verification is off */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Code missing or wrong */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-setup-code-wrong",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "The verification code is wrong.",
+                     *       "type": "https://anybot.test/problems/account_two_step_setup_code_wrong"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Too many wrong codes */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many wrong verification codes; try again in 5 minutes.",
+                     *       "type": "https://anybot.test/problems/account_two_step_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_account_two_step_setup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "code": "123456"
+                 *     }
+                 */
+                "application/json": components["schemas"]["TwoStepCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Setup started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "otpauth_uri": "otpauth://totp/AnyBot:alice?secret=GEZDGNBVGY3TQOJQ&issuer=AnyBot&period=30&digits=6",
+                     *       "recovery_codes": [
+                     *         "0a1b2c3d4e",
+                     *         "5f6a7b8c9d"
+                     *       ],
+                     *       "secret": "GEZDGNBVGY3TQOJQ"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["TwoStepSetup"];
+                };
+            };
+            /** @description Current code missing or wrong */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-setup-code-wrong",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "The verification code is wrong: enter the current six digits from your authenticator app.",
+                     *       "type": "https://anybot.test/problems/account_two_step_setup_code_wrong"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Too many wrong codes */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-two-step-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many wrong verification codes; try again in 5 minutes.",
+                     *       "type": "https://anybot.test/problems/account_two_step_rate"
                      *     }
                      */
                     "application/problem+json": components["schemas"]["ProblemJson"];
@@ -2083,6 +3043,712 @@ export interface operations {
             };
         };
     };
+    get_computers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "computers": [
+                     *         {
+                     *           "delegate_enabled": false,
+                     *           "device_id": "018f-device",
+                     *           "name": "study",
+                     *           "online": true,
+                     *           "paired": false
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ComputersView"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_computers_delegate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "device_id": "018f-device",
+                 *       "enabled": true
+                 *     }
+                 */
+                "application/json": components["schemas"]["ComputerDelegateRequest"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Only the computer itself may change this */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-delegate-self-only",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "Only the computer itself can change this switch",
+                     *       "type": "https://anybot.test/problems/computer_delegate_self_only"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such computer */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-not-found",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "There is no such computer in this account",
+                     *       "type": "https://anybot.test/problems/computer_not_found"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_computers_pair: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "code": "048213",
+                 *       "name": "server room"
+                 *     }
+                 */
+                "application/json": components["schemas"]["PairRedeemRequest"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "account": "alice",
+                     *       "bearer_key": "a1b2c3d4",
+                     *       "device_id": "018f-device"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["LoginSession"];
+                };
+            };
+            /** @description Name too long */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-name-too-long",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "A computer name can have at most 60 characters",
+                     *       "type": "https://anybot.test/problems/computer_name_too_long"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Client version too old */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "install-version-old",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "This app version is too old.",
+                     *       "type": "https://anybot.test/problems/install_version_old"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Too many wrong pairing codes */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computers-pair-rate",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many wrong pairing codes: try again in 5 minutes",
+                     *       "type": "https://anybot.test/problems/computers_pair_rate"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_computers_pairing_code: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description accepted for uniformity; a repeated key makes a new code because the code itself is never stored */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {} */
+                "application/json": components["schemas"]["PairingCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "048213",
+                     *       "expires_at_ms": 1700000600000
+                     *     }
+                     */
+                    "application/json": components["schemas"]["PairingCodeReply"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description The password must be entered again first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-reauth-required",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "Enter your password again first",
+                     *       "type": "https://anybot.test/problems/account_reauth_required"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Too many pairing codes are waiting */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computers-pair-full",
+                     *       "params": {},
+                     *       "status": 429,
+                     *       "title": "Too many computers are waiting to pair: try again later",
+                     *       "type": "https://anybot.test/problems/computers_pair_full"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_computers_remove: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "device_id": "018f-device"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ComputerRemoveRequest"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description A paired computer cannot do this */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-paired-forbidden",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "A computer added with a pairing code cannot do this",
+                     *       "type": "https://anybot.test/problems/computer_paired_forbidden"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such computer */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-not-found",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "There is no such computer in this account",
+                     *       "type": "https://anybot.test/problems/computer_not_found"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_computers_rename: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "device_id": "018f-device",
+                 *       "name": "study"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ComputerRenameRequest"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Name too long */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-name-too-long",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "A computer name can have at most 60 characters",
+                     *       "type": "https://anybot.test/problems/computer_name_too_long"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such computer */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-not-found",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "There is no such computer in this account",
+                     *       "type": "https://anybot.test/problems/computer_not_found"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
     get_health: {
         parameters: {
             query?: never;
@@ -2139,6 +3805,267 @@ export interface operations {
                      *       "status": 500,
                      *       "title": "The server hit an internal error.",
                      *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_mailbox_claim: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "letter_id": "018f-letter-uuidv7"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description The letter content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "content": {
+                     *         "bot": "018f-bot-uuidv7"
+                     *       },
+                     *       "kind": "round",
+                     *       "letter_id": "018f-letter-uuidv7"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ClaimReply"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not a computer or the runner service */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "device-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "This device has no permission to do this",
+                     *       "type": "https://anybot.test/problems/device_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such letter for this computer */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "mailbox-letter-unknown",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "There is no such letter for this computer",
+                     *       "type": "https://anybot.test/problems/mailbox_letter_unknown"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Reassigned, taken by another computer, already yours, withdrawn, or an idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "mailbox-claim-reassigned",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This letter was reassigned to another computer: do not run it",
+                     *       "type": "https://anybot.test/problems/mailbox_claim_reassigned"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_mailbox_round: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "bot": "018f-bot-uuidv7",
+                 *       "computer": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["RoundRequest"];
+            };
+        };
+        responses: {
+            /** @description The letter and where it went */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "device_id": "018f-device-uuidv7",
+                     *       "letter_id": "018f-letter-uuidv7",
+                     *       "reassigned": "offline"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["RoundReply"];
+                };
+            };
+            /** @description Missing idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-missing",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The Idempotency-Key header is required.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description A paired computer, the runner service, or a Bot that is not the caller's */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-paired-forbidden",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "A computer added with a pairing code cannot do this",
+                     *       "type": "https://anybot.test/problems/computer_paired_forbidden"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such computer */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "computer-not-found",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "There is no such computer in this account",
+                     *       "type": "https://anybot.test/problems/computer_not_found"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Idempotency key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-idempotency-conflict",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "This request id was already used with a different body.",
+                     *       "type": "https://anybot.test/problems/account_idempotency_conflict"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
                      *     }
                      */
                     "application/problem+json": components["schemas"]["ProblemJson"];
@@ -2945,7 +4872,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemJson"];
                 };
             };
-            /** @description The card was already answered, or the page is out of date */
+            /** @description The card was already answered, is no longer waiting, or the page is out of date (no card id) */
             409: {
                 headers: {
                     [name: string]: unknown;

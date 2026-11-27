@@ -97,7 +97,7 @@ impl PgInstance {
         Ok(())
     }
 
-    async fn admin_pool(&self) -> Result<sqlx::PgPool, String> {
+    pub(crate) async fn admin_pool(&self) -> Result<sqlx::PgPool, String> {
         let settings = self.server.settings();
         let url = format!(
             "postgres://{}:{}@{}:{}/postgres",

@@ -9,7 +9,11 @@ use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 
-const PRE_SESSION_PATHS: [&str; 2] = ["/v1/account/login", "/v1/account/register"];
+const PRE_SESSION_PATHS: [&str; 3] = [
+    "/v1/account/login",
+    "/v1/account/register",
+    "/v1/computers/pair",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PreSessionMarker;

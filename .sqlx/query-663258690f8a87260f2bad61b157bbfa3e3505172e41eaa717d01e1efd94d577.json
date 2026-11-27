@@ -1,0 +1,79 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, account, expires_at_ms, used_at_ms, redeemed_device, redeemed_address FROM pairing_codes WHERE algorithm = $1 AND digest = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pairing_codes",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "account",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pairing_codes",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "expires_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "pairing_codes",
+            "name": "expires_at_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "used_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "pairing_codes",
+            "name": "used_at_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "redeemed_device",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pairing_codes",
+            "name": "redeemed_device"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "redeemed_address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pairing_codes",
+            "name": "redeemed_address"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Bytea"]
+    },
+    "nullable": [false, false, false, true, true, true]
+  },
+  "hash": "663258690f8a87260f2bad61b157bbfa3e3505172e41eaa717d01e1efd94d577"
+}

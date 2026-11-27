@@ -45,6 +45,9 @@ pub struct LoginSession {
     pub account: String,
     #[cfg_attr(feature = "schema", schema(example = "d1"))]
     pub device_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schema", schema(example = true))]
+    pub used_recovery: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

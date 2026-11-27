@@ -56,7 +56,12 @@ fn origin_allowed_https(keys: &[OriginKey], origin: &str) -> bool {
         .is_some_and(|key| key.scheme == "https" && keys.contains(&key))
 }
 
-const PRE_BEARER_PATHS: [&str; 2] = ["/v1/account/login", "/v1/account/register"];
+const PRE_BEARER_PATHS: [&str; 4] = [
+    "/v1/account/login",
+    "/v1/account/register",
+    "/v1/account/login/two-step",
+    "/v1/computers/pair",
+];
 const CREDENTIAL_QUERY_NAMES: [&str; 4] = ["session_key", "token", "bearer", "invite"];
 
 pub async fn csrf_layer(

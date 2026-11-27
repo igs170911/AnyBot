@@ -5,10 +5,11 @@ use axum::response::Response;
 use anybot_domain::account_name::normalize_account_name;
 use anybot_foundation::Secret;
 use anybot_messages::MessageCode;
-use anybot_protocol::{LoginRequest, LoginSession, ProblemJson};
-use anybot_store_server::{Pool, accounts};
+use anybot_protocol::{LoginRequest, LoginSession, ProblemJson, TwoStepChallenge};
+use anybot_store_server::{Pool, accounts, two_step};
 
-use crate::api_login_flow::{credential_is_cookie, open_session, slow_fail, verify_password};
+use crate::api_login_flow::{credential_is_cookie, slow_fail, verify_password};
+use crate::api_login_issue::{SessionIssue, issue_session};
 use crate::api_register::status_from_i32;
 use crate::app::AppState;
 use crate::caller::CallerDenied;
@@ -17,13 +18,8 @@ use crate::limits::Limiter;
 use crate::problems;
 use crate::req_write::{
     Outcome, denied, internal_detail, internal_sqlx, internal_text, pool_of, record_outcome,
-    value_of,
 };
-use axum::http::HeaderValue;
 use axum::http::Method;
-use axum::http::header::SET_COOKIE;
-
-const SESSION_COOKIE_MAX_AGE: u64 = anybot_domain::session_term::SESSION_IDLE_MS / 1000;
 
 #[utoipa::path(
     post,
@@ -39,6 +35,10 @@ const SESSION_COOKIE_MAX_AGE: u64 = anybot_domain::session_term::SESSION_IDLE_MS
             content_type = "application/json",
             body = LoginSession,
             example = json!({"bearer_key": "a1b2c3d4e5f6a1b2", "account": "alice", "device_id": "d1"})),
+        (status = 202, description = "Password accepted; the two-step code is required next",
+            content_type = "application/json",
+            body = TwoStepChallenge,
+            example = json!({"challenge": "9f2c4e7a1b3d5f60", "account": "alice"})),
         (status = 400, description = "Missing idempotency key",
             content_type = "application/problem+json",
             body = ProblemJson,
@@ -80,7 +80,7 @@ pub async fn login(
     let key = crate::req_write::idempotency_key_of(&parts.headers)?;
     let address = crate::req_write::parts_address(&parts, &state).await?;
     let path = parts.uri.path().to_owned();
-    let origin = origin_of(&parts);
+    let origin = crate::api_login_issue::origin_of(&parts.headers);
     let body: LoginRequest = serde_json::from_slice(&raw)
         .map_err(|e| crate::req_write::denied_detail(StatusCode::BAD_REQUEST, &e.to_string()))?;
     let pool = pool_of(&state)?;
@@ -100,6 +100,7 @@ pub async fn login(
         ));
     };
     let cookie_mode = credential_is_cookie(&body)?;
+    let computer = crate::api_login_flow::credential_is_computer(&body);
     let run = LoginRun {
         state: &state,
         pool,
@@ -112,6 +113,7 @@ pub async fn login(
         scope: &scope,
         origin,
         cookie_mode,
+        computer,
     };
     run_login(&run).await
 }
@@ -128,14 +130,7 @@ struct LoginRun<'a> {
     scope: &'a str,
     origin: Option<String>,
     cookie_mode: bool,
-}
-
-fn origin_of(parts: &axum::http::request::Parts) -> Option<String> {
-    parts
-        .headers
-        .get(axum::http::header::ORIGIN)
-        .and_then(|value| value.to_str().ok())
-        .map(String::from)
+    computer: bool,
 }
 
 async fn run_login(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
@@ -219,50 +214,31 @@ async fn disabled(run: &LoginRun<'_>) -> Result<Response, CallerDenied> {
     ))
 }
 
-async fn issue_cookie(
-    answer: Response,
-    run: &LoginRun<'_>,
-    session: &LoginSession,
-) -> Result<Response, CallerDenied> {
-    if !run.cookie_mode {
-        return Ok(answer);
-    }
-    let raw = session
-        .session_key
-        .clone()
-        .ok_or(internal_detail("session key missing at issue"))?;
-    let key = Secret::from_untrusted(raw);
-    let view = crate::auth_csrf::credential_view(run.state, run.origin.as_deref()).await;
-    let cookie = crate::auth_credential::cookie_issue(&view, &key, SESSION_COOKIE_MAX_AGE);
-    let mut answer = answer;
-    answer.headers_mut().append(
-        SET_COOKIE,
-        HeaderValue::from_str(&cookie).map_err(|e| internal_detail(&e.to_string()))?,
-    );
-    Ok(answer)
-}
-
 async fn accepted(run: &LoginRun<'_>, account: &str) -> Result<Response, CallerDenied> {
     run.limiter
         .cancel_login(run.attempt)
         .await
         .map_err(internal_sqlx)?;
-    let session = open_session(run.state, run.pool, run.body, account, run.cookie_mode).await?;
-    let value = value_of(&session)?;
-    let answer = record_outcome(
-        run.pool,
-        run.state,
-        &Outcome {
-            key: run.key,
-            raw: run.raw,
-            scope: run.scope,
-            status: StatusCode::OK,
-            value: &value,
-            marker: true,
-        },
-    )
-    .await?;
-    issue_cookie(answer, run, &session).await
+    let issue = SessionIssue {
+        state: run.state,
+        pool: run.pool,
+        account,
+        label: &run.body.label,
+        cookie_mode: run.cookie_mode,
+        computer: run.computer,
+        used_recovery: false,
+        origin: run.origin.as_deref(),
+        key: run.key,
+        raw: run.raw,
+        scope: run.scope,
+    };
+    let enabled = two_step::two_step_enabled(run.pool, account)
+        .await
+        .map_err(internal_sqlx)?;
+    if enabled {
+        return crate::two_step_challenge::open_challenge(&issue).await;
+    }
+    issue_session(&issue).await
 }
 
 pub enum Guard {

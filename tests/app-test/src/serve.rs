@@ -88,7 +88,10 @@ async fn bind_fake(
 > {
     let mut state =
         anybot_server::AppState::with_pool(TEST_VERSION, Arc::clone(&clock), pool.clone(), config);
-    state = state.with_releases(releases.clone());
+    state = state
+        .with_releases(releases.clone())
+        .with_secrets(db.secret_keys()?);
+    anybot_server::runner_device::ensure_runner_device(&state).await?;
     let listener = bind_with_retry(db.listen_port).await?;
     let v6_listener =
         bind_v6_with_retry(next_port(db.listen_port).ok_or("port overflow".to_owned())?).await?;
@@ -97,6 +100,7 @@ async fn bind_fake(
     state.listen_ports = Arc::new(vec![v4_port, v6_port]);
     let shutdown = Arc::clone(&state.shutdown);
     let cleanup = anybot_server::cleanup::cleanup_loop(pool, clock, Arc::clone(&shutdown));
+    let sweeper = anybot_server::presence_sweep::spawn_sweeper(state.clone());
     let app = anybot_server::build_router(state.clone())
         .into_make_service_with_connect_info::<std::net::SocketAddr>();
     let app_v6 = anybot_server::build_router(state.clone())
@@ -120,5 +124,10 @@ async fn bind_fake(
             _stop = spawned_shutdown_v6.notified() => {}
         }
     });
-    Ok((shutdown, vec![v4_task, v6_task, cleanup], v6_port, state))
+    Ok((
+        shutdown,
+        vec![v4_task, v6_task, cleanup, sweeper],
+        v6_port,
+        state,
+    ))
 }

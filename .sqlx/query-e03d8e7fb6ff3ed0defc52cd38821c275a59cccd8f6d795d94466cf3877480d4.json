@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM two_step_challenges WHERE created_at_ms < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "e03d8e7fb6ff3ed0defc52cd38821c275a59cccd8f6d795d94466cf3877480d4"
+}

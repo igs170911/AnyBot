@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO pairing_redeems (key, address, code_id, device_id, at_ms) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (key, address) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "0473ec1654bf1e09e8104d5ba40efa76f89d058161a522f5bb6fe536d2428131"
+}

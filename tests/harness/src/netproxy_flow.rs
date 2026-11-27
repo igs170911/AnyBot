@@ -8,7 +8,9 @@ use tokio::sync::Notify;
 
 use crate::netctl::NetMode;
 use crate::netproxy::TargetSpec;
+use crate::netproxy_events::drop_events_copy;
 use crate::netproxy_idle::idle_copy;
+use crate::netproxy_throttle::throttle_copy;
 
 pub(crate) async fn sleep_with_kill(dur: Duration, kill: &Arc<Notify>) {
     let nap = tokio::time::sleep(dur);
@@ -38,6 +40,12 @@ pub(crate) async fn copy_bidirectional_with_kill(
         }
         NetMode::Stall => stall_copy(client, upstream, kill).await,
         NetMode::DropResponse { close } => drop_copy(client, upstream, *close, kill).await,
+        NetMode::Throttle { bytes_per_sec } => {
+            throttle_copy(client, upstream, *bytes_per_sec, spec.clock.as_ref(), kill).await
+        }
+        NetMode::DropEvents { per_mille, .. } => {
+            drop_events_copy(client, upstream, *per_mille, &spec.event_rng, kill).await
+        }
         NetMode::Open => {
             let copied = kill_select(tokio::io::copy_bidirectional(client, upstream), kill).await;
             match copied {
@@ -193,8 +201,8 @@ pub(crate) async fn drop_copy(
     close: bool,
     kill: &Arc<Notify>,
 ) -> Result<usize, String> {
-    let (mut client_read, mut upstream_write) = client.split();
-    let (mut upstream_read, _client_write) = upstream.split();
+    let (mut client_read, _client_write) = client.split();
+    let (mut upstream_read, mut upstream_write) = upstream.split();
     let forward = tokio::io::copy(&mut client_read, &mut upstream_write);
     let drain = drain_upstream(&mut upstream_read, kill);
     tokio::select! {

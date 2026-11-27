@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM two_step_recovery WHERE account = $1 AND pending",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": []
+  },
+  "hash": "6e1beebf070abcd90b7b3b8777962cf1e978f7a2aba77c3fd64f114948ee3dfa"
+}

@@ -32,6 +32,8 @@ pub struct AppState {
     pub listen_ports: Arc<Vec<u16>>,
     pub releases: Arc<anybot_domain::version_release::ReleaseTable>,
     pub bus: anybot_bus::SharedBus,
+    pub secrets: Option<Arc<anybot_store_server::SecretKeys>>,
+    pub presence: Arc<crate::presence::PresenceBook>,
 }
 
 impl AppState {
@@ -64,6 +66,8 @@ impl AppState {
             shutdown: Arc::new(Notify::new()),
             started_at_ms,
             bus: anybot_bus::shared_memory_bus(),
+            secrets: None,
+            presence: Arc::new(crate::presence::PresenceBook::new(started_at_ms.millis())),
         }
     }
 
@@ -98,6 +102,12 @@ impl AppState {
     }
 
     #[must_use]
+    pub fn with_secrets(mut self, keys: Arc<anybot_store_server::SecretKeys>) -> Self {
+        self.secrets = Some(keys);
+        self
+    }
+
+    #[must_use]
     pub async fn config_view(&self) -> crate::config::ConfigView {
         self.config.lock().await.view()
     }
@@ -119,19 +129,22 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/account/password", post(change_password))
         .route(
             "/v1/streams/append",
-            post(crate::api_streams_append::append),
+            post(crate::mailbox_card::append_noting_issuer),
         )
         .route("/v1/streams/after", get(crate::api_streams_after::after))
         .route("/v1/streams/record", get(crate::api_streams_record::record))
         .route("/v1/settings", get(crate::api_settings::settings))
-        .route("/v1/streams/referee", post(crate::api_referee::referee))
+        .route(
+            "/v1/streams/referee",
+            post(crate::mailbox_card::referee_with_letter),
+        )
         .route(
             "/v1/streams/actions",
             post(crate::api_streams_action::action),
         )
         .route(
             "/v1/streams/notifications",
-            get(crate::api_streams_sse::notifications),
+            get(crate::mailbox_sse::notifications),
         )
         .route("/v1/admin/invite", get(invite))
         .route("/v1/admin/invite/rotate", post(rotate_invite))
@@ -145,6 +158,9 @@ pub fn build_router(state: AppState) -> Router {
             "/v1/admin/accounts/{account}/reset-password",
             post(reset_password),
         )
+        .merge(two_step_routes())
+        .merge(crate::computers_routes::routes())
+        .merge(crate::mailbox_routes::routes())
         .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -162,4 +178,24 @@ pub fn build_router(state: AppState) -> Router {
             state,
             crate::auth_time::time_layer,
         ))
+}
+
+fn two_step_routes() -> Router<AppState> {
+    Router::new()
+        .route(
+            "/v1/account/login/two-step",
+            post(crate::api_two_step_login::login_two_step),
+        )
+        .route(
+            "/v1/account/two-step/setup",
+            post(crate::api_two_step_setup::setup_two_step),
+        )
+        .route(
+            "/v1/account/two-step/confirm",
+            post(crate::api_two_step_toggle::confirm_two_step),
+        )
+        .route(
+            "/v1/account/two-step/disable",
+            post(crate::api_two_step_toggle::disable_two_step),
+        )
 }

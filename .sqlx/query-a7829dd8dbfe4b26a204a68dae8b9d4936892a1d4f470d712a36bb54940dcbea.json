@@ -1,0 +1,24 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT stream FROM streams ORDER BY stream",
+  "describe": {
+    "columns": [
+      {
+        "name": "stream",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "streams",
+            "name": "stream"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [false]
+  },
+  "hash": "a7829dd8dbfe4b26a204a68dae8b9d4936892a1d4f470d712a36bb54940dcbea"
+}

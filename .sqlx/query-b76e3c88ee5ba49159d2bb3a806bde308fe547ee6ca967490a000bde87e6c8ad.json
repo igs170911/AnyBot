@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT algorithm, check_value FROM master_key_check WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "algorithm",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "master_key_check",
+            "name": "algorithm"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "check_value",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "master_key_check",
+            "name": "check_value"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [false, false]
+  },
+  "hash": "b76e3c88ee5ba49159d2bb3a806bde308fe547ee6ca967490a000bde87e6c8ad"
+}

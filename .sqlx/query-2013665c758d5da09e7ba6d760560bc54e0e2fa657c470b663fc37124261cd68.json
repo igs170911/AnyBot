@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE two_step SET secret_sealed = $2, enabled_at_ms = $3, pending_sealed = NULL, pending_at_ms = NULL WHERE account = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Bytea", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "2013665c758d5da09e7ba6d760560bc54e0e2fa657c470b663fc37124261cd68"
+}

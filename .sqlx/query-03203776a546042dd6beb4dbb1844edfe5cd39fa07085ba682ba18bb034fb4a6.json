@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox_letters (letter_id, account, kind, device_id, content, created_at_ms, state) VALUES ($1, $2, $3, $4, $5, $6, 'pending') ON CONFLICT (letter_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Text", "Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "03203776a546042dd6beb4dbb1844edfe5cd39fa07085ba682ba18bb034fb4a6"
+}

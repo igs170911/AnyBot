@@ -2,10 +2,12 @@ pub mod account_api;
 pub mod api;
 pub mod computer_caps;
 pub mod computer_results;
+pub mod computers_api;
 pub mod events;
 pub mod evidence_record;
 pub mod gate_record;
 pub mod known_task_event_kind;
+pub mod mailbox_api;
 pub mod record_actions;
 pub mod referee_api;
 pub mod settings_api;
@@ -14,6 +16,7 @@ pub mod streams_api;
 pub mod task_detail;
 pub mod task_events;
 pub mod turn_records;
+pub mod two_step_api;
 pub mod versions;
 
 pub use account_api::{
@@ -31,6 +34,10 @@ pub use computer_results::{
     ComputerFailureKind, PathOutcome, PathRequest, ReadOutcome, ReadRequest, TargetKind,
     WriteOutcome, WriteRequest,
 };
+pub use computers_api::{
+    ComputerDelegateRequest, ComputerRemoveRequest, ComputerRenameRequest, ComputerView,
+    ComputersView, PairRedeemRequest, PairingCodeReply, PairingCodeRequest, PasswordReenterRequest,
+};
 pub use events::{
     EventKind, KnownEventKind, PROTOCOL_VERSION, RUN_ERROR_CODE_PROTOCOL_VERSION,
     RUN_ERROR_CODE_UNSUPPORTED_EVENT, RawEventKind, RecordedEvent, RunEvent,
@@ -41,6 +48,7 @@ pub use evidence_record::{
 };
 pub use gate_record::{GateNo, GateOutcome, GateRecord, JudgementSource, RuleLayer};
 pub use known_task_event_kind::KnownTaskEventKind;
+pub use mailbox_api::{ClaimReply, ClaimRequest, MailHint, RoundReply, RoundRequest};
 pub use record_actions::{RecordAction, RecordActionReply, RecordActionRequest};
 pub use referee_api::{RefereeAction, RefereeReply, RefereeRequest};
 pub use settings_api::{SETTING_KIND, SettingContent, SettingEntry, SettingsView};
@@ -63,4 +71,5 @@ pub use turn_records::{
     ReportAttention, ReportOutcome, ReportStep, ReportSummary, TaskOpener, ThinkingChoice,
     TokenUsage, ToolArgs, ToolRequest, TurnEndReason, TurnInitiator,
 };
+pub use two_step_api::{TwoStepChallenge, TwoStepCodeRequest, TwoStepLoginRequest, TwoStepSetup};
 pub use versions::{PROTOCOL_RELEASES, ProtocolRelease, accepts_protocol_version};

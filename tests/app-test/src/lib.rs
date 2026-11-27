@@ -8,6 +8,8 @@ use tracing as _;
 use test_harness::{Program, Running, migration_fixture, pg_start, pg_stop};
 
 pub mod clockwalk;
+pub mod db_dump;
+pub mod fsutil;
 pub mod http;
 pub mod install_live;
 pub mod n106;
@@ -15,16 +17,31 @@ pub mod serve;
 pub mod serverdb;
 pub mod startup;
 
+pub mod fake_totp;
+pub mod log_capture;
+pub mod mailbox_audit;
+pub mod mailbox_model;
+#[cfg(test)]
+mod mailbox_model_tests;
+pub mod mailbox_ops;
+pub mod mailbox_prop;
+pub mod mailbox_wait;
+pub mod mailbox_x;
 pub mod sse;
 pub mod sse_client;
 pub mod sse_watch;
+pub mod two_step_client;
 pub use install_live::{
     bootstrap_args, check_both, check_second, finish_running, get_status, public_url_check,
     start_live, startup_params, stop_live, wait_health,
 };
 
 pub use clockwalk::{ClockWalker, WAVE_FAKE_STEP, WAVE_INSERT_STEP, settle_handles};
-pub use serverdb::{ServerDb, db_start};
+pub use db_dump::{
+    comparable_dump, dump_database, found_digest, found_raw_bytes, found_spelling, migrator_up_to,
+    unkeyed_sha256,
+};
+pub use serverdb::{ServerDb, bootstrap_text, db_start, db_start_with};
 
 pub fn english(
     catalog: &mut Catalog,

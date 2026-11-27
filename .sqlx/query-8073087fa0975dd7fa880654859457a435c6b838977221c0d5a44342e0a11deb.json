@@ -1,0 +1,182 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT device_id, account, name, key_hash, paired, delegate_enabled, created_at_ms, last_seen_ms, password_entered_ms, credential_used_ms, online, offline_at_ms, offline_reason, removed_at_ms FROM computers WHERE key_hash = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "device_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "account",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "key_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "key_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "paired",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "paired"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "delegate_enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "delegate_enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "created_at_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "last_seen_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "last_seen_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "password_entered_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "password_entered_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "credential_used_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "credential_used_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "online",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "online"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "offline_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "offline_at_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "offline_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "offline_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "removed_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "computers",
+            "name": "removed_at_ms"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "8073087fa0975dd7fa880654859457a435c6b838977221c0d5a44342e0a11deb"
+}

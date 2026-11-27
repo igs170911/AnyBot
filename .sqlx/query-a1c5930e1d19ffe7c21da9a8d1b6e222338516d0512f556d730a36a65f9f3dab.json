@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM two_step WHERE account = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": []
+  },
+  "hash": "a1c5930e1d19ffe7c21da9a8d1b6e222338516d0512f556d730a36a65f9f3dab"
+}

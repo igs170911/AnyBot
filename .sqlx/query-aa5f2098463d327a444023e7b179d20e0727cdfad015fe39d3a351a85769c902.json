@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS(SELECT 1 FROM two_step WHERE account = $1 AND secret_sealed IS NOT NULL) AS \"on!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "on!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [null]
+  },
+  "hash": "aa5f2098463d327a444023e7b179d20e0727cdfad015fe39d3a351a85769c902"
+}

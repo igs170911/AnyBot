@@ -26,7 +26,7 @@ pub enum ResetFailure {
     Message(&'static str),
 }
 
-async fn schema_gate(pool: &Pool, version: &str, ctx: &mut Ctx) -> Option<ExitCode> {
+pub(crate) async fn schema_gate(pool: &Pool, version: &str, ctx: &mut Ctx) -> Option<ExitCode> {
     let expected = anybot_server::product_migrations()
         .migrations
         .last()

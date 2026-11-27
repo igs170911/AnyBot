@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR REPLACE INTO records (stream, seq, record_id, kind, content, created_at_ms,\n            offline_sent, task_id, task_seq, purged) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "3b7cb2f522c21ef4c806dab894ca9a5dc5aab33e10fc165410d2b7f28c99125d"
+}

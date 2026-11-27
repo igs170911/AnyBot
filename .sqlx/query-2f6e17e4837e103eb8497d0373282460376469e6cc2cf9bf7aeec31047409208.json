@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO two_step_recovery (account, pending, slot, algorithm, digest) VALUES ($1, TRUE, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Int2", "Text", "Bytea"]
+    },
+    "nullable": []
+  },
+  "hash": "2f6e17e4837e103eb8497d0373282460376469e6cc2cf9bf7aeec31047409208"
+}

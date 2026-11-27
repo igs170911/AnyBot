@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO card_issuers (stream_id, card_id, device_id, noted_at_ms) VALUES ($1, $2, $3, $4) ON CONFLICT (stream_id, card_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "13b23a2d75e7653495f5089a8afd86b8480f48ac306d00d08e1d0e9a63f1c6a3"
+}

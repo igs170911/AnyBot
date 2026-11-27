@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT slot, algorithm, digest FROM two_step_recovery WHERE account = $1 AND NOT pending AND used_at_ms IS NULL ORDER BY slot",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "slot",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "two_step_recovery",
+            "name": "slot"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "algorithm",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "two_step_recovery",
+            "name": "algorithm"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "digest",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "two_step_recovery",
+            "name": "digest"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [false, false, false]
+  },
+  "hash": "b7296f359aaaa569b93641ad72f6c997b48ae878dd5d1a7d98fd6ce2ca44b024"
+}

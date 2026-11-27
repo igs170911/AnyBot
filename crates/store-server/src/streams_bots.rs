@@ -25,33 +25,6 @@ pub async fn load_bot(pool: &Pool, id: &str) -> Result<Option<BotRow>, sqlx::Err
     }))
 }
 
-pub async fn ensure_bot(
-    pool: &Pool,
-    id: &str,
-    account: &str,
-    name: &str,
-    created_at_ms: i64,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "INSERT INTO bots (id, account, name, created_at_ms) VALUES ($1, $2, $3, $4) \
-         ON CONFLICT (id) DO NOTHING",
-        id,
-        account,
-        name,
-        created_at_ms,
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
-}
-
-pub async fn set_bot_deleted(pool: &Pool, id: &str, deleted: bool) -> Result<(), sqlx::Error> {
-    sqlx::query!("UPDATE bots SET deleted = $2 WHERE id = $1", id, deleted,)
-        .execute(pool)
-        .await?;
-    Ok(())
-}
-
 pub async fn rename_bot(pool: &Pool, id: &str, name: &str) -> Result<(), sqlx::Error> {
     sqlx::query!("UPDATE bots SET name = $2 WHERE id = $1", id, name)
         .execute(pool)

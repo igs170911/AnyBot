@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT device_id, key_hash, created_at_ms FROM runner_service_device",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runner_service_device",
+            "name": "device_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "key_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runner_service_device",
+            "name": "key_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runner_service_device",
+            "name": "created_at_ms"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [false, false, false]
+  },
+  "hash": "f71a6b2ce8e05c61014c82d6a16f1c398b501cb638660f39e9a2e6e7c596a70b"
+}

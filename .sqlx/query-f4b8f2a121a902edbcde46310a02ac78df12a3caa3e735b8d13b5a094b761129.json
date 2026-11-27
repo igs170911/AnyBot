@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE two_step_recovery SET used_at_ms = $3 WHERE account = $1 AND NOT pending AND slot = $2 AND used_at_ms IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Int2", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "f4b8f2a121a902edbcde46310a02ac78df12a3caa3e735b8d13b5a094b761129"
+}

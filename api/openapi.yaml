@@ -50,6 +50,15 @@ paths:
                 account: alice
                 bearer_key: a1b2c3d4e5f6a1b2
                 device_id: d1
+        '202':
+          description: Password accepted; the two-step code is required next
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoStepChallenge'
+              example:
+                account: alice
+                challenge: 9f2c4e7a1b3d5f60
         '400':
           description: Missing idempotency key
           content:
@@ -122,6 +131,102 @@ paths:
                 status: 500
                 title: The server hit an internal error.
                 type: https://anybot.test/problems/problem_internal
+      security:
+      - {}
+  /v1/account/login/two-step:
+    post:
+      tags:
+      - account
+      summary: Finish a login with the two-step code
+      description: Second step after the password was accepted. Requires the Idempotency-Key header; the record is bound to the source address. The credential kind is the one the first step asked for.
+      operationId: post_account_login_two_step
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoStepLoginRequest'
+            example:
+              challenge: 9f2c4e7a1b3d5f60
+              code: '123456'
+        required: true
+      responses:
+        '200':
+          description: Session opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSession'
+              example:
+                account: alice
+                bearer_key: a1b2c3d4e5f6a1b2
+                device_id: d1
+        '400':
+          description: Challenge expired or used up
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-expired
+                params: {}
+                status: 400
+                title: This login has expired; enter your password again.
+                type: https://anybot.test/problems/account_two_step_expired
+        '401':
+          description: Wrong code
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-code-wrong
+                params: {}
+                status: 401
+                title: The verification code is wrong.
+                type: https://anybot.test/problems/account_two_step_code_wrong
+        '409':
+          description: Idempotency key conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-conflict
+                params: {}
+                status: 409
+                title: This request id was already used with a different body.
+                type: https://anybot.test/problems/account_idempotency_conflict
+        '429':
+          description: Too many wrong codes
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-rate
+                params: {}
+                status: 429
+                title: Too many wrong verification codes; try again in 5 minutes.
+                type: https://anybot.test/problems/account_two_step_rate
+        '500':
+          description: The stored secret cannot be opened
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-unreadable
+                params: {}
+                status: 500
+                title: The two-step secret of this account cannot be opened on this server.
+                type: https://anybot.test/problems/account_two_step_unreadable
       security:
       - {}
   /v1/account/logout:
@@ -380,6 +485,111 @@ paths:
                 type: https://anybot.test/problems/problem_internal
       security:
       - bearer: []
+  /v1/account/reauth:
+    post:
+      tags:
+      - account
+      summary: Enter the password again
+      description: Starts a fresh 15 minutes for actions that need a recent password.
+      operationId: post_account_reauth
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordReenterRequest'
+            example:
+              password: longenough
+        required: true
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAck'
+              example:
+                ok: true
+        '400':
+          description: Missing idempotency key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-missing
+                params: {}
+                status: 400
+                title: The Idempotency-Key header is required.
+                type: https://anybot.test/problems/account_idempotency_missing
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '403':
+          description: The password is wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-reauth-password-wrong
+                params: {}
+                status: 403
+                title: The password is wrong
+                type: https://anybot.test/problems/account_reauth_password_wrong
+        '409':
+          description: Idempotency key conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-conflict
+                params: {}
+                status: 409
+                title: This request id was already used with a different body.
+                type: https://anybot.test/problems/account_idempotency_conflict
+        '429':
+          description: Too many password attempts
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-password-rate
+                params: {}
+                status: 429
+                title: Too many password change attempts; try again in 5 minutes.
+                type: https://anybot.test/problems/account_password_rate
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
   /v1/account/register:
     post:
       tags:
@@ -476,6 +686,229 @@ paths:
                 type: https://anybot.test/problems/problem_internal
       security:
       - {}
+  /v1/account/two-step/confirm:
+    post:
+      tags:
+      - account
+      summary: Confirm the two-step setup
+      description: Turns two-step verification on with the pending secret once the current code from it is given; the recovery codes of that setup replace the old ones. Requires the Idempotency-Key header.
+      operationId: post_account_two_step_confirm
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoStepCodeRequest'
+            example:
+              code: '123456'
+        required: true
+      responses:
+        '200':
+          description: Two-step verification is on
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAck'
+              example:
+                ok: true
+        '400':
+          description: No setup is waiting
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-no-pending
+                params: {}
+                status: 400
+                title: There is no setup waiting for confirmation.
+                type: https://anybot.test/problems/account_two_step_no_pending
+        '401':
+          description: Code missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-setup-code-wrong
+                params: {}
+                status: 401
+                title: The verification code is wrong.
+                type: https://anybot.test/problems/account_two_step_setup_code_wrong
+        '429':
+          description: Too many wrong codes
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-rate
+                params: {}
+                status: 429
+                title: Too many wrong verification codes; try again in 5 minutes.
+                type: https://anybot.test/problems/account_two_step_rate
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/account/two-step/disable:
+    post:
+      tags:
+      - account
+      summary: Turn two-step verification off
+      description: Requires the current code; the secret and the recovery codes are removed. Answers ok when two-step was already off. Requires the Idempotency-Key header.
+      operationId: post_account_two_step_disable
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoStepCodeRequest'
+            example:
+              code: '123456'
+        required: true
+      responses:
+        '200':
+          description: Two-step verification is off
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAck'
+              example:
+                ok: true
+        '401':
+          description: Code missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-setup-code-wrong
+                params: {}
+                status: 401
+                title: The verification code is wrong.
+                type: https://anybot.test/problems/account_two_step_setup_code_wrong
+        '429':
+          description: Too many wrong codes
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-rate
+                params: {}
+                status: 429
+                title: Too many wrong verification codes; try again in 5 minutes.
+                type: https://anybot.test/problems/account_two_step_rate
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/account/two-step/setup:
+    post:
+      tags:
+      - account
+      summary: Start setting up two-step verification
+      description: Returns a new authenticator secret and 8 recovery codes, shown only this once. Nothing changes until the setup is confirmed. When two-step is already on, the current code is required. Requires the Idempotency-Key header.
+      operationId: post_account_two_step_setup
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoStepCodeRequest'
+            example:
+              code: '123456'
+        required: true
+      responses:
+        '200':
+          description: Setup started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoStepSetup'
+              example:
+                otpauth_uri: otpauth://totp/AnyBot:alice?secret=GEZDGNBVGY3TQOJQ&issuer=AnyBot&period=30&digits=6
+                recovery_codes:
+                - 0a1b2c3d4e
+                - 5f6a7b8c9d
+                secret: GEZDGNBVGY3TQOJQ
+        '401':
+          description: Current code missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-setup-code-wrong
+                params: {}
+                status: 401
+                title: 'The verification code is wrong: enter the current six digits from your authenticator app.'
+                type: https://anybot.test/problems/account_two_step_setup_code_wrong
+        '429':
+          description: Too many wrong codes
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-two-step-rate
+                params: {}
+                status: 429
+                title: Too many wrong verification codes; try again in 5 minutes.
+                type: https://anybot.test/problems/account_two_step_rate
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
   /v1/admin/accounts/{account}/disable:
     post:
       tags:
@@ -1061,6 +1494,521 @@ paths:
                 type: https://anybot.test/problems/problem_internal
       security:
       - bearer: []
+  /v1/computers:
+    get:
+      tags:
+      - computers
+      summary: List the computers of the account
+      description: Every live computer with its online state, and when and why it went offline.
+      operationId: get_computers
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputersView'
+              example:
+                computers:
+                - delegate_enabled: false
+                  device_id: 018f-device
+                  name: study
+                  online: true
+                  paired: false
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/computers/delegate:
+    post:
+      tags:
+      - computers
+      summary: Switch delegation of the calling computer
+      description: Only the computer itself may change its own switch.
+      operationId: post_computers_delegate
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerDelegateRequest'
+            example:
+              device_id: 018f-device
+              enabled: true
+        required: true
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAck'
+              example:
+                ok: true
+        '400':
+          description: Missing idempotency key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-missing
+                params: {}
+                status: 400
+                title: The Idempotency-Key header is required.
+                type: https://anybot.test/problems/account_idempotency_missing
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '403':
+          description: Only the computer itself may change this
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-delegate-self-only
+                params: {}
+                status: 403
+                title: Only the computer itself can change this switch
+                type: https://anybot.test/problems/computer_delegate_self_only
+        '404':
+          description: No such computer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-not-found
+                params: {}
+                status: 404
+                title: There is no such computer in this account
+                type: https://anybot.test/problems/computer_not_found
+        '409':
+          description: Idempotency key conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-conflict
+                params: {}
+                status: 409
+                title: This request id was already used with a different body.
+                type: https://anybot.test/problems/account_idempotency_conflict
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/computers/pair:
+    post:
+      tags:
+      - computers
+      summary: Add a computer with a pairing code
+      description: No account credential is needed. A wrong code waits 0.3 seconds. The same Idempotency-Key and code from the same address replace the credential of a computer that never used it.
+      operationId: post_computers_pair
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairRedeemRequest'
+            example:
+              code: '048213'
+              name: server room
+        required: true
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSession'
+              example:
+                account: alice
+                bearer_key: a1b2c3d4
+                device_id: 018f-device
+        '400':
+          description: Name too long
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-name-too-long
+                params: {}
+                status: 400
+                title: A computer name can have at most 60 characters
+                type: https://anybot.test/problems/computer_name_too_long
+        '403':
+          description: Client version too old
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: install-version-old
+                params: {}
+                status: 403
+                title: This app version is too old.
+                type: https://anybot.test/problems/install_version_old
+        '429':
+          description: Too many wrong pairing codes
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computers-pair-rate
+                params: {}
+                status: 429
+                title: 'Too many wrong pairing codes: try again in 5 minutes'
+                type: https://anybot.test/problems/computers_pair_rate
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+  /v1/computers/pairing-code:
+    post:
+      tags:
+      - computers
+      summary: Make a pairing code for a new computer
+      description: 'Six digits, valid for 10 minutes, one use. The password must have been entered in the last 15 minutes. A retry makes a new code: the code itself is never stored.'
+      operationId: post_computers_pairing_code
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: accepted for uniformity; a repeated key makes a new code because the code itself is never stored
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairingCodeRequest'
+            example: {}
+        required: true
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingCodeReply'
+              example:
+                code: '048213'
+                expires_at_ms: 1700000600000
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '403':
+          description: The password must be entered again first
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-reauth-required
+                params: {}
+                status: 403
+                title: Enter your password again first
+                type: https://anybot.test/problems/account_reauth_required
+        '429':
+          description: Too many pairing codes are waiting
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computers-pair-full
+                params: {}
+                status: 429
+                title: 'Too many computers are waiting to pair: try again later'
+                type: https://anybot.test/problems/computers_pair_full
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/computers/remove:
+    post:
+      tags:
+      - computers
+      summary: Remove a computer from the account
+      description: A computer may remove itself; removing another one is refused for computers added with a pairing code.
+      operationId: post_computers_remove
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerRemoveRequest'
+            example:
+              device_id: 018f-device
+        required: true
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAck'
+              example:
+                ok: true
+        '400':
+          description: Missing idempotency key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-missing
+                params: {}
+                status: 400
+                title: The Idempotency-Key header is required.
+                type: https://anybot.test/problems/account_idempotency_missing
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '403':
+          description: A paired computer cannot do this
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-paired-forbidden
+                params: {}
+                status: 403
+                title: A computer added with a pairing code cannot do this
+                type: https://anybot.test/problems/computer_paired_forbidden
+        '404':
+          description: No such computer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-not-found
+                params: {}
+                status: 404
+                title: There is no such computer in this account
+                type: https://anybot.test/problems/computer_not_found
+        '409':
+          description: Idempotency key conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-conflict
+                params: {}
+                status: 409
+                title: This request id was already used with a different body.
+                type: https://anybot.test/problems/account_idempotency_conflict
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/computers/rename:
+    post:
+      tags:
+      - computers
+      summary: Rename a computer
+      description: Control characters become spaces; at most 60 characters; the name must be free in the account.
+      operationId: post_computers_rename
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerRenameRequest'
+            example:
+              device_id: 018f-device
+              name: study
+        required: true
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAck'
+              example:
+                ok: true
+        '400':
+          description: Name too long
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-name-too-long
+                params: {}
+                status: 400
+                title: A computer name can have at most 60 characters
+                type: https://anybot.test/problems/computer_name_too_long
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '404':
+          description: No such computer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-not-found
+                params: {}
+                status: 404
+                title: There is no such computer in this account
+                type: https://anybot.test/problems/computer_not_found
+        '409':
+          description: Idempotency key conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-conflict
+                params: {}
+                status: 409
+                title: This request id was already used with a different body.
+                type: https://anybot.test/problems/account_idempotency_conflict
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
   /v1/health:
     get:
       tags:
@@ -1105,6 +2053,198 @@ paths:
                 type: https://anybot.test/problems/internal
       security:
       - {}
+  /v1/mailbox/claim:
+    post:
+      tags:
+      - mailbox
+      summary: Claim one letter from the calling computer's mailbox
+      description: 'The server lets exactly one claim win, with one conditional update. A refused claim says why: already reassigned, taken by another computer, already claimed by the caller, or withdrawn. A letter that waited ten seconds without being claimed is reassigned to the Bot''s computer before the claim is decided. Only computers and the runner service can call this.'
+      operationId: post_mailbox_claim
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimRequest'
+            example:
+              letter_id: 018f-letter-uuidv7
+        required: true
+      responses:
+        '200':
+          description: The letter content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimReply'
+              example:
+                content:
+                  bot: 018f-bot-uuidv7
+                kind: round
+                letter_id: 018f-letter-uuidv7
+        '400':
+          description: Missing idempotency key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-missing
+                params: {}
+                status: 400
+                title: The Idempotency-Key header is required.
+                type: https://anybot.test/problems/account_idempotency_missing
+        '403':
+          description: Not a computer or the runner service
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: device-no-permission
+                params: {}
+                status: 403
+                title: This device has no permission to do this
+                type: https://anybot.test/problems/device_no_permission
+        '404':
+          description: No such letter for this computer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: mailbox-letter-unknown
+                params: {}
+                status: 404
+                title: There is no such letter for this computer
+                type: https://anybot.test/problems/mailbox_letter_unknown
+        '409':
+          description: Reassigned, taken by another computer, already yours, withdrawn, or an idempotency key conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: mailbox-claim-reassigned
+                params: {}
+                status: 409
+                title: 'This letter was reassigned to another computer: do not run it'
+                type: https://anybot.test/problems/mailbox_claim_reassigned
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/mailbox/round:
+    post:
+      tags:
+      - mailbox
+      summary: Hand one round to a computer's mailbox
+      description: The server picks the computer from the credential, the optional named computer and the availability rules, puts one letter into its mailbox and sends a hint on that computer's notification stream. A computer that is offline or has the delegate switch off is replaced by the Bot's computer and a line is written on the Bot stream. Computers added with a pairing code cannot call this.
+      operationId: post_mailbox_round
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoundRequest'
+            example:
+              bot: 018f-bot-uuidv7
+              computer: null
+        required: true
+      responses:
+        '200':
+          description: The letter and where it went
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoundReply'
+              example:
+                device_id: 018f-device-uuidv7
+                letter_id: 018f-letter-uuidv7
+                reassigned: offline
+        '400':
+          description: Missing idempotency key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-missing
+                params: {}
+                status: 400
+                title: The Idempotency-Key header is required.
+                type: https://anybot.test/problems/account_idempotency_missing
+        '403':
+          description: A paired computer, the runner service, or a Bot that is not the caller's
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-paired-forbidden
+                params: {}
+                status: 403
+                title: A computer added with a pairing code cannot do this
+                type: https://anybot.test/problems/computer_paired_forbidden
+        '404':
+          description: No such computer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: computer-not-found
+                params: {}
+                status: 404
+                title: There is no such computer in this account
+                type: https://anybot.test/problems/computer_not_found
+        '409':
+          description: Idempotency key conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-idempotency-conflict
+                params: {}
+                status: 409
+                title: This request id was already used with a different body.
+                type: https://anybot.test/problems/account_idempotency_conflict
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
   /v1/server/status:
     get:
       tags:
@@ -1649,7 +2789,7 @@ paths:
       - streams
       summary: Cancel, stop, wake, answer a card or change the done criteria of a task
       description: |-
-        A device asks the server to decide. The server records the decision on the bot stream with the task id. A card answer is accepted once per card: the second answer is refused and names the device that answered first.
+        A device asks the server to decide. The server records the decision on the bot stream with the task id. A card answer is accepted once per card: the second answer is refused with card-already-answered and names the device that answered first. An answer without a card id is refused with card-answer-stale. An answer for a card that is not the one the task waits for (never shown, replaced by a later card, or the task was stopped or cancelled) is refused with card-not-waiting.
         The Idempotency-Key header is required.
       operationId: post_streams_referee
       parameters:
@@ -1710,7 +2850,7 @@ paths:
                 title: You cannot write this stream.
                 type: https://anybot.test/problems/record_no_permission
         '409':
-          description: The card was already answered, or the page is out of date
+          description: The card was already answered, is no longer waiting, or the page is out of date (no card id)
           content:
             application/problem+json:
               schema:
@@ -1810,6 +2950,105 @@ components:
           - 'null'
           format: int64
           example: 1
+    ClaimReply:
+      type: object
+      required:
+      - letter_id
+      - kind
+      - content
+      properties:
+        content:
+          type: object
+        kind:
+          type: string
+          example: round
+        letter_id:
+          type: string
+          example: 018f-letter-uuidv7
+    ClaimRequest:
+      type: object
+      required:
+      - letter_id
+      properties:
+        letter_id:
+          type: string
+          example: 018f-letter-uuidv7
+    ComputerDelegateRequest:
+      type: object
+      required:
+      - device_id
+      - enabled
+      properties:
+        device_id:
+          type: string
+          example: 018f-device-uuidv7
+        enabled:
+          type: boolean
+          example: true
+    ComputerRemoveRequest:
+      type: object
+      required:
+      - device_id
+      properties:
+        device_id:
+          type: string
+          example: 018f-device-uuidv7
+    ComputerRenameRequest:
+      type: object
+      required:
+      - device_id
+      - name
+      properties:
+        device_id:
+          type: string
+          example: 018f-device-uuidv7
+        name:
+          type: string
+          example: study Mac
+    ComputerView:
+      type: object
+      required:
+      - device_id
+      - name
+      - online
+      - delegate_enabled
+      - paired
+      properties:
+        delegate_enabled:
+          type: boolean
+          example: false
+        device_id:
+          type: string
+          example: 018f-device-uuidv7
+        name:
+          type: string
+          example: desk
+        offline_at_ms:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          example: 1700000000000
+        offline_reason:
+          type:
+          - string
+          - 'null'
+          example: computers-offline-no-signal
+        online:
+          type: boolean
+          example: true
+        paired:
+          type: boolean
+          example: false
+    ComputersView:
+      type: object
+      required:
+      - computers
+      properties:
+        computers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComputerView'
     HealthResponse:
       type: object
       required:
@@ -1873,11 +3112,43 @@ components:
         device_id:
           type: string
           example: d1
+        used_recovery:
+          type:
+          - boolean
+          - 'null'
+          example: true
     MessageParams:
       type: object
       additionalProperties: {}
       propertyNames:
         type: string
+    PairRedeemRequest:
+      type: object
+      required:
+      - code
+      - name
+      properties:
+        code:
+          type: string
+          example: '048213'
+        name:
+          type: string
+          example: server room
+    PairingCodeReply:
+      type: object
+      required:
+      - code
+      - expires_at_ms
+      properties:
+        code:
+          type: string
+          example: '048213'
+        expires_at_ms:
+          type: integer
+          format: int64
+          example: 1700000600000
+    PairingCodeRequest:
+      type: object
     PasswordChangeRequest:
       type: object
       required:
@@ -1888,6 +3159,14 @@ components:
           type: string
           example: newlongenough
         old:
+          type: string
+          example: longenough
+    PasswordReenterRequest:
+      type: object
+      required:
+      - password
+      properties:
+        password:
           type: string
           example: longenough
     ProblemJson:
@@ -2079,6 +3358,36 @@ components:
         new:
           type: string
           example: newlongenough
+    RoundReply:
+      type: object
+      required:
+      - letter_id
+      - device_id
+      properties:
+        device_id:
+          type: string
+          example: 018f-device-uuidv7
+        letter_id:
+          type: string
+          example: 018f-letter-uuidv7
+        reassigned:
+          type:
+          - string
+          - 'null'
+          example: offline
+    RoundRequest:
+      type: object
+      required:
+      - bot
+      properties:
+        bot:
+          type: string
+          example: 018f-bot-uuidv7
+        computer:
+          type:
+          - string
+          - 'null'
+          example: 018f-device-uuidv7
     SettingEntry:
       type: object
       required:
@@ -2192,6 +3501,58 @@ components:
               id:
                 type: string
                 example: 018f-bot-uuidv7
+    TwoStepChallenge:
+      type: object
+      required:
+      - challenge
+      - account
+      properties:
+        account:
+          type: string
+          example: alice
+        challenge:
+          type: string
+          example: 9f2c4e7a1b3d5f60
+    TwoStepCodeRequest:
+      type: object
+      properties:
+        code:
+          type:
+          - string
+          - 'null'
+          example: '123456'
+    TwoStepLoginRequest:
+      type: object
+      required:
+      - challenge
+      - code
+      properties:
+        challenge:
+          type: string
+          example: 9f2c4e7a1b3d5f60
+        code:
+          type: string
+          example: '123456'
+    TwoStepSetup:
+      type: object
+      required:
+      - otpauth_uri
+      - secret
+      - recovery_codes
+      properties:
+        otpauth_uri:
+          type: string
+          example: otpauth://totp/AnyBot:alice?secret=GEZDGNBVGY3TQOJQ&issuer=AnyBot&period=30&digits=6
+        recovery_codes:
+          type: array
+          items:
+            type: string
+          example:
+          - 0a1b2c3d4e
+          - 5f6a7b8c9d
+        secret:
+          type: string
+          example: GEZDGNBVGY3TQOJQ
   securitySchemes:
     bearer:
       type: http
@@ -2207,3 +3568,7 @@ tags:
   description: admin-only server operations
 - name: streams
   description: 'record streams: append and replay after N'
+- name: computers
+  description: 'the computers of an account: list, rename, remove'
+- name: mailbox
+  description: 'letters for a computer: hand a round over, claim a letter'

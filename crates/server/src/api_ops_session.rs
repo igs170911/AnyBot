@@ -58,9 +58,13 @@ pub async fn logout(
     if let Some(replay) = guard_replay(pool, &key, &raw, &scope).await? {
         return Ok(replay);
     }
-    sessions::delete_sessions(pool, &[&caller.session_id])
-        .await
-        .map_err(internal_sqlx)?;
+    if caller.credential == CredentialKind::Computer {
+        crate::computers_service::remove(&state, pool, &caller.account, &caller.device_id).await?;
+    } else {
+        sessions::delete_sessions(pool, &[&caller.session_id])
+            .await
+            .map_err(internal_sqlx)?;
+    }
     crate::sse_revoke::revoke_sse(&state, &caller.account);
     let value = ack_value(&body)?;
     let answer = record(pool, &state, &key, &raw, &scope, StatusCode::OK, &value).await?;

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE outbox SET state = ?, reject_code = ?, rejected_at_ms = ? WHERE local_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "b3eb419499cd8f4372aa3205f2aa157af2921d8d85be3dc83ca01e51e2556c4f"
+}

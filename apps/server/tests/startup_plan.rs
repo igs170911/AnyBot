@@ -10,7 +10,6 @@ use anybot_app_server::{Parsed, bind_plan, help_text, parse_launch, startup_line
 
 use anybot_app_server as _;
 use anybot_app_test as _;
-use anybot_foundation as _;
 use anybot_messages::{Catalog, Lang, MessageCode, Params};
 use anybot_server as _;
 use anybot_store_server as _;
@@ -23,8 +22,12 @@ use tracing as _;
 
 use test_harness::{Program, run_program, test_dir, write_file_with_mode};
 
-const GOOD_BOOTSTRAP: &str =
-    "postgresql://anybot:fixture-not-a-secret@localhost:5432/anybot_test\n";
+const GOOD_DATABASE: &str = "postgresql://anybot:fixture-not-a-secret@localhost:5432/anybot_test";
+
+fn good_bootstrap() -> Result<String, String> {
+    let key = anybot_foundation::MasterKey::generate().map_err(|e| e.to_string())?;
+    Ok(anybot_app_test::bootstrap_text(GOOD_DATABASE, &key))
+}
 
 fn server_program(args: Vec<String>) -> Program {
     Program::new(env!("CARGO_BIN_EXE_anybot-server"), args)
@@ -37,7 +40,7 @@ fn bootstrap_args(path: &std::path::Path) -> Vec<String> {
 fn scratch_bootstrap(test: &str, mode: u32) -> Result<std::path::PathBuf, String> {
     let dir = test_dir(test)?;
     let path = dir.join("boot.conf");
-    write_file_with_mode(&path, GOOD_BOOTSTRAP, mode)?;
+    write_file_with_mode(&path, &good_bootstrap()?, mode)?;
     Ok(path)
 }
 

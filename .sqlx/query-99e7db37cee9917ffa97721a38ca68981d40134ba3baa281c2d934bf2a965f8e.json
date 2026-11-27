@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO outbox (stream, record_id, kind, content, created_at_ms,\n                task_id, offline_at_create, attempted_at_ms, offline_sent, state, reject_code,\n                rejected_at_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": []
+  },
+  "hash": "99e7db37cee9917ffa97721a38ca68981d40134ba3baa281c2d934bf2a965f8e"
+}

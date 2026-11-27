@@ -12,8 +12,8 @@ use anybot_foundation as _;
 use anybot_foundation::SystemClock;
 use anybot_messages::{Catalog, MessageCode, Params};
 use anybot_server::{
-    DEFAULT_PORT, Pool, ServerConfig, boot, product_migrations, read_config_rows, set_config_rows,
-    write_config_row,
+    DEFAULT_PORT, Pool, SecretKeys, ServerConfig, boot, product_migrations, read_config_rows,
+    set_config_rows, write_config_row,
 };
 use anybot_store_server as _;
 use axum as _;
@@ -34,15 +34,16 @@ fn server_bin() -> ServerProgram {
 async fn additive_fixture_survives_a_boot_back_to_the_product_migrations() -> Result<(), String> {
     let db = db_start("server_boot_3").await?;
     let pool = open_pool(&db).await?;
+    let keys = db.secret_keys()?;
     let clock = Arc::new(SystemClock);
     let first = {
         let mut m = product_migrations();
-        boot(&pool, clock.as_ref(), &mut m, "9.9.9").await
+        boot(&pool, clock.as_ref(), &mut m, "9.9.9", &keys).await
     };
     let upgraded = fixture_migrator("0003_fixture_extra.sql").await;
     let outcome = match first {
         Ok(_started) => match upgraded {
-            Ok(mut migrator) => boot_up_and_down(&pool, clock.as_ref(), &mut migrator).await,
+            Ok(mut migrator) => boot_up_and_down(&pool, clock.as_ref(), &mut migrator, &keys).await,
             Err(msg) => Err(msg),
         },
         Err(err) => Err(format!("product boot rejected: {err:?}")),
@@ -55,8 +56,9 @@ async fn boot_up_and_down(
     pool: &Pool,
     clock: &SystemClock,
     upgraded: &mut anybot_server::Migrator,
+    keys: &SecretKeys,
 ) -> Result<(), String> {
-    let up = boot(pool, clock, upgraded, "9.9.10").await;
+    let up = boot(pool, clock, upgraded, "9.9.10", keys).await;
     match up {
         Ok(_started) => {}
         Err(err) => {
@@ -69,7 +71,7 @@ async fn boot_up_and_down(
     }
     let back = {
         let mut m = product_migrations();
-        boot(pool, clock, &mut m, "9.9.9").await
+        boot(pool, clock, &mut m, "9.9.9", keys).await
     };
     match back {
         Ok(_started) => {}
@@ -88,13 +90,14 @@ async fn boot_up_and_down(
 async fn migration_failure_keeps_the_schema_and_the_old_set_boots() -> Result<(), String> {
     let db = db_start("boot_2_failure").await?;
     let pool = open_pool(&db).await?;
+    let keys = db.secret_keys()?;
     let clock = Arc::new(SystemClock);
     let before = public_table_names(&pool).await?;
     let broken = fixture_migrator("0003_fixture_broken.sql").await;
-    let outcome = run_broken_migration(&pool, clock.as_ref(), broken, &before).await;
+    let outcome = run_broken_migration(&pool, clock.as_ref(), broken, &before, &keys).await;
     let old = {
         let mut m = product_migrations();
-        boot(&pool, clock.as_ref(), &mut m, "9.9.9").await
+        boot(&pool, clock.as_ref(), &mut m, "9.9.9", &keys).await
     };
     let _result = db.stop().await;
     match old {
@@ -108,12 +111,13 @@ async fn run_broken_migration(
     clock: &SystemClock,
     broken: Result<anybot_server::Migrator, String>,
     before: &[String],
+    keys: &SecretKeys,
 ) -> Result<(), String> {
     let mut migrator = match broken {
         Ok(m) => m,
         Err(msg) => return Err(msg),
     };
-    let result = boot(pool, clock, &mut migrator, "9.9.10").await;
+    let result = boot(pool, clock, &mut migrator, "9.9.10", keys).await;
     if result.is_ok() {
         return Err("broken migration was accepted".to_owned());
     }

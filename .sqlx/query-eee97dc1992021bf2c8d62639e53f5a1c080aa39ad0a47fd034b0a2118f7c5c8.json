@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO two_step_used_steps (account, step, used_at_ms) VALUES ($1, $2, $3) ON CONFLICT (account, step) DO UPDATE SET used_at_ms = EXCLUDED.used_at_ms WHERE two_step_used_steps.used_at_ms < $4 RETURNING step",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "step",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "two_step_used_steps",
+            "name": "step"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Int8", "Int8", "Int8"]
+    },
+    "nullable": [false]
+  },
+  "hash": "eee97dc1992021bf2c8d62639e53f5a1c080aa39ad0a47fd034b0a2118f7c5c8"
+}

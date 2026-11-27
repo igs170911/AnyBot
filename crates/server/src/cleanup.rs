@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::sync::Notify;
 
 use anybot_foundation::{Clock, TimestampMs};
-use anybot_store_server::{Pool, auth_events, idempotency};
+use anybot_store_server::{Pool, auth_events, idempotency, two_step_challenges, two_step_codes};
 
 pub const CLEANUP_SPAN: Duration = Duration::from_secs(3600);
 pub const AUTH_RETENTION_MS: u64 = 24 * 3600 * 1000;
@@ -42,6 +42,13 @@ async fn prune_every(pool: &Pool, clock: &Arc<dyn Clock>) -> Result<(), sqlx::Er
     let idem_floor = retention_floor(clock.now_ms(), IDEM_RETENTION_MS)?;
     auth_events::prune_auth_events_before(pool, auth_floor).await?;
     idempotency::prune_idempotency_before(pool, idem_floor).await?;
+    two_step_challenges::prune_challenges_before(pool, auth_floor).await?;
+    let step_floor = anybot_domain::two_step::reuse_floor(retention_floor(clock.now_ms(), 0)?);
+    two_step_codes::prune_used_steps_before(pool, step_floor).await?;
+    let now =
+        i64::try_from(clock.now_ms().millis()).map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+    anybot_store_server::pairing_codes::prune_expired(pool, now).await?;
+    anybot_store_server::mailbox::prune_closed(pool, auth_floor).await?;
     Ok(())
 }
 

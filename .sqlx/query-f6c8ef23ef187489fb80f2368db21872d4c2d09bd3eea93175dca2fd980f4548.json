@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE computers SET last_seen_ms = $2 WHERE device_id = $1 AND last_seen_ms < $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "f6c8ef23ef187489fb80f2368db21872d4c2d09bd3eea93175dca2fd980f4548"
+}

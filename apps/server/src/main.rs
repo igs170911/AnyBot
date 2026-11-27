@@ -17,7 +17,7 @@ use test_harness as _;
 use tracing as _;
 
 use anybot_app_server::{Ctx, Parsed, emit, parse_launch, server_run, subcommand_plan};
-use anybot_foundation::{self as _, ServerCommand, log_version, version_string};
+use anybot_foundation::{self as _, log_version, version_string};
 use anybot_messages as _;
 use anybot_server as _;
 use anybot_store_server as _;
@@ -40,14 +40,10 @@ async fn main() -> ExitCode {
         }
         Err(failure) => return ctx.report(&failure),
     };
-    if let Some(ServerCommand::ResetPassword { account }) = &args.command {
-        return anybot_app_server::cli_reset::reset_main(
-            &args,
-            log_version(&version),
-            account,
-            &mut ctx,
-        )
-        .await;
+    if let Some(code) =
+        anybot_app_server::commands::run_command(&args, log_version(&version), &mut ctx).await
+    {
+        return code;
     }
     if let Some(failure) = subcommand_plan(&args) {
         return ctx.report(&failure);

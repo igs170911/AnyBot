@@ -26,7 +26,7 @@ pub(crate) async fn verify_password(
 pub(crate) fn credential_is_cookie(body: &LoginRequest) -> Result<bool, CallerDenied> {
     match body.credential.as_str() {
         "cookie" => Ok(true),
-        "bearer" => Ok(false),
+        "bearer" | "computer" => Ok(false),
         _ => Err(crate::caller::denied_code(
             axum::http::StatusCode::UNAUTHORIZED,
             anybot_messages::MessageCode::AccountLoginCredentials,
@@ -34,12 +34,17 @@ pub(crate) fn credential_is_cookie(body: &LoginRequest) -> Result<bool, CallerDe
     }
 }
 
+pub(crate) fn credential_is_computer(body: &LoginRequest) -> bool {
+    body.credential == crate::two_step_challenge::CREDENTIAL_COMPUTER
+}
+
 pub(crate) async fn open_session(
     state: &AppState,
     pool: &Pool,
-    body: &LoginRequest,
+    label: &str,
     account: &str,
     cookie_mode: bool,
+    used_recovery: bool,
 ) -> Result<LoginSession, CallerDenied> {
     let now_ms = state.clock.now_ms().millis();
     let at_ms = i64::try_from(now_ms).map_err(internal_text)?;
@@ -51,7 +56,7 @@ pub(crate) async fn open_session(
         &uuid::Uuid::now_v7().to_string(),
         account,
         &key_digest(&key),
-        &body.label,
+        label,
         &device_id,
         at_ms,
     )
@@ -63,6 +68,7 @@ pub(crate) async fn open_session(
         bearer_key,
         account: account.to_owned(),
         device_id,
+        used_recovery: used_recovery.then_some(true),
     })
 }
 

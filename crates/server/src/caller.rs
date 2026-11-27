@@ -23,6 +23,8 @@ use crate::problems::{auth_problem, problem_response};
 pub enum CredentialKind {
     Cookie,
     Bearer,
+    Computer,
+    Runner,
 }
 
 impl Caller {
@@ -34,6 +36,7 @@ impl Caller {
             device_id: String::new(),
             credential: CredentialKind::Bearer,
             address,
+            paired: false,
         }
     }
 }
@@ -45,6 +48,7 @@ pub struct Caller {
     pub device_id: String,
     pub credential: CredentialKind,
     pub address: String,
+    pub paired: bool,
 }
 
 #[derive(Debug)]
@@ -91,7 +95,16 @@ impl FromRequestParts<AppState> for Caller {
                 ));
             }
         };
-        resolve_session(credential, &address, state).await
+        let caller = resolve_session(credential, &address, state).await?;
+        if caller.credential == CredentialKind::Runner
+            && !anybot_domain::computer_actions::runner_may_call(parts.uri.path())
+        {
+            return Err(denied_code(
+                StatusCode::FORBIDDEN,
+                MessageCode::DeviceNoPermission,
+            ));
+        }
+        Ok(caller)
     }
 }
 

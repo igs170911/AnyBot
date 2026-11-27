@@ -11,7 +11,8 @@ use anybot_server::run::{boot_database, connect_retry_line};
 use anybot_server::startup::parse_listen_host;
 use anybot_server::startup::startup_message;
 use anybot_server::{
-    AppState, Pool, Started, build_router, open_lazy, probe, probe_pool, product_migrations,
+    AppState, Pool, SecretKeys, Started, build_router, open_lazy, probe, probe_pool,
+    product_migrations,
 };
 
 use crate::bridge::{code_from_str, params_from_ref};
@@ -95,12 +96,16 @@ pub async fn boot_plan(
     version: &str,
     bootstrap: &ServerBootstrap,
     ctx: &mut Ctx,
-) -> Result<Started, ExitCode> {
+) -> Result<(Started, Arc<SecretKeys>), ExitCode> {
+    let keys = match SecretKeys::from_master(&bootstrap.master_key) {
+        Ok(keys) => Arc::new(keys),
+        Err(err) => return Err(messages_exit(ctx, &err.to_string())),
+    };
     let clock = SystemClock;
     let mut migrations = product_migrations();
-    let outcome = boot_database(pool, &clock, &mut migrations, version).await;
+    let outcome = boot_database(pool, &clock, &mut migrations, version, &keys).await;
     match outcome {
-        Ok(started) => Ok(started),
+        Ok(started) => Ok((started, keys)),
         Err(err) => {
             if ctx.print_ref(&err.log_line(bootstrap)).is_err() {
                 return Err(ExitCode::from(3));
@@ -168,6 +173,7 @@ pub struct StagedServing {
     pub listeners: Vec<TcpListener>,
     pub app: axum::Router,
     pub shutdown: Arc<tokio::sync::Notify>,
+    pub sweeper: tokio::task::JoinHandle<()>,
     pub reference: MessageRef,
     pub account_count: i64,
     pub new_invite: Option<String>,
@@ -188,8 +194,8 @@ pub async fn stage_serve(
         Ok(pool) => pool,
         Err(err) => return Err(messages_exit(ctx, &err)),
     };
-    let started = match boot_plan(&pool, version, &startup.bootstrap, ctx).await {
-        Ok(started) => started,
+    let (started, keys) = match boot_plan(&pool, version, &startup.bootstrap, ctx).await {
+        Ok(booted) => booted,
         Err(code) => return Err(code),
     };
     ctx.set_lang(&started.config.language);
@@ -200,8 +206,7 @@ pub async fn stage_serve(
     };
     let account_count = started.account_count;
     let new_invite = started.new_invite.clone();
-    let clock = Arc::new(SystemClock);
-    let mut state = AppState::with_pool(version, clock, pool, started.config);
+    let mut state = AppState::with_pool(version, clock, pool, started.config).with_secrets(keys);
     let mut bound: Vec<u16> = Vec::new();
     for listener in &listeners {
         let addr = listener
@@ -210,6 +215,9 @@ pub async fn stage_serve(
         bound.push(addr.port());
     }
     state.listen_ports = Arc::new(bound);
+    anybot_server::runner_device::ensure_runner_device(&state)
+        .await
+        .map_err(|err| messages_exit(ctx, &err))?;
     let shutdown = Arc::clone(&state.shutdown);
     let cleanup = anybot_server::cleanup::cleanup_loop(
         state
@@ -218,12 +226,14 @@ pub async fn stage_serve(
         Arc::clone(&state.clock),
         Arc::clone(&shutdown),
     );
+    let sweeper = anybot_server::presence_sweep::spawn_sweeper(state.clone());
     let app = build_router(state);
     drop(cleanup);
     Ok(StagedServing {
         listeners,
         app,
         shutdown,
+        sweeper,
         reference,
         account_count,
         new_invite,
@@ -235,44 +245,18 @@ pub async fn finish_serve(staged: StagedServing, ctx: &mut Ctx) -> ExitCode {
         return ExitCode::from(3);
     }
     note_startup_counts(ctx, staged.account_count, &staged.new_invite);
-    watch_stop_signals(&staged.shutdown);
-    serve_exit_stoppable(
+    crate::stop_signals::watch_stop_signals(&staged.shutdown);
+    let stop = Arc::clone(&staged.shutdown);
+    let code = serve_exit_stoppable(
         &mut ctx.catalog,
         staged.listeners,
         staged.app,
         staged.shutdown,
     )
-    .await
-}
-
-fn watch_stop_signals(shutdown: &Arc<tokio::sync::Notify>) {
-    let stop = Arc::clone(shutdown);
-    tokio::spawn(async move {
-        let _reported = listen_for_stop()
-            .await
-            .map_or_else(|err| err.to_string(), |()| "stopped".to_owned());
-        stop.notify_waiters();
-    });
-}
-
-#[cfg(unix)]
-async fn listen_for_stop() -> Result<(), std::io::Error> {
-    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-    tokio::select! {
-        _ctrl = tokio::signal::ctrl_c() => Ok(()),
-        Some(_sig) = terminate.recv() => Ok(()),
-    }
-}
-
-#[cfg(windows)]
-async fn listen_for_stop() -> Result<(), std::io::Error> {
-    let mut ctrl_break = tokio::signal::windows::ctrl_break()?;
-    let mut ctrl_close = tokio::signal::windows::ctrl_close()?;
-    tokio::select! {
-        _ctrl = tokio::signal::ctrl_c() => Ok(()),
-        _break = ctrl_break.recv() => Ok(()),
-        _close = ctrl_close.recv() => Ok(()),
-    }
+    .await;
+    stop.notify_waiters();
+    let _joined = staged.sweeper.await;
+    code
 }
 
 pub async fn serve_main(args: &ServerLaunchArgs, version: &str, ctx: &mut Ctx) -> ExitCode {

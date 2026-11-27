@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE pairing_codes SET redeemed_device = $2 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text"]
+    },
+    "nullable": []
+  },
+  "hash": "78c4cbaf7b2cfc27b86a7d95e929ff47acbf4f2c915a7172a7378a6a21de5b93"
+}

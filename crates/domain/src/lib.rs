@@ -3,10 +3,17 @@ use serde_json as _;
 #[cfg(test)]
 use serde_json as _;
 pub mod account_name;
+pub mod card_waiting;
+pub mod computer_actions;
+pub mod computer_name;
+pub mod computer_presence;
 pub mod conn_auth;
 pub mod goal_brake;
 pub mod goal_followup;
 pub mod invite;
+pub mod mailbox_letter;
+pub mod mailbox_route;
+pub mod pairing_rules;
 pub mod record_actions;
 pub mod record_rules;
 pub mod referee;
@@ -28,11 +35,14 @@ pub mod task_journal;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
+pub mod two_step;
 pub mod version_release;
 #[cfg(test)]
 mod version_release_tests;
 pub mod window;
 
+#[cfg(test)]
+mod card_waiting_tests;
 #[cfg(test)]
 mod conn_auth_tests;
 #[cfg(test)]

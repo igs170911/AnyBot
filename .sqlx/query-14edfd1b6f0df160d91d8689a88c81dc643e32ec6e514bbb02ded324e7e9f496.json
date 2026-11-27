@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE two_step_recovery SET pending = FALSE WHERE account = $1 AND pending",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": []
+  },
+  "hash": "14edfd1b6f0df160d91d8689a88c81dc643e32ec6e514bbb02ded324e7e9f496"
+}

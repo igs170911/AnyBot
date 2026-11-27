@@ -21,7 +21,8 @@ pub async fn serve_start_with(
     let clock = FakeClock::new(1_700_000_000_000);
     let clock_dyn: Arc<dyn Clock> = Arc::clone(&clock) as Arc<dyn Clock>;
     let mut migrations: Migrator = product_migrations();
-    let started = boot_database(&pool, &*clock_dyn, &mut migrations, TEST_VERSION)
+    let keys = db.secret_keys()?;
+    let started = boot_database(&pool, &*clock_dyn, &mut migrations, TEST_VERSION, &keys)
         .await
         .map_err(|e| format!("{e:?}"))?;
     let startup = crate::startup::startup_capture(&started, db.listen_port)?;
@@ -48,7 +49,8 @@ pub async fn serve_start_real(test: &str) -> Result<ServedReal, String> {
     let pool = open_url(&db.url).await.map_err(|e| e.to_string())?;
     let clock = Arc::new(SystemClock);
     let mut migrations: Migrator = product_migrations();
-    let started = boot_database(&pool, clock.as_ref(), &mut migrations, TEST_VERSION)
+    let keys = db.secret_keys()?;
+    let started = boot_database(&pool, clock.as_ref(), &mut migrations, TEST_VERSION, &keys)
         .await
         .map_err(|e| format!("{e:?}"))?;
     let clock_arc: Arc<dyn Clock> = clock;

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM mailbox_letters WHERE state IN ('reassigned', 'retracted') AND closed_at_ms < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "1ee001e7f979c5e51c9cfb8c4df651ccc3959a23bf4124c4e54c0666f9c629b3"
+}
