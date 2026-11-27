@@ -456,12 +456,8 @@ dependencies = [
 name = "anybot-sync"
 version = "0.1.0"
 dependencies = [
- "anybot-app-test",
- "anybot-domain",
  "anybot-foundation",
  "anybot-protocol",
- "anybot-server",
- "anybot-server-test",
  "anybot-store-client",
  "bytes",
  "futures-util",
@@ -471,12 +467,28 @@ dependencies = [
  "reqwest 0.12.28",
  "rustls",
  "serde_json",
- "sqlx",
  "test-harness",
  "thiserror 2.0.21",
  "tokio",
  "tower",
  "url",
+]
+
+[[package]]
+name = "anybot-sync-test"
+version = "0.1.0"
+dependencies = [
+ "anybot-app-test",
+ "anybot-domain",
+ "anybot-foundation",
+ "anybot-protocol",
+ "anybot-server-test",
+ "anybot-store-client",
+ "anybot-sync",
+ "serde_json",
+ "sqlx",
+ "test-harness",
+ "tokio",
 ]
 
 [[package]]

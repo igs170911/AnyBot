@@ -1,18 +1,5 @@
 use anybot_domain as _;
-use anybot_protocol as _;
-use anybot_server as _;
 use anybot_server_test as _;
-use anybot_store_client as _;
-use bytes as _;
-use futures_util as _;
-use getrandom as _;
-use proptest as _;
-use rand as _;
-use reqwest as _;
-use rustls as _;
-use thiserror as _;
-use tower as _;
-use url as _;
 
 use std::future::Future;
 use std::path::Path;

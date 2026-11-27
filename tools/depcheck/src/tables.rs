@@ -148,6 +148,7 @@ fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
             .into_iter()
             .collect(),
     );
+    m.insert("anybot-sync-test".to_owned(), BTreeSet::new());
     m.insert(
         "anybot-app-test".to_owned(),
         [
