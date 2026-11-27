@@ -55,14 +55,11 @@ T-account-n4-3
 T-account-n4-4
 T-account-n5-1
 T-account-n5-2
-T-account-n5-3
-T-account-n5-4
 T-account-n5-5
 T-account-n6-1
 T-account-n6-2
 T-account-n6-3
 T-account-n6-4
-T-account-n6-5
 T-account-n7-1
 T-account-n7-2
 T-account-n8-1
@@ -888,7 +885,6 @@ T-conn-batch-3
 T-conn-heartbeat-5
 T-conn-post-1
 T-conn-post-3
-T-conn-post-4
 T-conn-push-1
 T-conn-push-2
 T-conn-push-3
@@ -2115,7 +2111,6 @@ T-server-n6-4
 T-server-n6-5
 T-server-n7-1
 T-server-n7-2
-T-server-n8-1
 T-server-n8-2
 T-server-n8-3
 T-server-n9-1
@@ -2245,8 +2240,6 @@ T-skills-who-2
 T-skills-who-3
 T-skills-who-4
 T-skills-who-5
-T-sync-after-1
-T-sync-after-3
 T-sync-append-1
 T-sync-append-2
 T-sync-append-3
@@ -2274,11 +2267,8 @@ T-sync-referee-2
 T-sync-referee-3
 T-sync-referee-4
 T-sync-referee-5
-T-sync-replica-1
 T-sync-replica-2
-T-sync-replica-3
 T-sync-replica-4
-T-sync-replica-5
 T-sync-scope-1
 T-sync-scope-2
 T-sync-seq-1

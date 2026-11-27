@@ -100,3 +100,41 @@ async fn a_setting_change_leaves_with_the_offset_measured_from_the_server_time_h
     assert_eq!(changed, Some(changed_at));
     Ok(())
 }
+
+#[tokio::test]
+async fn a_setting_unknown_to_this_version_is_kept_and_merged() -> Result<(), String> {
+    let clock = FakeClock::new(START_MS);
+    let wire = FakeWire::new(&clock, vec![]);
+    let changed = i64::try_from(START_MS).map_err(|e| e.to_string())?;
+    let record = serde_json::json!({
+        "seq": 1,
+        "device_id": "0190aaaa-bbbb-7ccc-8ddd-000000000001",
+        "kind": "setting",
+        "content": {
+            "field": "future_flag",
+            "item": null,
+            "value": "on",
+            "changed_at_ms": changed,
+            "offset_ms": 0,
+        },
+        "created_at_ms": changed,
+        "offline_sent": false,
+    });
+    wire.on_get(
+        "account",
+        vec![Ok(page_reply("account", &[record], false, 1))],
+    );
+    let client = start("setting_unknown", &clock, &wire).await?;
+    let mut shown = Vec::new();
+    for _round in 0..200 {
+        shown = client.settings().await.map_err(|e| e.to_string())?;
+        if !shown.is_empty() {
+            break;
+        }
+        sleep_real(Duration::from_millis(5)).await;
+    }
+    assert_eq!(shown.len(), 1);
+    assert_eq!(shown.first().map(|s| s.field.as_str()), Some("future_flag"));
+    assert_eq!(shown.first().map(|s| s.value.as_str()), Some("on"));
+    Ok(())
+}

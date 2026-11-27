@@ -16,7 +16,7 @@ pub mod store;
 pub use error::StoreError;
 pub use model::{
     ACCOUNT_STREAM, ApplyOutcome, LocalRecord, NewOutbox, OutboxRow, OutboxState, Progress,
-    bot_stream,
+    bot_stream, written_by_server,
 };
 pub use open::{DATABASE_FILE, OpenOutcome};
 pub use recover::{Recovery, RecoveryReason};

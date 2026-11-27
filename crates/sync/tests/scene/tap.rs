@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use test_harness::FakeClock;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::{JoinHandle, JoinSet};
@@ -9,6 +10,8 @@ use tokio::task::{JoinHandle, JoinSet};
 pub(crate) struct Exchange {
     pub(crate) request: String,
     pub(crate) status: Option<u16>,
+    pub(crate) key: Option<String>,
+    pub(crate) at_ms: Option<u64>,
 }
 
 pub(crate) struct Tap {
@@ -19,6 +22,13 @@ pub(crate) struct Tap {
 
 impl Tap {
     pub(crate) async fn start(upstream: SocketAddr) -> Result<Tap, String> {
+        Tap::start_timed(upstream, None).await
+    }
+
+    pub(crate) async fn start_timed(
+        upstream: SocketAddr,
+        clock: Option<Arc<FakeClock>>,
+    ) -> Result<Tap, String> {
         let listener = TcpListener::bind(("127.0.0.1", 0))
             .await
             .map_err(|e| e.to_string())?;
@@ -28,7 +38,7 @@ impl Tap {
         let task = tokio::spawn(async move {
             let mut live = JoinSet::new();
             while let Ok((client, _from)) = listener.accept().await {
-                live.spawn(relay(client, upstream, Arc::clone(&log)));
+                live.spawn(relay(client, upstream, Arc::clone(&log), clock.clone()));
             }
         });
         Ok(Tap { port, seen, task })
@@ -52,7 +62,12 @@ impl Drop for Tap {
     }
 }
 
-async fn relay(mut client: TcpStream, upstream: SocketAddr, log: Arc<Mutex<Vec<Exchange>>>) {
+async fn relay(
+    mut client: TcpStream,
+    upstream: SocketAddr,
+    log: Arc<Mutex<Vec<Exchange>>>,
+    clock: Option<Arc<FakeClock>>,
+) {
     let mut head = Vec::new();
     let mut chunk = [0u8; 4096];
     while !head.windows(4).any(|window| window == b"\r\n\r\n") {
@@ -61,16 +76,21 @@ async fn relay(mut client: TcpStream, upstream: SocketAddr, log: Arc<Mutex<Vec<E
             Ok(count) => head.extend_from_slice(chunk.get(..count).unwrap_or_default()),
         }
     }
-    let line = String::from_utf8_lossy(&head)
-        .lines()
-        .next()
-        .unwrap_or_default()
-        .to_owned();
+    let text = String::from_utf8_lossy(&head).into_owned();
+    let line = text.lines().next().unwrap_or_default().to_owned();
+    let key = text.lines().find_map(|header| {
+        let (name, value) = header.split_once(':')?;
+        name.eq_ignore_ascii_case("idempotency-key")
+            .then(|| value.trim().to_owned())
+    });
+    let at_ms = clock.as_ref().map(|clock| clock.now_ms());
     let index = {
         let mut seen = log.lock().unwrap_or_else(PoisonError::into_inner);
         seen.push(Exchange {
             request: line,
             status: None,
+            key,
+            at_ms,
         });
         seen.len().saturating_sub(1)
     };

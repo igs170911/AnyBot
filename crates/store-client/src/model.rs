@@ -7,6 +7,11 @@ pub fn bot_stream(bot_id: &str) -> String {
     format!("bot/{bot_id}")
 }
 
+#[must_use]
+pub fn written_by_server(kind: &str) -> bool {
+    anybot_domain::record_rules::DEVICE_FORBIDDEN_KINDS.contains(&kind)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalRecord {
     pub stream: String,

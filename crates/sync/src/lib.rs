@@ -3,6 +3,8 @@ pub use anybot_foundation::Secret;
 #[cfg(test)]
 use anybot_app_test as _;
 #[cfg(test)]
+use anybot_domain as _;
+#[cfg(test)]
 use anybot_server as _;
 #[cfg(test)]
 use anybot_server_test as _;

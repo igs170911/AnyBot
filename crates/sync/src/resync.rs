@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
-use anybot_domain::record_rules::DEVICE_FORBIDDEN_KINDS;
 use anybot_protocol::StoredRecord;
-use anybot_store_client::{LocalRecord, NewOutbox};
+use anybot_store_client::{LocalRecord, NewOutbox, written_by_server};
 
 use crate::core::Core;
 use crate::error::SyncError;
@@ -96,7 +95,7 @@ async fn resend_missing(
         }
         if local.purged {
             notice.purged_not_resent = notice.purged_not_resent.saturating_add(1);
-        } else if DEVICE_FORBIDDEN_KINDS.contains(&local.kind.as_str()) {
+        } else if written_by_server(&local.kind) {
             notice.server_written_not_resent = notice.server_written_not_resent.saturating_add(1);
         } else if !queued.contains(&local.record_id) {
             core.store.enqueue(&outbox_item(&local)).await?;
