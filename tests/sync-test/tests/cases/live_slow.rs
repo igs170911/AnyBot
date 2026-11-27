@@ -55,12 +55,20 @@ fn beat_gaps(beats: &[u64], from_ms: u64, to_ms: u64) -> Vec<u64> {
 
 #[tokio::test]
 async fn t_account_n8_1() -> Result<(), String> {
-    timeout_real(slow_catch_up("sync_n8_1"), Duration::from_secs(110)).await?
+    timeout_real(
+        Box::pin(slow_catch_up("sync_n8_1")),
+        Duration::from_secs(110),
+    )
+    .await?
 }
 
 #[tokio::test]
 async fn t_conn_heartbeat_5() -> Result<(), String> {
-    timeout_real(slow_catch_up("sync_hb_5"), Duration::from_secs(110)).await?
+    timeout_real(
+        Box::pin(slow_catch_up("sync_hb_5")),
+        Duration::from_secs(110),
+    )
+    .await?
 }
 
 async fn slow_catch_up(name: &str) -> Result<(), String> {

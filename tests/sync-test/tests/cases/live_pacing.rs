@@ -153,7 +153,7 @@ fn planned_wait(link: &LinkStatus) -> Result<u64, String> {
 
 #[tokio::test]
 async fn t_server_n16_3() -> Result<(), String> {
-    timeout_real(server_n16_3(), Duration::from_secs(100)).await?
+    timeout_real(Box::pin(server_n16_3()), Duration::from_secs(100)).await?
 }
 
 async fn server_n16_3() -> Result<(), String> {

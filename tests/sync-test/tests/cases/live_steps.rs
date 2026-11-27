@@ -106,7 +106,7 @@ async fn sync_offline_3() -> Result<(), String> {
 
 #[tokio::test]
 async fn t_sync_offline_4() -> Result<(), String> {
-    timeout_real(sync_offline_4(), Duration::from_secs(90)).await?
+    timeout_real(Box::pin(sync_offline_4()), Duration::from_secs(90)).await?
 }
 
 async fn sync_offline_4() -> Result<(), String> {

@@ -83,7 +83,7 @@ fn asked_after_40(lines: &[String], before: &[LocalRecord]) -> Result<(), String
 
 #[tokio::test]
 async fn t_conn_sse_2() -> Result<(), String> {
-    timeout_real(conn_sse_2(), Duration::from_secs(90)).await?
+    timeout_real(Box::pin(conn_sse_2()), Duration::from_secs(90)).await?
 }
 
 async fn conn_sse_2() -> Result<(), String> {
