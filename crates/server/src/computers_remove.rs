@@ -11,5 +11,6 @@ pub(crate) async fn finish_removal(
 ) -> Result<(), CallerDenied> {
     state.presence.forget(device_id);
     crate::device_notes::revoke_device(state, device_id);
+    crate::mailbox_removal::settle_removed(state, pool, device_id).await?;
     crate::computers_log::announce(state, pool, account, "removed", device_id).await
 }

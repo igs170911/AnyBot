@@ -33,11 +33,11 @@ pub fn revoke_device(state: &AppState, device_id: &str) {
     });
 }
 
-pub fn notify_mail(state: &AppState, device_id: &str, mail_seq: i64) {
+pub fn notify_mail(state: &AppState, device_id: &str) {
     state.bus.publish(Notification {
         kind: mail_kind(device_id),
         at: state.clock.now_ms(),
-        seq: Some(mail_seq),
+        seq: None,
     });
 }
 

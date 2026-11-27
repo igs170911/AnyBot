@@ -26,7 +26,7 @@ async fn run_sweeper(state: AppState) {
             biased;
             () = &mut stop => break,
             () = state.clock.sleep(Duration::from_millis(SWEEP_SPAN_MS)) => {
-                report(&sweep_once(&state).await);
+                report(&sweep_all(&state).await);
             }
         }
     }
@@ -41,7 +41,12 @@ fn report(outcome: &Result<(), CallerDenied>) {
 
 async fn finish(state: &AppState) -> Result<(), CallerDenied> {
     flush_seen(state).await?;
-    sweep_once(state).await
+    sweep_all(state).await
+}
+
+async fn sweep_all(state: &AppState) -> Result<(), CallerDenied> {
+    sweep_once(state).await?;
+    crate::mailbox_sweep::sweep_letters(state).await
 }
 
 pub(crate) async fn flush_seen(state: &AppState) -> Result<(), CallerDenied> {

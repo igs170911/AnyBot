@@ -200,6 +200,13 @@ pub enum MessageCode {
     ComputersPairFull,
     ComputersOfflineNoSignal,
     ComputersOfflineRemoved,
+    MailboxClaimReassigned,
+    MailboxClaimTaken,
+    MailboxClaimYours,
+    MailboxClaimRetracted,
+    MailboxLetterUnknown,
+    MailboxReassignOffline,
+    MailboxReassignDelegateOff,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -595,6 +602,25 @@ const TABLE: &[(MessageCode, &str)] = &[
     (
         MessageCode::ComputersOfflineRemoved,
         "computers-offline-removed",
+    ),
+    (
+        MessageCode::MailboxClaimReassigned,
+        "mailbox-claim-reassigned",
+    ),
+    (MessageCode::MailboxClaimTaken, "mailbox-claim-taken"),
+    (MessageCode::MailboxClaimYours, "mailbox-claim-yours"),
+    (
+        MessageCode::MailboxClaimRetracted,
+        "mailbox-claim-retracted",
+    ),
+    (MessageCode::MailboxLetterUnknown, "mailbox-letter-unknown"),
+    (
+        MessageCode::MailboxReassignOffline,
+        "mailbox-reassign-offline",
+    ),
+    (
+        MessageCode::MailboxReassignDelegateOff,
+        "mailbox-reassign-delegate-off",
     ),
 ];
 

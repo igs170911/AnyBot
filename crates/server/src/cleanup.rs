@@ -48,6 +48,7 @@ async fn prune_every(pool: &Pool, clock: &Arc<dyn Clock>) -> Result<(), sqlx::Er
     let now =
         i64::try_from(clock.now_ms().millis()).map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
     anybot_store_server::pairing_codes::prune_expired(pool, now).await?;
+    anybot_store_server::mailbox::prune_closed(pool, auth_floor).await?;
     Ok(())
 }
 

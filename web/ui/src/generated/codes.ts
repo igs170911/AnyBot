@@ -196,7 +196,14 @@ export type MessageCode =
   "computers-pair-rate" |
   "computers-pair-full" |
   "computers-offline-no-signal" |
-  "computers-offline-removed";
+  "computers-offline-removed" |
+  "mailbox-claim-reassigned" |
+  "mailbox-claim-taken" |
+  "mailbox-claim-yours" |
+  "mailbox-claim-retracted" |
+  "mailbox-letter-unknown" |
+  "mailbox-reassign-offline" |
+  "mailbox-reassign-delegate-off";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -395,4 +402,11 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "computers-pair-full",
   "computers-offline-no-signal",
   "computers-offline-removed",
+  "mailbox-claim-reassigned",
+  "mailbox-claim-taken",
+  "mailbox-claim-yours",
+  "mailbox-claim-retracted",
+  "mailbox-letter-unknown",
+  "mailbox-reassign-offline",
+  "mailbox-reassign-delegate-off",
 ];

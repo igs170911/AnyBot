@@ -129,19 +129,22 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/account/password", post(change_password))
         .route(
             "/v1/streams/append",
-            post(crate::api_streams_append::append),
+            post(crate::mailbox_card::append_noting_issuer),
         )
         .route("/v1/streams/after", get(crate::api_streams_after::after))
         .route("/v1/streams/record", get(crate::api_streams_record::record))
         .route("/v1/settings", get(crate::api_settings::settings))
-        .route("/v1/streams/referee", post(crate::api_referee::referee))
+        .route(
+            "/v1/streams/referee",
+            post(crate::mailbox_card::referee_with_letter),
+        )
         .route(
             "/v1/streams/actions",
             post(crate::api_streams_action::action),
         )
         .route(
             "/v1/streams/notifications",
-            get(crate::api_streams_sse::notifications),
+            get(crate::mailbox_sse::notifications),
         )
         .route("/v1/admin/invite", get(invite))
         .route("/v1/admin/invite/rotate", post(rotate_invite))
@@ -157,6 +160,7 @@ pub fn build_router(state: AppState) -> Router {
         )
         .merge(two_step_routes())
         .merge(crate::computers_routes::routes())
+        .merge(crate::mailbox_routes::routes())
         .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),

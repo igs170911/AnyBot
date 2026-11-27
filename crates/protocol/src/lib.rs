@@ -7,6 +7,7 @@ pub mod events;
 pub mod evidence_record;
 pub mod gate_record;
 pub mod known_task_event_kind;
+pub mod mailbox_api;
 pub mod record_actions;
 pub mod referee_api;
 pub mod settings_api;
@@ -47,6 +48,7 @@ pub use evidence_record::{
 };
 pub use gate_record::{GateNo, GateOutcome, GateRecord, JudgementSource, RuleLayer};
 pub use known_task_event_kind::KnownTaskEventKind;
+pub use mailbox_api::{ClaimReply, ClaimRequest, MailHint, RoundReply, RoundRequest};
 pub use record_actions::{RecordAction, RecordActionReply, RecordActionRequest};
 pub use referee_api::{RefereeAction, RefereeReply, RefereeRequest};
 pub use settings_api::{SETTING_KIND, SettingContent, SettingEntry, SettingsView};

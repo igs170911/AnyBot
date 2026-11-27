@@ -62,6 +62,8 @@ impl Modify for BearerAuth {
         crate::api_pairing::create_pairing_code,
         crate::api_pairing::reauth_password,
         crate::api_pairing_redeem::redeem_pairing,
+        crate::api_mailbox::deliver_round,
+        crate::api_mailbox::claim_letter,
     ),
     components(schemas(
         crate::health::HealthResponse,
@@ -104,6 +106,10 @@ impl Modify for BearerAuth {
         anybot_protocol::PairingCodeReply,
         anybot_protocol::PairRedeemRequest,
         anybot_protocol::PasswordReenterRequest,
+        anybot_protocol::RoundRequest,
+        anybot_protocol::RoundReply,
+        anybot_protocol::ClaimRequest,
+        anybot_protocol::ClaimReply,
     )),
     servers(
         (url = "http://127.0.0.1:8787", description = "loopback development server (M3 listens on loopback only)"),
@@ -116,7 +122,8 @@ impl Modify for BearerAuth {
         (name = "account", description = "accounts, sessions and passwords"),
         (name = "admin", description = "admin-only server operations"),
         (name = "streams", description = "record streams: append and replay after N"),
-        (name = "computers", description = "the computers of an account: list, rename, remove")
+        (name = "computers", description = "the computers of an account: list, rename, remove"),
+        (name = "mailbox", description = "letters for a computer: hand a round over, claim a letter")
     )
 )]
 pub struct ApiDoc;
