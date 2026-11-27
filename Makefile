@@ -56,7 +56,7 @@ test:
 _test-body:
 ifdef NEXTTEST
 	@mkdir -p target
-	bash tools/test-gate.sh run target/nextest.log $(CARGO) nextest run --workspace --test-threads 1
+	bash tools/test-gate.sh run target/nextest.log $(CARGO) nextest run --workspace
 else
 	$(CARGO) test --workspace
 endif
