@@ -54,6 +54,10 @@ pub use wire::{Wire, WireFailure, WireFuture, WireLimits, WireMethod, WireReply,
 #[cfg(test)]
 mod after_merge_tests;
 #[cfg(test)]
+mod fake_wire;
+#[cfg(test)]
+mod flush_tests;
+#[cfg(test)]
 mod outbox_tests;
 #[cfg(test)]
 mod sync_id_tests;

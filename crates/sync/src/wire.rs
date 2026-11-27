@@ -44,6 +44,7 @@ pub struct WireReply {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WireFailure {
     ConnectTimeout,
+    ConnectFailed(String),
     WaitTimeout,
     Network(String),
 }

@@ -28,9 +28,14 @@ pub(crate) async fn flush_once(core: &Core) -> Result<Flush, SyncError> {
     core.store
         .outbox_drop_expired(now.saturating_sub(SEVEN_DAYS_MS))
         .await?;
-    let Some((stream, rows)) = next_batch(core).await? else {
+    if next_batch(core).await?.is_none() {
         core.refresh_counts().await?;
         return Ok(Flush::Idle);
+    }
+    wait_pace(core).await?;
+    let Some((stream, rows)) = next_batch(core).await? else {
+        core.refresh_counts().await?;
+        return Ok(Flush::Sent);
     };
     let outcome = send_batch(core, &stream, rows).await?;
     core.refresh_counts().await?;
@@ -80,11 +85,14 @@ pub(crate) fn selector_of(stream: &str) -> Result<StreamSelector, SyncError> {
 }
 
 async fn send_batch(core: &Core, stream: &str, rows: Vec<OutboxRow>) -> Result<Flush, SyncError> {
-    let items = prepare(core, &rows).await?;
+    let (rows, fresh) = mark_attempts(core, rows).await?;
+    if rows.is_empty() {
+        return Ok(Flush::Sent);
+    }
     let ids: Vec<&str> = rows.iter().map(|row| row.record_id.as_str()).collect();
     let body = serde_json::to_string(&AppendRequest {
         stream: selector_of(stream)?,
-        items,
+        items: items_of(core, &rows)?,
     })
     .map_err(|e| SyncError::Encode(e.to_string()))?;
     let request = WireRequest {
@@ -94,13 +102,20 @@ async fn send_batch(core: &Core, stream: &str, rows: Vec<OutboxRow>) -> Result<F
         idempotency_key: Some(append_key(stream, &ids)),
         limits: WireLimits::BACKGROUND,
     };
-    wait_pace(core).await?;
     match core.wire.call(request).await {
         Ok(reply) => {
             core.note_reply(&reply)?;
             settle(core, &rows, &reply).await
         }
         Err(failure) => {
+            if matches!(
+                failure,
+                WireFailure::ConnectTimeout | WireFailure::ConnectFailed(_)
+            ) {
+                for local_id in fresh {
+                    core.store.outbox_clear_attempt(local_id).await?;
+                }
+            }
             core.note_failure(&failure_text(&failure))?;
             Ok(Flush::Retry)
         }
@@ -111,7 +126,7 @@ pub(crate) fn failure_text(failure: &WireFailure) -> String {
     match failure {
         WireFailure::ConnectTimeout => "connect-timeout".to_owned(),
         WireFailure::WaitTimeout => "wait-timeout".to_owned(),
-        WireFailure::Network(text) => text.clone(),
+        WireFailure::ConnectFailed(text) | WireFailure::Network(text) => text.clone(),
     }
 }
 
@@ -132,27 +147,47 @@ pub(crate) async fn wait_pace(core: &Core) -> Result<(), SyncError> {
     Ok(())
 }
 
-async fn prepare(core: &Core, rows: &[OutboxRow]) -> Result<Vec<RecordItem>, SyncError> {
+async fn mark_attempts(
+    core: &Core,
+    rows: Vec<OutboxRow>,
+) -> Result<(Vec<OutboxRow>, Vec<i64>), SyncError> {
     let now = core.now_ms()?;
-    let mut items = Vec::with_capacity(rows.len());
+    let mut kept = Vec::with_capacity(rows.len());
+    let mut fresh = Vec::new();
     for row in rows {
-        let late = now.saturating_sub(row.created_at_ms) > OFFLINE_AFTER_MS;
-        let offline_sent = row.offline_at_create && late;
-        if row.attempted_at_ms.is_none() {
-            core.store
-                .outbox_mark_attempt(row.local_id, now, offline_sent, &row.content)
-                .await?;
+        let offline_sent = offline_flag(&row, now);
+        let present = core
+            .store
+            .outbox_mark_attempt(row.local_id, now, offline_sent, &row.content)
+            .await?;
+        if !present {
+            continue;
         }
-        items.push(RecordItem {
+        if row.attempted_at_ms.is_none() {
+            fresh.push(row.local_id);
+        }
+        kept.push(row);
+    }
+    Ok((kept, fresh))
+}
+
+fn offline_flag(row: &OutboxRow, now: i64) -> bool {
+    row.offline_at_create && now.saturating_sub(row.created_at_ms) > OFFLINE_AFTER_MS
+}
+
+fn items_of(core: &Core, rows: &[OutboxRow]) -> Result<Vec<RecordItem>, SyncError> {
+    let now = core.now_ms()?;
+    Ok(rows
+        .iter()
+        .map(|row| RecordItem {
             device_id: row.record_id.clone(),
             kind: row.kind.clone(),
             content: row.content.clone(),
             created_at_ms: row.created_at_ms,
-            offline_sent,
+            offline_sent: offline_flag(row, now),
             task_id: row.task_id.clone(),
-        });
-    }
-    Ok(items)
+        })
+        .collect())
 }
 
 async fn settle(core: &Core, rows: &[OutboxRow], reply: &WireReply) -> Result<Flush, SyncError> {

@@ -33,6 +33,8 @@ pub(crate) async fn send(
 fn failure_of(error: &reqwest::Error, gate: &Arc<ConnectGate>) -> WireFailure {
     if gate.timed_out() {
         WireFailure::ConnectTimeout
+    } else if error.is_connect() {
+        WireFailure::ConnectFailed(error.to_string())
     } else {
         WireFailure::Network(error.to_string())
     }

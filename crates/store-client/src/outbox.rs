@@ -116,15 +116,25 @@ impl Store {
         now_ms: i64,
         offline_sent: bool,
         content: &Value,
-    ) -> Result<(), StoreError> {
+    ) -> Result<bool, StoreError> {
         let text = text_of(content)?;
         let flagged = flag(offline_sent);
-        sqlx::query!(
+        let done = sqlx::query!(
             "UPDATE outbox SET attempted_at_ms = COALESCE(attempted_at_ms, ?),
                 offline_sent = COALESCE(offline_sent, ?), content = ? WHERE local_id = ?",
             now_ms,
             flagged,
             text,
+            local_id
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(done.rows_affected() == 1)
+    }
+
+    pub async fn outbox_clear_attempt(&self, local_id: i64) -> Result<(), StoreError> {
+        sqlx::query!(
+            "UPDATE outbox SET attempted_at_ms = NULL, offline_sent = NULL WHERE local_id = ?",
             local_id
         )
         .execute(&self.pool)

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE outbox SET attempted_at_ms = NULL, offline_sent = NULL WHERE local_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "f40882767266ea2db658879df877dc6ce7f8ebab2af1b36cce37639da5ac18c8"
+}
