@@ -9,6 +9,8 @@ mode="$3"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 url_file="$root/target/sqlx_seed.url"
 pid_file="$root/target/sqlx_seed.pid"
+client_db="$root/target/sqlx_client_seed.sqlite3"
+client_url="sqlite://$client_db"
 
 rm -f "$url_file" "$pid_file"
 "$cargo" run -q -p test-harness --bin sqlx_seed -- \
@@ -51,10 +53,14 @@ done
 [ -s "$url_file" ] || { echo "sqlx seed did not write the url file within 120s" >&2; exit 1; }
 db_url="$(cat "$url_file")"
 
+rm -f "$client_db" "$client_db-wal" "$client_db-shm"
+"$cargo" sqlx database create --database-url "$client_url"
+"$cargo" sqlx migrate run --source "$root/migrations/client" --database-url "$client_url"
+
 if [ "$mode" = "check" ]; then
-  SQLX_OFFLINE=false DATABASE_URL="$db_url" "$cargo" sqlx prepare --workspace --all --check -- --all-targets
+  SQLX_OFFLINE=false DATABASE_URL="$db_url" CLIENT_DATABASE_URL="$client_url" "$cargo" sqlx prepare --workspace --all --check -- --all-targets
 else
-  SQLX_OFFLINE=false DATABASE_URL="$db_url" "$cargo" sqlx prepare --workspace --all -- --all-targets
+  SQLX_OFFLINE=false DATABASE_URL="$db_url" CLIENT_DATABASE_URL="$client_url" "$cargo" sqlx prepare --workspace --all -- --all-targets
   "$pnpm" exec biome format --write "$root/.sqlx"
 fi
 

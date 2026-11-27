@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE streams SET through_seq = ?, through_record_id = ? WHERE stream = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "981225a465ad5cb62688d9e02b8f98107630f3e58f3c67b810aafddd77017dc6"
+}

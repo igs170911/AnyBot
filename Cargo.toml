@@ -17,6 +17,7 @@ members = [
     "tests/testenv",
     "tests/app-test",
     "tests/server-test",
+    "tests/sync-test",
 ]
 
 [workspace.package]

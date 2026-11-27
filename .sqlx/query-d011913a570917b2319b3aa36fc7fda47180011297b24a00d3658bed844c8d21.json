@@ -1,0 +1,35 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT kind, content FROM records WHERE stream = ? AND seq = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "kind",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "content",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [false, false]
+  },
+  "hash": "d011913a570917b2319b3aa36fc7fda47180011297b24a00d3658bed844c8d21"
+}

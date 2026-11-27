@@ -9,6 +9,7 @@ use test_harness::{Program, Running, migration_fixture, pg_start, pg_stop};
 
 pub mod clockwalk;
 pub mod db_dump;
+pub mod fsutil;
 pub mod http;
 pub mod install_live;
 pub mod n106;

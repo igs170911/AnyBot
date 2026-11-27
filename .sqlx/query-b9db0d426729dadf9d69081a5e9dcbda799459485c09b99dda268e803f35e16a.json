@@ -1,0 +1,35 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT through_seq, through_record_id FROM streams WHERE stream = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "through_seq",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "streams",
+            "name": "through_seq"
+          }
+        }
+      },
+      {
+        "name": "through_record_id",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "streams",
+            "name": "through_record_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [false, false]
+  },
+  "hash": "b9db0d426729dadf9d69081a5e9dcbda799459485c09b99dda268e803f35e16a"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE outbox SET attempted_at_ms = COALESCE(attempted_at_ms, ?),\n                offline_sent = COALESCE(offline_sent, ?), content = ? WHERE local_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "f055d66c94c71ecfb421a8ea2baf7d810b79b91aac4535b2e5ac51e917b67cb2"
+}

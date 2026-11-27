@@ -1,0 +1,35 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT record_id, content FROM outbox WHERE stream = ? AND kind = 'setting'\n                AND state = 'pending' ORDER BY local_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "record_id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "record_id"
+          }
+        }
+      },
+      {
+        "name": "content",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [false, false]
+  },
+  "hash": "a4d7ee004d9bd6f19d3c375365cb2978a78e4fdfe8cf68d200afb1523549eeed"
+}

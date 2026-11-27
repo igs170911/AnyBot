@@ -1,0 +1,46 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT seq, kind, content FROM records WHERE stream = ? AND seq BETWEEN ? AND ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "seq",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "name": "kind",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "content",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [false, false, false]
+  },
+  "hash": "6084f368a2abbc16eee7d9b8fe232617fe079083abbb0110cab12ce0c4cf4fc2"
+}

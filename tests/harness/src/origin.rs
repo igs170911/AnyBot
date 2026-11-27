@@ -67,7 +67,7 @@ async fn read_head(stream: &mut TcpStream) -> Result<String, String> {
 
 fn route_of(head: &str) -> &'static str {
     for route in [
-        "peer", "hello", "beat", "gap", "stall", "quiet", "hits", "nobuffer",
+        "peer", "hello", "beat", "gap", "stall", "quiet", "hits", "nobuffer", "bulk", "events",
     ] {
         if head.contains(format!("/{route}").as_str()) {
             return route;
@@ -90,6 +90,8 @@ async fn serve_origin_counted(stream: TcpStream, peer: SocketAddr, hits: Arc<Ato
         "quiet" => quiet(&mut buffered).await,
         "hits" => hits_reply(&mut buffered, &hits).await,
         "nobuffer" => nobuffer(&mut buffered).await,
+        "bulk" => bulk(&mut buffered).await,
+        "events" => events(&mut buffered).await,
         _ => simple(&mut buffered, "unknown-route").await,
     }
 }
@@ -149,6 +151,42 @@ async fn nobuffer(stream: &mut TcpStream) {
     let _flushed = stream.flush().await.is_ok();
     tokio::time::sleep(Duration::from_millis(500)).await;
     let _written = stream.write_all(b"second-half-line!\n").await.is_ok();
+    let _shutdown = stream.shutdown().await.is_ok();
+}
+
+const BULK_BLOCKS: usize = 20;
+pub const BULK_BYTES: usize = 100_000;
+pub const EVENT_COUNT: usize = 1_000;
+
+async fn bulk(stream: &mut TcpStream) {
+    write_head(stream, BULK_BYTES).await;
+    let block = [b'x'; 5_000];
+    for _n in 0..BULK_BLOCKS {
+        let _written = stream.write_all(&block).await.is_ok();
+    }
+    let _flushed = stream.flush().await.is_ok();
+    let _shutdown = stream.shutdown().await.is_ok();
+}
+
+async fn events(stream: &mut TcpStream) {
+    let head =
+        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n";
+    let _written = stream.write_all(head.as_bytes()).await.is_ok();
+    let mut body = String::new();
+    for n in 0..EVENT_COUNT {
+        body.push_str(&["event: tick\ndata: ", &n.to_string(), "\n\n"].concat());
+        if n % 100 == 99 {
+            body.push_str(":hb\n\n");
+        }
+    }
+    for piece in body.as_bytes().chunks(7) {
+        let framed = format!("{:x}\r\n", piece.len());
+        let _written = stream.write_all(framed.as_bytes()).await.is_ok();
+        let _written = stream.write_all(piece).await.is_ok();
+        let _written = stream.write_all(b"\r\n").await.is_ok();
+    }
+    let _written = stream.write_all(b"0\r\n\r\n").await.is_ok();
+    let _flushed = stream.flush().await.is_ok();
     let _shutdown = stream.shutdown().await.is_ok();
 }
 

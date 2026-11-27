@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM outbox WHERE state = 'rejected' AND rejected_at_ms <= ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "99941ea320e3bc06737b1df931f400e24fad2b5d363fef8bd0aebc26d60c0c56"
+}

@@ -204,7 +204,8 @@ export type MessageCode =
   "mailbox-letter-unknown" |
   "mailbox-reassign-offline" |
   "mailbox-reassign-delegate-off" |
-  "card-not-waiting";
+  "card-not-waiting" |
+  "account-action-unreachable";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -411,4 +412,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "mailbox-reassign-offline",
   "mailbox-reassign-delegate-off",
   "card-not-waiting",
+  "account-action-unreachable",
 ];
