@@ -150,3 +150,7 @@ pub(crate) async fn run_status_mirror(core: Arc<Core>) {
 pub(crate) async fn run_slowness(core: Arc<Core>) {
     core.link.board.watch_slowness().await;
 }
+
+#[cfg(test)]
+#[path = "link_tests.rs"]
+mod tests;
