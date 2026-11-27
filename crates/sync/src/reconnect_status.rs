@@ -1,14 +1,18 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use anybot_foundation::{Clock, TimestampMs};
-use tokio::sync::watch;
+use tokio::sync::{Notify, watch};
 
 use crate::sse_session::SseEnd;
+
+pub const SLOW_AFTER: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinkPhase {
     Connecting,
     Connected,
+    Slow,
     Retrying,
     CredentialRejected,
     VersionTooOld,
@@ -22,6 +26,7 @@ pub enum LinkReason {
     Dropped,
     ClosedByServer,
     Rejected,
+    Slow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,11 +54,14 @@ pub fn reason_of(end: &SseEnd) -> Option<LinkReason> {
 pub struct StatusBoard {
     clock: Arc<dyn Clock>,
     sender: watch::Sender<LinkStatus>,
+    last_bytes: Mutex<TimestampMs>,
+    changed: Notify,
 }
 
 impl StatusBoard {
     #[must_use]
     pub fn new(clock: Arc<dyn Clock>) -> Self {
+        let now = clock.now_ms();
         let first = LinkStatus {
             phase: LinkPhase::Connecting,
             reason: None,
@@ -62,7 +70,12 @@ impl StatusBoard {
             failures_in_row: 0,
         };
         let (sender, _first_receiver) = watch::channel(first);
-        StatusBoard { clock, sender }
+        StatusBoard {
+            clock,
+            sender,
+            last_bytes: Mutex::new(now),
+            changed: Notify::new(),
+        }
     }
 
     #[must_use]
@@ -86,6 +99,7 @@ impl StatusBoard {
     }
 
     pub fn connected(&self) {
+        self.note_bytes();
         self.publish(LinkStatus {
             phase: LinkPhase::Connected,
             reason: None,
@@ -116,8 +130,70 @@ impl StatusBoard {
         });
     }
 
+    pub fn bytes_arrived(&self) {
+        self.note_bytes();
+        let before = self.current();
+        if before.phase == LinkPhase::Slow {
+            self.publish(LinkStatus {
+                phase: LinkPhase::Connected,
+                reason: None,
+                since: self.clock.now_ms(),
+                ..before
+            });
+        } else {
+            self.changed.notify_waiters();
+        }
+    }
+
+    pub async fn watch_slowness(&self) {
+        loop {
+            let changed = self.changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            if self.current().phase != LinkPhase::Connected {
+                changed.await;
+                continue;
+            }
+            let due = self.last_bytes_at().saturating_add_ms(SLOW_AFTER);
+            if self.clock.now_ms() >= due {
+                self.mark_slow();
+                continue;
+            }
+            tokio::select! {
+                () = self.clock.sleep_until(due) => {}
+                () = changed => {}
+            }
+        }
+    }
+
+    fn mark_slow(&self) {
+        let before = self.current();
+        self.publish(LinkStatus {
+            phase: LinkPhase::Slow,
+            reason: Some(LinkReason::Slow),
+            since: self.clock.now_ms(),
+            ..before
+        });
+    }
+
+    fn note_bytes(&self) {
+        let now = self.clock.now_ms();
+        match self.last_bytes.lock() {
+            Ok(mut guard) => *guard = now,
+            Err(poisoned) => *poisoned.into_inner() = now,
+        }
+    }
+
+    fn last_bytes_at(&self) -> TimestampMs {
+        match self.last_bytes.lock() {
+            Ok(guard) => *guard,
+            Err(poisoned) => *poisoned.into_inner(),
+        }
+    }
+
     fn publish(&self, status: LinkStatus) {
         self.sender.send_replace(status);
+        self.changed.notify_waiters();
     }
 }
 
