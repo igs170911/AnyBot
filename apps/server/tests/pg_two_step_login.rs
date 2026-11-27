@@ -142,6 +142,11 @@ async fn codes_and_reuse(served: &Served, user: &TwoStepUser) -> Result<(), Stri
     let previous = user.authenticator.previous_code_at(now)?;
     let passed = step_two(&base, &challenge, &previous, "prev").await?;
     assert_eq!(passed.status, 200, "previous step code: {}", passed.json);
+    assert!(
+        passed.json.get("used_recovery").is_none(),
+        "totp login: {}",
+        passed.json
+    );
     let next = user.authenticator.next_code_at(now)?;
     let challenge = challenge_of(&base, user, "n3-3-c").await?;
     let passed = step_two(&base, &challenge, &next, "next").await?;
@@ -167,6 +172,12 @@ async fn recovery_twice(served: &Served, user: &TwoStepUser) -> Result<(), Strin
     let challenge = challenge_of(&base, user, "n3-3-e").await?;
     let first = step_two(&base, &challenge, recovery, "rec-1").await?;
     assert_eq!(first.status, 200, "first recovery use: {}", first.json);
+    assert_eq!(
+        first.json.get("used_recovery"),
+        Some(&serde_json::Value::Bool(true)),
+        "first recovery use: {}",
+        first.json
+    );
     let challenge = challenge_of(&base, user, "n3-3-f").await?;
     let second = step_two_walked(&base, &served.clock, &challenge, recovery, "rec-2").await?;
     assert_eq!(second.status, 401, "second recovery use: {}", second.json);

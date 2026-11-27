@@ -20,6 +20,7 @@ pub(crate) struct SessionIssue<'a> {
     pub label: &'a str,
     pub cookie_mode: bool,
     pub computer: bool,
+    pub used_recovery: bool,
     pub origin: Option<&'a str>,
     pub key: &'a str,
     pub raw: &'a [u8],
@@ -36,6 +37,7 @@ pub(crate) async fn issue_session(issue: &SessionIssue<'_>) -> Result<Response, 
             issue.label,
             issue.account,
             issue.cookie_mode,
+            issue.used_recovery,
         )
         .await?
     };

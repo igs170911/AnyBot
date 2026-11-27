@@ -20,5 +20,6 @@ pub(crate) async fn open_computer(issue: &SessionIssue<'_>) -> Result<LoginSessi
         bearer_key: Some(joined.key.expose().to_owned()),
         account: issue.account.to_owned(),
         device_id: joined.device_id,
+        used_recovery: None,
     })
 }

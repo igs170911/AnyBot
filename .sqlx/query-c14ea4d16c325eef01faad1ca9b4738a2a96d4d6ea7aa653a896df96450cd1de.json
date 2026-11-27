@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT account, credential, label, created_at_ms, tries, state, passed_at_ms FROM two_step_challenges WHERE id_hash = $1",
+  "query": "SELECT account, credential, label, created_at_ms, tries, state, passed_at_ms, used_recovery FROM two_step_challenges WHERE id_hash = $1",
   "describe": {
     "columns": [
       {
@@ -79,12 +79,23 @@
             "name": "passed_at_ms"
           }
         }
+      },
+      {
+        "ordinal": 7,
+        "name": "used_recovery",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "two_step_challenges",
+            "name": "used_recovery"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": ["Bytea"]
     },
-    "nullable": [false, false, false, false, false, false, true]
+    "nullable": [false, false, false, false, false, false, true, false]
   },
-  "hash": "1ef6f226a99e4f3a0cabd123efef09cc8aea36fd7e46284cff1997b0a4729717"
+  "hash": "c14ea4d16c325eef01faad1ca9b4738a2a96d4d6ea7aa653a896df96450cd1de"
 }

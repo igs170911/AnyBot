@@ -226,6 +226,7 @@ async fn accepted(run: &LoginRun<'_>, account: &str) -> Result<Response, CallerD
         label: &run.body.label,
         cookie_mode: run.cookie_mode,
         computer: run.computer,
+        used_recovery: false,
         origin: run.origin.as_deref(),
         key: run.key,
         raw: run.raw,

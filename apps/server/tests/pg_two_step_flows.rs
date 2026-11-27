@@ -132,6 +132,32 @@ async fn second_step_replay_opens_a_new_session_or_repeats_the_failure() -> Resu
 }
 
 #[tokio::test]
+async fn recovery_code_replay_still_reports_used_recovery() -> Result<(), String> {
+    let (served, users) = served_with("two_step_recovery_replay", &["alice"]).await?;
+    let user = users.first().ok_or("no user")?;
+    let base = served.base_url();
+    let recovery = user.recovery_codes.first().ok_or("no recovery code")?;
+    let challenge = challenge_of(&base, user, "recovery-replay").await?;
+    let first = step_two(&base, &challenge, recovery, "recovery-key").await?;
+    assert_eq!(first.status, 200, "recovery login: {}", first.json);
+    let replay = step_two(&base, &challenge, recovery, "recovery-key").await?;
+    assert_eq!(
+        replay.status, 200,
+        "replayed recovery login: {}",
+        replay.json
+    );
+    for answer in [&first, &replay] {
+        assert_eq!(
+            answer.json.get("used_recovery"),
+            Some(&serde_json::Value::Bool(true)),
+            "answer: {}",
+            answer.json
+        );
+    }
+    served.stop().await
+}
+
+#[tokio::test]
 async fn admin_password_reset_keeps_two_step_on() -> Result<(), String> {
     let (served, users) = served_with("two_step_admin_reset", &["alice", "bob"]).await?;
     let admin = users.first().ok_or("no admin")?;

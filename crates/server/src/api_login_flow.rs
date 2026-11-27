@@ -44,6 +44,7 @@ pub(crate) async fn open_session(
     label: &str,
     account: &str,
     cookie_mode: bool,
+    used_recovery: bool,
 ) -> Result<LoginSession, CallerDenied> {
     let now_ms = state.clock.now_ms().millis();
     let at_ms = i64::try_from(now_ms).map_err(internal_text)?;
@@ -67,6 +68,7 @@ pub(crate) async fn open_session(
         bearer_key,
         account: account.to_owned(),
         device_id,
+        used_recovery: used_recovery.then_some(true),
     })
 }
 

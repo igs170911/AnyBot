@@ -62,24 +62,34 @@ pub(crate) struct LoginCode<'a> {
     pub code: &'a str,
 }
 
-pub(crate) async fn login_code_passes(check: &LoginCode<'_>) -> Result<bool, CallerDenied> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AcceptedCode {
+    Totp,
+    Recovery,
+}
+
+pub(crate) async fn login_code_passes(
+    check: &LoginCode<'_>,
+) -> Result<Option<AcceptedCode>, CallerDenied> {
     let now = now_ms(check.state)?;
     match classify_code(check.code) {
         CodeInput::Totp(_) => {
             let Some(step) = code_in_window(check.state, check.secret, check.code)? else {
-                return Ok(false);
+                return Ok(None);
             };
-            claim_step(check.pool, check.account, step, now, reuse_floor(now))
+            let claimed = claim_step(check.pool, check.account, step, now, reuse_floor(now))
                 .await
-                .map_err(internal_sqlx)
+                .map_err(internal_sqlx)?;
+            Ok(claimed.then_some(AcceptedCode::Totp))
         }
         CodeInput::Recovery(text) => {
             let code = Secret::from_untrusted(text);
-            use_recovery_code(check.pool, check.keys, check.account, &code, now)
+            let used = use_recovery_code(check.pool, check.keys, check.account, &code, now)
                 .await
-                .map_err(|err| unreadable(check.account, &err))
+                .map_err(|err| unreadable(check.account, &err))?;
+            Ok(used.then_some(AcceptedCode::Recovery))
         }
-        CodeInput::Malformed => Ok(false),
+        CodeInput::Malformed => Ok(None),
     }
 }
 

@@ -142,5 +142,6 @@ fn session_of(account: &str, device_id: String, key: &Secret) -> LoginSession {
         bearer_key: Some(key.expose().to_owned()),
         account: account.to_owned(),
         device_id,
+        used_recovery: None,
     }
 }

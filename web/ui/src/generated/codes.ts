@@ -169,6 +169,41 @@ export type MessageCode =
   "append-kind-forbidden" |
   "stream-bot-missing" |
   "sync-after-ahead" |
+  "server-bootstrap-line-malformed" |
+  "server-bootstrap-name-unknown" |
+  "server-bootstrap-name-duplicate" |
+  "server-bootstrap-name-missing" |
+  "server-bootstrap-master-key-malformed" |
+  "server-master-key-mismatch" |
+  "account-two-step-code-wrong" |
+  "account-two-step-setup-code-wrong" |
+  "account-two-step-expired" |
+  "account-two-step-rate" |
+  "account-two-step-no-pending" |
+  "account-two-step-unreadable" |
+  "server-two-step-reset-done" |
+  "computer-removed" |
+  "computer-name-too-long" |
+  "computer-name-empty" |
+  "computer-name-taken" |
+  "computer-not-found" |
+  "computer-delegate-self-only" |
+  "computer-paired-forbidden" |
+  "device-no-permission" |
+  "account-reauth-required" |
+  "account-reauth-password-wrong" |
+  "computers-pair-wrong" |
+  "computers-pair-rate" |
+  "computers-pair-full" |
+  "computers-offline-no-signal" |
+  "computers-offline-removed" |
+  "mailbox-claim-reassigned" |
+  "mailbox-claim-taken" |
+  "mailbox-claim-yours" |
+  "mailbox-claim-retracted" |
+  "mailbox-letter-unknown" |
+  "mailbox-reassign-offline" |
+  "mailbox-reassign-delegate-off" |
   "card-not-waiting";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
@@ -340,5 +375,40 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "append-kind-forbidden",
   "stream-bot-missing",
   "sync-after-ahead",
+  "server-bootstrap-line-malformed",
+  "server-bootstrap-name-unknown",
+  "server-bootstrap-name-duplicate",
+  "server-bootstrap-name-missing",
+  "server-bootstrap-master-key-malformed",
+  "server-master-key-mismatch",
+  "account-two-step-code-wrong",
+  "account-two-step-setup-code-wrong",
+  "account-two-step-expired",
+  "account-two-step-rate",
+  "account-two-step-no-pending",
+  "account-two-step-unreadable",
+  "server-two-step-reset-done",
+  "computer-removed",
+  "computer-name-too-long",
+  "computer-name-empty",
+  "computer-name-taken",
+  "computer-not-found",
+  "computer-delegate-self-only",
+  "computer-paired-forbidden",
+  "device-no-permission",
+  "account-reauth-required",
+  "account-reauth-password-wrong",
+  "computers-pair-wrong",
+  "computers-pair-rate",
+  "computers-pair-full",
+  "computers-offline-no-signal",
+  "computers-offline-removed",
+  "mailbox-claim-reassigned",
+  "mailbox-claim-taken",
+  "mailbox-claim-yours",
+  "mailbox-claim-retracted",
+  "mailbox-letter-unknown",
+  "mailbox-reassign-offline",
+  "mailbox-reassign-delegate-off",
   "card-not-waiting",
 ];
