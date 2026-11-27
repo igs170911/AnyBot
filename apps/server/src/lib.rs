@@ -26,6 +26,7 @@ use axum as _;
 
 pub mod bridge;
 pub mod cli_reset;
+pub mod cli_two_step;
 pub mod commands;
 pub mod line_out;
 pub mod server_run;

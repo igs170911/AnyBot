@@ -153,6 +153,7 @@ pub fn build_router(state: AppState) -> Router {
             "/v1/admin/accounts/{account}/reset-password",
             post(reset_password),
         )
+        .merge(two_step_routes())
         .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -170,4 +171,24 @@ pub fn build_router(state: AppState) -> Router {
             state,
             crate::auth_time::time_layer,
         ))
+}
+
+fn two_step_routes() -> Router<AppState> {
+    Router::new()
+        .route(
+            "/v1/account/login/two-step",
+            post(crate::api_two_step_login::login_two_step),
+        )
+        .route(
+            "/v1/account/two-step/setup",
+            post(crate::api_two_step_setup::setup_two_step),
+        )
+        .route(
+            "/v1/account/two-step/confirm",
+            post(crate::api_two_step_toggle::confirm_two_step),
+        )
+        .route(
+            "/v1/account/two-step/disable",
+            post(crate::api_two_step_toggle::disable_two_step),
+        )
 }

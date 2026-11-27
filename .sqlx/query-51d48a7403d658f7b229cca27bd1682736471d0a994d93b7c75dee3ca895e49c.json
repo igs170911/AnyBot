@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM two_step_used_steps WHERE used_at_ms < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "51d48a7403d658f7b229cca27bd1682736471d0a994d93b7c75dee3ca895e49c"
+}

@@ -14,6 +14,7 @@ pub mod streams_api;
 pub mod task_detail;
 pub mod task_events;
 pub mod turn_records;
+pub mod two_step_api;
 pub mod versions;
 
 pub use account_api::{
@@ -63,4 +64,5 @@ pub use turn_records::{
     ReportAttention, ReportOutcome, ReportStep, ReportSummary, TaskOpener, ThinkingChoice,
     TokenUsage, ToolArgs, ToolRequest, TurnEndReason, TurnInitiator,
 };
+pub use two_step_api::{TwoStepChallenge, TwoStepCodeRequest, TwoStepLoginRequest, TwoStepSetup};
 pub use versions::{PROTOCOL_RELEASES, ProtocolRelease, accepts_protocol_version};

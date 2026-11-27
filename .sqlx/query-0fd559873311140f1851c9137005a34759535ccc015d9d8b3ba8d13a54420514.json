@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO two_step_challenges (id_hash, account, credential, label, created_at_ms) VALUES ($1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Bytea", "Text", "Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "0fd559873311140f1851c9137005a34759535ccc015d9d8b3ba8d13a54420514"
+}

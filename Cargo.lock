@@ -194,11 +194,13 @@ dependencies = [
  "axum",
  "data-encoding",
  "reqwest 0.12.28",
+ "ring",
  "serde_json",
  "sqlx",
  "test-harness",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -256,9 +258,11 @@ version = "0.1.0"
 dependencies = [
  "anybot-foundation",
  "anybot-protocol",
+ "data-encoding",
  "jiff 1.0.3",
  "proptest",
  "regex",
+ "ring",
  "semver",
  "serde",
  "serde_json",

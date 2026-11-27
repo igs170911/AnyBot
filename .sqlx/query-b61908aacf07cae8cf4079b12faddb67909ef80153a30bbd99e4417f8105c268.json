@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE two_step_challenges SET tries = tries + 1 WHERE id_hash = $1 AND state = 'open' AND tries < $2 RETURNING tries",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tries",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "two_step_challenges",
+            "name": "tries"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Bytea", "Int4"]
+    },
+    "nullable": [false]
+  },
+  "hash": "b61908aacf07cae8cf4079b12faddb67909ef80153a30bbd99e4417f8105c268"
+}

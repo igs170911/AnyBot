@@ -14,10 +14,10 @@ pub async fn run_command(
             Some(crate::cli_reset::reset_main(args, version, account, ctx).await)
         }
         ServerCommand::NewMasterKey => Some(new_master_key(ctx)),
-        ServerCommand::ResetTwoStep { .. }
-        | ServerCommand::Logs
-        | ServerCommand::UpdateBotComputers
-        | ServerCommand::MigrateOld => None,
+        ServerCommand::ResetTwoStep { account } => {
+            Some(crate::cli_two_step::reset_two_step_main(args, version, account, ctx).await)
+        }
+        ServerCommand::Logs | ServerCommand::UpdateBotComputers | ServerCommand::MigrateOld => None,
     }
 }
 

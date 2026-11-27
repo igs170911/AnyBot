@@ -28,6 +28,7 @@ pub mod task_journal;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
+pub mod two_step;
 pub mod version_release;
 #[cfg(test)]
 mod version_release_tests;

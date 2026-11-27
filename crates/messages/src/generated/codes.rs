@@ -178,6 +178,13 @@ pub enum MessageCode {
     ServerBootstrapNameMissing,
     ServerBootstrapMasterKeyMalformed,
     ServerMasterKeyMismatch,
+    AccountTwoStepCodeWrong,
+    AccountTwoStepSetupCodeWrong,
+    AccountTwoStepExpired,
+    AccountTwoStepRate,
+    AccountTwoStepNoPending,
+    AccountTwoStepUnreadable,
+    ServerTwoStepResetDone,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -515,6 +522,31 @@ const TABLE: &[(MessageCode, &str)] = &[
     (
         MessageCode::ServerMasterKeyMismatch,
         "server-master-key-mismatch",
+    ),
+    (
+        MessageCode::AccountTwoStepCodeWrong,
+        "account-two-step-code-wrong",
+    ),
+    (
+        MessageCode::AccountTwoStepSetupCodeWrong,
+        "account-two-step-setup-code-wrong",
+    ),
+    (
+        MessageCode::AccountTwoStepExpired,
+        "account-two-step-expired",
+    ),
+    (MessageCode::AccountTwoStepRate, "account-two-step-rate"),
+    (
+        MessageCode::AccountTwoStepNoPending,
+        "account-two-step-no-pending",
+    ),
+    (
+        MessageCode::AccountTwoStepUnreadable,
+        "account-two-step-unreadable",
+    ),
+    (
+        MessageCode::ServerTwoStepResetDone,
+        "server-two-step-reset-done",
     ),
 ];
 

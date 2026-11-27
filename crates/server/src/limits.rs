@@ -7,10 +7,12 @@ use anybot_store_server::{Pool, auth_events};
 pub const KIND_LOGIN_FAIL: &str = "login-fail";
 pub const KIND_REGISTER: &str = "register";
 pub const KIND_PASSWORD_CHANGE: &str = "password-change";
+pub const KIND_TWO_STEP_FAIL: &str = "two-step-fail";
 pub const PAIR_LIMIT: i64 = 8;
 pub const ACCOUNT_LIMIT: i64 = 40;
 pub const REGISTER_LIMIT: i64 = 5;
 pub const PASSWORD_LIMIT: i64 = 8;
+pub const TWO_STEP_ACCOUNT_LIMIT: i64 = 8;
 
 #[derive(Clone)]
 pub struct Limiter {
@@ -32,17 +34,35 @@ impl Limiter {
         address: &str,
         account: &str,
     ) -> Result<Option<i64>, sqlx::Error> {
+        self.begin_counted(KIND_LOGIN_FAIL, address, account, ACCOUNT_LIMIT)
+            .await
+    }
+
+    pub async fn begin_two_step(
+        &self,
+        address: &str,
+        account: &str,
+    ) -> Result<Option<i64>, sqlx::Error> {
+        self.begin_counted(KIND_TWO_STEP_FAIL, address, account, TWO_STEP_ACCOUNT_LIMIT)
+            .await
+    }
+
+    async fn begin_counted(
+        &self,
+        kind: &str,
+        address: &str,
+        account: &str,
+        account_limit: i64,
+    ) -> Result<Option<i64>, sqlx::Error> {
         let floor = self.floor()?;
         let at = self.now_i64()?;
         let mut tx = self.pool.begin().await?;
-        auth_events::lock_account(&mut tx, KIND_LOGIN_FAIL, account).await?;
-        auth_events::lock_counter(&mut tx, KIND_LOGIN_FAIL, address, account).await?;
-        let id =
-            auth_events::begin_attempt(&mut *tx, KIND_LOGIN_FAIL, address, account, at).await?;
-        let pair =
-            auth_events::count_pair(&mut *tx, KIND_LOGIN_FAIL, address, account, floor).await?;
-        let total = auth_events::count_account(&mut *tx, KIND_LOGIN_FAIL, account, floor).await?;
-        if pair > PAIR_LIMIT || total > ACCOUNT_LIMIT {
+        auth_events::lock_account(&mut tx, kind, account).await?;
+        auth_events::lock_counter(&mut tx, kind, address, account).await?;
+        let id = auth_events::begin_attempt(&mut *tx, kind, address, account, at).await?;
+        let pair = auth_events::count_pair(&mut *tx, kind, address, account, floor).await?;
+        let total = auth_events::count_account(&mut *tx, kind, account, floor).await?;
+        if pair > PAIR_LIMIT || total > account_limit {
             tx.rollback().await?;
             return Ok(None);
         }

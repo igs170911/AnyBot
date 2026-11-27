@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO two_step (account, pending_sealed, pending_at_ms) VALUES ($1, $2, $3) ON CONFLICT (account) DO UPDATE SET pending_sealed = EXCLUDED.pending_sealed, pending_at_ms = EXCLUDED.pending_at_ms",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Bytea", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "4879863c277b119b5360bed57d04d42ebdd2239b66321c1696276fece8231d8f"
+}

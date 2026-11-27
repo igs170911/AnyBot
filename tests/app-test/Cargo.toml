@@ -22,6 +22,8 @@ reqwest = { workspace = true }
 serde_json = { workspace = true }
 axum = { workspace = true }
 data-encoding = { workspace = true }
+ring = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }

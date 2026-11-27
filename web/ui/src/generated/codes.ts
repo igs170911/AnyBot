@@ -174,7 +174,14 @@ export type MessageCode =
   "server-bootstrap-name-duplicate" |
   "server-bootstrap-name-missing" |
   "server-bootstrap-master-key-malformed" |
-  "server-master-key-mismatch";
+  "server-master-key-mismatch" |
+  "account-two-step-code-wrong" |
+  "account-two-step-setup-code-wrong" |
+  "account-two-step-expired" |
+  "account-two-step-rate" |
+  "account-two-step-no-pending" |
+  "account-two-step-unreadable" |
+  "server-two-step-reset-done";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -351,4 +358,11 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-bootstrap-name-missing",
   "server-bootstrap-master-key-malformed",
   "server-master-key-mismatch",
+  "account-two-step-code-wrong",
+  "account-two-step-setup-code-wrong",
+  "account-two-step-expired",
+  "account-two-step-rate",
+  "account-two-step-no-pending",
+  "account-two-step-unreadable",
+  "server-two-step-reset-done",
 ];

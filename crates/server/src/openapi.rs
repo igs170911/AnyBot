@@ -51,6 +51,10 @@ impl Modify for BearerAuth {
         crate::api_settings::settings,
         crate::api_referee::referee,
         crate::api_streams_sse::notifications,
+        crate::api_two_step_login::login_two_step,
+        crate::api_two_step_setup::setup_two_step,
+        crate::api_two_step_toggle::confirm_two_step,
+        crate::api_two_step_toggle::disable_two_step,
     ),
     components(schemas(
         crate::health::HealthResponse,
@@ -80,6 +84,10 @@ impl Modify for BearerAuth {
         anybot_protocol::RegisterAck,
         anybot_protocol::RegisterRequest,
         anybot_protocol::ResetPasswordRequest,
+        anybot_protocol::TwoStepChallenge,
+        anybot_protocol::TwoStepCodeRequest,
+        anybot_protocol::TwoStepLoginRequest,
+        anybot_protocol::TwoStepSetup,
     )),
     servers(
         (url = "http://127.0.0.1:8787", description = "loopback development server (M3 listens on loopback only)"),

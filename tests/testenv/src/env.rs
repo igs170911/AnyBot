@@ -62,10 +62,11 @@ async fn start_database(
         listen_port: serve_port,
         ..ServerConfig::default()
     };
-    Ok((
-        AppState::with_pool("testenv-9.9.9", clock, pool, config),
-        pg,
-    ))
+    let master = anybot_foundation::MasterKey::generate().map_err(|e| e.to_string())?;
+    let keys = anybot_server::SecretKeys::from_master(&master).map_err(|e| e.to_string())?;
+    let state =
+        AppState::with_pool("testenv-9.9.9", clock, pool, config).with_secrets(Arc::new(keys));
+    Ok((state, pg))
 }
 
 pub async fn testenv_start() -> Result<(Arc<TestEnvState>, Router, TcpListener), String> {

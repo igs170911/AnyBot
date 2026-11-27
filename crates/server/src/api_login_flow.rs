@@ -37,7 +37,7 @@ pub(crate) fn credential_is_cookie(body: &LoginRequest) -> Result<bool, CallerDe
 pub(crate) async fn open_session(
     state: &AppState,
     pool: &Pool,
-    body: &LoginRequest,
+    label: &str,
     account: &str,
     cookie_mode: bool,
 ) -> Result<LoginSession, CallerDenied> {
@@ -51,7 +51,7 @@ pub(crate) async fn open_session(
         &uuid::Uuid::now_v7().to_string(),
         account,
         &key_digest(&key),
-        &body.label,
+        label,
         &device_id,
         at_ms,
     )
