@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM pairing_codes WHERE algorithm = $1 AND digest = $2 AND expires_at_ms <= $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Bytea", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "a605b3ec7e6fe10b864124a03844eddf6c70a77068b6f9a851c9d16be795d983"
+}

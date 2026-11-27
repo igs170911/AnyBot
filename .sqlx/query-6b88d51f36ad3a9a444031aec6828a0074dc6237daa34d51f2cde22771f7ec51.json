@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS total FROM auth_events WHERE kind = $1 AND at_ms >= $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Int8"]
+    },
+    "nullable": [null]
+  },
+  "hash": "6b88d51f36ad3a9a444031aec6828a0074dc6237daa34d51f2cde22771f7ec51"
+}

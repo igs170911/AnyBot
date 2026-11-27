@@ -15,6 +15,18 @@ pub(crate) fn routes() -> Router<AppState> {
             post(crate::api_computers_act::remove_computer),
         )
         .route(
+            "/v1/computers/pairing-code",
+            post(crate::api_pairing::create_pairing_code),
+        )
+        .route(
+            "/v1/computers/pair",
+            post(crate::api_pairing_redeem::redeem_pairing),
+        )
+        .route(
+            "/v1/account/reauth",
+            post(crate::api_pairing::reauth_password),
+        )
+        .route(
             "/v1/computers/delegate",
             post(crate::api_computers_act::delegate_computer),
         )

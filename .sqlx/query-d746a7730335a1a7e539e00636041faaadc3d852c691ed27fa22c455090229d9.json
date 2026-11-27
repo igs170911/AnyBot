@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM pairing_codes WHERE expires_at_ms <= $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "d746a7730335a1a7e539e00636041faaadc3d852c691ed27fa22c455090229d9"
+}

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(password_entered_ms, created_at_ms) AS entered FROM sessions WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "entered",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [null]
+  },
+  "hash": "6870b51e688e47e841bce0c4e53a145e28850542ff010d42c2611427eb2d7a48"
+}

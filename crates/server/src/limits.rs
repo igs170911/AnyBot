@@ -16,8 +16,8 @@ pub const TWO_STEP_ACCOUNT_LIMIT: i64 = 8;
 
 #[derive(Clone)]
 pub struct Limiter {
-    pool: Pool,
-    clock: Arc<dyn Clock>,
+    pub(crate) pool: Pool,
+    pub(crate) clock: Arc<dyn Clock>,
 }
 
 impl Limiter {
@@ -89,11 +89,11 @@ impl Limiter {
         auth_events::drop_attempt(&self.pool, id).await
     }
 
-    fn floor(&self) -> Result<i64, sqlx::Error> {
+    pub(crate) fn floor(&self) -> Result<i64, sqlx::Error> {
         events_before(self.clock.now_ms(), WINDOW_SPAN_MS)
     }
 
-    fn now_i64(&self) -> Result<i64, sqlx::Error> {
+    pub(crate) fn now_i64(&self) -> Result<i64, sqlx::Error> {
         i64::try_from(self.now_ms()).map_err(|e| sqlx::Error::Protocol(e.to_string()))
     }
 

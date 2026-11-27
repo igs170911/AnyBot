@@ -236,19 +236,20 @@ pub async fn mark_credential_used(
     Ok(())
 }
 
-pub async fn replace_key_in(
+pub async fn replace_unused_key_in(
     tx: &mut Transaction<'_, Postgres>,
     device_id: &str,
     key_hash: &str,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "UPDATE computers SET key_hash = $2, credential_used_ms = NULL WHERE device_id = $1",
+) -> Result<bool, sqlx::Error> {
+    let done = sqlx::query!(
+        "UPDATE computers SET key_hash = $2 \
+         WHERE device_id = $1 AND credential_used_ms IS NULL AND removed_at_ms IS NULL",
         device_id,
         key_hash,
     )
     .execute(&mut **tx)
     .await?;
-    Ok(())
+    Ok(done.rows_affected() == 1)
 }
 
 pub async fn enter_password(pool: &Pool, device_id: &str, now_ms: i64) -> Result<(), sqlx::Error> {

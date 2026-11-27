@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE pairing_codes SET used_at_ms = $3, redeemed_address = $2 WHERE id = $1 AND used_at_ms IS NULL AND expires_at_ms > $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "8e9b3aefe0f4cd0a6a4df7989c80ad1fa2a611d94bdc2145eb8e7eb9a7aef1c9"
+}

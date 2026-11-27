@@ -99,3 +99,91 @@ pub fn row_of<'a>(rows: &'a [Value], device_id: &str) -> Option<&'a Value> {
 pub fn name_of(row: &Value) -> Option<&str> {
     row.get("name").and_then(Value::as_str)
 }
+
+pub struct RedeemAttempt<'a> {
+    pub code: &'a str,
+    pub name: &'a str,
+    pub key: &'a str,
+    pub address: Option<&'a str>,
+}
+
+fn redeem_spec(attempt: &RedeemAttempt<'_>) -> RequestSpec {
+    let body = json!({"code": attempt.code, "name": attempt.name});
+    let spec = RequestSpec::new(&body.to_string()).with_key(attempt.key);
+    match attempt.address {
+        Some(address) => spec.with_header(anybot_app_test::http::FORWARDED_HEADER, address),
+        None => spec,
+    }
+}
+
+pub async fn redeem(served: &Served, attempt: &RedeemAttempt<'_>) -> Result<ResponseSpec, String> {
+    let mut walker = ClockWalker::start(&served.clock);
+    let answer = post(
+        &served.base_url(),
+        "/v1/computers/pair",
+        &redeem_spec(attempt),
+    )
+    .await;
+    walker.stop().await?;
+    answer
+}
+
+pub async fn redeem_timed(
+    served: &Served,
+    attempt: &RedeemAttempt<'_>,
+) -> Result<(ResponseSpec, u64), String> {
+    anybot_app_test::two_step_client::timed_post(
+        &served.base_url(),
+        &served.clock,
+        "/v1/computers/pair",
+        &redeem_spec(attempt),
+    )
+    .await
+}
+
+pub async fn reauth(
+    served: &Served,
+    bearer: &str,
+    password: &str,
+    key: &str,
+) -> Result<ResponseSpec, String> {
+    let body = json!({"password": password});
+    api_post(served, bearer, "/v1/account/reauth", &body, key).await
+}
+
+pub async fn make_code(served: &Served, bearer: &str, key: &str) -> Result<ResponseSpec, String> {
+    api_post(
+        served,
+        bearer,
+        "/v1/computers/pairing-code",
+        &json!({}),
+        key,
+    )
+    .await
+}
+
+pub async fn code_text(served: &Served, bearer: &str, key: &str) -> Result<String, String> {
+    let made = make_code(served, bearer, key).await?;
+    if made.status != 200 {
+        return Err(format!("pairing code: {} {}", made.status, made.json));
+    }
+    made.field_str("code")
+}
+
+#[must_use]
+pub fn other_code_than(code: &str) -> &'static str {
+    if code == "000000" { "000001" } else { "000000" }
+}
+
+pub async fn make_code_fast(
+    served: &Served,
+    bearer: &str,
+    key: &str,
+) -> Result<ResponseSpec, String> {
+    post(
+        &served.base_url(),
+        "/v1/computers/pairing-code",
+        &RequestSpec::new("{}").with_key(key).with_bearer(bearer),
+    )
+    .await
+}

@@ -24,7 +24,7 @@ pub struct AcceptContext {
     pub bot_state: Option<BotState>,
 }
 
-pub const DEVICE_FORBIDDEN_KINDS: [&str; 10] = [
+pub const DEVICE_FORBIDDEN_KINDS: [&str; 11] = [
     "referee_cancel",
     "referee_stop",
     "referee_wake",
@@ -35,6 +35,7 @@ pub const DEVICE_FORBIDDEN_KINDS: [&str; 10] = [
     "record_restore",
     "record_purge_permanent",
     "bots_purge",
+    "computers_changed",
 ];
 
 impl AcceptContext {

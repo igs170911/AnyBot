@@ -189,7 +189,12 @@ export type MessageCode =
   "computer-not-found" |
   "computer-delegate-self-only" |
   "computer-paired-forbidden" |
-  "device-no-permission";
+  "device-no-permission" |
+  "account-reauth-required" |
+  "account-reauth-password-wrong" |
+  "computers-pair-wrong" |
+  "computers-pair-rate" |
+  "computers-pair-full";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -381,4 +386,9 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "computer-delegate-self-only",
   "computer-paired-forbidden",
   "device-no-permission",
+  "account-reauth-required",
+  "account-reauth-password-wrong",
+  "computers-pair-wrong",
+  "computers-pair-rate",
+  "computers-pair-full",
 ];

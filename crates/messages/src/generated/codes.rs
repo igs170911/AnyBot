@@ -193,6 +193,11 @@ pub enum MessageCode {
     ComputerDelegateSelfOnly,
     ComputerPairedForbidden,
     DeviceNoPermission,
+    AccountReauthRequired,
+    AccountReauthPasswordWrong,
+    ComputersPairWrong,
+    ComputersPairRate,
+    ComputersPairFull,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -570,6 +575,17 @@ const TABLE: &[(MessageCode, &str)] = &[
         "computer-paired-forbidden",
     ),
     (MessageCode::DeviceNoPermission, "device-no-permission"),
+    (
+        MessageCode::AccountReauthRequired,
+        "account-reauth-required",
+    ),
+    (
+        MessageCode::AccountReauthPasswordWrong,
+        "account-reauth-password-wrong",
+    ),
+    (MessageCode::ComputersPairWrong, "computers-pair-wrong"),
+    (MessageCode::ComputersPairRate, "computers-pair-rate"),
+    (MessageCode::ComputersPairFull, "computers-pair-full"),
 ];
 
 impl MessageCode {

@@ -10,6 +10,7 @@ pub mod conn_auth;
 pub mod goal_brake;
 pub mod goal_followup;
 pub mod invite;
+pub mod pairing_rules;
 pub mod record_actions;
 pub mod record_rules;
 pub mod referee;

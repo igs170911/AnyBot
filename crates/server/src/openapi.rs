@@ -59,6 +59,9 @@ impl Modify for BearerAuth {
         crate::api_computers::rename_computer,
         crate::api_computers_act::remove_computer,
         crate::api_computers_act::delegate_computer,
+        crate::api_pairing::create_pairing_code,
+        crate::api_pairing::reauth_password,
+        crate::api_pairing_redeem::redeem_pairing,
     ),
     components(schemas(
         crate::health::HealthResponse,
@@ -97,6 +100,10 @@ impl Modify for BearerAuth {
         anybot_protocol::ComputerRenameRequest,
         anybot_protocol::ComputerRemoveRequest,
         anybot_protocol::ComputerDelegateRequest,
+        anybot_protocol::PairingCodeRequest,
+        anybot_protocol::PairingCodeReply,
+        anybot_protocol::PairRedeemRequest,
+        anybot_protocol::PasswordReenterRequest,
     )),
     servers(
         (url = "http://127.0.0.1:8787", description = "loopback development server (M3 listens on loopback only)"),

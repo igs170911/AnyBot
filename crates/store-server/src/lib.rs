@@ -4,13 +4,16 @@ use anybot_protocol::RunEvent;
 
 pub mod accounts;
 pub mod auth_events;
+pub mod auth_events_kind;
 pub mod computers;
 pub mod config;
 pub mod connect;
 pub mod idempotency;
 pub mod migrate;
+pub mod pairing_codes;
 pub mod rows;
 pub mod sessions;
+pub mod sessions_reauth;
 pub mod streams;
 pub mod streams_action;
 pub mod streams_bots;

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM pairing_redeems WHERE code_id NOT IN (SELECT id FROM pairing_codes)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "3da6994fd03605097e29608d328dcd65550a42dbe88799ee1b96af2da086bcc3"
+}

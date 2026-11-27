@@ -45,6 +45,9 @@ async fn prune_every(pool: &Pool, clock: &Arc<dyn Clock>) -> Result<(), sqlx::Er
     two_step_challenges::prune_challenges_before(pool, auth_floor).await?;
     let step_floor = anybot_domain::two_step::reuse_floor(retention_floor(clock.now_ms(), 0)?);
     two_step_codes::prune_used_steps_before(pool, step_floor).await?;
+    let now =
+        i64::try_from(clock.now_ms().millis()).map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+    anybot_store_server::pairing_codes::prune_expired(pool, now).await?;
     Ok(())
 }
 
