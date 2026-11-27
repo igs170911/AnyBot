@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT value_sealed FROM server_config WHERE key = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "value_sealed",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "server_config",
+            "name": "value_sealed"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [true]
+  },
+  "hash": "be3039c587dcd21a7bae0de1473febf69c584443bf21fb22c6af7f02af752535"
+}

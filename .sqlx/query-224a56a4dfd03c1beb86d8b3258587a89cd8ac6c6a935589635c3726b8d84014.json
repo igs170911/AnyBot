@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO server_config (key, value, value_sealed) VALUES ($1, '', $2) ON CONFLICT (key) DO UPDATE SET value = '', value_sealed = EXCLUDED.value_sealed",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Bytea"]
+    },
+    "nullable": []
+  },
+  "hash": "224a56a4dfd03c1beb86d8b3258587a89cd8ac6c6a935589635c3726b8d84014"
+}

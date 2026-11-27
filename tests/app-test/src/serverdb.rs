@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anybot_foundation::MasterKey;
-use anybot_server::{SecretKeys, ensure_schema, open_url, product_migrations, set_config_rows};
+use anybot_server::{
+    Migrator, SecretKeys, ensure_schema, open_url, product_migrations, set_config_rows,
+};
 
 use test_harness::{
     PgInstance, pg_start, pg_stop, ports::free_dual_port, scratch::test_dir,
@@ -19,12 +21,15 @@ pub struct ServerDb {
 }
 
 pub async fn db_start(test: &str) -> Result<ServerDb, String> {
+    db_start_with(test, product_migrations()).await
+}
+
+pub async fn db_start_with(test: &str, mut migrations: Migrator) -> Result<ServerDb, String> {
     let dir = test_dir(test)?;
     let pg = pg_start(&dir).await?;
     let _created = pg.create_database("anybot_test").await;
     let url = pg.url_for("anybot_test");
     let pool = open_url(&url).await.map_err(|e| e.to_string())?;
-    let mut migrations = product_migrations();
     ensure_schema(&pool, &mut migrations)
         .await
         .map_err(|e| format!("fixture migrate rejected: {e}"))?;

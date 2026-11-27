@@ -8,6 +8,7 @@ use tracing as _;
 use test_harness::{Program, Running, migration_fixture, pg_start, pg_stop};
 
 pub mod clockwalk;
+pub mod db_dump;
 pub mod http;
 pub mod install_live;
 pub mod n106;
@@ -24,7 +25,8 @@ pub use install_live::{
 };
 
 pub use clockwalk::{ClockWalker, WAVE_FAKE_STEP, WAVE_INSERT_STEP, settle_handles};
-pub use serverdb::{ServerDb, bootstrap_text, db_start};
+pub use db_dump::{dump_database, found_spelling, migrator_up_to};
+pub use serverdb::{ServerDb, bootstrap_text, db_start, db_start_with};
 
 pub fn english(
     catalog: &mut Catalog,

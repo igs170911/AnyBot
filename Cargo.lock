@@ -192,6 +192,7 @@ dependencies = [
  "anybot-messages",
  "anybot-server",
  "axum",
+ "data-encoding",
  "reqwest 0.12.28",
  "serde_json",
  "sqlx",
