@@ -57,6 +57,9 @@ use crate::req_write::{
             body = ProblemJson,
             example = json!({"type": "https://anybot.test/problems/problem_internal", "title": "The server hit an internal error.", "status": 500, "code": "problem-internal", "params": {}})),
     ),
+    params(
+        ("Idempotency-Key" = String, Header, description = "accepted for uniformity; a repeated key makes a new code because the code itself is never stored")
+    )
 )]
 pub async fn create_pairing_code(
     State(state): State<AppState>,

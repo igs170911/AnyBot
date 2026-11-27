@@ -40,6 +40,10 @@ use crate::two_step_gate::{CodeGate, EMPTY_FINGERPRINT, SecretSlot, require_code
             content_type = "application/problem+json",
             body = ProblemJson,
             example = json!({"code": "account-two-step-rate", "params": {}, "status": 429, "title": "Too many wrong verification codes; try again in 5 minutes.", "type": "https://anybot.test/problems/account_two_step_rate"})),
+        (status = 500, description = "Internal error",
+            content_type = "application/problem+json",
+            body = ProblemJson,
+            example = json!({"code": "problem-internal", "params": {}, "status": 500, "title": "The server hit an internal error.", "type": "https://anybot.test/problems/problem_internal"})),
     ),
     params(
         ("Idempotency-Key" = String, Header, description = "client-generated idempotency key")
@@ -105,6 +109,10 @@ pub async fn confirm_two_step(
             content_type = "application/problem+json",
             body = ProblemJson,
             example = json!({"code": "account-two-step-rate", "params": {}, "status": 429, "title": "Too many wrong verification codes; try again in 5 minutes.", "type": "https://anybot.test/problems/account_two_step_rate"})),
+        (status = 500, description = "Internal error",
+            content_type = "application/problem+json",
+            body = ProblemJson,
+            example = json!({"code": "problem-internal", "params": {}, "status": 500, "title": "The server hit an internal error.", "type": "https://anybot.test/problems/problem_internal"})),
     ),
     params(
         ("Idempotency-Key" = String, Header, description = "client-generated idempotency key")
