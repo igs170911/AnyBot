@@ -12,3 +12,8 @@ where
     let result = tokio::time::timeout(span, fut).await;
     result.map_err(|_e| "real-time deadline expired".to_owned())
 }
+
+#[must_use]
+pub fn instant_now() -> std::time::Instant {
+    std::time::Instant::now()
+}

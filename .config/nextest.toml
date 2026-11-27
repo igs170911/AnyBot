@@ -43,6 +43,10 @@ filter = "package(api-compat)"
 test-group = "scratch"
 
 [[profile.default.overrides]]
+filter = 'test(t_conn_heartbeat_2)'
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+[[profile.default.overrides]]
 filter = 'binary(/^pg_/) + test(t_install|t_server)'
 slow-timeout = { period = "120s", terminate-after = 4 }
 

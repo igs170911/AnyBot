@@ -63,6 +63,7 @@ async fn drive(head: Vec<String>, tail: Tail, tx: tokio::sync::mpsc::Sender<Stri
     let account = tail.account;
     loop {
         let step = tokio::select! {
+            biased;
             () = &mut ending => Step::End,
             () = clock.sleep(Duration::from_secs(HEARTBEAT_INTERVAL_SECS)) => Step::Beat,
             note = rx.recv() => on_note(&account, &keys, &pool, &mut last, note).await,

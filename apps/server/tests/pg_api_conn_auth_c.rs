@@ -19,7 +19,7 @@ use tracing as _;
 
 use anybot_app_test::http::{RequestSpec, get, post};
 use anybot_app_test::serve::serve_start;
-use anybot_app_test::sse::{data_json, event_name, open_sse, open_sse_with};
+use anybot_app_test::sse::{SseRequest, data_json, event_name, open_sse_with};
 use anybot_server_test::cookie_of;
 use anybot_server_test::{make_admin, table_counts};
 
@@ -68,17 +68,14 @@ async fn t_conn_auth_4() -> Result<(), String> {
     let cookie = cookie_login(&served, "k-a4-login").await?;
     sse_seed(&base, &cookie, &base, "k-a4-seed").await?;
     let foreign = open_sse_with(
-        &base,
-        "/v1/streams/notifications",
-        "",
-        "",
-        Some(&cookie),
-        Some("https://other.example"),
-        Some("cross-site"),
+        &SseRequest::new(&base, "/v1/streams/notifications", "", "")
+            .with_cookie(&cookie)
+            .with_origin("https://other.example", "cross-site")
+            .without_version(),
     )
     .await;
     match foreign {
-        Ok(opened) => {
+        Ok(mut opened) => {
             opened.close();
             return Err("cookie sse with a foreign origin must be refused".to_owned());
         }
@@ -87,13 +84,9 @@ async fn t_conn_auth_4() -> Result<(), String> {
         }
     }
     let mut good = open_sse_with(
-        &base,
-        "/v1/streams/notifications",
-        "",
-        "",
-        Some(&cookie),
-        Some(&base),
-        Some("same-origin"),
+        &SseRequest::new(&base, "/v1/streams/notifications", "", "")
+            .with_cookie(&cookie)
+            .with_origin(&base, "same-origin"),
     )
     .await?;
     let block = good.recv_block().await?;
@@ -116,11 +109,23 @@ async fn t_conn_auth_4() -> Result<(), String> {
 }
 
 async fn sse_heads_stable(base: &str, admin: &str) -> Result<(), String> {
-    let mut stream_a = open_sse(base, "/v1/streams/notifications", admin, "").await?;
+    let mut stream_a = open_sse_with(&SseRequest::new(
+        base,
+        "/v1/streams/notifications",
+        admin,
+        "",
+    ))
+    .await?;
     let block_a = stream_a.recv_block().await?;
     let head_a = data_json(&block_a).map_err(|e| format!("head a: {block_a} | {e}"))?;
     stream_a.close();
-    let mut stream_b = open_sse(base, "/v1/streams/notifications", admin, "").await?;
+    let mut stream_b = open_sse_with(&SseRequest::new(
+        base,
+        "/v1/streams/notifications",
+        admin,
+        "",
+    ))
+    .await?;
     let block_b = stream_b.recv_block().await?;
     let head_b = data_json(&block_b).map_err(|e| format!("head b: {block_b} | {e}"))?;
     stream_b.close();
@@ -153,7 +158,7 @@ async fn t_conn_auth_6() -> Result<(), String> {
     )
     .await?;
     assert_eq!(seeded.status, 200, "seed: {}", seeded.json);
-    let after_spec = || RequestSpec::new("").with_bearer(&admin).without_version();
+    let after_spec = || RequestSpec::new("").with_bearer(&admin);
     let first = get(
         &base,
         "/v1/streams/after?stream=account%2Falice&after=0",

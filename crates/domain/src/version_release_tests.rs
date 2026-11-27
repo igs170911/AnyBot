@@ -21,25 +21,25 @@ fn table() -> ReleaseTable {
 }
 
 #[test]
-fn t_install_n25_5_verdict() {
+fn verdict_is_too_old_past_the_six_month_window() {
     let verdict = judge_client_version(Some("0.2.0"), &table(), BASE + 220 * DAY);
     assert_eq!(verdict, VersionVerdict::TooOld);
 }
 
 #[test]
-fn t_install_n25_5_accept_inside_window() {
+fn verdict_accepts_inside_the_six_month_window() {
     let verdict = judge_client_version(Some("0.2.0"), &table(), BASE + 200 * DAY);
     assert_eq!(verdict, VersionVerdict::Accept);
 }
 
 #[test]
-fn t_install_n25_2_replaced_version_accept() {
+fn verdict_accepts_the_replacing_version_forever() {
     let verdict = judge_client_version(Some("0.3.0"), &table(), BASE + 220 * DAY);
     assert_eq!(verdict, VersionVerdict::Accept);
 }
 
 #[test]
-fn t_install_n25_1_unreadable_header() {
+fn verdict_is_unreadable_for_junk_and_missing_headers() {
     let verdict = judge_client_version(Some("banana"), &table(), BASE + 220 * DAY);
     assert_eq!(verdict, VersionVerdict::Unreadable);
     let verdict = judge_client_version(None, &table(), BASE + 220 * DAY);

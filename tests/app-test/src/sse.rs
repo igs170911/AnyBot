@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use reqwest::Client;
-use reqwest::Method;
-use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderValue};
+use crate::sse_client::{open_client, receive, send_request};
 use tokio::sync::mpsc;
 
 pub const SSE_DEADLINE: Duration = Duration::from_secs(25);
+pub const SSE_IDLE_RULE: Duration = Duration::from_secs(30);
+pub const SSE_CONNECT_RULE: Duration = Duration::from_secs(30);
 
 #[derive(Debug)]
 pub struct SseOpen {
@@ -14,10 +14,33 @@ pub struct SseOpen {
 }
 
 impl SseOpen {
+    #[must_use]
+    pub(crate) fn from_parts(
+        rx: mpsc::Receiver<String>,
+        headers: reqwest::header::HeaderMap,
+    ) -> Self {
+        SseOpen { rx, headers }
+    }
+
+    #[must_use]
+    pub fn silent(rx: mpsc::Receiver<String>) -> Self {
+        SseOpen {
+            rx,
+            headers: reqwest::header::HeaderMap::new(),
+        }
+    }
+
     pub async fn recv_block(&mut self) -> Result<String, String> {
         let got = tokio::time::timeout(SSE_DEADLINE, self.rx.recv())
             .await
             .map_err(|_| "no sse block inside the deadline".to_owned())?;
+        got.ok_or("sse stream ended".to_owned())
+    }
+
+    pub async fn recv_within(&mut self, idle: Duration) -> Result<String, String> {
+        let got = tokio::time::timeout(idle, self.rx.recv())
+            .await
+            .map_err(|_| "no sse block inside the idle window".to_owned())?;
         got.ok_or("sse stream ended".to_owned())
     }
 
@@ -48,6 +71,34 @@ impl SseOpen {
         Err(format!("only {seen} heartbeats seen"))
     }
 
+    pub async fn count_heartbeats_within(&mut self, window: Duration) -> Result<usize, String> {
+        let mut seen = 0usize;
+        let mut left = window;
+        while !left.is_zero() {
+            let started = std::time::Instant::now();
+            let Ok(Some(block)) = tokio::time::timeout(left, self.rx.recv()).await else {
+                return Ok(seen);
+            };
+            let spent = started.elapsed();
+            let taken = Duration::from_millis(u64::try_from(spent.as_millis()).unwrap_or(0));
+            left = left.saturating_sub(taken);
+            if block.starts_with(':') {
+                seen = seen
+                    .checked_add(1)
+                    .ok_or("heartbeat counter overflow".to_owned())?;
+            }
+        }
+        Ok(seen)
+    }
+
+    pub fn drain_now(&mut self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        while let Ok(block) = self.rx.try_recv() {
+            out.push(block);
+        }
+        out
+    }
+
     pub async fn recv_data_block(&mut self) -> Result<String, String> {
         for _round in 0..20 {
             let block = self.recv_block().await?;
@@ -69,8 +120,64 @@ impl SseOpen {
         Ok(())
     }
 
-    pub fn close(self) {
-        drop(self.rx);
+    pub fn close(&mut self) {
+        let (sender, dummy) = mpsc::channel(1);
+        let _kept = sender;
+        let real = std::mem::replace(&mut self.rx, dummy);
+        drop(real);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SseRequest<'a> {
+    pub base: &'a str,
+    pub path: &'a str,
+    pub bearer: &'a str,
+    pub query: &'a str,
+    pub cookie: Option<&'a str>,
+    pub origin: Option<&'a str>,
+    pub sec_fetch: Option<&'a str>,
+    pub version: Option<&'a str>,
+}
+
+impl<'a> SseRequest<'a> {
+    #[must_use]
+    pub fn new(base: &'a str, path: &'a str, bearer: &'a str, query: &'a str) -> Self {
+        SseRequest {
+            base,
+            path,
+            bearer,
+            query,
+            cookie: None,
+            origin: None,
+            sec_fetch: None,
+            version: Some("9.9.9"),
+        }
+    }
+
+    #[must_use]
+    pub fn with_cookie(mut self, cookie: &'a str) -> Self {
+        self.cookie = Some(cookie);
+        self
+    }
+
+    #[must_use]
+    pub fn with_origin(mut self, origin: &'a str, sec_fetch: &'a str) -> Self {
+        self.origin = Some(origin);
+        self.sec_fetch = Some(sec_fetch);
+        self
+    }
+
+    #[must_use]
+    pub fn with_version(mut self, version: &'a str) -> Self {
+        self.version = Some(version);
+        self
+    }
+
+    #[must_use]
+    pub fn without_version(mut self) -> Self {
+        self.version = None;
+        self
     }
 }
 
@@ -80,107 +187,41 @@ pub async fn open_sse(
     bearer: &str,
     query: &str,
 ) -> Result<SseOpen, String> {
-    open_sse_with(base, path, bearer, query, None, None, None).await
+    open_sse_with(&SseRequest::new(base, path, bearer, query)).await
 }
 
-fn apply_sec_fetch(
-    request: reqwest::RequestBuilder,
-    sec_fetch: Option<&str>,
-) -> Result<reqwest::RequestBuilder, String> {
-    Ok(match sec_fetch {
-        Some(value) => request.header(
-            reqwest::header::HeaderName::from_static("sec-fetch-site"),
-            HeaderValue::from_str(value).map_err(|e| e.to_string())?,
-        ),
-        None => request,
-    })
+pub async fn open_sse_with(request: &SseRequest<'_>) -> Result<SseOpen, String> {
+    let client = open_client(None)?;
+    let response = send_request(
+        &client,
+        &format!("{}{}?{}", request.base, request.path, request.query),
+        request.bearer,
+        request.cookie,
+        request.origin,
+        request.sec_fetch,
+        request.version,
+    )
+    .await?;
+    receive(response).await
 }
 
-fn apply_cookie_and_origin(
-    request: reqwest::RequestBuilder,
-    cookie: Option<&str>,
-    origin: Option<&str>,
-) -> Result<reqwest::RequestBuilder, String> {
-    let request = match cookie {
-        Some(value) => request.header(
-            reqwest::header::COOKIE,
-            HeaderValue::from_str(value).map_err(|e| e.to_string())?,
-        ),
-        None => request,
-    };
-    Ok(match origin {
-        Some(value) => request.header(
-            reqwest::header::ORIGIN,
-            HeaderValue::from_str(value).map_err(|e| e.to_string())?,
-        ),
-        None => request,
-    })
-}
-
-pub async fn open_sse_with(
-    base: &str,
-    path: &str,
-    bearer: &str,
-    query: &str,
-    cookie: Option<&str>,
-    origin: Option<&str>,
-    sec_fetch: Option<&str>,
+pub async fn open_sse_via(
+    origin: std::net::SocketAddr,
+    request: &SseRequest<'_>,
+    proxy_port: u16,
 ) -> Result<SseOpen, String> {
-    let url = format!("{base}{path}?{query}");
-    let client = Client::builder()
-        .read_timeout(SSE_DEADLINE.saturating_mul(2))
-        .build()
-        .map_err(|e| e.to_string())?;
-    let request = client
-        .request(Method::GET, &url)
-        .header(ACCEPT, HeaderValue::from_static("text/event-stream"));
-    let request = if bearer.is_empty() {
-        request
-    } else {
-        request.header(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {bearer}")).map_err(|e| e.to_string())?,
-        )
-    };
-    let request = apply_sec_fetch(request, sec_fetch)?;
-    let request = apply_cookie_and_origin(request, cookie, origin)?;
-    let request = request.send().await.map_err(|e| e.to_string())?;
-    let status = request.status().as_u16();
-    if status != 200 {
-        let body = request.text().await.map_err(|e| e.to_string())?;
-        return Err(format!("sse open failed with {status}: {body}"));
-    }
-    let headers = request.headers().clone();
-    let (tx, rx) = mpsc::channel(32);
-    tokio::spawn(pump(request, tx));
-    Ok(SseOpen { rx, headers })
-}
-
-async fn pump(request: reqwest::Response, tx: mpsc::Sender<String>) {
-    let mut buffered: Vec<u8> = Vec::new();
-    let mut stream = request;
-    loop {
-        let Ok(Some(bytes)) = stream.chunk().await else {
-            break;
-        };
-        buffered.extend_from_slice(&bytes);
-        while let Some(at) = find_double_newline(&buffered) {
-            let Some(cut) = at.checked_add(2) else {
-                return;
-            };
-            let part: Vec<u8> = buffered.drain(..cut).collect();
-            let block = String::from_utf8(part)
-                .map_err(|e| e.to_string())
-                .unwrap_or_default();
-            if tx.send(block).await.is_err() {
-                return;
-            }
-        }
-    }
-}
-
-fn find_double_newline(bytes: &[u8]) -> Option<usize> {
-    bytes.windows(2).position(|w| w == b"\n\n")
+    let client = open_client(Some(proxy_port))?;
+    let response = send_request(
+        &client,
+        &format!("http://{origin}{}?{}", request.path, request.query),
+        request.bearer,
+        request.cookie,
+        None,
+        Some("same-origin"),
+        request.version,
+    )
+    .await?;
+    receive(response).await
 }
 
 #[must_use]

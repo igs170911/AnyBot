@@ -24,12 +24,16 @@ async fn run_cleanup(pool: Pool, clock: Arc<dyn Clock>, shutdown: Arc<Notify>) {
             biased;
             () = shutdown.notified() => break,
             () = clock.sleep(CLEANUP_SPAN) => {
-                if let Err(err) = prune_every(&pool, &clock).await {
-                    let _reported = format!("cleanup failed: {err}");
-                    break;
-                }
+                let pruner = Arc::clone(&clock);
+                tokio::spawn(prune_and_report(pool.clone(), pruner));
             }
         }
+    }
+}
+
+async fn prune_and_report(pool: Pool, clock: Arc<dyn Clock>) {
+    if let Err(err) = prune_every(&pool, &clock).await {
+        let _reported = format!("cleanup failed: {err}");
     }
 }
 

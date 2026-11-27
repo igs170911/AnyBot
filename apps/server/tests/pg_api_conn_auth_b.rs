@@ -29,7 +29,7 @@ use anybot_app_test::ClockWalker;
 use anybot_app_test::http::ResponseSpec;
 use anybot_app_test::http::{RequestSpec, get, post};
 use anybot_app_test::serve::serve_start;
-use anybot_app_test::sse::open_sse;
+use anybot_app_test::sse::{SseRequest, open_sse_with};
 
 use anybot_server_test::{count_sessions, make_admin, set_public_url};
 
@@ -162,15 +162,15 @@ async fn t_conn_auth_2() -> Result<(), String> {
 }
 
 async fn sse_bearer_checks(base: &str, admin: &str) -> Result<(), String> {
-    let sse_query = open_sse(
+    let sse_query = open_sse_with(&SseRequest::new(
         base,
         "/v1/streams/notifications",
         "",
         &format!("session_key={admin}"),
-    )
+    ))
     .await;
     match sse_query {
-        Ok(opened) => {
+        Ok(mut opened) => {
             opened.close();
             return Err("sse with the key in the url must refuse".to_owned());
         }
@@ -178,7 +178,13 @@ async fn sse_bearer_checks(base: &str, admin: &str) -> Result<(), String> {
             assert!(refused.contains("401"), "sse query auth: {refused}");
         }
     }
-    let mut sse_header = open_sse(base, "/v1/streams/notifications", admin, "").await?;
+    let mut sse_header = open_sse_with(&SseRequest::new(
+        base,
+        "/v1/streams/notifications",
+        admin,
+        "",
+    ))
+    .await?;
     sse_header.recv_block().await?;
     sse_header.close();
     Ok(())

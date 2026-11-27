@@ -9,13 +9,19 @@ pub const STEP_FAKE: Duration = Duration::from_millis(1000);
 pub const STEP_REAL: Duration = Duration::from_millis(10);
 
 pub struct ClockWalker {
+    clock: Arc<FakeClock>,
     task: Option<JoinHandle<()>>,
+}
+
+fn owned_of(walker: &ClockWalker) -> &Arc<FakeClock> {
+    &walker.clock
 }
 
 impl ClockWalker {
     pub fn start(clock: &Arc<FakeClock>) -> Self {
         let owned = Arc::clone(clock);
         ClockWalker {
+            clock: Arc::clone(&owned),
             task: Some(tokio::spawn(async move {
                 loop {
                     test_harness::sleep_real(STEP_REAL).await;
@@ -23,6 +29,47 @@ impl ClockWalker {
                 }
             })),
         }
+    }
+
+    pub async fn advance(&self, span: Duration) -> Result<usize, String> {
+        let millis =
+            u64::try_from(span.as_millis()).map_err(|_| "advance span too large".to_owned())?;
+        let step = u64::try_from(STEP_FAKE.as_millis()).map_err(|_| "step too large".to_owned())?;
+        let rounds = millis
+            .checked_div(step)
+            .ok_or("advance span shorter than one step".to_owned())?;
+        for _round in 0..rounds {
+            test_harness::sleep_real(STEP_REAL).await;
+            let _woken = owned_of(self).advance(STEP_FAKE);
+        }
+        usize::try_from(rounds).map_err(|_| "advance rounds too large".to_owned())
+    }
+
+    #[must_use]
+    pub fn manual(clock: &Arc<FakeClock>) -> Self {
+        ClockWalker {
+            clock: Arc::clone(clock),
+            task: None,
+        }
+    }
+
+    pub async fn step(&mut self, span: Duration) -> Result<usize, String> {
+        if self.task.is_some() {
+            return Err("step needs a manual walker".to_owned());
+        }
+        let millis =
+            u64::try_from(span.as_millis()).map_err(|_| "step span too large".to_owned())?;
+        let step = u64::try_from(STEP_FAKE.as_millis()).map_err(|_| "step too large".to_owned())?;
+        let rounds = millis
+            .checked_div(step)
+            .ok_or("step span shorter than one step".to_owned())?;
+        let mut woken = 0usize;
+        for _round in 0..rounds {
+            test_harness::sleep_real(STEP_REAL).await;
+            woken = woken.saturating_add(self.clock.advance(STEP_FAKE));
+        }
+        Ok(usize::try_from(rounds).map_err(|_| "step rounds too large".to_owned())?)
+            .map(|count| count.saturating_add(woken.saturating_sub(count)))
     }
 
     pub async fn stop(&mut self) -> Result<(), String> {

@@ -13,6 +13,7 @@ pub struct ClockGone {
     pub code: String,
 }
 
+#[derive(Debug, Clone)]
 struct Sleeper {
     deadline_ms: u64,
     order: u64,
@@ -71,11 +72,11 @@ impl FakeClock {
         due
     }
 
-    fn register(&self, deadline_ms: u64, wake: Arc<Notify>) {
+    fn register(&self, deadline_ms: u64, wake: Arc<Notify>) -> Vec<Sleeper> {
         let now = self.now_ms.load(Ordering::SeqCst);
         let due = {
             let Ok(mut state) = self.state.lock() else {
-                return;
+                return Vec::new();
             };
             let order = state.next_order;
             state.next_order = order.saturating_add(1);
@@ -95,6 +96,7 @@ impl FakeClock {
         for sleeper in &due {
             sleeper.wake.notify_one();
         }
+        due
     }
 }
 
@@ -121,8 +123,11 @@ impl FakeClock {
     #[must_use]
     pub fn wake_at(&self, deadline_ms: u64) -> anybot_foundation::clock::PinBoxFuture<'static, ()> {
         let wake = Arc::new(Notify::new());
-        self.register(deadline_ms, Arc::clone(&wake));
+        let due = self.register(deadline_ms, Arc::clone(&wake));
         Box::pin(async move {
+            if due.iter().any(|s| Arc::ptr_eq(&s.wake, &wake)) {
+                return;
+            }
             wake.notified().await;
         })
     }

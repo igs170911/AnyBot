@@ -110,6 +110,7 @@ pub struct ResponseSpec {
     pub json: Value,
     pub elapsed: Duration,
     pub headers: HeaderMap,
+    pub cookie: Option<String>,
 }
 
 impl ResponseSpec {
@@ -234,6 +235,10 @@ async fn send(
         serde_json::from_str::<Value>(&text).map_err(|e| e.to_string())?
     };
     Ok(ResponseSpec {
+        cookie: headers
+            .get(reqwest::header::SET_COOKIE)
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned),
         status,
         json,
         elapsed,

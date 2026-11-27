@@ -16,6 +16,8 @@ pub mod serverdb;
 pub mod startup;
 
 pub mod sse;
+pub mod sse_client;
+pub mod sse_watch;
 pub use install_live::{
     bootstrap_args, check_both, check_second, finish_running, get_status, public_url_check,
     start_live, startup_params, stop_live, wait_health,

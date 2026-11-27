@@ -245,6 +245,15 @@ pub async fn net_drop_response(
     Ok(())
 }
 
+pub async fn net_share_clock(
+    ctl: &Arc<NetCtl>,
+    proxy_port: u16,
+    clock: &Arc<FakeClock>,
+) -> Result<(), String> {
+    ctl.set_clock(proxy_port, Some(Arc::clone(clock))).await;
+    Ok(())
+}
+
 pub async fn net_idle_cut_clock(
     ctl: &Arc<NetCtl>,
     proxy_port: u16,

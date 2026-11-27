@@ -17,11 +17,13 @@ impl Served {
         format!("http://[::1]:{}", self.v6_port)
     }
 
+    #[must_use]
+    pub fn origin_addr(&self) -> std::net::SocketAddr {
+        std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, self.db.listen_port))
+    }
+
     pub async fn stop_server(&mut self) -> Result<(), String> {
-        let running_count = self.server_tasks.len();
-        for _wake in 0..running_count {
-            self.server_shutdown.notify_one();
-        }
+        self.server_shutdown.notify_waiters();
         let running = std::mem::take(&mut self.server_tasks);
         if running.is_empty() {
             return Err("server is not running".to_owned());
@@ -87,10 +89,7 @@ impl ServedReal {
     }
 
     pub async fn stop_server(&mut self) -> Result<(), String> {
-        let running_count = self.server_tasks.len();
-        for _wake in 0..running_count {
-            self.server_shutdown.notify_one();
-        }
+        self.server_shutdown.notify_waiters();
         let running = std::mem::take(&mut self.server_tasks);
         if running.is_empty() {
             return Err("server is not running".to_owned());
