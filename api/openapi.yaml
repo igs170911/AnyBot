@@ -3033,7 +3033,7 @@ components:
           type:
           - string
           - 'null'
-          example: no-signal
+          example: computers-offline-no-signal
         online:
           type: boolean
           example: true

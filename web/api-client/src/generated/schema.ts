@@ -744,7 +744,7 @@ export interface components {
              * @example 1700000000000
              */
             offline_at_ms?: number | null;
-            /** @example no-signal */
+            /** @example computers-offline-no-signal */
             offline_reason?: string | null;
             /** @example true */
             online: boolean;

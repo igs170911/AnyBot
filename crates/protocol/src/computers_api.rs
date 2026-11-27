@@ -13,7 +13,7 @@ pub struct ComputerView {
     #[cfg_attr(feature = "schema", schema(example = 1_700_000_000_000_i64))]
     pub offline_at_ms: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    #[cfg_attr(feature = "schema", schema(example = "no-signal"))]
+    #[cfg_attr(feature = "schema", schema(example = "computers-offline-no-signal"))]
     pub offline_reason: Option<String>,
     #[cfg_attr(feature = "schema", schema(example = false))]
     pub delegate_enabled: bool,

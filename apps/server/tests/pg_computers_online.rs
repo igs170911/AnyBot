@@ -70,7 +70,7 @@ async fn t_computers_online_1() -> Result<(), String> {
     let late = listed(&served, &phone, &computer.device_id).await?;
     assert!(!late.online, "B still online after 61 seconds");
     assert_eq!(late.at_ms, Some(signal_ms));
-    assert_eq!(late.reason.as_deref(), Some("no-signal"));
+    assert_eq!(late.reason.as_deref(), Some("computers-offline-no-signal"));
     served.stop_server().await?;
     served.db.stop().await
 }
@@ -107,7 +107,7 @@ async fn t_computers_online_7() -> Result<(), String> {
     let before = listed(&served, &phone, &computer.device_id).await?;
     assert!(!before.online);
     assert_eq!(before.at_ms, Some(signal_ms));
-    assert_eq!(before.reason.as_deref(), Some("no-signal"));
+    assert_eq!(before.reason.as_deref(), Some("computers-offline-no-signal"));
     served.stop_server().await?;
     walker.step(Duration::from_secs(120)).await?;
     served.restart_server().await?;

@@ -2,8 +2,8 @@ pub const ONLINE_WINDOW_MS: u64 = 60_000;
 pub const SEEN_WRITE_SPAN_MS: u64 = 10_000;
 pub const SWEEP_SPAN_MS: u64 = 5_000;
 
-pub const REASON_NO_SIGNAL: &str = "no-signal";
-pub const REASON_REMOVED: &str = "removed";
+pub const REASON_NO_SIGNAL: &str = "computers-offline-no-signal";
+pub const REASON_REMOVED: &str = "computers-offline-removed";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OfflineReason {
