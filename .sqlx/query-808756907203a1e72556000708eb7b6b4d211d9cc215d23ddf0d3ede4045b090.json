@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT device_id FROM card_issuers WHERE stream_id = $1 AND card_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "card_issuers",
+            "name": "device_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Text"]
+    },
+    "nullable": [false]
+  },
+  "hash": "808756907203a1e72556000708eb7b6b4d211d9cc215d23ddf0d3ede4045b090"
+}

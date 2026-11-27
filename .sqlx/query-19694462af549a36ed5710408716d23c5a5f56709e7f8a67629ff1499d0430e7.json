@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT letter_id, account, kind, device_id, content, created_at_ms, delivered_at_ms, state, claimed_by FROM mailbox_letters WHERE state = 'pending' AND kind = 'round' AND device_id <> $1 AND COALESCE(delivered_at_ms, created_at_ms) <= $2 ORDER BY created_at_ms, letter_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "letter_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "letter_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "account",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "device_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "created_at_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "delivered_at_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "delivered_at_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "claimed_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox_letters",
+            "name": "claimed_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Int8"]
+    },
+    "nullable": [false, false, false, false, false, false, true, false, true]
+  },
+  "hash": "19694462af549a36ed5710408716d23c5a5f56709e7f8a67629ff1499d0430e7"
+}

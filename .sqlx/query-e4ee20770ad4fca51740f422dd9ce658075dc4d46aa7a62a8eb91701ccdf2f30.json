@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox_letters SET state = 'claimed', claimed_by = $2, claimed_at_ms = $3 WHERE letter_id = $1 AND device_id = $2 AND state = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "e4ee20770ad4fca51740f422dd9ce658075dc4d46aa7a62a8eb91701ccdf2f30"
+}

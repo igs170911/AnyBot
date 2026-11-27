@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox_letters SET state = 'reassigned', reassigned_to = $2, reassign_reason = $3, closed_at_ms = $4 WHERE letter_id = $1 AND state = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Text", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "da8ffeaa8451a8773b4c014e518b5a3f7248e1503626e722787dd8fbbab95bf8"
+}
