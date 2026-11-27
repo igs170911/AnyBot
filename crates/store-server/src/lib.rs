@@ -32,10 +32,14 @@ pub use streams::{
 };
 pub use streams_bots::{BotRow, ensure_bot, list_bots, load_bot, rename_bot, set_bot_deleted};
 
+pub mod keyed_hash;
 pub mod master_check;
 pub mod secret_keys;
+pub mod secret_seal;
+pub use keyed_hash::{HASH_ALGORITHM, HashPurpose, KeyedHash};
 pub use master_check::{KeyCheck, KeyCheckError, check_master_key, record_master_key};
 pub use secret_keys::{SecretError, SecretKeys};
+pub use secret_seal::{SEAL_VERSION, SecretPlace};
 
 pub type Pool = sqlx::PgPool;
 

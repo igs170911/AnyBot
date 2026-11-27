@@ -1,4 +1,4 @@
-use ring::{hkdf, hmac};
+use ring::{aead, hkdf, hmac};
 
 use anybot_foundation::MasterKey;
 
@@ -17,7 +17,7 @@ pub enum SecretError {
     Random,
     Unreadable(String),
     WrongKey,
-    WrongPlace,
+    Rejected,
 }
 
 impl std::fmt::Display for SecretError {
@@ -27,14 +27,15 @@ impl std::fmt::Display for SecretError {
             SecretError::Random => f.write_str("operating system randomness unavailable"),
             SecretError::Unreadable(reason) => write!(f, "sealed secret unreadable: {reason}"),
             SecretError::WrongKey => f.write_str("sealed secret belongs to another master key"),
-            SecretError::WrongPlace => {
-                f.write_str("sealed secret does not open at this table, row and column")
-            }
+            SecretError::Rejected => f.write_str(
+                "sealed secret does not open here: moved to another table, row or column, or altered",
+            ),
         }
     }
 }
 
 pub struct SecretKeys {
+    root: hkdf::Prk,
     key_id: [u8; KEY_ID_LEN],
     check: hmac::Key,
 }
@@ -54,7 +55,11 @@ impl SecretKeys {
         let head = tag.as_ref().get(..KEY_ID_LEN).ok_or(SecretError::Derive)?;
         let mut key_id = [0u8; KEY_ID_LEN];
         key_id.copy_from_slice(head);
-        Ok(SecretKeys { key_id, check })
+        Ok(SecretKeys {
+            root,
+            key_id,
+            check,
+        })
     }
 
     #[must_use]
@@ -75,6 +80,19 @@ impl SecretKeys {
     #[must_use]
     pub fn check_matches(&self, stored: &[u8]) -> bool {
         hmac::verify(&self.check, CHECK_MESSAGE, stored).is_ok()
+    }
+
+    pub(crate) fn hmac_key(&self, info: &[u8]) -> Result<hmac::Key, SecretError> {
+        expand_hmac(&self.root, info)
+    }
+
+    pub(crate) fn aead_key(&self, info: &[u8]) -> Result<aead::LessSafeKey, SecretError> {
+        let infos = [info];
+        let okm = self
+            .root
+            .expand(&infos, &aead::AES_256_GCM)
+            .map_err(|_| SecretError::Derive)?;
+        Ok(aead::LessSafeKey::new(aead::UnboundKey::from(okm)))
     }
 }
 
