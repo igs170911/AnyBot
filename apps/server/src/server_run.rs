@@ -245,7 +245,7 @@ pub async fn finish_serve(staged: StagedServing, ctx: &mut Ctx) -> ExitCode {
         return ExitCode::from(3);
     }
     note_startup_counts(ctx, staged.account_count, &staged.new_invite);
-    watch_stop_signals(&staged.shutdown);
+    crate::stop_signals::watch_stop_signals(&staged.shutdown);
     let stop = Arc::clone(&staged.shutdown);
     let code = serve_exit_stoppable(
         &mut ctx.catalog,
@@ -257,36 +257,6 @@ pub async fn finish_serve(staged: StagedServing, ctx: &mut Ctx) -> ExitCode {
     stop.notify_waiters();
     let _joined = staged.sweeper.await;
     code
-}
-
-fn watch_stop_signals(shutdown: &Arc<tokio::sync::Notify>) {
-    let stop = Arc::clone(shutdown);
-    tokio::spawn(async move {
-        let _reported = listen_for_stop()
-            .await
-            .map_or_else(|err| err.to_string(), |()| "stopped".to_owned());
-        stop.notify_waiters();
-    });
-}
-
-#[cfg(unix)]
-async fn listen_for_stop() -> Result<(), std::io::Error> {
-    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-    tokio::select! {
-        _ctrl = tokio::signal::ctrl_c() => Ok(()),
-        Some(_sig) = terminate.recv() => Ok(()),
-    }
-}
-
-#[cfg(windows)]
-async fn listen_for_stop() -> Result<(), std::io::Error> {
-    let mut ctrl_break = tokio::signal::windows::ctrl_break()?;
-    let mut ctrl_close = tokio::signal::windows::ctrl_close()?;
-    tokio::select! {
-        _ctrl = tokio::signal::ctrl_c() => Ok(()),
-        _break = ctrl_break.recv() => Ok(()),
-        _close = ctrl_close.recv() => Ok(()),
-    }
 }
 
 pub async fn serve_main(args: &ServerLaunchArgs, version: &str, ctx: &mut Ctx) -> ExitCode {
