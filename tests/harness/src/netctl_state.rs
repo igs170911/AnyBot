@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 
 use tokio::sync::Mutex;
 use tokio::sync::Notify;
@@ -34,6 +35,7 @@ pub(crate) struct TargetEntry {
     pub(crate) clock: Option<Arc<FakeClock>>,
     pub(crate) open: bool,
     pub(crate) wake: Arc<Notify>,
+    pub(crate) event_rng: Arc<AtomicU64>,
     pub(crate) live: Vec<Arc<Notify>>,
 }
 
@@ -60,6 +62,7 @@ impl NetCtl {
                 clock: None,
                 open: true,
                 wake: Arc::new(Notify::new()),
+                event_rng: Arc::new(AtomicU64::new(0)),
                 live: Vec::new(),
             },
         );
@@ -90,6 +93,7 @@ impl NetCtl {
             clock: entry.clock.clone(),
             open: entry.open,
             wake: Arc::clone(&entry.wake),
+            event_rng: Arc::clone(&entry.event_rng),
         })
     }
 

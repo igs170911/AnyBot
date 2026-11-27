@@ -27,6 +27,13 @@ pub enum NetMode {
     DropResponse {
         close: bool,
     },
+    Throttle {
+        bytes_per_sec: u32,
+    },
+    DropEvents {
+        per_mille: u16,
+        seed: u64,
+    },
 }
 
 pub async fn net_start() -> Result<(Arc<NetCtl>, u16), String> {
@@ -111,7 +118,7 @@ async fn accept_loop(watched: &NetCtl, port: u16, proxy_listener: TcpListener, w
         let Ok(spec) = watched.target(port).await else {
             return;
         };
-        netproxy::serve_target(stream, spec, kill).await;
+        tokio::spawn(netproxy::serve_target(stream, spec, kill));
     }
 }
 

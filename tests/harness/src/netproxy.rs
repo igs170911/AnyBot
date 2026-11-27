@@ -1,5 +1,6 @@
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufStream};
@@ -19,6 +20,7 @@ pub struct TargetSpec {
     pub clock: Option<Arc<FakeClock>>,
     pub open: bool,
     pub wake: Arc<Notify>,
+    pub event_rng: Arc<AtomicU64>,
 }
 
 pub async fn serve_target(client: TcpStream, spec: TargetSpec, kill: Arc<Notify>) {
@@ -80,7 +82,9 @@ fn connect_delay(mode: &NetMode) -> Duration {
         | NetMode::Down
         | NetMode::HangConnect
         | NetMode::Stall
-        | NetMode::DropResponse { .. } => Duration::ZERO,
+        | NetMode::DropResponse { .. }
+        | NetMode::Throttle { .. }
+        | NetMode::DropEvents { .. } => Duration::ZERO,
     }
 }
 
