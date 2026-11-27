@@ -198,6 +198,8 @@ pub enum MessageCode {
     ComputersPairWrong,
     ComputersPairRate,
     ComputersPairFull,
+    ComputersOfflineNoSignal,
+    ComputersOfflineRemoved,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -586,6 +588,14 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::ComputersPairWrong, "computers-pair-wrong"),
     (MessageCode::ComputersPairRate, "computers-pair-rate"),
     (MessageCode::ComputersPairFull, "computers-pair-full"),
+    (
+        MessageCode::ComputersOfflineNoSignal,
+        "computers-offline-no-signal",
+    ),
+    (
+        MessageCode::ComputersOfflineRemoved,
+        "computers-offline-removed",
+    ),
 ];
 
 impl MessageCode {

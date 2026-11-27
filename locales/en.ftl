@@ -193,3 +193,5 @@ account-reauth-password-wrong = The password is wrong
 computers-pair-wrong = The pairing code is wrong or expired (valid for 10 minutes, one use)
 computers-pair-rate = Too many wrong pairing codes: try again in 5 minutes
 computers-pair-full = Too many computers are waiting to pair: try again later
+computers-offline-no-signal = No signal from it for over 60 seconds (the network is down, or the computer is asleep)
+computers-offline-removed = It was removed from the account

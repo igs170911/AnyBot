@@ -41,6 +41,24 @@ impl Served {
         Ok(())
     }
 
+    pub async fn kill_server(&mut self) -> Result<(), String> {
+        let running = std::mem::take(&mut self.server_tasks);
+        if running.is_empty() {
+            return Err("server is not running".to_owned());
+        }
+        for task in &running {
+            task.abort();
+        }
+        for task in running {
+            match task.await {
+                Ok(()) => {}
+                Err(e) if e.is_cancelled() => {}
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+        Ok(())
+    }
+
     pub async fn restart_server(&mut self) -> Result<(), String> {
         let config = anybot_server::load_config(&self.pool, &*self.db.secret_keys()?)
             .await

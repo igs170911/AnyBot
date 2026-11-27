@@ -68,6 +68,7 @@ pub mod pairing_issue;
 pub mod pairing_redeem;
 pub mod pass_hash;
 pub mod presence;
+pub mod presence_sweep;
 pub mod problems;
 pub mod reauth_state;
 pub mod req_source;

@@ -196,3 +196,5 @@ account-reauth-password-wrong = 密碼不對
 computers-pair-wrong = 配對碼不對，或已經過期（10 分鐘內有效，只能用一次）
 computers-pair-rate = 配對碼錯太多次，請 5 分鐘後再試
 computers-pair-full = 現在等配對的電腦太多，請稍後再產生
+computers-offline-no-signal = 超過 60 秒沒有它的任何訊號（網路斷了，或電腦睡著了）
+computers-offline-removed = 被移出帳號了

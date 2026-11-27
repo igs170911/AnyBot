@@ -173,6 +173,7 @@ pub struct StagedServing {
     pub listeners: Vec<TcpListener>,
     pub app: axum::Router,
     pub shutdown: Arc<tokio::sync::Notify>,
+    pub sweeper: tokio::task::JoinHandle<()>,
     pub reference: MessageRef,
     pub account_count: i64,
     pub new_invite: Option<String>,
@@ -222,12 +223,14 @@ pub async fn stage_serve(
         Arc::clone(&state.clock),
         Arc::clone(&shutdown),
     );
+    let sweeper = anybot_server::presence_sweep::spawn_sweeper(state.clone());
     let app = build_router(state);
     drop(cleanup);
     Ok(StagedServing {
         listeners,
         app,
         shutdown,
+        sweeper,
         reference,
         account_count,
         new_invite,
@@ -240,13 +243,17 @@ pub async fn finish_serve(staged: StagedServing, ctx: &mut Ctx) -> ExitCode {
     }
     note_startup_counts(ctx, staged.account_count, &staged.new_invite);
     watch_stop_signals(&staged.shutdown);
-    serve_exit_stoppable(
+    let stop = Arc::clone(&staged.shutdown);
+    let code = serve_exit_stoppable(
         &mut ctx.catalog,
         staged.listeners,
         staged.app,
         staged.shutdown,
     )
-    .await
+    .await;
+    stop.notify_waiters();
+    let _joined = staged.sweeper.await;
+    code
 }
 
 fn watch_stop_signals(shutdown: &Arc<tokio::sync::Notify>) {

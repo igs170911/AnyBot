@@ -194,7 +194,9 @@ export type MessageCode =
   "account-reauth-password-wrong" |
   "computers-pair-wrong" |
   "computers-pair-rate" |
-  "computers-pair-full";
+  "computers-pair-full" |
+  "computers-offline-no-signal" |
+  "computers-offline-removed";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -391,4 +393,6 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "computers-pair-wrong",
   "computers-pair-rate",
   "computers-pair-full",
+  "computers-offline-no-signal",
+  "computers-offline-removed",
 ];
