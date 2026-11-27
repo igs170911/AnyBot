@@ -4,7 +4,7 @@ use anybot_protocol::RunEvent;
 #[cfg(test)]
 mod compilefail_tests {
     #[test]
-    fn test_trust_compilefail_pass_api_is_closed_outside_trust() {
+    fn test_trust_pass_api_is_closed_outside_trust_compile_fail() {
         trybuild::TestCases::new().compile_fail("tests/compilefail/*.rs");
     }
 }

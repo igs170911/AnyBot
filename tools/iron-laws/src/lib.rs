@@ -23,9 +23,9 @@ pub mod migrations_insert;
 pub mod migrations_parser;
 pub mod migrations_rules;
 pub mod nextest_config;
-pub mod passguard;
 #[cfg(test)]
 mod nextest_config_tests;
+pub mod passguard;
 pub mod permit_block;
 pub mod redocly;
 pub mod suppressions;
