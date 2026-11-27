@@ -26,7 +26,7 @@ pub async fn serve_target(client: TcpStream, spec: TargetSpec, kill: Arc<Notify>
     if !delay.is_zero() {
         sleep_with_kill(delay, &kill).await;
     }
-    let mut buffered = BufStream::new(client);
+    let mut buffered = BufStream::with_capacity(1, 1, client);
     let head = read_head(&mut buffered).await;
     let Ok(head) = head else {
         return;
