@@ -9,6 +9,7 @@ description = "AnyBot sync skeleton crate (spec/07 section 2)"
 anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-store-client = { workspace = true }
+bytes = { workspace = true }
 reqwest = { workspace = true }
 getrandom = { workspace = true }
 serde_json = { workspace = true }
