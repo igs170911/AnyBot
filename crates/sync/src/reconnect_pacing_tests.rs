@@ -123,3 +123,32 @@ async fn waiting_for_the_turn_ends_at_once_when_a_response_arrives() {
     let done = test_harness::timeout_real(handle, Duration::from_secs(5)).await;
     assert!(done.is_ok(), "wait_turn must end when a response arrives");
 }
+
+#[test]
+fn a_thousand_clients_failing_together_never_put_more_than_15_percent_in_any_100_ms() {
+    let mut delays: Vec<u64> = (0..1_000u64)
+        .map(|seed| {
+            let (_clock, pacer) = pacer_at(1_000, seed);
+            pacer.connected();
+            delay_ms(&pacer)
+        })
+        .collect();
+    delays.sort_unstable();
+    let busiest = delays
+        .iter()
+        .enumerate()
+        .map(|(first, start)| {
+            delays
+                .iter()
+                .skip(first)
+                .take_while(|at| **at < start + 100)
+                .count()
+        })
+        .max()
+        .unwrap();
+    assert!(
+        busiest <= 150,
+        "busiest 100 ms window held {busiest} of 1000"
+    );
+    assert!(delays.iter().all(|delay| (1_500..=3_000).contains(delay)));
+}
