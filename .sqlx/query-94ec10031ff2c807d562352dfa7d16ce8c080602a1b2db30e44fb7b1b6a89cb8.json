@@ -1,0 +1,24 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT stream FROM outbox WHERE state = 'pending' ORDER BY stream",
+  "describe": {
+    "columns": [
+      {
+        "name": "stream",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "stream"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [false]
+  },
+  "hash": "94ec10031ff2c807d562352dfa7d16ce8c080602a1b2db30e44fb7b1b6a89cb8"
+}

@@ -1,0 +1,46 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT seq, record_id, content FROM records WHERE stream = ? AND kind = 'setting'\n                ORDER BY seq",
+  "describe": {
+    "columns": [
+      {
+        "name": "seq",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "name": "record_id",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "record_id"
+          }
+        }
+      },
+      {
+        "name": "content",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [false, false, false]
+  },
+  "hash": "f416cb387e518a1d466e1327c2ac0729a5a752d4fbae546761b9e18aeb76048a"
+}

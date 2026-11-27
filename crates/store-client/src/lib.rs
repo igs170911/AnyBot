@@ -1,23 +1,27 @@
-use anybot_domain::TaskStatus;
 use anybot_foundation as _;
-use anybot_protocol::RunEvent;
 
-pub type Pool = sqlx::SqlitePool;
+pub mod error;
+pub mod model;
+pub mod open;
+pub mod outbox;
+pub mod outbox_rows;
+pub mod purge;
+pub mod recover;
+pub mod recover_read;
+pub mod replica;
+pub mod replica_rows;
+pub mod settings;
+pub mod store;
 
-#[derive(Debug, Clone)]
-pub struct ReplicaRecord {
-    pub event: RunEvent,
-    pub status: TaskStatus,
-}
+pub use error::StoreError;
+pub use model::{
+    ACCOUNT_STREAM, ApplyOutcome, LocalRecord, NewOutbox, OutboxRow, OutboxState, Progress,
+    bot_stream,
+};
+pub use open::{DATABASE_FILE, OpenOutcome};
+pub use recover::{Recovery, RecoveryReason};
+pub use settings::SettingValue;
+pub use store::{Pool, Store};
 
-impl ReplicaRecord {
-    #[must_use]
-    pub fn new(event: RunEvent, status: TaskStatus) -> Self {
-        ReplicaRecord { event, status }
-    }
-}
-
-#[must_use]
-pub fn db_file_exists(path: &str) -> bool {
-    std::path::Path::new(path).exists()
-}
+#[cfg(test)]
+mod tests;

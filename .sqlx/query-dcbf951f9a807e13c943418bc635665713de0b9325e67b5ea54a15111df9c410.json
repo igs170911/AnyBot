@@ -1,0 +1,123 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT stream, seq, record_id, kind, content, created_at_ms, offline_sent,\n                task_id, task_seq, purged FROM records WHERE stream = ? ORDER BY seq",
+  "describe": {
+    "columns": [
+      {
+        "name": "stream",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "stream"
+          }
+        }
+      },
+      {
+        "name": "seq",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "name": "record_id",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "record_id"
+          }
+        }
+      },
+      {
+        "name": "kind",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "content",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "name": "created_at_ms",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "created_at_ms"
+          }
+        }
+      },
+      {
+        "name": "offline_sent",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "offline_sent"
+          }
+        }
+      },
+      {
+        "name": "task_id",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "name": "task_seq",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "task_seq"
+          }
+        }
+      },
+      {
+        "name": "purged",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "purged"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [false, false, false, false, false, false, false, true, true, false]
+  },
+  "hash": "dcbf951f9a807e13c943418bc635665713de0b9325e67b5ea54a15111df9c410"
+}

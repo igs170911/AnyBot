@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM records WHERE stream = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "86b9d5f9320ede56de42512567e33a6ae9c8a74e9a9331705d899a367f119667"
+}

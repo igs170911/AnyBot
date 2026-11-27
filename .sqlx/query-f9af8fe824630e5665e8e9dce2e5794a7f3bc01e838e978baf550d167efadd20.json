@@ -1,0 +1,170 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT local_id AS \"local_id!\", stream, record_id, kind, content, created_at_ms,\n                task_id, offline_at_create, attempted_at_ms, offline_sent, state, reject_code,\n                rejected_at_ms FROM outbox WHERE record_id = ? AND state = 'pending'\n                AND attempted_at_ms IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "local_id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "local_id"
+          }
+        }
+      },
+      {
+        "name": "stream",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "stream"
+          }
+        }
+      },
+      {
+        "name": "record_id",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "record_id"
+          }
+        }
+      },
+      {
+        "name": "kind",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "content",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "name": "created_at_ms",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "created_at_ms"
+          }
+        }
+      },
+      {
+        "name": "task_id",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "name": "offline_at_create",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "offline_at_create"
+          }
+        }
+      },
+      {
+        "name": "attempted_at_ms",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "attempted_at_ms"
+          }
+        }
+      },
+      {
+        "name": "offline_sent",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "offline_sent"
+          }
+        }
+      },
+      {
+        "name": "state",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "name": "reject_code",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "reject_code"
+          }
+        }
+      },
+      {
+        "name": "rejected_at_ms",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "rejected_at_ms"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f9af8fe824630e5665e8e9dce2e5794a7f3bc01e838e978baf550d167efadd20"
+}

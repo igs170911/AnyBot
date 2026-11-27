@@ -4,11 +4,16 @@ name = "anybot-store-client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AnyBot store-client skeleton crate (spec/07 section 2)"
+description = "AnyBot client-side local database: replica, per-stream progress and outbox (SQLite)"
 [dependencies]
 anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-domain = { workspace = true }
-sqlx = { workspace = true, features = ["sqlite"] }
+sqlx = { workspace = true, features = ["sqlite", "sqlx-toml"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+test-harness = { workspace = true }
 [lints]
 workspace = true
