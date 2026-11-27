@@ -21,6 +21,15 @@ pub struct ReplicaNotice {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResyncNotice {
+    pub stream: String,
+    pub at_ms: i64,
+    pub resent: usize,
+    pub server_written_not_resent: usize,
+    pub purged_not_resent: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyncStatus {
     pub connection: ConnectionState,
     pub pending: u64,
@@ -28,6 +37,7 @@ pub struct SyncStatus {
     pub last_sync_ms: Option<i64>,
     pub replica_notice: Option<ReplicaNotice>,
     pub unrecovered_kinds: u64,
+    pub resyncs: Vec<ResyncNotice>,
     pub local_error: Option<String>,
 }
 
@@ -41,6 +51,7 @@ impl SyncStatus {
             last_sync_ms: None,
             replica_notice: None,
             unrecovered_kinds: 0,
+            resyncs: Vec::new(),
             local_error: None,
         }
     }

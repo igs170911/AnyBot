@@ -1,12 +1,10 @@
-mod common;
-
 use std::time::Duration;
 
 use anybot_store_client::OutboxState;
 use anybot_sync::{NewRecord, StreamTarget, SyncClient};
 use test_harness::netctl::{net_down, net_drop_response, net_restore};
 
-use common::{ACCOUNT_STREAM_ID, Counting, Rig, drive_until, message, rig, wait_until};
+use crate::common::{ACCOUNT_STREAM_ID, Counting, Rig, drive_until, message, rig, wait_until};
 
 const STEP: Duration = Duration::from_millis(250);
 

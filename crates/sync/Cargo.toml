@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 description = "AnyBot client sync library: outbox sending, pulling after N, replica repair (spec/07 section 2)"
 [dependencies]
+anybot-domain = { workspace = true }
 anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-store-client = { workspace = true }
@@ -24,7 +25,6 @@ url = { workspace = true }
 workspace = true
 [dev-dependencies]
 anybot-app-test = { workspace = true }
-anybot-domain = { workspace = true }
 anybot-server = { workspace = true }
 anybot-server-test = { workspace = true }
 proptest = { workspace = true }

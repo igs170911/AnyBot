@@ -121,6 +121,9 @@ impl Store {
         for rec in records {
             insert_record(&mut tx, stream, rec).await?;
         }
+        for rec in records {
+            crate::purge::apply_purge(&mut tx, stream, rec).await?;
+        }
         let last = records.last();
         let (seq, id) = last.map_or((0, ""), |rec| (rec.seq, rec.device_id.as_str()));
         set_progress(&mut tx, stream, seq, id).await?;

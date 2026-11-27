@@ -9,6 +9,7 @@ use crate::error::SyncError;
 use crate::outbox::retry_delay_secs;
 use crate::random::{RandomSource, span_ms};
 use crate::status::{ConnectionState, StatusCell, SyncStatus};
+use crate::wanted::Wanted;
 use crate::wire::{Wire, WireReply};
 
 const JITTER_LOW_MS: u64 = 500;
@@ -29,6 +30,7 @@ pub(crate) struct Core {
     pub status: StatusCell,
     pub wake: Notify,
     pub retry_now: Notify,
+    pub wanted: Wanted,
     pace: Mutex<Pace>,
 }
 
@@ -48,6 +50,7 @@ impl Core {
             status: StatusCell::new(status),
             wake: Notify::new(),
             retry_now: Notify::new(),
+            wanted: Wanted::default(),
             pace: Mutex::new(Pace::default()),
         }
     }
@@ -104,6 +107,18 @@ impl Core {
             }
         });
         Ok(())
+    }
+
+    pub(crate) fn note_connected(&self) {
+        self.pace().failures = 0;
+        self.status.update(|status| {
+            if !matches!(
+                status.connection,
+                ConnectionState::NeedLogin | ConnectionState::VersionTooOld
+            ) {
+                status.connection = ConnectionState::Connected;
+            }
+        });
     }
 
     pub(crate) fn note_failure(&self, reason: &str) -> Result<(), SyncError> {

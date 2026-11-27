@@ -1,16 +1,13 @@
-use anybot_protocol::{
-    AppendReply, AppendRequest, MAX_APPEND_ITEMS, ProblemJson, RecordItem, StreamSelector,
-};
+use anybot_protocol::{AppendReply, AppendRequest, MAX_APPEND_ITEMS, RecordItem, StreamSelector};
 use anybot_store_client::{ACCOUNT_STREAM, OutboxRow};
 
 use crate::core::Core;
 use crate::error::SyncError;
 use crate::idem::append_key;
-use crate::status::ConnectionState;
+use crate::reply_gate::{Gate, gate};
 use crate::wire::{WireFailure, WireLimits, WireMethod, WireReply, WireRequest};
 
 pub(crate) const BOT_CREATE_KIND: &str = "bots_create";
-const VERSION_OLD_CODE: &str = "install-version-old";
 const SEVEN_DAYS_MS: i64 = 7 * 24 * 60 * 60 * 1000;
 const OFFLINE_AFTER_MS: i64 = 5_000;
 const MIN_GAP_MS: i64 = 200;
@@ -191,31 +188,19 @@ fn items_of(core: &Core, rows: &[OutboxRow]) -> Result<Vec<RecordItem>, SyncErro
 }
 
 async fn settle(core: &Core, rows: &[OutboxRow], reply: &WireReply) -> Result<Flush, SyncError> {
-    if reply.status == 200 {
-        return settle_results(core, rows, reply).await;
-    }
-    if reply.status == 401 {
-        core.halt(ConnectionState::NeedLogin);
-        return Ok(Flush::Halted);
-    }
-    let Ok(problem) = serde_json::from_slice::<ProblemJson>(&reply.body) else {
-        core.note_server_trouble();
-        return Ok(Flush::Retry);
-    };
-    if problem.code == VERSION_OLD_CODE {
-        core.halt(ConnectionState::VersionTooOld);
-        return Ok(Flush::Halted);
-    }
-    let refused = (400..500).contains(&reply.status) && reply.status != 408 && reply.status != 429;
-    let head = rows.first();
-    if let (true, Some(row)) = (refused, head) {
-        core.store
-            .outbox_reject(row.local_id, &problem.code, core.now_ms()?)
-            .await?;
-        Ok(Flush::Sent)
-    } else {
-        core.note_server_trouble();
-        Ok(Flush::Retry)
+    match gate(core, reply) {
+        Gate::Fine => settle_results(core, rows, reply).await,
+        Gate::Halted => Ok(Flush::Halted),
+        Gate::Trouble => Ok(Flush::Retry),
+        Gate::Refused(problem) => match rows.first() {
+            Some(row) => {
+                core.store
+                    .outbox_reject(row.local_id, &problem.code, core.now_ms()?)
+                    .await?;
+                Ok(Flush::Sent)
+            }
+            None => Ok(Flush::Retry),
+        },
     }
 }
 
@@ -240,6 +225,9 @@ async fn settle_results(
                 return Err(SyncError::Reply(format!("unknown append result {other}")));
             }
         }
+    }
+    if let Some(row) = rows.first() {
+        core.wanted.pull(&row.stream);
     }
     Ok(Flush::Sent)
 }

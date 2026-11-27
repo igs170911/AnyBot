@@ -11,6 +11,7 @@ use tokio::task::JoinHandle;
 use crate::config::SyncConfig;
 use crate::core::Core;
 use crate::error::SyncError;
+use crate::hooks::SyncHooks;
 use crate::http_wire::HttpWire;
 use crate::random::RandomSource;
 use crate::status::{ReplicaNotice, SyncStatus};
@@ -50,7 +51,7 @@ impl Drop for TaskGuard {
 
 pub struct SyncClient {
     pub(crate) core: Arc<Core>,
-    _guard: TaskGuard,
+    task: TaskGuard,
 }
 
 impl SyncClient {
@@ -89,12 +90,27 @@ impl SyncClient {
         status.replica_notice = opened.recovery.as_ref().map(notice_of);
         let core = Arc::new(Core::new(opened.store, wire, clock, random, status));
         core.refresh_counts().await?;
+        want_everything_known(&core).await?;
         let task = tokio::spawn(crate::worker::run(Arc::clone(&core)));
         core.wake.notify_one();
         Ok(SyncClient {
             core,
-            _guard: TaskGuard(task),
+            task: TaskGuard(task),
         })
+    }
+
+    pub async fn close(self) {
+        self.task.0.abort();
+        self.core.store.close().await;
+    }
+
+    #[must_use]
+    pub fn hooks(&self) -> SyncHooks {
+        SyncHooks::new(Arc::clone(&self.core))
+    }
+
+    pub fn pull_now(&self, stream: &StreamTarget) {
+        self.hooks().pull_now(&stream.key());
     }
 
     pub async fn add_record(&self, record: NewRecord) -> Result<String, SyncError> {
@@ -155,6 +171,14 @@ impl SyncClient {
     pub fn watch_status(&self) -> watch::Receiver<SyncStatus> {
         self.core.status.subscribe()
     }
+}
+
+async fn want_everything_known(core: &Core) -> Result<(), SyncError> {
+    core.wanted.pull(ACCOUNT_STREAM);
+    for stream in core.store.replica_streams().await? {
+        core.wanted.pull(&stream);
+    }
+    Ok(())
 }
 
 async fn open_store(config: &SyncConfig) -> Result<OpenOutcome, SyncError> {

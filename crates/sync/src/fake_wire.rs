@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use serde_json::{Value, json};
 use test_harness::FakeClock;
 
-use crate::wire::{Wire, WireFailure, WireFuture, WireReply, WireRequest};
+use crate::wire::{Wire, WireFailure, WireFuture, WireMethod, WireReply, WireRequest};
 
 pub(crate) type Scripted = Result<WireReply, WireFailure>;
 
@@ -85,6 +85,16 @@ pub(crate) fn problem(status: u16, code: &str) -> WireReply {
 
 impl Wire for FakeWire {
     fn call(&self, request: WireRequest) -> WireFuture<'_> {
+        if request.method == WireMethod::Get {
+            let empty =
+                json!({"stream": "account", "records": [], "has_more": false, "max_seq": 0});
+            let reply = WireReply {
+                status: 200,
+                body: empty.to_string().into_bytes(),
+                server_time_ms: None,
+            };
+            return Box::pin(async move { Ok(reply) });
+        }
         let body: Value = request
             .body
             .as_deref()
