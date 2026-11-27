@@ -15,6 +15,7 @@ pub mod api_login_flow;
 pub mod api_ops;
 pub mod api_ops_session;
 pub mod api_referee;
+pub mod api_referee_card;
 pub mod api_register;
 pub mod api_settings;
 pub mod api_settings_write;

@@ -3,6 +3,7 @@ use serde_json as _;
 #[cfg(test)]
 use serde_json as _;
 pub mod account_name;
+pub mod card_waiting;
 pub mod conn_auth;
 pub mod goal_brake;
 pub mod goal_followup;
@@ -33,6 +34,8 @@ pub mod version_release;
 mod version_release_tests;
 pub mod window;
 
+#[cfg(test)]
+mod card_waiting_tests;
 #[cfg(test)]
 mod conn_auth_tests;
 #[cfg(test)]

@@ -5,19 +5,20 @@ use serde::Serialize;
 
 use anybot_domain::referee::referee_record_kind;
 use anybot_domain::{AcceptOutcome, decide_accept};
-use anybot_messages::{MessageCode, Params};
+use anybot_messages::MessageCode;
 use anybot_protocol::{RefereeAction, RefereeReply, RefereeRequest, selector_key};
 use anybot_store_server::streams_card::{CardClaim, claim_card_in};
 use anybot_store_server::{Pool, streams, streams_action};
 
+use crate::api_referee_card::{already_answered, ensure_card_open};
 use crate::api_streams_action::{publish_note, scope_of};
 use crate::api_streams_append::replay_guard;
 use crate::api_streams_util::{denial_code, resolve_stream};
 use crate::app::AppState;
 use crate::caller::Caller;
 use crate::req_write::{
-    CallerDenied, Outcome, denied, denied_with, idempotency_key_of, internal_sqlx, internal_text,
-    pool_of, record_outcome, value_of,
+    CallerDenied, Outcome, denied, idempotency_key_of, internal_sqlx, internal_text, pool_of,
+    record_outcome, value_of,
 };
 
 #[derive(Serialize)]
@@ -35,7 +36,7 @@ struct RefereeFingerprint<'a> {
     path = "/v1/streams/referee",
     operation_id = "post_streams_referee",
     summary = "Cancel, stop, wake, answer a card or change the done criteria of a task",
-    description = "A device asks the server to decide. The server records the decision on the bot stream with the task id. A card answer is accepted once per card: the second answer is refused and names the device that answered first.\nThe Idempotency-Key header is required.",
+    description = "A device asks the server to decide. The server records the decision on the bot stream with the task id. A card answer is accepted once per card: the second answer is refused with card-already-answered and names the device that answered first. An answer without a card id is refused with card-answer-stale. An answer for a card that is not the one the task waits for (never shown, replaced by a later card, or the task was stopped or cancelled) is refused with card-not-waiting.\nThe Idempotency-Key header is required.",
     tag = "streams",
     security(("bearer" = [])),
     request_body(content = RefereeRequest, example = json!({"stream": {"bot": {"id": "018f-bot-uuidv7"}}, "task_id": "018f-task-uuidv7", "action": "card_answer", "card_id": "018f-card-uuidv7", "answer": "allow"})),
@@ -52,7 +53,7 @@ struct RefereeFingerprint<'a> {
             content_type = "application/problem+json",
             body = anybot_protocol::ProblemJson,
             example = json!({"code": "record-no-permission", "params": {}, "status": 403, "title": "You cannot write this stream.", "type": "https://anybot.test/problems/record_no_permission"})),
-        (status = 409, description = "The card was already answered, or the page is out of date",
+        (status = 409, description = "The card was already answered, is no longer waiting, or the page is out of date (no card id)",
             content_type = "application/problem+json",
             body = anybot_protocol::ProblemJson,
             example = json!({"code": "card-already-answered", "params": {"device": "018f-uuidv7"}, "status": 409, "title": "This card was already answered from 018f-uuidv7.", "type": "https://anybot.test/problems/card_already_answered"})),
@@ -134,44 +135,68 @@ async fn run_referee(
     }
     let now =
         i64::try_from(state.clock.now_ms().millis()).map_err(|e| internal_text(e.to_string()))?;
-    let content = serde_json::to_string(req).map_err(|e| internal_text(e.to_string()))?;
-    let record_device = format!("referee:{key}");
     let mut tx = streams_action::begin(pool).await.map_err(internal_sqlx)?;
     streams_action::lock_max_seq(&mut tx, &resolved.key)
         .await
         .map_err(internal_sqlx)?;
-    let spec = streams::InsertSpec {
-        device_id: &record_device,
-        kind: referee_record_kind(req.action),
-        content: &content,
-        created_at_ms: now,
-        offline_sent: false,
-        task_id: Some(&req.task_id),
-    };
-    let seq = streams::insert_in_tx(&mut tx, &resolved.key, &spec)
-        .await
-        .map_err(internal_sqlx)?;
-    if let Some((card_id, answer)) = card {
-        let claim = CardClaim {
-            stream_id: &resolved.key,
-            card_id,
-            device_id: &caller.device_id,
-            answer,
-            seq,
-        };
-        if let Some(first) = claim_card_in(&mut tx, &claim)
-            .await
-            .map_err(internal_sqlx)?
-        {
-            return Err(already_answered(&first));
-        }
+    if let Some((card_id, _)) = card {
+        ensure_card_open(&mut tx, &resolved.key, &req.task_id, card_id).await?;
     }
+    let write = RefereeWrite {
+        stream_key: &resolved.key,
+        caller,
+        req,
+        card,
+        record_device: format!("referee:{key}"),
+        now,
+    };
+    let seq = write_decision(&mut tx, &write).await?;
     tx.commit().await.map_err(internal_sqlx)?;
     publish_note(state, &resolved.key, seq);
     Ok(RefereeReply {
         stream: req.stream.clone(),
         seq,
     })
+}
+
+struct RefereeWrite<'a> {
+    stream_key: &'a str,
+    caller: &'a Caller,
+    req: &'a RefereeRequest,
+    card: Option<(&'a str, &'a str)>,
+    record_device: String,
+    now: i64,
+}
+
+async fn write_decision(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    write: &RefereeWrite<'_>,
+) -> Result<i64, CallerDenied> {
+    let content = serde_json::to_string(write.req).map_err(|e| internal_text(e.to_string()))?;
+    let spec = streams::InsertSpec {
+        device_id: &write.record_device,
+        kind: referee_record_kind(write.req.action),
+        content: &content,
+        created_at_ms: write.now,
+        offline_sent: false,
+        task_id: Some(&write.req.task_id),
+    };
+    let seq = streams::insert_in_tx(tx, write.stream_key, &spec)
+        .await
+        .map_err(internal_sqlx)?;
+    if let Some((card_id, answer)) = write.card {
+        let claim = CardClaim {
+            stream_id: write.stream_key,
+            card_id,
+            device_id: &write.caller.device_id,
+            answer,
+            seq,
+        };
+        if let Some(first) = claim_card_in(tx, &claim).await.map_err(internal_sqlx)? {
+            return Err(already_answered(&first));
+        }
+    }
+    Ok(seq)
 }
 
 fn card_of(req: &RefereeRequest) -> Result<Option<(&str, &str)>, CallerDenied> {
@@ -197,13 +222,4 @@ fn card_of(req: &RefereeRequest) -> Result<Option<(&str, &str)>, CallerDenied> {
 
 fn malformed() -> CallerDenied {
     denied(StatusCode::BAD_REQUEST, MessageCode::RefereeMalformed)
-}
-
-fn already_answered(device: &str) -> CallerDenied {
-    let params = Params::new().with_text("device", device);
-    denied_with(
-        StatusCode::CONFLICT,
-        MessageCode::CardAlreadyAnswered,
-        &params,
-    )
 }
