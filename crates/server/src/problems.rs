@@ -3,8 +3,8 @@ use axum::http::StatusCode;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 
-use anybot_messages::{Catalog, MessageCode, Params};
-use anybot_protocol::{PROBLEM_JSON_CONTENT_TYPE, PROBLEM_TYPE_BASE, ProblemJson};
+use anybot_messages::{Catalog, MessageCode, ParamValue, Params};
+use anybot_protocol::{MessageParams, PROBLEM_JSON_CONTENT_TYPE, PROBLEM_TYPE_BASE, ProblemJson};
 
 fn format_en(code: MessageCode, params: &Params) -> String {
     Catalog::new()
@@ -17,16 +17,20 @@ pub fn auth_problem(status: u16, code: MessageCode) -> Box<ProblemJson> {
     auth_problem_params(status, code, &Params::default())
 }
 
+fn carried_params(params: &Params) -> MessageParams {
+    MessageParams::from_pairs(params.entries().into_iter().map(|(key, value)| {
+        let raw = match value {
+            ParamValue::Int(number) => serde_json::Value::from(number),
+            ParamValue::Text(text) => serde_json::Value::from(text),
+        };
+        (key, raw)
+    }))
+}
+
 #[must_use]
 pub fn auth_problem_params(status: u16, code: MessageCode, params: &Params) -> Box<ProblemJson> {
     let code_text = code.as_str();
     let title = format_en(code, params);
-    let carried: Vec<(String, serde_json::Value)> =
-        if let serde_json::Value::Object(map) = params.to_json_value() {
-            map.into_iter().collect()
-        } else {
-            Vec::new()
-        };
     Box::new(
         ProblemJson::new(
             status,
@@ -34,7 +38,7 @@ pub fn auth_problem_params(status: u16, code: MessageCode, params: &Params) -> B
             format!("{PROBLEM_TYPE_BASE}/{}", code_text.replace('-', "_")),
             code_text.to_owned(),
         )
-        .with_params(anybot_protocol::MessageParams::from_pairs(carried)),
+        .with_params(carried_params(params)),
     )
 }
 
@@ -67,5 +71,21 @@ mod tests {
         );
         assert_eq!(problem.status, 403);
         assert_eq!(problem.title, "The invite code is wrong");
+    }
+
+    #[test]
+    fn problem_carries_the_params_next_to_the_code() {
+        let params = Params::new()
+            .with_text("device", "dev-1")
+            .with_int("max_seq", 45);
+        let problem = auth_problem_params(409, MessageCode::CardAlreadyAnswered, &params);
+        assert_eq!(
+            problem.params.get("device"),
+            Some(&serde_json::Value::from("dev-1"))
+        );
+        assert_eq!(
+            problem.params.get("max_seq"),
+            Some(&serde_json::Value::from(45))
+        );
     }
 }

@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT kind, content FROM records WHERE stream_id = $1 AND task_id = $2 AND kind = ANY($3) ORDER BY seq",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Text", "TextArray"]
+    },
+    "nullable": [false, false]
+  },
+  "hash": "f4597b132c49b0f16467e925149b085a55d1ba230a8911807e71269c132883b5"
+}

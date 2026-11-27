@@ -202,3 +202,4 @@ mailbox-claim-retracted = This letter was withdrawn
 mailbox-letter-unknown = There is no such letter for this computer
 mailbox-reassign-offline = "{ $computer }" is offline now: this runs on the Bot's computer instead.
 mailbox-reassign-delegate-off = "{ $computer }" does not accept work from other devices in the account: this runs on the Bot's computer instead.
+card-not-waiting = That card is no longer waiting for an answer.

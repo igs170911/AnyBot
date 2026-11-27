@@ -172,41 +172,7 @@ pub enum MessageCode {
     AppendKindForbidden,
     StreamBotMissing,
     SyncAfterAhead,
-    ServerBootstrapLineMalformed,
-    ServerBootstrapNameUnknown,
-    ServerBootstrapNameDuplicate,
-    ServerBootstrapNameMissing,
-    ServerBootstrapMasterKeyMalformed,
-    ServerMasterKeyMismatch,
-    AccountTwoStepCodeWrong,
-    AccountTwoStepSetupCodeWrong,
-    AccountTwoStepExpired,
-    AccountTwoStepRate,
-    AccountTwoStepNoPending,
-    AccountTwoStepUnreadable,
-    ServerTwoStepResetDone,
-    ComputerRemoved,
-    ComputerNameTooLong,
-    ComputerNameEmpty,
-    ComputerNameTaken,
-    ComputerNotFound,
-    ComputerDelegateSelfOnly,
-    ComputerPairedForbidden,
-    DeviceNoPermission,
-    AccountReauthRequired,
-    AccountReauthPasswordWrong,
-    ComputersPairWrong,
-    ComputersPairRate,
-    ComputersPairFull,
-    ComputersOfflineNoSignal,
-    ComputersOfflineRemoved,
-    MailboxClaimReassigned,
-    MailboxClaimTaken,
-    MailboxClaimYours,
-    MailboxClaimRetracted,
-    MailboxLetterUnknown,
-    MailboxReassignOffline,
-    MailboxReassignDelegateOff,
+    CardNotWaiting,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -521,107 +487,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::AppendKindForbidden, "append-kind-forbidden"),
     (MessageCode::StreamBotMissing, "stream-bot-missing"),
     (MessageCode::SyncAfterAhead, "sync-after-ahead"),
-    (
-        MessageCode::ServerBootstrapLineMalformed,
-        "server-bootstrap-line-malformed",
-    ),
-    (
-        MessageCode::ServerBootstrapNameUnknown,
-        "server-bootstrap-name-unknown",
-    ),
-    (
-        MessageCode::ServerBootstrapNameDuplicate,
-        "server-bootstrap-name-duplicate",
-    ),
-    (
-        MessageCode::ServerBootstrapNameMissing,
-        "server-bootstrap-name-missing",
-    ),
-    (
-        MessageCode::ServerBootstrapMasterKeyMalformed,
-        "server-bootstrap-master-key-malformed",
-    ),
-    (
-        MessageCode::ServerMasterKeyMismatch,
-        "server-master-key-mismatch",
-    ),
-    (
-        MessageCode::AccountTwoStepCodeWrong,
-        "account-two-step-code-wrong",
-    ),
-    (
-        MessageCode::AccountTwoStepSetupCodeWrong,
-        "account-two-step-setup-code-wrong",
-    ),
-    (
-        MessageCode::AccountTwoStepExpired,
-        "account-two-step-expired",
-    ),
-    (MessageCode::AccountTwoStepRate, "account-two-step-rate"),
-    (
-        MessageCode::AccountTwoStepNoPending,
-        "account-two-step-no-pending",
-    ),
-    (
-        MessageCode::AccountTwoStepUnreadable,
-        "account-two-step-unreadable",
-    ),
-    (
-        MessageCode::ServerTwoStepResetDone,
-        "server-two-step-reset-done",
-    ),
-    (MessageCode::ComputerRemoved, "computer-removed"),
-    (MessageCode::ComputerNameTooLong, "computer-name-too-long"),
-    (MessageCode::ComputerNameEmpty, "computer-name-empty"),
-    (MessageCode::ComputerNameTaken, "computer-name-taken"),
-    (MessageCode::ComputerNotFound, "computer-not-found"),
-    (
-        MessageCode::ComputerDelegateSelfOnly,
-        "computer-delegate-self-only",
-    ),
-    (
-        MessageCode::ComputerPairedForbidden,
-        "computer-paired-forbidden",
-    ),
-    (MessageCode::DeviceNoPermission, "device-no-permission"),
-    (
-        MessageCode::AccountReauthRequired,
-        "account-reauth-required",
-    ),
-    (
-        MessageCode::AccountReauthPasswordWrong,
-        "account-reauth-password-wrong",
-    ),
-    (MessageCode::ComputersPairWrong, "computers-pair-wrong"),
-    (MessageCode::ComputersPairRate, "computers-pair-rate"),
-    (MessageCode::ComputersPairFull, "computers-pair-full"),
-    (
-        MessageCode::ComputersOfflineNoSignal,
-        "computers-offline-no-signal",
-    ),
-    (
-        MessageCode::ComputersOfflineRemoved,
-        "computers-offline-removed",
-    ),
-    (
-        MessageCode::MailboxClaimReassigned,
-        "mailbox-claim-reassigned",
-    ),
-    (MessageCode::MailboxClaimTaken, "mailbox-claim-taken"),
-    (MessageCode::MailboxClaimYours, "mailbox-claim-yours"),
-    (
-        MessageCode::MailboxClaimRetracted,
-        "mailbox-claim-retracted",
-    ),
-    (MessageCode::MailboxLetterUnknown, "mailbox-letter-unknown"),
-    (
-        MessageCode::MailboxReassignOffline,
-        "mailbox-reassign-offline",
-    ),
-    (
-        MessageCode::MailboxReassignDelegateOff,
-        "mailbox-reassign-delegate-off",
-    ),
+    (MessageCode::CardNotWaiting, "card-not-waiting"),
 ];
 
 impl MessageCode {

@@ -4,12 +4,13 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
-use anybot_domain::{AcceptOutcome, DedupFields, decide_accept, dedup_same};
+use anybot_domain::{AcceptOutcome, decide_accept};
 use anybot_messages::MessageCode;
 use anybot_protocol::StreamSelector;
 use anybot_protocol::{AppendReply, AppendResult, RecordItem, SETTING_KIND, selector_key};
-use anybot_store_server::{Pool, streams};
+use anybot_store_server::{Pool, streams, streams_action};
 
+use crate::api_streams_dedup::duplicate_result;
 use crate::api_streams_util::{ResolvedStream, denial_code, resolve_stream, too_many_items};
 use crate::app::AppState;
 use crate::caller::Caller;
@@ -232,36 +233,6 @@ async fn setting_item(
     crate::api_settings_write::accept_setting(work.pool, &resolved.key, item, now).await
 }
 
-fn duplicate_result(
-    existing: streams::RecordRow,
-    item: &RecordItem,
-) -> Result<AppendResult, CallerDenied> {
-    let stored =
-        serde_json::from_str(&existing.content).map_err(|e| internal_text(e.to_string()))?;
-    let first = DedupFields {
-        kind: existing.kind,
-        content: stored,
-        task_id: existing.task_id,
-        created_at_ms: existing.created_at_ms,
-    };
-    let second = item_fields(item);
-    if existing.purged || dedup_same(&first, &second) {
-        return Ok(AppendResult::duplicate(existing.seq));
-    }
-    Ok(AppendResult::rejected(
-        MessageCode::RecordIdConflict.as_str().to_owned(),
-    ))
-}
-
-fn item_fields(item: &RecordItem) -> DedupFields {
-    DedupFields {
-        kind: item.kind.clone(),
-        content: item.content.clone(),
-        task_id: item.task_id.clone(),
-        created_at_ms: item.created_at_ms,
-    }
-}
-
 async fn insert_item(
     work: &AppendWork<'_>,
     resolved: &ResolvedStream,
@@ -276,10 +247,14 @@ async fn insert_item(
         offline_sent: item.offline_sent,
         task_id: item.task_id.as_deref(),
     };
-    let seq = streams::insert_record(work.pool, &resolved.key, &spec)
+    let mut tx = streams_action::begin(work.pool)
         .await
         .map_err(internal_sqlx)?;
-    crate::api_streams_bot::project_bot_record(work.pool, resolved, item).await?;
+    let seq = streams::insert_in_tx(&mut tx, &resolved.key, &spec)
+        .await
+        .map_err(internal_sqlx)?;
+    crate::api_streams_bot::project_bot_record(&mut tx, resolved, item).await?;
+    tx.commit().await.map_err(internal_sqlx)?;
     Ok(AppendResult::accepted(seq))
 }
 
