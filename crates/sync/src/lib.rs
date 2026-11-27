@@ -7,6 +7,13 @@ use anybot_store_client as store_client;
 use proptest as _;
 pub mod after_merge;
 pub mod outbox;
+pub mod reconnect_connect;
+pub mod reconnect_direct;
+pub mod reconnect_http;
+pub mod reconnect_pacing;
+pub mod reconnect_random;
+pub mod sse_hint;
+pub mod sse_parse;
 
 pub use after_merge::{Replica, StreamDelta, StreamItem, delta_from};
 pub use outbox::{RETRY_CAP_SECONDS, retry_delay_secs, retry_schedule};
