@@ -1,0 +1,13 @@
+changed	1
+step	fmt	run	always
+step	clippy	skip	no Rust package affected
+step	test	skip	no Rust package affected
+step	depcheck	skip	no Cargo manifest or lock file changed
+step	sqlx-check	run	migrations/server/0001_init.sql changed
+step	locale	skip	no locale or source file changed
+step	ironlaws	run	migrations/server/0001_init.sql changed
+step	api-docs	skip	no API-related change
+step	api-client	skip	no API-related change
+step	api-compat	skip	no API-related change
+step	ts-biome	skip	no TypeScript or web change
+step	check-changed-selftest	skip	check-changed logic unchanged

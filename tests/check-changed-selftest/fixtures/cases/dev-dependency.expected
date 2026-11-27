@@ -1,0 +1,17 @@
+changed	1
+direct	harness
+affected	api-docs	tools/api-docs
+affected	harness	tests/harness
+affected	server	crates/server
+step	fmt	run	always
+step	clippy	run	3 affected packages (1 changed directly)
+step	test	run	3 affected packages
+step	depcheck	skip	no Cargo manifest or lock file changed
+step	sqlx-check	skip	no migrations or sqlx package source changed
+step	locale	run	tests/harness/src/lib.rs changed
+step	ironlaws	run	tests/harness/src/lib.rs changed
+step	api-docs	skip	no API-related change
+step	api-client	skip	no API-related change
+step	api-compat	skip	no API-related change
+step	ts-biome	skip	no TypeScript or web change
+step	check-changed-selftest	skip	check-changed logic unchanged

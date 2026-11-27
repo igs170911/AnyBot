@@ -1,0 +1,16 @@
+changed	1
+direct	server
+affected	api-docs	tools/api-docs
+affected	server	crates/server
+step	fmt	run	always
+step	clippy	run	2 affected packages (1 changed directly)
+step	test	run	2 affected packages
+step	depcheck	skip	no Cargo manifest or lock file changed
+step	sqlx-check	skip	no migrations or sqlx package source changed
+step	locale	run	crates/server/src/lib.rs changed
+step	ironlaws	run	crates/server/src/lib.rs changed
+step	api-docs	run	package api-docs depends on a changed package
+step	api-client	run	package api-docs depends on a changed package
+step	api-compat	run	package api-docs depends on a changed package
+step	ts-biome	skip	no TypeScript or web change
+step	check-changed-selftest	skip	check-changed logic unchanged

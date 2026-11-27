@@ -1,0 +1,17 @@
+changed	2
+direct	tauri-context
+direct	tauri-shell
+affected	tauri-context	apps/desktop/context
+affected	tauri-shell	apps/desktop/src-tauri
+step	fmt	run	always
+step	clippy	run	2 affected packages (2 changed directly)
+step	test	run	2 affected packages
+step	depcheck	skip	no Cargo manifest or lock file changed
+step	sqlx-check	skip	no migrations or sqlx package source changed
+step	locale	run	apps/desktop/context/build.rs changed
+step	ironlaws	run	apps/desktop/context/build.rs changed
+step	api-docs	skip	no API-related change
+step	api-client	skip	no API-related change
+step	api-compat	skip	no API-related change
+step	ts-biome	skip	no TypeScript or web change
+step	check-changed-selftest	skip	check-changed logic unchanged

@@ -14,6 +14,49 @@
 - 逾時設定在 `.config/nextest.toml`：每個測試 30 秒慢速警戒，第 4 次逾時就終止。PostgreSQL 相關的測試另有 120 秒寬限，並在同一群組裡序列化執行（平行度 1）。
 - **`make test` 平行跑，不單執行緒**（INFRA-2）：`_test-body` 是 `cargo nextest run --workspace`，執行緒數照機器核心數。會互相干擾的測試靠 `.config/nextest.toml` 的測試分組在組內排隊（每組 `max-threads = 1`），四個群組是 `ports`（會撞固定埠）、`pg`（會啟動 PostgreSQL）、`net`（會改網路控制）、`timing`（會量真實時間、對 CPU 負載敏感）。群組外並行的測試不准碰共用的埠、網路設定、真實時間量測、共用的資料庫檔案。
 - **新測試要放哪個分組**：會啟動 PostgreSQL 的測試檔用 `pg_` 開頭（自動進 `pg` 群）。會占用固定埠、或啟動真伺服器的放進 `ports`；會動網路控制的（`netctl_` 開頭）放進 `net`；會量真實時間、對 CPU 負載敏感（例如快拒時間的統計上限）的放進 `timing`。新增群組成員就改 `.config/nextest.toml` 的 overrides 篩選列；跨工作區的測試鎖照留，擋不同工作區同時跑測試撞同一個固定埠。
+## 三層迴圈：邊寫、改完、送出
+
+完整 `make check` 要 10–15 分鐘（約 1000 個測試，PostgreSQL 測試在 `pg` 群組序列化，clippy 每個套件各跑一次），不適合每改一個小地方就跑。迭代用三層，越往下越完整、越慢：
+
+| 層 | 指令 | 大約時間 | 跑什麼 |
+|---|---|---|---|
+| 1 邊寫邊跑 | `make test-pkg P=<套件> [T=<測試名稱片段>]` | 秒級 | 單一套件的 `quick` 測試（跳過 `pg_` 與 `_compile_fail`）；`T` 用 nextest 的名稱篩選 |
+| 2 改完一段 | `make check-changed` | 分鐘內，看改動範圍 | 只跑「有改到的檔案會影響的」關卡 |
+| 3 送出前 | `make check-fast`（本機）、雲端完整 `make check` | 幾分鐘到 15 分鐘 | 全部套件、全部關卡 |
+
+`make test-pkg` 和 `make check-changed` 的測試步驟都會先拿跨工作區的測試鎖（見「並行工作」），經 `tools/test-gate.sh`（結尾碼加未知設定警告兩道關卡）。例：`make test-pkg P=anybot-domain T=version_release`。
+
+### `make check-changed` 怎麼算
+
+1. 改動檔案：`git diff --name-only --no-renames <基準>`（工作區對基準，含已暫存與未暫存）加上 `git ls-files --others --exclude-standard`（未追蹤）。基準預設 `HEAD`；要涵蓋整個分支的改動，傳合併基底：`make check-changed CHANGED_BASE=$(git merge-base HEAD dev)`。沒有任何改動就明確印出並成功結束。
+2. 檔案對應套件：`cargo metadata --no-deps` 的 manifest 所在資料夾，取最深的一層（`apps/desktop/src-tauri` 與 `apps/desktop/context` 各自是套件）。`*.md` 不算套件改動。根目錄的 `Cargo.toml`、`Cargo.lock`、`rust-toolchain.toml`、`clippy.toml`、`rustfmt.toml`、`.config/nextest.toml`、`.cargo/` 底下的檔案，算全部套件都改了。
+3. 受影響套件＝有改到的套件加上（傳遞地）依賴它們的套件，正式、開發、建置三種相依都算。所以改 `anybot-domain` 這類核心套件會牽連二十幾個套件，這時用 `make test-pkg` 邊寫比較快。
+4. 規則在 `tools/check-changed-plan.jq`（純邏輯），執行與摘要在 `tools/check-changed.sh`。`make check-changed-selftest`（`check` 與 `check-fast` 都跑）用 `tests/check-changed-selftest/fixtures/` 的假 metadata 驗每個規則，並在 `target/scratch/` 的暫時 git 儲存庫裡，用假的 `cargo`、`make` 驗乾淨、已修改、未追蹤、基準、失敗指出套件這幾種情形。
+
+| 步驟 | 什麼時候跑 |
+|---|---|
+| `cargo fmt --all --check` | 一律 |
+| clippy | 受影響的每個套件，在套件自己的資料夾跑 `cargo clippy --all-targets -- -D warnings`（跟 `make clippy` 同一條規則：套件各自的 `clippy.toml` 不合併） |
+| 測試 | `cargo nextest run -p <受影響套件…> --no-fail-fast`，預設 `--profile quick`；`WITH_PG=1` 改成預設設定再用 `-E 'not test(/_compile_fail$/)'` 排除編譯失敗類，PostgreSQL 測試納入 |
+| `make depcheck` | 有 `Cargo.toml` 或 `Cargo.lock` 改動 |
+| `make sqlx-check` | 改到 `migrations/`、`.sqlx/`，或相依 `sqlx` 的套件裡的 `.rs` |
+| `make locale` | 改到 `locales/`、`crates/messages/`、`web/ui/src/generated/`，或任何 `.rs`／`.ts`／`.tsx`（CJK 掃描） |
+| `make ironlaws` | 改到 `Makefile`、`docs/`、`tools/`、`.config/`、`migrations/`、`.github/workflows/`、`deny.toml`、任何 `.rs`／`.ts`／`.tsx`、`Cargo.toml`、`clippy.toml`（五條鐵律的檔案大小、註解、禁用寫法都在這裡） |
+| `make api-docs`、`make api-client`、`make api-compat` | 改到 `api/`、`web/api-client/`、`redocly*`，或 `api-docs` 套件（經正式相依）受影響 |
+| `make ts-biome` | 改到 `web/`、`tests/e2e/`、任何 `.ts`／`.tsx`、`biome.json`、`package.json` |
+| `make check-changed-selftest` | 改到 `tools/check-changed*`、`tests/check-changed-selftest/`、`Makefile` |
+
+最後印一張摘要：每個步驟「ok／FAILED／skip」、秒數、備註（跳過的步驟寫原因，失敗的寫哪些套件）。任何步驟失敗會繼續跑完其他步驟，最後以非零結束，並列出失敗的步驟。`DRY_RUN=1` 只印計畫不執行。輸出暫存在 `target/check-changed/`（`files.txt`、`plan.txt`、`results.tsv`、`nextest.log`）。
+
+### 限制：它不能取代完整檢查
+
+- 它只看改動的檔案，不看內容。沒被上面規則連到的關卡一律不跑：`deny`、`machete`、`spec-trace`、`gitleaks`、`versions`、`actionlint`、`release-selftest`、`api-lint`、`api-html`、`ts-typecheck`、`ts-test`、`ts-build`、`ts-licenses`、`e2e`、Windows 與 macOS 的編譯。
+- 受影響套件靠 Cargo 的相依宣告算。不經過 Cargo 相依的連結看不到：讀檔案的測試（例如讀 `spec/`、`locales/`、`api/` 的測試）、測試內部啟動別的執行檔、跨語言（Rust 與 `web/`）。例：只改 `spec/` 不會跑任何 Rust 測試。
+- `quick` 設定不跑 `pg_` 與 `_compile_fail` 測試；改資料庫、migration 或型別層規則時加 `WITH_PG=1`，`_compile_fail` 一律只在雲端跑。
+- 改動基準錯了結果就錯：預設 `HEAD` 看不到已經 commit 的改動，換分支或合併 `dev` 後請傳 `CHANGED_BASE`。
+- 它不替你拿 `SPEC_TRACE_REF`：`ironlaws`、`api-compat` 沿用 Makefile 的 `git merge-base HEAD dev`。
+- 「完成」仍然是雲端完整 `make check` 全綠；`check-changed` 通過只表示「這次改動連得到的關卡沒問題」。摘要最後一行會再提醒一次。
+
 ## 並行工作（多個 agent 同時做不同里程碑）
 
 - **工作區**：每個 agent 在自己的 git worktree 和分支工作（`AGENTS.md` 第七節）。worktree 由監督者建；臨時自我測試用的 worktree 放在 repo 的 `target/` 底下（已 gitignore），跑完用 `git worktree remove` 收掉。

@@ -22,7 +22,12 @@ endef
 # spec-trace baseline compare ref: the merge base of HEAD and dev; when there is no merge base this variable is empty and spec-trace fails (INFRA-4: no fallback to HEAD). CI sets its own value: dev and main compare against the commit pushed to before the push, otherwise the merge base of origin/dev (K111). api-compat uses the same ref (spec/09 K118 6).
 SPEC_TRACE_REF ?= $(shell git merge-base HEAD dev)
 
-.PHONY: check check-fast fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline sqlx-prepare sqlx-check \
+# check-changed inputs: CHANGED_BASE is the commit the changed files are computed against (HEAD by default; pass the merge base of HEAD and dev to cover everything this branch changed), WITH_PG=1 adds the PostgreSQL tests, DRY_RUN=1 prints the plan only.
+CHANGED_BASE ?= HEAD
+WITH_PG ?= 0
+DRY_RUN ?= 0
+
+.PHONY: check check-fast check-changed check-changed-selftest test-pkg fmt clippy test test-fast test-basic live-model-check deny machete depcheck spec-trace spec-baseline sqlx-prepare sqlx-check \
 	ironlaws gitleaks versions actionlint ts-install ts-biome ts-typecheck ts-test ts-build \
 	api-docs api-lint api-client api-html api-compat api-compat-selftest api-lint-selftest ts-licenses ts-licenses-selftest \
 	e2e \
@@ -30,11 +35,19 @@ SPEC_TRACE_REF ?= $(shell git merge-base HEAD dev)
 	locale locale-refresh release-selftest
 
 check: fmt clippy gate-selftest test deny machete depcheck sqlx-check spec-trace ironlaws gitleaks versions actionlint locale release-selftest \
-	api-docs api-lint api-client api-html api-compat api-compat-selftest api-lint-selftest \
+	api-docs api-lint api-client api-html api-compat api-compat-selftest api-lint-selftest check-changed-selftest \
 	ts-install ts-licenses ts-biome ts-typecheck ts-test ts-build e2e
 
 # fast loop: the quickest gates plus the four iron laws (cargo fmt check, clippy, depcheck, iron-laws, biome).
-check-fast: fmt clippy gate-selftest test-fast depcheck sqlx-check ironlaws versions locale api-docs api-lint api-client api-html api-compat api-compat-selftest api-lint-selftest ts-licenses ts-biome
+check-fast: fmt clippy gate-selftest test-fast depcheck sqlx-check ironlaws versions locale api-docs api-lint api-client api-html api-compat api-compat-selftest api-lint-selftest check-changed-selftest ts-licenses ts-biome
+
+# changed-files loop (docs/testing.md): runs only the gates the changed files can affect; the cloud make check stays the full gate.
+check-changed:
+	bash tools/check-changed.sh "$(CARGO)" make "$(CHANGED_BASE)" "$(WITH_PG)" "$(DRY_RUN)"
+
+# quick tests of one package while writing code: make test-pkg P=anybot-domain [T=name fragment].
+test-pkg:
+	bash tools/test-pkg.sh "$(CARGO)" "$(P)" "$(T)"
 
 fmt:
 	$(CARGO) fmt --all --check
@@ -247,3 +260,8 @@ endif
 api-compat-selftest:
 	@mkdir -p target
 	@bash tests/api-compat-selftest/selftest.sh
+
+# selftest of the changed-files planner: the jq plan is checked against fixtures and the driver runs in dry-run mode in scratch git repositories (spec/09 K86).
+check-changed-selftest:
+	@mkdir -p target
+	@bash tests/check-changed-selftest/selftest.sh

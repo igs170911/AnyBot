@@ -1,0 +1,21 @@
+changed	1
+direct	foundation
+affected	api-docs	tools/api-docs
+affected	domain	crates/domain
+affected	foundation	crates/foundation
+affected	harness	tests/harness
+affected	server	crates/server
+affected	store	crates/store
+affected	tauri-shell	apps/desktop/src-tauri
+step	fmt	run	always
+step	clippy	run	7 affected packages (1 changed directly)
+step	test	run	7 affected packages
+step	depcheck	skip	no Cargo manifest or lock file changed
+step	sqlx-check	skip	no migrations or sqlx package source changed
+step	locale	run	crates/foundation/src/lib.rs changed
+step	ironlaws	run	crates/foundation/src/lib.rs changed
+step	api-docs	run	package api-docs depends on a changed package
+step	api-client	run	package api-docs depends on a changed package
+step	api-compat	run	package api-docs depends on a changed package
+step	ts-biome	skip	no TypeScript or web change
+step	check-changed-selftest	skip	check-changed logic unchanged

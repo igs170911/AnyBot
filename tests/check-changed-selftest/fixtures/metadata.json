@@ -1,0 +1,96 @@
+{
+  "workspace_root": "/repo",
+  "packages": [
+    {
+      "name": "foundation",
+      "manifest_path": "/repo/crates/foundation/Cargo.toml",
+      "dependencies": [
+        {
+          "name": "serde",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "name": "domain",
+      "manifest_path": "/repo/crates/domain/Cargo.toml",
+      "dependencies": [
+        {
+          "name": "foundation",
+          "kind": null
+        },
+        {
+          "name": "serde",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "name": "store",
+      "manifest_path": "/repo/crates/store/Cargo.toml",
+      "dependencies": [
+        {
+          "name": "domain",
+          "kind": null
+        },
+        {
+          "name": "sqlx",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "name": "server",
+      "manifest_path": "/repo/crates/server/Cargo.toml",
+      "dependencies": [
+        {
+          "name": "domain",
+          "kind": null
+        },
+        {
+          "name": "store",
+          "kind": null
+        },
+        {
+          "name": "harness",
+          "kind": "dev"
+        }
+      ]
+    },
+    {
+      "name": "harness",
+      "manifest_path": "/repo/tests/harness/Cargo.toml",
+      "dependencies": [
+        {
+          "name": "foundation",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "name": "api-docs",
+      "manifest_path": "/repo/tools/api-docs/Cargo.toml",
+      "dependencies": [
+        {
+          "name": "server",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "name": "tauri-shell",
+      "manifest_path": "/repo/apps/desktop/src-tauri/Cargo.toml",
+      "dependencies": [
+        {
+          "name": "domain",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "name": "tauri-context",
+      "manifest_path": "/repo/apps/desktop/context/Cargo.toml",
+      "dependencies": []
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+changed	3
+step	fmt	run	always
+step	clippy	skip	no Rust package affected
+step	test	skip	no Rust package affected
+step	depcheck	skip	no Cargo manifest or lock file changed
+step	sqlx-check	skip	no migrations or sqlx package source changed
+step	locale	run	locales/en.ftl changed
+step	ironlaws	run	web/app/src/page.tsx changed
+step	api-docs	skip	no API-related change
+step	api-client	skip	no API-related change
+step	api-compat	skip	no API-related change
+step	ts-biome	run	web/app/src/page.tsx changed
+step	check-changed-selftest	skip	check-changed logic unchanged
