@@ -111,6 +111,7 @@ impl<'a> Rig<'a> {
                 reassigned,
             } => self.deliver(*slot, *named, *lands_on, *reassigned).await,
             Op::Claim { slot, by, outcome } => self.claim_slot(*slot, *by, *outcome).await,
+            Op::Race { slot, by } => self.race(*slot, *by).await,
             Op::XAgain { pick } => self.x_again(*pick).await,
             Op::XStranger { by, pick } => self.x_stranger(*by, *pick).await,
             Op::Pass { secs } => self.pass(*secs).await,
@@ -153,6 +154,35 @@ impl<'a> Rig<'a> {
             .call(&bearer, "/v1/mailbox/claim", &json!({"letter_id": letter}))
             .await?;
         match_outcome(&answer, outcome)
+    }
+
+    fn spec_for(&mut self, bearer: &str, body: &Value) -> RequestSpec {
+        self.keys = self.keys.saturating_add(1);
+        let key = format!("prop-{}", self.keys);
+        RequestSpec::new(&body.to_string())
+            .with_key(&key)
+            .with_bearer(bearer)
+    }
+
+    async fn race(&mut self, slot: usize, by: Dev) -> Result<(), String> {
+        let letter = self.ids.get(slot).cloned().ok_or("slot has no letter")?;
+        let bearer = self.seat(by).bearer.clone();
+        let body = json!({"letter_id": letter});
+        let first = self.spec_for(&bearer, &body);
+        let second = self.spec_for(&bearer, &body);
+        let path = "/v1/mailbox/claim";
+        let (one, two) = tokio::join!(
+            self.http.post(&self.base, path, &first),
+            self.http.post(&self.base, path, &second)
+        );
+        let (one, two) = (one?, two?);
+        let (winner, loser) = if one.status == 200 {
+            (one, two)
+        } else {
+            (two, one)
+        };
+        match_outcome(&winner, Outcome::Won)?;
+        match_outcome(&loser, Outcome::Refused(crate::mailbox_model::CODE_YOURS))
     }
 
     async fn claim_slot(&mut self, slot: usize, by: Dev, outcome: Outcome) -> Result<(), String> {

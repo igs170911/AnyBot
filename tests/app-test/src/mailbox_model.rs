@@ -77,6 +77,10 @@ pub enum Op {
         by: Dev,
         outcome: Outcome,
     },
+    Race {
+        slot: usize,
+        by: Dev,
+    },
     XAgain {
         pick: u64,
     },
@@ -240,7 +244,12 @@ impl Builder {
         if let Some(model) = self.slots.get_mut(slot) {
             model.state = SlotState::Held;
         }
-        self.claim(slot, holder, Outcome::Won);
+        if self.rng.below(5)? == 0 {
+            self.touch(holder);
+            self.ops.push(Op::Race { slot, by: holder });
+        } else {
+            self.claim(slot, holder, Outcome::Won);
+        }
         Ok(true)
     }
 
