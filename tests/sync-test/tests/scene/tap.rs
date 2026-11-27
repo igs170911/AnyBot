@@ -17,7 +17,17 @@ pub(crate) struct Exchange {
 pub(crate) struct Tap {
     port: u16,
     seen: Arc<Mutex<Vec<Exchange>>>,
+    beats: Arc<Mutex<Vec<u64>>>,
+    lines: Arc<Mutex<Vec<String>>>,
     task: JoinHandle<()>,
+}
+
+#[derive(Clone)]
+struct Log {
+    seen: Arc<Mutex<Vec<Exchange>>>,
+    beats: Arc<Mutex<Vec<u64>>>,
+    lines: Arc<Mutex<Vec<String>>>,
+    clock: Option<Arc<FakeClock>>,
 }
 
 impl Tap {
@@ -33,15 +43,28 @@ impl Tap {
             .await
             .map_err(|e| e.to_string())?;
         let port = listener.local_addr().map_err(|e| e.to_string())?.port();
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let log = Arc::clone(&seen);
+        let log = Log {
+            seen: Arc::new(Mutex::new(Vec::new())),
+            beats: Arc::new(Mutex::new(Vec::new())),
+            lines: Arc::new(Mutex::new(Vec::new())),
+            clock,
+        };
+        let seen = Arc::clone(&log.seen);
+        let beats = Arc::clone(&log.beats);
+        let lines = Arc::clone(&log.lines);
         let task = tokio::spawn(async move {
             let mut live = JoinSet::new();
             while let Ok((client, _from)) = listener.accept().await {
-                live.spawn(relay(client, upstream, Arc::clone(&log), clock.clone()));
+                live.spawn(relay(client, upstream, log.clone()));
             }
         });
-        Ok(Tap { port, seen, task })
+        Ok(Tap {
+            port,
+            seen,
+            beats,
+            lines,
+            task,
+        })
     }
 
     pub(crate) fn url(&self) -> String {
@@ -54,6 +77,20 @@ impl Tap {
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
     }
+
+    pub(crate) fn every_request(&self) -> Vec<String> {
+        self.lines
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    pub(crate) fn beats(&self) -> Vec<u64> {
+        self.beats
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
 }
 
 impl Drop for Tap {
@@ -62,12 +99,7 @@ impl Drop for Tap {
     }
 }
 
-async fn relay(
-    mut client: TcpStream,
-    upstream: SocketAddr,
-    log: Arc<Mutex<Vec<Exchange>>>,
-    clock: Option<Arc<FakeClock>>,
-) {
+async fn relay(mut client: TcpStream, upstream: SocketAddr, log: Log) {
     let mut head = Vec::new();
     let mut chunk = [0u8; 4096];
     while !head.windows(4).any(|window| window == b"\r\n\r\n") {
@@ -83,9 +115,10 @@ async fn relay(
         name.eq_ignore_ascii_case("idempotency-key")
             .then(|| value.trim().to_owned())
     });
-    let at_ms = clock.as_ref().map(|clock| clock.now_ms());
+    let at_ms = log.clock.as_ref().map(|clock| clock.now_ms());
+    note_requests(&log, &head);
     let index = {
-        let mut seen = log.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut seen = log.seen.lock().unwrap_or_else(PoisonError::into_inner);
         seen.push(Exchange {
             request: line,
             status: None,
@@ -102,7 +135,7 @@ async fn relay(
     }
     let (mut client_read, mut client_write) = client.split();
     let (mut far_read, mut far_write) = far.split();
-    let forward = tokio::io::copy(&mut client_read, &mut far_write);
+    let forward = forward(&mut client_read, &mut far_write, &log);
     let back = answer(&mut far_read, &mut client_write, &log, index);
     tokio::select! {
         _done = forward => {}
@@ -110,7 +143,38 @@ async fn relay(
     }
 }
 
-async fn answer<R, W>(far: &mut R, client: &mut W, log: &Arc<Mutex<Vec<Exchange>>>, index: usize)
+async fn forward<R, W>(client: &mut R, far: &mut W, log: &Log)
+where
+    R: AsyncReadExt + Unpin,
+    W: AsyncWriteExt + Unpin,
+{
+    let mut chunk = [0u8; 16384];
+    loop {
+        let Ok(count) = client.read(&mut chunk).await else {
+            return;
+        };
+        if count == 0 {
+            return;
+        }
+        let piece = chunk.get(..count).unwrap_or_default();
+        note_requests(log, piece);
+        if far.write_all(piece).await.is_err() {
+            return;
+        }
+    }
+}
+
+fn note_requests(log: &Log, piece: &[u8]) {
+    let text = String::from_utf8_lossy(piece);
+    let mut lines = log.lines.lock().unwrap_or_else(PoisonError::into_inner);
+    for line in text.lines() {
+        if line.starts_with("GET /") || line.starts_with("POST /") {
+            lines.push(line.to_owned());
+        }
+    }
+}
+
+async fn answer<R, W>(far: &mut R, client: &mut W, log: &Log, index: usize)
 where
     R: AsyncReadExt + Unpin,
     W: AsyncWriteExt + Unpin,
@@ -127,8 +191,9 @@ where
         let piece = chunk.get(..count).unwrap_or_default();
         if first {
             first = false;
-            note_status(log, index, piece);
+            note_status(&log.seen, index, piece);
         }
+        note_beat(log, piece);
         if client.write_all(piece).await.is_err() {
             return;
         }
@@ -144,5 +209,15 @@ fn note_status(log: &Arc<Mutex<Vec<Exchange>>>, index: usize, piece: &[u8]) {
     let mut seen = log.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some(entry) = seen.get_mut(index) {
         entry.status = status;
+    }
+}
+
+fn note_beat(log: &Log, piece: &[u8]) {
+    let Some(clock) = log.clock.as_ref() else {
+        return;
+    };
+    if piece.windows(3).any(|window| window == b":hb") {
+        let mut beats = log.beats.lock().unwrap_or_else(PoisonError::into_inner);
+        beats.push(clock.now_ms());
     }
 }

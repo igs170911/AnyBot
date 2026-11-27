@@ -98,10 +98,20 @@ impl Rig {
         dir: &Path,
         random: Arc<dyn RandomSource>,
     ) -> Result<SyncClient, String> {
+        self.client_as(&self.bearer, url, dir, random).await
+    }
+
+    pub(crate) async fn client_as(
+        &self,
+        bearer: &str,
+        url: &str,
+        dir: &Path,
+        random: Arc<dyn RandomSource>,
+    ) -> Result<SyncClient, String> {
         let config = SyncConfig {
             data_dir: dir.to_path_buf(),
             server_url: url.to_owned(),
-            credential: Secret::from_untrusted(self.bearer.clone()),
+            credential: Secret::from_untrusted(bearer.to_owned()),
             client_version: CLIENT_VERSION.to_owned(),
             trusted: TrustedCerts::empty(),
             proxy: None,

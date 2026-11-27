@@ -1,4 +1,5 @@
 pub(crate) mod chaos;
+pub(crate) mod live;
 pub(crate) mod tap;
 
 use anybot_app_test::http::{RequestSpec, post};
@@ -65,6 +66,31 @@ pub(crate) async fn phone_sends(
             .collect();
         let key = format!("scene-{tag}-{number}");
         append(rig, json!({"bot": {"id": BOT}}), items, &key).await?;
+        number = batch_end;
+    }
+    Ok(())
+}
+
+pub(crate) async fn phone_sends_sized(
+    rig: &Rig,
+    count: u64,
+    text_len: usize,
+    batch: u64,
+) -> Result<(), String> {
+    let filler = "x".repeat(text_len);
+    let mut number = 1;
+    while number <= count {
+        let batch_end = number.saturating_add(batch).min(count.saturating_add(1));
+        let items = (number..batch_end)
+            .map(|n| item(&device_id(n), "message", &message(&format!("{n}-{filler}"))))
+            .collect();
+        append(
+            rig,
+            json!({"bot": {"id": BOT}}),
+            items,
+            &format!("scene-big-{number}"),
+        )
+        .await?;
         number = batch_end;
     }
     Ok(())
