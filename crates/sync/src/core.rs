@@ -20,6 +20,7 @@ pub(crate) struct Pace {
     pub last_send_ms: Option<i64>,
     pub failures: u64,
     pub offset_ms: Option<i64>,
+    pub offset_probed: bool,
 }
 
 pub(crate) struct Core {
@@ -96,6 +97,7 @@ impl Core {
             pace.failures = 0;
             if let Some(server_time) = reply.server_time_ms {
                 pace.offset_ms = Some(server_time.saturating_sub(received));
+                pace.offset_probed = false;
             }
         }
         self.status.update(|status| {
@@ -127,6 +129,7 @@ impl Core {
             let mut pace = self.pace();
             pace.failures = pace.failures.saturating_add(1);
             pace.offset_ms = None;
+            pace.offset_probed = false;
         }
         let reason = reason.to_owned();
         self.status.update(|status| {

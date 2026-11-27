@@ -13,8 +13,10 @@ use sqlx as _;
 #[cfg(test)]
 use test_harness as _;
 
+pub mod action;
 pub mod after_merge;
 pub mod client;
+mod client_settings;
 pub mod config;
 mod core;
 pub mod error;
@@ -37,6 +39,7 @@ pub mod reconnect_random;
 pub mod reconnect_status;
 mod reply_gate;
 mod resync;
+mod setting_hold;
 pub mod sse_hint;
 pub mod sse_parse;
 pub mod sse_session;
@@ -45,6 +48,7 @@ mod wanted;
 pub mod wire;
 mod worker;
 
+pub use action::{ACTION_UNREACHABLE_CODE, ActionError, ActionReply};
 pub use after_merge::{Replica, StreamDelta, StreamItem, delta_from};
 pub use client::{NewRecord, StreamTarget, SyncClient};
 pub use config::SyncConfig;
@@ -56,6 +60,8 @@ pub use status::{ConnectionState, ReplicaNotice, ResyncNotice, SyncStatus};
 pub use wire::{Wire, WireFailure, WireFuture, WireLimits, WireMethod, WireReply, WireRequest};
 
 #[cfg(test)]
+mod action_tests;
+#[cfg(test)]
 mod after_merge_tests;
 #[cfg(test)]
 mod fake_wire;
@@ -65,5 +71,7 @@ mod flush_tests;
 mod outbox_tests;
 #[cfg(test)]
 mod pull_tests;
+#[cfg(test)]
+mod setting_tests;
 #[cfg(test)]
 mod sync_id_tests;

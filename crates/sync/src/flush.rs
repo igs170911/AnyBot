@@ -27,7 +27,7 @@ pub(crate) async fn flush_once(core: &Core) -> Result<Flush, SyncError> {
         .await?;
     if next_batch(core).await?.is_none() {
         core.refresh_counts().await?;
-        return Ok(Flush::Idle);
+        return idle_or_probe(core).await;
     }
     wait_pace(core).await?;
     let Some((stream, rows)) = next_batch(core).await? else {
@@ -47,7 +47,8 @@ async fn next_batch(core: &Core) -> Result<Option<(String, Vec<OutboxRow>)>, Syn
         if waits_for_bot_create(core, &stream).await? {
             continue;
         }
-        let rows = core.store.outbox_pending(&stream, limit).await?;
+        let rows =
+            crate::setting_hold::sendable(core, core.store.outbox_pending(&stream, limit).await?);
         if !rows.is_empty() {
             return Ok(Some((stream, rows)));
         }
@@ -151,7 +152,10 @@ async fn mark_attempts(
     let now = core.now_ms()?;
     let mut kept = Vec::with_capacity(rows.len());
     let mut fresh = Vec::new();
-    for row in rows {
+    for mut row in rows {
+        if !crate::setting_hold::freeze_offset(core, &mut row) {
+            break;
+        }
         let offline_sent = offline_flag(&row, now);
         let present = core
             .store
@@ -230,4 +234,17 @@ async fn settle_results(
         core.wanted.pull(&row.stream);
     }
     Ok(Flush::Sent)
+}
+
+async fn idle_or_probe(core: &Core) -> Result<Flush, SyncError> {
+    if !crate::setting_hold::any_held(core).await? {
+        return Ok(Flush::Idle);
+    }
+    let probed = core.pace().offset_probed;
+    if probed {
+        return Ok(Flush::Retry);
+    }
+    core.pace().offset_probed = true;
+    core.wanted.pull(ACCOUNT_STREAM);
+    Ok(Flush::Idle)
 }

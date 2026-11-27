@@ -168,7 +168,8 @@ export type MessageCode =
   "referee-malformed" |
   "append-kind-forbidden" |
   "stream-bot-missing" |
-  "sync-after-ahead";
+  "sync-after-ahead" |
+  "account-action-unreachable";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -339,4 +340,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "append-kind-forbidden",
   "stream-bot-missing",
   "sync-after-ahead",
+  "account-action-unreachable",
 ];

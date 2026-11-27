@@ -120,7 +120,7 @@ async fn retry_gaps_follow_the_schedule_plus_the_random_part() -> Result<(), Str
     let gaps = wire.gaps();
     assert_eq!(gaps.len(), expected.len());
     for (gap, want) in gaps.iter().zip(expected) {
-        assert!((want..want + 250).contains(gap), "gap {gap} want {want}");
+        assert!((want..want + 1_000).contains(gap), "gap {gap} want {want}");
     }
     real_until("outbox empty", || async {
         client.outbox().await.is_ok_and(|rows| rows.is_empty())

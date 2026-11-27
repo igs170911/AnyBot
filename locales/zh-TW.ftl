@@ -170,3 +170,4 @@ referee-malformed = 這個裁判請求缺少必要的欄位。
 append-kind-forbidden = 這種紀錄不能從裝置寫入。
 stream-bot-missing = 這個 bot 串流不存在。
 sync-after-ahead = 這台裝置比伺服器還新（max_seq { $max_seq }）：請重置這個串流。
+account-action-unreachable = 連不到伺服器：這個動作要連上才能做（訊息可以照樣傳，連上後送出）。

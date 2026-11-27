@@ -172,6 +172,7 @@ pub enum MessageCode {
     AppendKindForbidden,
     StreamBotMissing,
     SyncAfterAhead,
+    AccountActionUnreachable,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -486,6 +487,10 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::AppendKindForbidden, "append-kind-forbidden"),
     (MessageCode::StreamBotMissing, "stream-bot-missing"),
     (MessageCode::SyncAfterAhead, "sync-after-ahead"),
+    (
+        MessageCode::AccountActionUnreachable,
+        "account-action-unreachable",
+    ),
 ];
 
 impl MessageCode {

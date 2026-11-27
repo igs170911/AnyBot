@@ -167,3 +167,4 @@ referee-malformed = This referee request is missing a field it needs.
 append-kind-forbidden = This kind of record cannot be written from a device.
 stream-bot-missing = This bot stream does not exist.
 sync-after-ahead = This device is ahead of the server (max_seq { $max_seq }): please reset the stream.
+account-action-unreachable = Cannot reach the server: this action needs a connection (messages can still be sent and go out once connected).

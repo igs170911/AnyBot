@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
+use anybot_foundation::Clock as _;
 use serde_json::{Value, json};
 use test_harness::FakeClock;
 
@@ -20,7 +21,9 @@ pub(crate) struct FakeWire {
     gets: Mutex<Vec<String>>,
     script: Mutex<VecDeque<Scripted>>,
     get_scripts: Mutex<Vec<GetScript>>,
+    keys: Mutex<Vec<Option<String>>>,
     fail_forever: bool,
+    hang: bool,
 }
 
 fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -28,7 +31,12 @@ fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl FakeWire {
-    fn build(clock: &Arc<FakeClock>, script: Vec<Scripted>, fail_forever: bool) -> Arc<FakeWire> {
+    fn build(
+        clock: &Arc<FakeClock>,
+        script: Vec<Scripted>,
+        fail_forever: bool,
+        hang: bool,
+    ) -> Arc<FakeWire> {
         Arc::new(FakeWire {
             clock: Arc::clone(clock),
             calls: Mutex::new(Vec::new()),
@@ -36,16 +44,26 @@ impl FakeWire {
             gets: Mutex::new(Vec::new()),
             script: Mutex::new(script.into()),
             get_scripts: Mutex::new(Vec::new()),
+            keys: Mutex::new(Vec::new()),
             fail_forever,
+            hang,
         })
     }
 
     pub(crate) fn new(clock: &Arc<FakeClock>, script: Vec<Scripted>) -> Arc<FakeWire> {
-        FakeWire::build(clock, script, false)
+        FakeWire::build(clock, script, false, false)
     }
 
     pub(crate) fn always_failing(clock: &Arc<FakeClock>) -> Arc<FakeWire> {
-        FakeWire::build(clock, Vec::new(), true)
+        FakeWire::build(clock, Vec::new(), true, false)
+    }
+
+    pub(crate) fn hanging(clock: &Arc<FakeClock>) -> Arc<FakeWire> {
+        FakeWire::build(clock, Vec::new(), false, true)
+    }
+
+    pub(crate) fn keys(&self) -> Vec<Option<String>> {
+        locked(&self.keys).clone()
     }
 
     pub(crate) fn on_get(&self, path_has: &str, replies: Vec<Scripted>) {
@@ -111,6 +129,13 @@ pub(crate) fn page_reply(
     }
 }
 
+pub(crate) fn timed(reply: WireReply, server_time_ms: i64) -> WireReply {
+    WireReply {
+        server_time_ms: Some(server_time_ms),
+        ..reply
+    }
+}
+
 pub(crate) fn stored(seq: i64, id: &str, kind: &str, text: &str) -> Value {
     json!({
         "seq": seq,
@@ -166,6 +191,14 @@ impl Wire for FakeWire {
             .unwrap_or(Value::Null);
         locked(&self.calls).push(self.clock.now_ms());
         locked(&self.posted).push(body.clone());
+        locked(&self.keys).push(request.idempotency_key.clone());
+        if self.hang {
+            let wait = self.clock.sleep(request.limits.wait);
+            return Box::pin(async move {
+                wait.await;
+                Err(WireFailure::WaitTimeout)
+            });
+        }
         let scripted = locked(&self.script).pop_front();
         let answer = match scripted {
             Some(step) => step,

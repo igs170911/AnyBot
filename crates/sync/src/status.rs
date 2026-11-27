@@ -39,6 +39,7 @@ pub struct SyncStatus {
     pub unrecovered_kinds: u64,
     pub resyncs: Vec<ResyncNotice>,
     pub local_error: Option<String>,
+    pub actions_retrying: u32,
 }
 
 impl SyncStatus {
@@ -53,6 +54,7 @@ impl SyncStatus {
             unrecovered_kinds: 0,
             resyncs: Vec::new(),
             local_error: None,
+            actions_retrying: 0,
         }
     }
 
