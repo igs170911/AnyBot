@@ -9,22 +9,25 @@ description = "AnyBot client sync library: outbox sending, pulling after N, repl
 anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-store-client = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true }
+getrandom = { workspace = true }
+rand = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }
-tower = { workspace = true }
-tokio = { workspace = true, features = ["sync", "rt"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-futures-util = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "macros"] }
+tower = { workspace = true }
 url = { workspace = true }
-rand = { workspace = true }
-[dev-dependencies]
-proptest = { workspace = true }
-test-harness = { workspace = true }
-anybot-app-test = { workspace = true }
-anybot-server-test = { workspace = true }
-anybot-server = { workspace = true }
-sqlx = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
 [lints]
 workspace = true
+[dev-dependencies]
+anybot-app-test = { workspace = true }
+anybot-domain = { workspace = true }
+anybot-server = { workspace = true }
+anybot-server-test = { workspace = true }
+proptest = { workspace = true }
+sqlx = { workspace = true }
+test-harness = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync"] }

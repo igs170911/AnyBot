@@ -457,12 +457,15 @@ name = "anybot-sync"
 version = "0.1.0"
 dependencies = [
  "anybot-app-test",
+ "anybot-domain",
  "anybot-foundation",
  "anybot-protocol",
  "anybot-server",
  "anybot-server-test",
  "anybot-store-client",
+ "bytes",
  "futures-util",
+ "getrandom 0.4.3",
  "proptest",
  "rand",
  "reqwest 0.12.28",

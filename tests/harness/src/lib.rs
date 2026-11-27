@@ -33,6 +33,7 @@ pub mod model_vllm;
 pub mod model_vllm_body;
 pub mod model_vllm_chunks;
 pub mod netctl;
+pub mod netctl_modes;
 
 pub fn test_tracing() {
     static ONCE: std::sync::Once = std::sync::Once::new();
@@ -44,11 +45,16 @@ pub fn test_tracing() {
 }
 pub(crate) mod netctl_state;
 pub mod netproxy;
+pub(crate) mod netproxy_events;
 pub(crate) mod netproxy_flow;
 pub(crate) mod netproxy_idle;
+pub(crate) mod netproxy_response;
+pub(crate) mod netproxy_sse_filter;
+pub(crate) mod netproxy_throttle;
 pub mod origin;
 pub mod ports;
 pub mod postgres;
+mod postgres_snapshot;
 pub mod process;
 pub mod push_crypto;
 pub mod realtime;
@@ -86,6 +92,7 @@ pub use model_tls::{
     IssuedLeaf, MintedCert, mint_issued, mint_issued_not_yet, mint_issued_window, mint_not_yet,
     mint_self_signed,
 };
+pub use netctl_modes::{net_drop_events, net_throttle};
 pub use netctl_state::NetCtl;
 
 pub use origin::{

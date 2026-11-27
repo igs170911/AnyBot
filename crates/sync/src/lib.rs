@@ -3,6 +3,8 @@ pub use anybot_foundation::Secret;
 #[cfg(test)]
 use anybot_app_test as _;
 #[cfg(test)]
+use anybot_domain as _;
+#[cfg(test)]
 use anybot_server as _;
 #[cfg(test)]
 use anybot_server_test as _;
@@ -19,12 +21,23 @@ pub mod config;
 mod core;
 pub mod error;
 mod flush;
+pub mod heartbeat_idle;
+pub mod heartbeat_keepalive;
 mod http_gate;
 mod http_phase;
 pub mod http_wire;
 pub mod idem;
 pub mod outbox;
 pub mod random;
+pub mod reconnect_connect;
+pub mod reconnect_direct;
+pub mod reconnect_http;
+pub mod reconnect_pacing;
+pub mod reconnect_random;
+pub mod reconnect_status;
+pub mod sse_hint;
+pub mod sse_parse;
+pub mod sse_session;
 pub mod status;
 pub mod wire;
 mod worker;
