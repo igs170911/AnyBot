@@ -18,6 +18,10 @@ pub mod startup;
 
 pub mod fake_totp;
 pub mod log_capture;
+pub mod mailbox_audit;
+pub mod mailbox_model;
+pub mod mailbox_prop;
+pub mod mailbox_x;
 pub mod sse;
 pub mod sse_client;
 pub mod sse_watch;
