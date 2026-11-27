@@ -91,6 +91,7 @@ async fn bind_fake(
     state = state
         .with_releases(releases.clone())
         .with_secrets(db.secret_keys()?);
+    anybot_server::runner_device::ensure_runner_device(&state).await?;
     let listener = bind_with_retry(db.listen_port).await?;
     let v6_listener =
         bind_v6_with_retry(next_port(db.listen_port).ok_or("port overflow".to_owned())?).await?;

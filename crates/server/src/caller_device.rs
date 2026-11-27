@@ -21,10 +21,7 @@ pub(crate) async fn resolve_device(
         .await
         .map_err(internal)?;
     let Some(row) = found else {
-        return Err(denied_code(
-            StatusCode::UNAUTHORIZED,
-            MessageCode::AccountLoginCredentials,
-        ));
+        return crate::runner_device::resolve_runner(secret, address, state).await;
     };
     if row.removed_at_ms.is_some() {
         return Err(denied_code(

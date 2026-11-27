@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT key_sealed FROM runner_service_device",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key_sealed",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runner_service_device",
+            "name": "key_sealed"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [false]
+  },
+  "hash": "189bc863ea33e7501d39eeea9128931d1ceb89d2e420afd1b92cc3ccb99af9e2"
+}

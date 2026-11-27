@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runner_service_device (device_id, key_hash, key_sealed, created_at_ms) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Bytea", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "6393c0b59f97a4a2007d26da74726a9c3ad8d5d90263efcb737dc3dd4f3e5c8a"
+}

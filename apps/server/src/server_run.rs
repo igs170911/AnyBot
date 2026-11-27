@@ -215,6 +215,9 @@ pub async fn stage_serve(
         bound.push(addr.port());
     }
     state.listen_ports = Arc::new(bound);
+    anybot_server::runner_device::ensure_runner_device(&state)
+        .await
+        .map_err(|err| messages_exit(ctx, &err))?;
     let shutdown = Arc::clone(&state.shutdown);
     let cleanup = anybot_server::cleanup::cleanup_loop(
         state

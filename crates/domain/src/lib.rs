@@ -14,6 +14,7 @@ pub mod pairing_rules;
 pub mod record_actions;
 pub mod record_rules;
 pub mod referee;
+pub mod runner_rules;
 pub mod session_term;
 pub mod settings_merge;
 pub mod settings_registry;

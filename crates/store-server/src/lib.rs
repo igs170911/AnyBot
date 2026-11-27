@@ -39,6 +39,7 @@ pub use streams_bots::{BotRow, ensure_bot, list_bots, load_bot, rename_bot, set_
 pub mod config_sealed;
 pub mod keyed_hash;
 pub mod master_check;
+pub mod runner_device;
 pub mod secret_keys;
 pub mod secret_seal;
 pub mod two_step;

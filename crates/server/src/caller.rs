@@ -95,7 +95,16 @@ impl FromRequestParts<AppState> for Caller {
                 ));
             }
         };
-        resolve_session(credential, &address, state).await
+        let caller = resolve_session(credential, &address, state).await?;
+        if caller.credential == CredentialKind::Runner
+            && !anybot_domain::runner_rules::runner_may_call(parts.uri.path())
+        {
+            return Err(denied_code(
+                StatusCode::FORBIDDEN,
+                MessageCode::DeviceNoPermission,
+            ));
+        }
+        Ok(caller)
     }
 }
 
