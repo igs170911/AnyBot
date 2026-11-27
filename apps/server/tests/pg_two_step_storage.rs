@@ -54,20 +54,15 @@ async fn login_with_code_and_recovery(served: &Served, user: &TwoStepUser) -> Re
     Ok(())
 }
 
-#[tokio::test]
-async fn t_account_n3_5() -> Result<(), String> {
-    let (served, users) = served_with("t_account_n3_5", &["alice"]).await?;
-    let user = users.first().ok_or("no user")?;
-    login_with_code_and_recovery(&served, user).await?;
-    let dump = dump_database(&served.db)?;
+fn assert_no_two_step_secret(dump: &str, user: &TwoStepUser) {
     let secret = user.authenticator.secret();
     assert_eq!(secret.len(), 20);
     assert!(
-        !found_raw_bytes(&dump, secret),
+        !found_raw_bytes(dump, secret),
         "raw shared secret in the dump"
     );
     assert_eq!(
-        found_spelling(&dump, secret),
+        found_spelling(dump, secret),
         None,
         "shared secret in the dump"
     );
@@ -78,16 +73,25 @@ async fn t_account_n3_5() -> Result<(), String> {
     assert_eq!(user.recovery_codes.len(), 8);
     for code in &user.recovery_codes {
         assert_eq!(
-            found_spelling(&dump, code.as_bytes()),
+            found_spelling(dump, code.as_bytes()),
             None,
             "recovery code {code}"
         );
         assert_eq!(
-            found_digest(&dump, code.as_bytes()),
+            found_digest(dump, code.as_bytes()),
             None,
             "unkeyed digest of {code}"
         );
     }
+}
+
+#[tokio::test]
+async fn t_account_n3_5() -> Result<(), String> {
+    let (served, users) = served_with("t_account_n3_5", &["alice"]).await?;
+    let user = users.first().ok_or("no user")?;
+    assert_no_two_step_secret(&dump_database(&served.db)?, user);
+    login_with_code_and_recovery(&served, user).await?;
+    assert_no_two_step_secret(&dump_database(&served.db)?, user);
     served.stop().await
 }
 

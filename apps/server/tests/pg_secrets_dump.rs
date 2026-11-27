@@ -130,7 +130,9 @@ async fn run_every_action(served: &mut Served) -> Result<Seen, String> {
         ],
     };
     seen.texts.extend(user.recovery_codes.iter().cloned());
-    served.set_config_and_restart(anybot_server::KEY_PROXY_SECRET, PROXY_WORD).await?;
+    served
+        .set_config_and_restart(anybot_server::KEY_PROXY_SECRET, PROXY_WORD)
+        .await?;
     seen.texts.push(PROXY_WORD.to_owned());
     second_step_logins(served, &user, &mut seen).await?;
     pending_setup(served, &user, &mut seen).await?;
