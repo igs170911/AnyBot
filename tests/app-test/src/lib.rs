@@ -20,7 +20,11 @@ pub mod fake_totp;
 pub mod log_capture;
 pub mod mailbox_audit;
 pub mod mailbox_model;
+#[cfg(test)]
+mod mailbox_model_tests;
+pub mod mailbox_ops;
 pub mod mailbox_prop;
+pub mod mailbox_wait;
 pub mod mailbox_x;
 pub mod sse;
 pub mod sse_client;

@@ -1,100 +1,11 @@
-pub const DELIVERIES: usize = 10_000;
-pub const SHORT_PASS_SECS: u64 = 10;
-pub const LONG_PASS_SECS: u64 = 61;
+pub use crate::mailbox_ops::{
+    CODE_REASSIGNED, CODE_TAKEN, CODE_YOURS, DELIVERIES, Dev, LONG_PASS_SECS, Op, Outcome,
+    SHORT_PASS_SECS, SplitMix, random_seed,
+};
+
 const TOUCH_AFTER_SECS: u64 = 30;
 const ONLINE_WINDOW_SECS: u64 = 60;
 const HORIZON_SECS: u64 = 72_000;
-
-pub const CODE_REASSIGNED: &str = "mailbox-claim-reassigned";
-pub const CODE_TAKEN: &str = "mailbox-claim-taken";
-pub const CODE_YOURS: &str = "mailbox-claim-yours";
-
-pub fn random_seed() -> Result<u64, String> {
-    let mut bytes = [0u8; 8];
-    getrandom::fill(&mut bytes).map_err(|e| format!("seed random failed: {e}"))?;
-    Ok(u64::from_le_bytes(bytes))
-}
-
-pub struct SplitMix {
-    state: u64,
-}
-
-impl SplitMix {
-    #[must_use]
-    pub fn new(seed: u64) -> Self {
-        SplitMix { state: seed }
-    }
-
-    pub fn next_u64(&mut self) -> u64 {
-        self.state = self.state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.state;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    pub fn below(&mut self, bound: usize) -> Result<usize, String> {
-        let wide = u64::try_from(bound).map_err(|e| e.to_string())?;
-        let drawn = self
-            .next_u64()
-            .checked_rem(wide)
-            .ok_or("random bound must be positive")?;
-        usize::try_from(drawn).map_err(|e| e.to_string())
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Dev {
-    A,
-    B,
-    X,
-}
-
-impl Dev {
-    #[must_use]
-    pub fn other_computer(self) -> Dev {
-        if self == Dev::A { Dev::B } else { Dev::A }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Outcome {
-    Won,
-    Refused(&'static str),
-    Unknown,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Op {
-    Deliver {
-        slot: usize,
-        named: Option<Dev>,
-        lands_on: Dev,
-        reassigned: bool,
-    },
-    Claim {
-        slot: usize,
-        by: Dev,
-        outcome: Outcome,
-    },
-    Race {
-        slot: usize,
-        by: Dev,
-    },
-    XAgain {
-        pick: u64,
-    },
-    XStranger {
-        by: Dev,
-        pick: u64,
-    },
-    Pass {
-        secs: u64,
-    },
-    Reconnect {
-        dev: Dev,
-    },
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SlotState {
@@ -381,51 +292,4 @@ pub fn plan(seed: u64) -> Result<Plan, String> {
         executors,
         moves: builder.moves,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_same_seed_gives_the_same_plan() -> Result<(), String> {
-        let first = plan(7)?;
-        let second = plan(7)?;
-        assert_eq!(first.ops, second.ops);
-        assert_eq!(first.executors, second.executors);
-        assert_eq!(first.moves, second.moves);
-        Ok(())
-    }
-
-    #[test]
-    fn a_plan_hands_out_every_letter_and_ends_with_a_pass() -> Result<(), String> {
-        let built = plan(11)?;
-        assert_eq!(built.executors.len(), DELIVERIES);
-        assert!(matches!(
-            built.ops.last(),
-            Some(Op::Pass {
-                secs: SHORT_PASS_SECS
-            })
-        ));
-        assert!(built.moves > 0);
-        Ok(())
-    }
-
-    #[test]
-    fn a_plan_has_one_deliver_per_slot_and_many_passes() -> Result<(), String> {
-        let built = plan(13)?;
-        let delivered = built
-            .ops
-            .iter()
-            .filter(|op| matches!(op, Op::Deliver { .. }))
-            .count();
-        assert_eq!(delivered, DELIVERIES);
-        let passes = built
-            .ops
-            .iter()
-            .filter(|op| matches!(op, Op::Pass { .. }))
-            .count();
-        assert!(passes > 10);
-        Ok(())
-    }
 }
