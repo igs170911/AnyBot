@@ -6,6 +6,7 @@
 
 - Rust 一律用 `cargo nextest run`（不要用 `cargo test`）。make 目標：`make check` 裡有 `test` 關卡；`make check-fast` 跑 `make test-fast`（`--profile quick`：跳過檔名以 `pg_` 開頭的測試，那些才會啟動 PostgreSQL；e2e 是分開的目標）。`make test`、`make test-fast`、`make e2e` 都會先拿跨工作區的測試鎖（見「並行工作」節）。
 - **需要 PostgreSQL 的測試檔一律 `pg_` 開頭**（例如 `pg_postgres.rs`）。nextest 的 binary 名稱就是檔名。`.config/nextest.toml` 的 `quick` 用 `not binary(/^pg_/)` 排除它們。iron-laws 掃 `tests/`、`apps/`、`crates/` 底下每一層名叫 `tests` 的資料夾裡的 `*.rs`，檔案內容有 `pg_start(` 卻不叫 `pg_*.rs` 就擋。現在需要 PostgreSQL 的是 `tests/harness/tests/pg_postgres.rs`。之後 `apps/server/tests/` 或 `crates/*/tests/` 裡要啟動資料庫的，也用這個檔名。只認 `pg_start(` 這一種寫法；自己重寫啟動、或把呼叫包在別的函式裡再呼叫，這道檢查看不到。
+- **現場編一個違規範例、確認它編不過的測試，函式名稱一定要以 `_compile_fail` 結尾**（例如 `test_secret_serialization_compile_fail`）。這一類會在測試裡呼叫 `trybuild`，或現場啟動 `cargo`、`rustc`、`clippy-driver`，編一個全新的小套件。GitHub 的 macOS、Windows 機器沒有編譯快取，從頭編相依套件會超過基本測試的 120 秒，發佈就不會開始。它們檢查的是編譯時的規則，三種系統結果一樣，所以只在 Linux 的完整 `make check` 跑。`.config/nextest.toml` 的 `quick`（`make test-basic`、`make test-fast`）用 `not test(/_compile_fail$/)` 排除它們，和 `pg_` 的排除寫在同一條 `default-filter`。用結尾、不用子字串，是為了只排除真的在編的那幾個；iron-laws 裡「塞一個不符合的進去會被擋」的自我測試名稱有 `compile_fail` 但不是這個結尾，基本測試照樣跑。逾時沒有放寬，測試也沒有標成略過。違規範例放在名叫 `compilefail` 的資料夾（現在是 `crates/foundation/tests/compilefail`、`crates/models/tests/compilefail`）；那個資料夾裡的檔案是被編的範例，不是測試函式，iron-laws 不要求它們的函式名稱以 `_compile_fail` 結尾。iron-laws 掃 `crates/`、`apps/`、`tools/`、`tests/` 的 `*.rs`：測試函式本體在字串外面有 `trybuild::`，或有 `"cargo"` 並且同時有 `"clippy"`／`"check"`／`"build"`／`"test"`／`"rustc"`，或有 `"rustc"`、`"clippy-driver"`（含 `.exe`），名稱卻不是以 `_compile_fail` 結尾，就擋。字串裡面提到這些名字不算（自我測試把範例寫成字串時不會被擋）。只認這幾種寫法；自己包一層再呼叫、或用別的程式編，這道檢查看不到。`quick` 的 `default-filter` 少了 `test(/_compile_fail$/)` 也擋。
 - **工作流程語法**：`make check` 的 `actionlint` 關卡下載固定的 actionlint 1.7.12（驗 sha256），掃 `.github/workflows/`。呼叫別的工作流程的工作若寫了 `timeout-minutes`，actionlint 會擋。`tools/actionlint-selftest.sh` 塞一份會被擋的檔確認這件事。iron-laws 的注入清單照 GitHub 的 [Secure use](https://docs.github.com/en/actions/reference/security/secure-use)（2026-11-26）補：完整 ref、中括號取同樣欄位、`toJSON(github.event)`、issue 和 review 的內容、commit 訊息、commit 作者的名字和信箱、PR 的 head label。不把單獨的 `name` 當針，那一條上一輪已拿掉。
 - **`make test` 的結尾碼關卡（HOTFIX）**：`_test-body` 經 `tools/test-gate.sh`（`run` 模式）：nextest 結尾碼不是 0 → 擋；紀錄 `target/nextest.log` 出現 `ignoring unknown configuration keys` → 擋（缺一個都不行）。同一支腳本也是 `make gate-selftest` 的邏輯（在 `check` 和 `check-fast` 裡，幾秒跑完）：`expect-fail` 餵結尾碼非 0 的指令、餵結尾碼 0 但輸出帶那句警告的指令，都要擋；`expect-pass` 餵乾淨指令要過。iron-laws 另有一道 `makefile_recipes` 檢查：recipe 同一邏輯行裡 `;` 接兩個會失敗的指令、管線沒有 `pipefail`、`$(shell ...)` 裡有管線，都擋；要連寫指令一律用 `&&`、条件，或抽成 `tools/` 裡的腳本。
 - `make live-model-check`（`tests/live-model`）：跟真的本機模型比對。先比請求與回應格式（一般／串流／工具呼叫），再用產品客戶端把一般、串流、工具呼叫、思考各送一次給 vllm 假模型和真的模型，比兩邊閘道交出的中立結果結構（結束原因、有沒有文字、有沒有思考、工具呼叫數、用量有沒有）。設定只讀 `.local/live-model/profile.toml`（`cargo clean` 不會刪），只信任 `ca_file` 那張憑證（指紋鎖定的驗證器，不准關掉驗證），金鑰用金鑰型別、不印、**絕不放進命令列參數**（`ps` 會看到）；要打真的模型一律走這個程式，真的要手動 `curl` 時把標頭寫進 `target/` 裡權限 600 的檔案、用 `curl -H @檔案`，用完刪掉。假模型用 `vllm` 格式跟真的比，三種格式要比到 identical。終端機會印每一種格式差在哪，以及 `product client:` 底下四行結構比較（`identical structure` 或兩邊的結構）。報告寫在 `.local/live-model/format-report.txt`。檔案不在時，程式在連出去之前就列出要建的 `profile.toml`、`base_url`、`model`、`ca_file`、`key_file`。不在 `make check`、`make check-fast`、CI 裡。
@@ -13,7 +14,6 @@
 - 逾時設定在 `.config/nextest.toml`：每個測試 30 秒慢速警戒，第 4 次逾時就終止。PostgreSQL 相關的測試另有 120 秒寬限，並在同一群組裡序列化執行（平行度 1）。
 - **`make test` 平行跑，不單執行緒**（INFRA-2）：`_test-body` 是 `cargo nextest run --workspace`，執行緒數照機器核心數。會互相干擾的測試靠 `.config/nextest.toml` 的測試分組在組內排隊（每組 `max-threads = 1`），四個群組是 `ports`（會撞固定埠）、`pg`（會啟動 PostgreSQL）、`net`（會改網路控制）、`timing`（會量真實時間、對 CPU 負載敏感）。群組外並行的測試不准碰共用的埠、網路設定、真實時間量測、共用的資料庫檔案。
 - **新測試要放哪個分組**：會啟動 PostgreSQL 的測試檔用 `pg_` 開頭（自動進 `pg` 群）。會占用固定埠、或啟動真伺服器的放進 `ports`；會動網路控制的（`netctl_` 開頭）放進 `net`；會量真實時間、對 CPU 負載敏感（例如快拒時間的統計上限）的放進 `timing`。新增群組成員就改 `.config/nextest.toml` 的 overrides 篩選列；跨工作區的測試鎖照留，擋不同工作區同時跑測試撞同一個固定埠。
-
 ## 並行工作（多個 agent 同時做不同里程碑）
 
 - **工作區**：每個 agent 在自己的 git worktree 和分支工作（`AGENTS.md` 第七節）。worktree 由監督者建；臨時自我測試用的 worktree 放在 repo 的 `target/` 底下（已 gitignore），跑完用 `git worktree remove` 收掉。
@@ -80,7 +80,9 @@
 
 ## Windows 基本測試還沒跑的（WIN-1 之前）
 
-`tests/harness` 用了只有 Unix 才有的訊號和行程群組，Windows 編不過。在 WIN-1 做完之前，Windows 的自動檢查分兩份清單。`ci.yml` 只呼叫 `tools/windows-skip.sh`，參數從這裡讀。
+每個工作分支（`ws/*`）推上去都會在 Linux、Windows、macOS 三種系統上編譯。`dev` 和 `main` 也一樣。Pull request 只跑 Linux 的 `check`。`release-dev` 仍只在推 `dev` 時跑。
+
+在 WIN-1 做完之前，Windows 的自動檢查分兩份清單。`ci.yml` 只呼叫 `tools/windows-skip.sh`，參數從這裡讀。測試工具的函式庫仍會被產品套件的開發相依拉進來編譯；`--exclude` 只排除套件自己當根。Windows 沒有 Unix 訊號：被結束的行程用 `ExitStatus::code()` 當結束碼（沒有 `128+訊號`）。啟動時用新的行程群組對上 Unix 的 `process_group(0)`；要收掉時用 `taskkill /T /F` 收整棵子行程樹（含記在 `tool.pid` 的行程）。
 
 **不編。** 這些套件自己就是測試工具，或只給測試用，不是產品。編譯那一步 `--exclude` 它們。
 
@@ -120,7 +122,7 @@ iron-laws 對第二份清單：用 `cargo metadata` 的套件相依圖算，不�
 | 相依圖連不到測試工具的產品套件的單元測試 | `windows-no-test` 裡的套件的測試，以及整合測試 |
 | `pnpm -r test` | Playwright、需要 PostgreSQL 的測試 |
 
-macOS 和 Linux 的基本測試仍是 `make test-basic`：`quick` 設定（不含 `pg_` 開頭的測試）加 `pnpm -r test`。Linux 的 `make check` 跑全部，包括 PostgreSQL。
+macOS 和 Linux 的基本測試仍是 `make test-basic`：`quick` 設定（不含 `pg_` 開頭的測試，也不含名稱以 `_compile_fail` 結尾的測試）加 `pnpm -r test`。Linux 的 `make check` 跑全部，包括 PostgreSQL 和 `_compile_fail`。Windows 的基本測試同樣走 `quick`，所以這兩類也不跑；Windows 清單上面那兩份是「編不了」和「編了不跑測試」，跟這條命名規則是另外兩件事。
 
 三種系統的工作最後都印一行 `tests ran: <數字>`。數字是 nextest 摘要裡的 `N tests run` 加上 `pnpm -r test` 的 `Tests N passed`。Windows 的數字會比 macOS 小，因為整合測試沒跑。Linux 的 `make check` 還含 Playwright，那一行只算 nextest 和 pnpm。
 - 輸出（截圖、trace、html 報告）一律在 `target/playwright`、`target/playwright-html`。

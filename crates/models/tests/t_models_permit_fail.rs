@@ -13,7 +13,7 @@ use tokio_rustls as _;
 use url as _;
 
 #[test]
-fn complete_without_permit_does_not_compile() {
+fn complete_without_permit_compile_fail() {
     let cases = trybuild::TestCases::new();
     cases.compile_fail("tests/compilefail/complete_without_permit.rs");
 }

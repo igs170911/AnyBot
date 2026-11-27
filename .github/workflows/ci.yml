@@ -248,13 +248,13 @@ jobs:
           key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
   # K111 ②: Windows and macOS compile plus the basic tests.
-  # dev and main, plus ws/rel-* so a rehearsal sees them before merge.
-  # Other work branches and pull requests stay on the Linux `check` job.
+  # Every push of dev, main, or a ws/* work branch compiles on all three OSes.
+  # Pull requests stay on the Linux `check` job. release-dev stays on dev only.
   build-windows:
     concurrency:
       group: ci-windows-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/rel-'))
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/'))
     runs-on: windows-2025
     timeout-minutes: 45
     steps:
@@ -315,7 +315,7 @@ jobs:
           # denies lint warnings in local packages only (Cargo config, since 1.97).
           # It does not replace build.rustflags. Dependencies stay under --cap-lints.
           $env:CARGO_BUILD_WARNINGS = "deny"
-          cargo build --locked --workspace @($skip | ForEach-Object { "--exclude"; $_ }) --lib --bins
+          cargo build --locked --workspace @($skip | ForEach-Object { "--exclude"; $_ }) --lib --bins --keep-going
 
       - name: pnpm
         shell: bash
@@ -368,7 +368,7 @@ jobs:
     concurrency:
       group: ci-macos-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/rel-'))
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ws/'))
     runs-on: macos-15
     timeout-minutes: 45
     steps:

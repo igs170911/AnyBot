@@ -6,7 +6,7 @@
 
 | 檔案 | 什麼時候跑 |
 |---|---|
-| `.github/workflows/ci.yml` | 每次推分支、對 `dev` 的 PR。`dev`、`main`、`ws/rel-*` 另外跑 Windows、macOS。推 `dev` 且這三個都綠，才呼叫發佈流程 |
+| `.github/workflows/ci.yml` | 每次推分支、對 `dev` 的 PR。`dev`、`main`、每個 `ws/*` 工作分支另外跑 Windows、macOS 編譯。推 `dev` 且這三個都綠，才呼叫發佈流程 |
 | `.github/workflows/release.yml` | 由 `ci.yml` 在 `dev` 全綠後呼叫（開發版）；推 `ws/rel-*`（預演）；推 `v*` 標籤（正式版）；手動只能預演；正式版公開之後只移 `latest` |
 | `.github/workflows/security.yml` | 每週一，或手動 |
 | `.github/workflows/wiki.yml` | `main` 上 `docs/wiki/` 有改動 |

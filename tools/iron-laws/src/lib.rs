@@ -5,6 +5,7 @@ pub mod cfg_test;
 pub mod clippy_tomls;
 pub mod collect;
 pub mod comments;
+pub mod compile_fail_names;
 pub mod compiled;
 pub mod deny_limits;
 pub mod editions;
@@ -23,6 +24,8 @@ pub mod migrations_parser;
 pub mod migrations_rules;
 pub mod nextest_config;
 pub mod passguard;
+#[cfg(test)]
+mod nextest_config_tests;
 pub mod permit_block;
 pub mod redocly;
 pub mod suppressions;
@@ -54,6 +57,7 @@ pub fn all_violations(repo: &Path, git_ref: &str) -> Vec<String> {
     out.extend(licensing::violations(repo));
     out.extend(nextest_config::violations(repo));
     out.extend(passguard::violations(&files));
+    out.extend(compile_fail_names::violations(repo));
     out.extend(windows_lists::violations(repo));
     out.extend(redocly::violations(repo));
     out.extend(workflows::violations(repo));

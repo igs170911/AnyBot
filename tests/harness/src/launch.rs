@@ -51,11 +51,7 @@ impl Program {
         }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        #[cfg(unix)]
-        {
-            use std::os::unix::process::CommandExt as _;
-            let _detached = cmd.process_group(0);
-        }
+        isolate_child(&mut cmd);
         cmd
     }
 
@@ -150,6 +146,20 @@ pub fn run_program_with(
     })
 }
 
+fn isolate_child(cmd: &mut Command) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt as _;
+        let _detached = cmd.process_group(0);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        let _grouped = cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
+    }
+}
+
 pub(crate) fn start_child(program: &Program, dir: &Path) -> Result<std::process::Child, String> {
     program
         .build_command(dir)
@@ -207,6 +217,7 @@ pub async fn run_program_clocked(
     cmd.current_dir(dir);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+    isolate_tokio(&mut cmd);
     let child = cmd
         .spawn()
         .map_err(|e| format!("start {} failed: {e}", program.label()))?;
@@ -220,6 +231,8 @@ pub async fn run_program_clocked(
     let status = tokio::select! {
         result = child.wait() => result,
         () = sleeper => {
+            #[cfg(windows)]
+            crate::reap::stop_spawned(pid);
             let _killed = child.kill().await.is_ok();
             return Err(format!(
                 "timed out after {:?} waiting for PID {pid} ({}) to exit",
@@ -237,6 +250,18 @@ pub async fn run_program_clocked(
         stdout,
         stderr,
     })
+}
+
+fn isolate_tokio(cmd: &mut tokio::process::Command) {
+    #[cfg(unix)]
+    {
+        let _detached = cmd.process_group(0);
+    }
+    #[cfg(windows)]
+    {
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        let _grouped = cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
+    }
 }
 
 async fn drain_pipe<R: tokio::io::AsyncReadExt + Unpin>(

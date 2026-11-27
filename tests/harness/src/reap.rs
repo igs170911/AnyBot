@@ -51,7 +51,7 @@ fn stop_recorded(path: &Path) -> Result<(), String> {
     let Some(record) = parse_record(text.trim()) else {
         return Ok(());
     };
-    if record.pid == std::process::id() || !process_alive(record.pid) {
+    if record.pid == std::process::id() || process_alive(record.pid) == Some(false) {
         return Ok(());
     }
     if !marker_in_tests(path) || !workspace_record(&record) {
@@ -120,30 +120,16 @@ fn parse_record(text: &str) -> Option<Record> {
     })
 }
 
-#[cfg(unix)]
-fn process_alive(pid: u32) -> bool {
-    std::process::Command::new("/bin/kill")
-        .args(["-0", &pid.to_string()])
-        .status()
-        .is_ok_and(|code| code.success())
+fn process_alive(pid: u32) -> Option<bool> {
+    os::process_alive(pid)
 }
 
-#[cfg(not(unix))]
-fn process_alive(_pid: u32) -> bool {
-    false
-}
-
-#[cfg(unix)]
 fn live_exe(pid: u32) -> Option<PathBuf> {
     #[cfg(test)]
     if lookup_fails() {
         return None;
     }
-    let link = PathBuf::from(format!("/proc/{pid}/exe"));
-    if let Ok(exe) = std::fs::read_link(&link) {
-        return Some(exe);
-    }
-    lsof_field(pid, "txt")
+    os::live_exe(pid)
 }
 
 #[cfg(test)]
@@ -153,27 +139,6 @@ fn lookup_fails() -> bool {
 
 #[cfg(test)]
 static LOOKUP_FAILS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-#[cfg(not(unix))]
-fn live_exe(_pid: u32) -> Option<PathBuf> {
-    None
-}
-
-#[cfg(unix)]
-fn lsof_field(pid: u32, descriptor: &str) -> Option<PathBuf> {
-    let output = std::process::Command::new("/usr/sbin/lsof")
-        .args(["-a", "-p", &pid.to_string(), "-d", descriptor, "-Fn"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
-    text.lines().find_map(|line| {
-        let path = line.strip_prefix('n')?;
-        Some(PathBuf::from(path))
-    })
-}
 
 fn resolved(path: &Path) -> PathBuf {
     path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
@@ -190,56 +155,13 @@ fn same_dir(left: &Path, right: &Path) -> bool {
     }
 }
 
-#[cfg(unix)]
 fn signal_stop(pid: u32) -> Result<(), String> {
-    send_term(pid)?;
-    let _stopped = wait_dead(pid, STOP_WAIT);
-    Ok(())
+    os::signal_stop(pid)
 }
 
-#[cfg(not(unix))]
-fn signal_stop(pid: u32) -> Result<(), String> {
-    Err(format!("stop PID {pid} is not available on this platform"))
-}
-
-#[cfg(unix)]
-fn send_term(pid: u32) -> Result<(), String> {
-    let helper = signal_helper()?;
-    let output = std::process::Command::new(&helper)
-        .arg(pid.to_string())
-        .output()
-        .map_err(|e| format!("term PID {pid} failed: {e}"))?;
-    let status = output.status;
-    let _note = String::from_utf8_lossy(&output.stderr);
-    if status.success() || !process_alive(pid) {
-        return Ok(());
-    }
-    Err(format!("term PID {pid} was rejected"))
-}
-
-#[cfg(unix)]
-fn signal_helper() -> Result<PathBuf, String> {
-    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/signal_term.c");
-    let out_dir = repo_root()
-        .join("target")
-        .join("tests")
-        .join("signal-helper");
-    std::fs::create_dir_all(&out_dir)
-        .map_err(|e| format!("create signal helper dir failed: {e}"))?;
-    let binary = out_dir.join("signal_term");
-    let built = std::process::Command::new("cc")
-        .args([
-            "-O2",
-            "-o",
-            &binary.to_string_lossy(),
-            &source.to_string_lossy(),
-        ])
-        .status()
-        .map_err(|e| format!("build signal helper failed: {e}"))?;
-    if !built.success() {
-        return Err("build signal helper was rejected".to_owned());
-    }
-    Ok(binary)
+#[cfg(windows)]
+pub(crate) fn stop_spawned(pid: u32) {
+    os::stop_spawned(pid);
 }
 
 fn wait_dead(pid: u32, budget: Duration) -> Result<(), String> {
@@ -247,15 +169,18 @@ fn wait_dead(pid: u32, budget: Duration) -> Result<(), String> {
         return Err("reap deadline overflow".to_owned());
     };
     while Instant::now() < deadline {
-        if !process_alive(pid) {
-            return Ok(());
+        match process_alive(pid) {
+            Some(false) => return Ok(()),
+            Some(true) => {}
+            None => return Err(format!("PID {pid} liveness is unknown")),
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    if process_alive(pid) {
-        return Err(format!("PID {pid} still alive after {budget:?}"));
+    match process_alive(pid) {
+        Some(false) => Ok(()),
+        Some(true) => Err(format!("PID {pid} still alive after {budget:?}")),
+        None => Err(format!("PID {pid} liveness is unknown")),
     }
-    Ok(())
 }
 
 pub fn write_tool_pid(dir: &Path) -> Result<PathBuf, String> {
@@ -279,6 +204,9 @@ mod record_tests;
 #[cfg(test)]
 #[path = "reap_unread.rs"]
 mod unread_tests;
+
+#[path = "reap_os.rs"]
+mod os;
 
 pub fn remove_tool_pid(path: &Path) -> Result<(), String> {
     match std::fs::remove_file(path) {
