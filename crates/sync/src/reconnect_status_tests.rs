@@ -87,6 +87,11 @@ async fn settle() {
     test_harness::sleep_real(Duration::from_millis(150)).await;
 }
 
+async fn pass(clock: &Arc<FakeClock>, span: Duration) {
+    let _woken = test_harness::advance_clock(clock, span);
+    settle().await;
+}
+
 fn watching(
     start: u64,
 ) -> (
@@ -102,70 +107,107 @@ fn watching(
 }
 
 #[tokio::test]
-async fn a_connected_link_without_bytes_turns_slow_at_exactly_five_fake_seconds() {
+async fn an_idle_connected_stream_with_no_request_in_flight_never_turns_slow() {
     let (clock, board, watcher) = watching(10_000);
     board.connected();
     settle().await;
-    let _woken = test_harness::advance_clock(&clock, Duration::from_millis(4_999));
+    for _minute_slice in 0..12 {
+        pass(&clock, Duration::from_secs(5)).await;
+        assert_eq!(board.current().phase, LinkPhase::Connected);
+    }
+    watcher.abort();
+}
+
+#[tokio::test]
+async fn a_request_in_flight_without_bytes_turns_slow_at_exactly_five_fake_seconds() {
+    let (clock, board, watcher) = watching(10_000);
+    board.connected();
+    let guard = board.request_started();
     settle().await;
+    pass(&clock, Duration::from_millis(4_999)).await;
     assert_eq!(board.current().phase, LinkPhase::Connected);
-    let _woken = test_harness::advance_clock(&clock, Duration::from_millis(1));
-    settle().await;
+    pass(&clock, Duration::from_millis(1)).await;
     let status = board.current();
     assert_eq!(status.phase, LinkPhase::Slow);
     assert_eq!(status.reason, Some(LinkReason::Slow));
     assert_eq!(status.since, TimestampMs::from_millis(15_000));
+    drop(guard);
     watcher.abort();
 }
 
 #[tokio::test]
-async fn bytes_arriving_push_the_slow_point_out_and_bring_a_slow_link_back_to_connected() {
+async fn bytes_of_the_request_bring_a_slow_link_back_to_connected_and_restart_the_five_seconds() {
     let (clock, board, watcher) = watching(10_000);
     board.connected();
+    let guard = board.request_started();
     settle().await;
-    let _woken = test_harness::advance_clock(&clock, Duration::from_secs(4));
-    board.bytes_arrived();
-    let _woken = test_harness::advance_clock(&clock, Duration::from_secs(4));
-    settle().await;
+    pass(&clock, Duration::from_secs(4)).await;
+    guard.bytes_arrived();
+    pass(&clock, Duration::from_secs(4)).await;
     assert_eq!(board.current().phase, LinkPhase::Connected);
-    let _woken = test_harness::advance_clock(&clock, Duration::from_secs(1));
-    settle().await;
+    pass(&clock, Duration::from_secs(1)).await;
     assert_eq!(board.current().phase, LinkPhase::Slow);
-    board.bytes_arrived();
+    guard.bytes_arrived();
     let status = board.current();
     assert_eq!(status.phase, LinkPhase::Connected);
     assert_eq!(status.reason, None);
-    let _woken = test_harness::advance_clock(&clock, Duration::from_secs(5));
-    settle().await;
+    pass(&clock, Duration::from_secs(5)).await;
     assert_eq!(board.current().phase, LinkPhase::Slow);
+    drop(guard);
     watcher.abort();
 }
 
 #[tokio::test]
-async fn a_link_that_is_not_connected_never_turns_slow() {
+async fn a_request_that_finishes_while_slow_leaves_slow_and_nothing_turns_slow_afterwards() {
     let (clock, board, watcher) = watching(10_000);
-    board.ended(&SseEnd::Idle, Some(TimestampMs::from_millis(40_000)), 1);
-    let _woken = test_harness::advance_clock(&clock, Duration::from_secs(30));
+    board.connected();
+    let guard = board.request_started();
     settle().await;
-    assert_eq!(board.current().phase, LinkPhase::Retrying);
-    board.connecting();
-    let _woken = test_harness::advance_clock(&clock, Duration::from_secs(30));
+    pass(&clock, Duration::from_secs(6)).await;
+    assert_eq!(board.current().phase, LinkPhase::Slow);
+    drop(guard);
+    assert_eq!(board.current().phase, LinkPhase::Connected);
+    pass(&clock, Duration::from_secs(60)).await;
+    assert_eq!(board.current().phase, LinkPhase::Connected);
+    watcher.abort();
+}
+
+#[tokio::test]
+async fn a_slow_request_while_connecting_returns_to_connecting() {
+    let (clock, board, watcher) = watching(10_000);
+    let guard = board.request_started();
     settle().await;
+    pass(&clock, Duration::from_secs(5)).await;
+    assert_eq!(board.current().phase, LinkPhase::Slow);
+    guard.bytes_arrived();
     assert_eq!(board.current().phase, LinkPhase::Connecting);
     watcher.abort();
 }
 
 #[tokio::test]
-async fn a_slow_link_that_ends_goes_to_retrying_and_stays_there() {
+async fn two_requests_in_flight_keep_the_watch_armed_until_the_last_one_finishes() {
     let (clock, board, watcher) = watching(10_000);
     board.connected();
+    let first = board.request_started();
+    let second = board.request_started();
     settle().await;
-    let _woken = test_harness::advance_clock(&clock, Duration::from_secs(6));
-    settle().await;
+    pass(&clock, Duration::from_secs(5)).await;
     assert_eq!(board.current().phase, LinkPhase::Slow);
-    board.ended(&SseEnd::Idle, None, 1);
-    let _woken = test_harness::advance_clock(&clock, Duration::from_secs(20));
+    drop(first);
+    assert_eq!(board.current().phase, LinkPhase::Slow);
+    drop(second);
+    assert_eq!(board.current().phase, LinkPhase::Connected);
+    watcher.abort();
+}
+
+#[tokio::test]
+async fn a_link_that_is_not_connected_or_connecting_never_turns_slow() {
+    let (clock, board, watcher) = watching(10_000);
+    let guard = board.request_started();
+    board.ended(&SseEnd::Idle, Some(TimestampMs::from_millis(40_000)), 1);
     settle().await;
+    pass(&clock, Duration::from_secs(30)).await;
     assert_eq!(board.current().phase, LinkPhase::Retrying);
+    drop(guard);
     watcher.abort();
 }

@@ -54,8 +54,30 @@ pub fn reason_of(end: &SseEnd) -> Option<LinkReason> {
 pub struct StatusBoard {
     clock: Arc<dyn Clock>,
     sender: watch::Sender<LinkStatus>,
-    last_bytes: Mutex<TimestampMs>,
+    slow: Mutex<SlowState>,
     changed: Notify,
+}
+
+struct SlowState {
+    in_flight: usize,
+    last_bytes: TimestampMs,
+    before_slow: Option<LinkStatus>,
+}
+
+pub struct RequestGuard {
+    board: Arc<StatusBoard>,
+}
+
+impl RequestGuard {
+    pub fn bytes_arrived(&self) {
+        self.board.bytes_arrived();
+    }
+}
+
+impl Drop for RequestGuard {
+    fn drop(&mut self) {
+        self.board.request_finished();
+    }
 }
 
 impl StatusBoard {
@@ -73,7 +95,11 @@ impl StatusBoard {
         StatusBoard {
             clock,
             sender,
-            last_bytes: Mutex::new(now),
+            slow: Mutex::new(SlowState {
+                in_flight: 0,
+                last_bytes: now,
+                before_slow: None,
+            }),
             changed: Notify::new(),
         }
     }
@@ -99,7 +125,6 @@ impl StatusBoard {
     }
 
     pub fn connected(&self) {
-        self.note_bytes();
         self.publish(LinkStatus {
             phase: LinkPhase::Connected,
             reason: None,
@@ -130,18 +155,52 @@ impl StatusBoard {
         });
     }
 
+    #[must_use]
+    pub fn request_started(self: &Arc<Self>) -> RequestGuard {
+        let now = self.clock.now_ms();
+        {
+            let mut state = self.slow_state();
+            if state.in_flight == 0 {
+                state.last_bytes = now;
+            }
+            state.in_flight = state.in_flight.saturating_add(1);
+        }
+        self.changed.notify_waiters();
+        RequestGuard {
+            board: Arc::clone(self),
+        }
+    }
+
+    fn request_finished(&self) {
+        let restore = {
+            let mut state = self.slow_state();
+            state.in_flight = state.in_flight.saturating_sub(1);
+            if state.in_flight == 0 {
+                state.before_slow.take()
+            } else {
+                None
+            }
+        };
+        self.leave_slow(restore);
+        self.changed.notify_waiters();
+    }
+
     pub fn bytes_arrived(&self) {
-        self.note_bytes();
-        let before = self.current();
-        if before.phase == LinkPhase::Slow {
-            self.publish(LinkStatus {
-                phase: LinkPhase::Connected,
-                reason: None,
-                since: self.clock.now_ms(),
-                ..before
-            });
-        } else {
-            self.changed.notify_waiters();
+        let now = self.clock.now_ms();
+        let restore = {
+            let mut state = self.slow_state();
+            state.last_bytes = now;
+            state.before_slow.take()
+        };
+        self.leave_slow(restore);
+        self.changed.notify_waiters();
+    }
+
+    fn leave_slow(&self, restore: Option<LinkStatus>) {
+        if let Some(saved) = restore
+            && self.current().phase == LinkPhase::Slow
+        {
+            self.publish(saved);
         }
     }
 
@@ -150,11 +209,10 @@ impl StatusBoard {
             let changed = self.changed.notified();
             tokio::pin!(changed);
             changed.as_mut().enable();
-            if self.current().phase != LinkPhase::Connected {
+            let Some(due) = self.slow_due() else {
                 changed.await;
                 continue;
-            }
-            let due = self.last_bytes_at().saturating_add_ms(SLOW_AFTER);
+            };
             if self.clock.now_ms() >= due {
                 self.mark_slow();
                 continue;
@@ -166,8 +224,18 @@ impl StatusBoard {
         }
     }
 
+    fn slow_due(&self) -> Option<TimestampMs> {
+        let phase = self.current().phase;
+        if phase != LinkPhase::Connected && phase != LinkPhase::Connecting {
+            return None;
+        }
+        let state = self.slow_state();
+        (state.in_flight > 0).then(|| state.last_bytes.saturating_add_ms(SLOW_AFTER))
+    }
+
     fn mark_slow(&self) {
         let before = self.current();
+        self.slow_state().before_slow = Some(before);
         self.publish(LinkStatus {
             phase: LinkPhase::Slow,
             reason: Some(LinkReason::Slow),
@@ -176,18 +244,10 @@ impl StatusBoard {
         });
     }
 
-    fn note_bytes(&self) {
-        let now = self.clock.now_ms();
-        match self.last_bytes.lock() {
-            Ok(mut guard) => *guard = now,
-            Err(poisoned) => *poisoned.into_inner() = now,
-        }
-    }
-
-    fn last_bytes_at(&self) -> TimestampMs {
-        match self.last_bytes.lock() {
-            Ok(guard) => *guard,
-            Err(poisoned) => *poisoned.into_inner(),
+    fn slow_state(&self) -> std::sync::MutexGuard<'_, SlowState> {
+        match self.slow.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
         }
     }
 
