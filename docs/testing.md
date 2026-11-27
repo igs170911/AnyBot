@@ -41,7 +41,7 @@
 | `make depcheck` | 有 `Cargo.toml` 或 `Cargo.lock` 改動 |
 | `make sqlx-check` | 改到 `migrations/`、`.sqlx/`，或相依 `sqlx` 的套件裡的 `.rs` |
 | `make locale` | 改到 `locales/`、`crates/messages/`、`web/ui/src/generated/`，或任何 `.rs`／`.ts`／`.tsx`（CJK 掃描） |
-| `make ironlaws` | 改到 `Makefile`、`docs/`、`tools/`、`.config/`、`migrations/`、`.github/workflows/`、`deny.toml`、任何 `.rs`／`.ts`／`.tsx`、`Cargo.toml`、`clippy.toml`（五條鐵律的檔案大小、註解、禁用寫法都在這裡） |
+| `make ironlaws` | 改到 `Makefile`、`docs/`、`tools/`、`.config/`、`migrations/`、`.github/workflows/`、`deny.toml`、任何 `.rs`／`.ts`／`.tsx`、`Cargo.toml`、`clippy.toml`（五條鐵律的檔案大小、註解、禁用寫法都在這裡）。「檔案有沒有被編譯」那道關卡讀 `target/` 裡的 dep-info，所以這一步先跑 `cargo check --workspace --all-targets --locked`：編譯快取是熱的就幾秒，全新的 `target/` 要整個工作區編一次 |
 | `make api-docs`、`make api-client`、`make api-compat` | 改到 `api/`、`web/api-client/`、`redocly*`，或 `api-docs` 套件（經正式相依）受影響 |
 | `make ts-biome` | 改到 `web/`、`tests/e2e/`、任何 `.ts`／`.tsx`、`biome.json`、`package.json` |
 | `make check-changed-selftest` | 改到 `tools/check-changed*`、`tests/check-changed-selftest/`、`Makefile` |
@@ -54,6 +54,7 @@
 - 受影響套件靠 Cargo 的相依宣告算。不經過 Cargo 相依的連結看不到：讀檔案的測試（例如讀 `spec/`、`locales/`、`api/` 的測試）、測試內部啟動別的執行檔、跨語言（Rust 與 `web/`）。例：只改 `spec/` 不會跑任何 Rust 測試。
 - `quick` 設定不跑 `pg_` 與 `_compile_fail` 測試；改資料庫、migration 或型別層規則時加 `WITH_PG=1`，`_compile_fail` 一律只在雲端跑。
 - 改動基準錯了結果就錯：預設 `HEAD` 看不到已經 commit 的改動，換分支或合併 `dev` 後請傳 `CHANGED_BASE`。
+- 第一次在全新的 `target/`（新 worktree、剛 `cargo clean`）跑，`ironlaws` 前的 `cargo check --workspace` 要整個工作區編一次，會比較久。
 - 它不替你拿 `SPEC_TRACE_REF`：`ironlaws`、`api-compat` 沿用 Makefile 的 `git merge-base HEAD dev`。
 - 「完成」仍然是雲端完整 `make check` 全綠；`check-changed` 通過只表示「這次改動連得到的關卡沒問題」。摘要最後一行會再提醒一次。
 

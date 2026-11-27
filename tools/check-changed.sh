@@ -112,6 +112,15 @@ step_test() {
 	finish_step test 0 "$start" "$([ "$with_pg" = 1 ] && echo "with PostgreSQL tests" || echo "quick profile, PostgreSQL tests excluded")"
 }
 
+step_ironlaws() {
+	local start rc
+	start=$(date +%s)
+	echo ">>> ironlaws: cargo check --workspace --all-targets --locked, then make ironlaws"
+	"$cargo" check --workspace --all-targets --locked && "$make_cmd" --no-print-directory ironlaws
+	rc=$?
+	finish_step ironlaws "$rc" "$start" "cargo check --workspace --all-targets, then make ironlaws"
+}
+
 execute_plan() {
 	local kind step state reason
 	while IFS=$'\t' read -r -u 3 kind step state reason; do
@@ -124,6 +133,7 @@ execute_plan() {
 		fmt) run_step fmt "cargo fmt --all --check" "$cargo" fmt --all --check ;;
 		clippy) step_clippy ;;
 		test) step_test ;;
+		ironlaws) step_ironlaws ;;
 		*) run_step "$step" "make $step ($reason)" "$make_cmd" --no-print-directory "$step" ;;
 		esac
 	done 3<"$out/plan.txt"
