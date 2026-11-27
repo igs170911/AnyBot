@@ -18,16 +18,8 @@ use test_harness::{FakeClock, NetCtl, advance_clock};
 use anybot_app_test as _;
 use anybot_domain as _;
 use anybot_foundation as _;
-use anybot_protocol as _;
-use anybot_store_client as _;
-use bytes as _;
-use getrandom as _;
-use proptest as _;
-use reqwest as _;
 use serde_json as _;
 use tokio as _;
-use tower as _;
-use url as _;
 
 const CLIENT_START_MS: u64 = 9_000_000;
 const DAY_MS: i64 = 86_400_000;

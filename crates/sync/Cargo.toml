@@ -19,9 +19,6 @@ url = { workspace = true }
 [lints]
 workspace = true
 [dev-dependencies]
-anybot-app-test = { workspace = true }
-anybot-domain = { workspace = true }
-anybot-server-test = { workspace = true }
 proptest = { workspace = true }
 test-harness = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }

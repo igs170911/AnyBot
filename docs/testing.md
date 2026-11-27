@@ -156,6 +156,7 @@ anybot-context
 anybot-models
 anybot-runner
 anybot-server
+anybot-sync
 api-docs
 api-compat
 anybot-versions

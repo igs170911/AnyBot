@@ -1,0 +1,20 @@
+[package]
+publish = false
+name = "anybot-sync-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Integration tests of the sync connection layer against the real test server (spec/07 section 3, spec/09 K87)"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+anybot-app-test = { workspace = true }
+anybot-domain = { workspace = true }
+anybot-foundation = { workspace = true }
+anybot-server-test = { workspace = true }
+anybot-sync = { workspace = true }
+serde_json = { workspace = true }
+test-harness = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync"] }

@@ -452,11 +452,8 @@ dependencies = [
 name = "anybot-sync"
 version = "0.1.0"
 dependencies = [
- "anybot-app-test",
- "anybot-domain",
  "anybot-foundation",
  "anybot-protocol",
- "anybot-server-test",
  "anybot-store-client",
  "bytes",
  "getrandom 0.4.3",
@@ -467,6 +464,20 @@ dependencies = [
  "tokio",
  "tower",
  "url",
+]
+
+[[package]]
+name = "anybot-sync-test"
+version = "0.1.0"
+dependencies = [
+ "anybot-app-test",
+ "anybot-domain",
+ "anybot-foundation",
+ "anybot-server-test",
+ "anybot-sync",
+ "serde_json",
+ "test-harness",
+ "tokio",
 ]
 
 [[package]]

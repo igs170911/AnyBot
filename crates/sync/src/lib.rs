@@ -4,12 +4,6 @@ use anybot_protocol::RunEvent;
 use anybot_store_client as store_client;
 
 #[cfg(test)]
-use anybot_app_test as _;
-#[cfg(test)]
-use anybot_domain as _;
-#[cfg(test)]
-use anybot_server_test as _;
-#[cfg(test)]
 use proptest as _;
 pub mod after_merge;
 pub mod heartbeat_idle;
