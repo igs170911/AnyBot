@@ -17,7 +17,9 @@ use crate::limits::Limiter;
 use crate::problems;
 use crate::req_write::{Outcome, denied, internal_sqlx, internal_text, record_outcome};
 use crate::two_step_challenge::CREDENTIAL_COOKIE;
-use crate::two_step_check::{LoginCode, login_code_passes, now_ms, opened, wrong_code_pause};
+use crate::two_step_check::{
+    AcceptedCode, LoginCode, login_code_passes, now_ms, opened, wrong_code_pause,
+};
 
 pub(crate) struct StepTwo<'a> {
     pub state: &'a AppState,
@@ -53,7 +55,7 @@ pub(crate) async fn run_step_two(step: &StepTwo<'_>) -> Result<Response, CallerD
         .await
         .map_err(internal_sqlx)?;
     let Some(attempt) = admitted else {
-        close_challenge(step.pool, step.id_hash, CHALLENGE_VOID, now)
+        close_challenge(step.pool, step.id_hash, CHALLENGE_VOID, now, false)
             .await
             .map_err(internal_sqlx)?;
         return failed(
@@ -68,7 +70,7 @@ pub(crate) async fn run_step_two(step: &StepTwo<'_>) -> Result<Response, CallerD
         limiter.cancel_login(attempt).await.map_err(internal_sqlx)?;
     }
     match verdict? {
-        Verdict::Passed => passed(step, &row, now).await,
+        Verdict::Passed(kind) => passed(step, &row, now, kind).await,
         Verdict::Expired => {
             failed(
                 step,
@@ -90,7 +92,7 @@ pub(crate) async fn run_step_two(step: &StepTwo<'_>) -> Result<Response, CallerD
 }
 
 enum Verdict {
-    Passed,
+    Passed(AcceptedCode),
     Wrong,
     Expired,
 }
@@ -128,20 +130,27 @@ async fn try_code(step: &StepTwo<'_>, row: &ChallengeRow) -> Result<Verdict, Cal
         secret: &secret,
         code: step.code,
     };
-    if login_code_passes(&check).await? {
-        return Ok(Verdict::Passed);
-    }
-    Ok(Verdict::Wrong)
+    Ok(login_code_passes(&check)
+        .await?
+        .map_or(Verdict::Wrong, Verdict::Passed))
 }
 
 async fn passed(
     step: &StepTwo<'_>,
     row: &ChallengeRow,
     now: i64,
+    kind: AcceptedCode,
 ) -> Result<Response, CallerDenied> {
-    let closed = close_challenge(step.pool, step.id_hash, CHALLENGE_PASSED, now)
-        .await
-        .map_err(internal_sqlx)?;
+    let used_recovery = kind == AcceptedCode::Recovery;
+    let closed = close_challenge(
+        step.pool,
+        step.id_hash,
+        CHALLENGE_PASSED,
+        now,
+        used_recovery,
+    )
+    .await
+    .map_err(internal_sqlx)?;
     if !closed {
         return failed(
             step,
@@ -150,7 +159,11 @@ async fn passed(
         )
         .await;
     }
-    issue_for(step, row).await
+    let row = ChallengeRow {
+        used_recovery,
+        ..row.clone()
+    };
+    issue_for(step, &row).await
 }
 
 pub(crate) async fn issue_for(
@@ -163,6 +176,7 @@ pub(crate) async fn issue_for(
         account: &row.account,
         label: &row.label,
         cookie_mode: row.credential == CREDENTIAL_COOKIE,
+        used_recovery: row.used_recovery,
         origin: step.origin,
         key: step.key,
         raw: step.fingerprint,

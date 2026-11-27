@@ -1,0 +1,1 @@
+ALTER TABLE two_step_challenges ADD COLUMN used_recovery BOOLEAN NOT NULL DEFAULT FALSE;

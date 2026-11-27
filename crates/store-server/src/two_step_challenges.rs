@@ -13,6 +13,7 @@ pub struct ChallengeRow {
     pub tries: i32,
     pub state: String,
     pub passed_at_ms: Option<i64>,
+    pub used_recovery: bool,
 }
 
 pub struct NewChallenge<'a> {
@@ -43,8 +44,8 @@ pub async fn find_challenge(
     id_hash: &[u8],
 ) -> Result<Option<ChallengeRow>, sqlx::Error> {
     let row = sqlx::query!(
-        "SELECT account, credential, label, created_at_ms, tries, state, passed_at_ms \
-         FROM two_step_challenges WHERE id_hash = $1",
+        "SELECT account, credential, label, created_at_ms, tries, state, passed_at_ms, \
+         used_recovery FROM two_step_challenges WHERE id_hash = $1",
         id_hash
     )
     .fetch_optional(pool)
@@ -57,6 +58,7 @@ pub async fn find_challenge(
         tries: row.tries,
         state: row.state,
         passed_at_ms: row.passed_at_ms,
+        used_recovery: row.used_recovery,
     }))
 }
 
@@ -80,13 +82,15 @@ pub async fn close_challenge(
     id_hash: &[u8],
     state: &str,
     at_ms: i64,
+    used_recovery: bool,
 ) -> Result<bool, sqlx::Error> {
     let done = sqlx::query!(
-        "UPDATE two_step_challenges SET state = $2, passed_at_ms = $3 \
+        "UPDATE two_step_challenges SET state = $2, passed_at_ms = $3, used_recovery = $4 \
          WHERE id_hash = $1 AND state = 'open'",
         id_hash,
         state,
         at_ms,
+        used_recovery,
     )
     .execute(pool)
     .await?;
