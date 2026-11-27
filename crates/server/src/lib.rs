@@ -23,6 +23,7 @@ pub mod api_streams_action_plan;
 pub mod api_streams_after;
 pub mod api_streams_append;
 pub mod api_streams_bot;
+pub mod api_streams_dedup;
 pub mod api_streams_record;
 pub mod api_streams_sse;
 pub mod api_streams_sse_drive;

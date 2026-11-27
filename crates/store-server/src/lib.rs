@@ -14,6 +14,7 @@ pub mod streams;
 pub mod streams_action;
 pub mod streams_bots;
 pub mod streams_card;
+pub mod streams_projection;
 pub mod streams_settings;
 pub use streams_bots as bots;
 
@@ -30,7 +31,7 @@ pub use streams::{
     RecordRow, StreamRow, ensure_stream, find_record_by_device, insert_record, list_after,
     list_streams_of, load_stream, max_seq,
 };
-pub use streams_bots::{BotRow, ensure_bot, list_bots, load_bot, rename_bot, set_bot_deleted};
+pub use streams_bots::{BotRow, list_bots, load_bot, rename_bot};
 
 pub type Pool = sqlx::PgPool;
 
