@@ -168,7 +168,13 @@ export type MessageCode =
   "referee-malformed" |
   "append-kind-forbidden" |
   "stream-bot-missing" |
-  "sync-after-ahead";
+  "sync-after-ahead" |
+  "server-bootstrap-line-malformed" |
+  "server-bootstrap-name-unknown" |
+  "server-bootstrap-name-duplicate" |
+  "server-bootstrap-name-missing" |
+  "server-bootstrap-master-key-malformed" |
+  "server-master-key-mismatch";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -339,4 +345,10 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "append-kind-forbidden",
   "stream-bot-missing",
   "sync-after-ahead",
+  "server-bootstrap-line-malformed",
+  "server-bootstrap-name-unknown",
+  "server-bootstrap-name-duplicate",
+  "server-bootstrap-name-missing",
+  "server-bootstrap-master-key-malformed",
+  "server-master-key-mismatch",
 ];

@@ -10,5 +10,7 @@ anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-domain = { workspace = true }
 sqlx = { workspace = true, features = ["postgres"] }
+ring = { workspace = true }
+data-encoding = { workspace = true }
 [lints]
 workspace = true

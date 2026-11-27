@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO master_key_check (id, key_id, algorithm, check_value, recorded_at_ms) VALUES (1, $1, $2, $3, $4) ON CONFLICT (id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Text", "Bytea", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "39ee7e91c3ba3365dfc19fb56153fa3ddf8b479062918053c48ad70498bd8e1c"
+}

@@ -9,6 +9,7 @@ use crate::error::{
     CODE_BOOTSTRAP_READ_FAILED, CODE_BOOTSTRAP_URL_MALFORMED, CODE_BOOTSTRAP_URL_SCHEME,
     FoundationError, MessageRef,
 };
+use crate::master_key::MasterKey;
 use crate::secret::Secret;
 
 pub const DEFAULT_POSTGRES_PORT: u16 = 5432;
@@ -21,6 +22,7 @@ pub struct ServerBootstrap {
     pub port: u16,
     pub database: String,
     pub query: String,
+    pub master_key: MasterKey,
 }
 
 impl ServerBootstrap {
@@ -54,7 +56,9 @@ impl ServerBootstrap {
                     .with_text("reason", &e.to_string()),
             )
         })?;
-        parse_connection(text.trim())
+        let parsed = crate::bootstrap_file::parse_bootstrap(&text);
+        zeroize::Zeroize::zeroize(&mut text);
+        parsed
     }
 }
 
@@ -82,39 +86,30 @@ fn unix_permissions(_path: &Path, _meta: &std::fs::Metadata) -> Result<(), Found
     Ok(())
 }
 
-pub fn parse_connection(text: &str) -> Result<ServerBootstrap, FoundationError> {
-    let url = Url::parse(text).map_err(|_| {
-        FoundationError::BootstrapMalformed(MessageRef::new(CODE_BOOTSTRAP_URL_MALFORMED))
-    })?;
+pub fn parse_connection(
+    text: &str,
+    master_key: MasterKey,
+) -> Result<ServerBootstrap, FoundationError> {
+    let url = Url::parse(text).map_err(|_| malformed(CODE_BOOTSTRAP_URL_MALFORMED))?;
     if url.scheme() != "postgres" && url.scheme() != "postgresql" {
-        return Err(FoundationError::BootstrapMalformed(MessageRef::new(
-            CODE_BOOTSTRAP_URL_SCHEME,
-        )));
-    }
-    if url.username().is_empty() && url.password().is_none() {
-        return Err(FoundationError::BootstrapMalformed(MessageRef::new(
-            CODE_BOOTSTRAP_CREDENTIALS_MISSING,
-        )));
+        return Err(malformed(CODE_BOOTSTRAP_URL_SCHEME));
     }
     let user = percent_decode(url.username());
-    let password = url.password().map(percent_decode).unwrap_or_default();
+    let password = url
+        .password()
+        .map(percent_decode)
+        .ok_or_else(|| malformed(CODE_BOOTSTRAP_CREDENTIALS_MISSING))?;
     if user.is_empty() || password.is_empty() {
-        return Err(FoundationError::BootstrapMalformed(MessageRef::new(
-            CODE_BOOTSTRAP_CREDENTIALS_MISSING,
-        )));
+        return Err(malformed(CODE_BOOTSTRAP_CREDENTIALS_MISSING));
     }
     let host = url
         .host_str()
-        .ok_or(FoundationError::BootstrapMalformed(MessageRef::new(
-            CODE_BOOTSTRAP_HOST_MISSING,
-        )))?
+        .ok_or_else(|| malformed(CODE_BOOTSTRAP_HOST_MISSING))?
         .to_owned();
     let port = url.port().unwrap_or(DEFAULT_POSTGRES_PORT);
     let database = percent_decode(url.path().trim_start_matches('/'));
     if database.is_empty() {
-        return Err(FoundationError::BootstrapMalformed(MessageRef::new(
-            CODE_BOOTSTRAP_DATABASE_MISSING,
-        )));
+        return Err(malformed(CODE_BOOTSTRAP_DATABASE_MISSING));
     }
     Ok(ServerBootstrap {
         user,
@@ -122,8 +117,16 @@ pub fn parse_connection(text: &str) -> Result<ServerBootstrap, FoundationError> 
         host,
         port,
         database,
-        query: url.query().unwrap_or("").to_owned(),
+        query: match url.query() {
+            Some(query) => query.to_owned(),
+            None => String::new(),
+        },
+        master_key,
     })
+}
+
+fn malformed(code: &str) -> FoundationError {
+    FoundationError::BootstrapMalformed(MessageRef::new(code))
 }
 
 fn percent_decode(part: &str) -> String {

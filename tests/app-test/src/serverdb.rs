@@ -1,6 +1,8 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use anybot_server::{ensure_schema, open_url, product_migrations, set_config_rows};
+use anybot_foundation::MasterKey;
+use anybot_server::{SecretKeys, ensure_schema, open_url, product_migrations, set_config_rows};
 
 use test_harness::{
     PgInstance, pg_start, pg_stop, ports::free_dual_port, scratch::test_dir,
@@ -13,6 +15,7 @@ pub struct ServerDb {
     pub bootstrap: PathBuf,
     pub url: String,
     pub listen_port: u16,
+    pub master_key: MasterKey,
 }
 
 pub async fn db_start(test: &str) -> Result<ServerDb, String> {
@@ -36,18 +39,31 @@ pub async fn db_start(test: &str) -> Result<ServerDb, String> {
     )
     .await
     .map_err(|e| e.to_string())?;
+    let master_key = MasterKey::generate().map_err(|e| e.to_string())?;
     let bootstrap = dir.join("boot.conf");
-    write_file_with_mode(&bootstrap, &format!("{url}\n"), 0o600)?;
+    write_file_with_mode(&bootstrap, &bootstrap_text(&url, &master_key), 0o600)?;
     Ok(ServerDb {
         pg,
         dir,
         bootstrap,
         url,
         listen_port,
+        master_key,
     })
 }
 
+#[must_use]
+pub fn bootstrap_text(url: &str, master_key: &MasterKey) -> String {
+    format!("database={url}\n{}\n", master_key.bootstrap_line().expose())
+}
+
 impl ServerDb {
+    pub fn secret_keys(&self) -> Result<Arc<SecretKeys>, String> {
+        SecretKeys::from_master(&self.master_key)
+            .map(Arc::new)
+            .map_err(|e| e.to_string())
+    }
+
     #[must_use]
     pub fn args(&self) -> Vec<String> {
         vec![

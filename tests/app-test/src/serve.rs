@@ -88,7 +88,9 @@ async fn bind_fake(
 > {
     let mut state =
         anybot_server::AppState::with_pool(TEST_VERSION, Arc::clone(&clock), pool.clone(), config);
-    state = state.with_releases(releases.clone());
+    state = state
+        .with_releases(releases.clone())
+        .with_secrets(db.secret_keys()?);
     let listener = bind_with_retry(db.listen_port).await?;
     let v6_listener =
         bind_v6_with_retry(next_port(db.listen_port).ok_or("port overflow".to_owned())?).await?;

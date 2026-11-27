@@ -48,8 +48,12 @@ async fn run_against_foreign_database() -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
     let bootstrap = dir.join("boot.conf");
-    let _written =
-        test_harness::scratch::write_file_with_mode(&bootstrap, &format!("{url}\n"), 0o600);
+    let key = anybot_foundation::MasterKey::generate().map_err(|e| e.to_string())?;
+    let _written = test_harness::scratch::write_file_with_mode(
+        &bootstrap,
+        &anybot_app_test::bootstrap_text(&url, &key),
+        0o600,
+    );
     let before = anybot_app_test::public_table_names(&pool).await?;
     let outcome = run_program(
         &server_bin().program(vec![
@@ -97,7 +101,7 @@ fn foreign_check(outcome: &test_harness::Outcome) -> Result<(), String> {
 async fn run_after_database_comes_online() -> Result<(), String> {
     let mut db = db_start("server_n8_3_blocked").await?;
     let _paused = db.pg.pause().await;
-    let bootstrap = anybot_foundation::bootstrap::parse_connection(&db.url)
+    let bootstrap = anybot_foundation::bootstrap::parse_connection(&db.url, db.master_key.clone())
         .map_err(|e| format!("bootstrap parse: {e}"))?;
     let clock = FakeClock::new(0);
     let capture = Arc::new(Capture::new());

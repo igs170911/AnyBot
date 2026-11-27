@@ -1,7 +1,7 @@
 use anybot_store_server::Migrator;
 
 use anybot_foundation::{Clock, MessageRef, ServerBootstrap};
-use anybot_store_server::{Pool, SchemaError};
+use anybot_store_server::{Pool, SchemaError, SecretKeys};
 
 use crate::boot::{BootError, Started, boot};
 
@@ -9,6 +9,7 @@ pub const CONNECT_RETRY_SECONDS: u64 = 5;
 pub const CODE_SERVER_DB_CONNECT_RETRY: &str = "server-db-connect-retry";
 pub const CODE_SERVER_DB_FOREIGN_DATA: &str = "server-db-foreign-data";
 pub const CODE_SERVER_MIGRATION_FAILED: &str = "server-migration-failed";
+pub const CODE_SERVER_MASTER_KEY_MISMATCH: &str = "server-master-key-mismatch";
 
 #[derive(Debug)]
 pub enum RunError {
@@ -16,6 +17,7 @@ pub enum RunError {
     MigrationFailed(String),
     ConfigRead(String),
     ConfigInvalid(String),
+    MasterKeyMismatch,
 }
 
 impl RunError {
@@ -32,6 +34,7 @@ impl RunError {
                 MessageRef::new(crate::startup::CODE_SERVER_CONFIG_INVALID)
                     .with_text("reason", reason)
             }
+            RunError::MasterKeyMismatch => MessageRef::new(CODE_SERVER_MASTER_KEY_MISMATCH),
         }
     }
 }
@@ -49,8 +52,9 @@ pub async fn boot_database(
     clock: &dyn Clock,
     migrator: &mut Migrator,
     version: &str,
+    keys: &SecretKeys,
 ) -> Result<Started, RunError> {
-    match boot(pool, clock, migrator, version).await {
+    match boot(pool, clock, migrator, version, keys).await {
         Ok(started) => Ok(started),
         Err(BootError::Schema(SchemaError::ForeignData { .. })) => Err(RunError::ForeignData),
         Err(BootError::Schema(SchemaError::MigrationFailed(reason))) => {
@@ -60,5 +64,6 @@ pub async fn boot_database(
             Err(RunError::ConfigRead(reason))
         }
         Err(BootError::ConfigInvalid(reason)) => Err(RunError::ConfigInvalid(reason)),
+        Err(BootError::MasterKeyMismatch) => Err(RunError::MasterKeyMismatch),
     }
 }

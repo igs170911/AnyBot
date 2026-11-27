@@ -24,7 +24,7 @@ pub use install_live::{
 };
 
 pub use clockwalk::{ClockWalker, WAVE_FAKE_STEP, WAVE_INSERT_STEP, settle_handles};
-pub use serverdb::{ServerDb, db_start};
+pub use serverdb::{ServerDb, bootstrap_text, db_start};
 
 pub fn english(
     catalog: &mut Catalog,

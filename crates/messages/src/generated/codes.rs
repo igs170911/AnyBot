@@ -172,6 +172,12 @@ pub enum MessageCode {
     AppendKindForbidden,
     StreamBotMissing,
     SyncAfterAhead,
+    ServerBootstrapLineMalformed,
+    ServerBootstrapNameUnknown,
+    ServerBootstrapNameDuplicate,
+    ServerBootstrapNameMissing,
+    ServerBootstrapMasterKeyMalformed,
+    ServerMasterKeyMismatch,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -486,6 +492,30 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::AppendKindForbidden, "append-kind-forbidden"),
     (MessageCode::StreamBotMissing, "stream-bot-missing"),
     (MessageCode::SyncAfterAhead, "sync-after-ahead"),
+    (
+        MessageCode::ServerBootstrapLineMalformed,
+        "server-bootstrap-line-malformed",
+    ),
+    (
+        MessageCode::ServerBootstrapNameUnknown,
+        "server-bootstrap-name-unknown",
+    ),
+    (
+        MessageCode::ServerBootstrapNameDuplicate,
+        "server-bootstrap-name-duplicate",
+    ),
+    (
+        MessageCode::ServerBootstrapNameMissing,
+        "server-bootstrap-name-missing",
+    ),
+    (
+        MessageCode::ServerBootstrapMasterKeyMalformed,
+        "server-bootstrap-master-key-malformed",
+    ),
+    (
+        MessageCode::ServerMasterKeyMismatch,
+        "server-master-key-mismatch",
+    ),
 ];
 
 impl MessageCode {

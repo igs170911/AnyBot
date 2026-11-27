@@ -42,10 +42,9 @@ impl Served {
     }
 
     pub async fn restart_server(&mut self) -> Result<(), String> {
-        let rows = anybot_server::read_config_rows(&self.pool)
+        let config = anybot_server::load_config(&self.pool, &*self.db.secret_keys()?)
             .await
-            .map_err(|e| e.to_string())?;
-        let config = anybot_server::ServerConfig::from_rows(rows)?;
+            .map_err(|e| format!("{e:?}"))?;
         let clock_fast: Arc<FakeClock> = Arc::clone(&self.clock);
         let clock_arc: Arc<dyn Clock> = clock_fast;
         let (shutdown, task, v6_port, fresh) = bind_fake(
@@ -108,10 +107,9 @@ impl ServedReal {
     }
 
     pub async fn restart_server(&mut self) -> Result<(), String> {
-        let rows = anybot_server::read_config_rows(&self.pool)
+        let config = anybot_server::load_config(&self.pool, &*self.db.secret_keys()?)
             .await
-            .map_err(|e| e.to_string())?;
-        let config = anybot_server::ServerConfig::from_rows(rows)?;
+            .map_err(|e| format!("{e:?}"))?;
         let clock: Arc<dyn Clock> = Arc::new(SystemClock);
         let (shutdown, task, v6_port, fresh) = bind_fake(
             &self.db,

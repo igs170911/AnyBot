@@ -32,6 +32,7 @@ pub struct AppState {
     pub listen_ports: Arc<Vec<u16>>,
     pub releases: Arc<anybot_domain::version_release::ReleaseTable>,
     pub bus: anybot_bus::SharedBus,
+    pub secrets: Option<Arc<anybot_store_server::SecretKeys>>,
 }
 
 impl AppState {
@@ -64,6 +65,7 @@ impl AppState {
             shutdown: Arc::new(Notify::new()),
             started_at_ms,
             bus: anybot_bus::shared_memory_bus(),
+            secrets: None,
         }
     }
 
@@ -94,6 +96,12 @@ impl AppState {
     #[must_use]
     pub fn with_releases(mut self, releases: anybot_domain::version_release::ReleaseTable) -> Self {
         self.releases = Arc::new(releases);
+        self
+    }
+
+    #[must_use]
+    pub fn with_secrets(mut self, keys: Arc<anybot_store_server::SecretKeys>) -> Self {
+        self.secrets = Some(keys);
         self
     }
 

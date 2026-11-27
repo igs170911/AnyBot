@@ -46,8 +46,18 @@ pub const CODE_BOOTSTRAP_DATABASE_MISSING: &str = "server-bootstrap-database-mis
 pub const CODE_BOOTSTRAP_MISSING: &str = "server-bootstrap-missing";
 pub const CODE_CLIENT_DATA_DIR_MISSING: &str = "client-data-dir-missing";
 pub const CODE_SERVER_STARTUP_LISTENING: &str = "server-startup-listening";
+pub const CODE_BOOTSTRAP_LINE_MALFORMED: &str = "server-bootstrap-line-malformed";
+pub const CODE_BOOTSTRAP_NAME_UNKNOWN: &str = "server-bootstrap-name-unknown";
+pub const CODE_BOOTSTRAP_NAME_DUPLICATE: &str = "server-bootstrap-name-duplicate";
+pub const CODE_BOOTSTRAP_NAME_MISSING: &str = "server-bootstrap-name-missing";
+pub const CODE_BOOTSTRAP_MASTER_KEY_MALFORMED: &str = "server-bootstrap-master-key-malformed";
 
-pub const FOUNDATION_MESSAGE_CODES: [&str; 12] = [
+pub const FOUNDATION_MESSAGE_CODES: [&str; 17] = [
+    CODE_BOOTSTRAP_LINE_MALFORMED,
+    CODE_BOOTSTRAP_NAME_UNKNOWN,
+    CODE_BOOTSTRAP_NAME_DUPLICATE,
+    CODE_BOOTSTRAP_NAME_MISSING,
+    CODE_BOOTSTRAP_MASTER_KEY_MALFORMED,
     CODE_BOOTSTRAP_NOT_FOUND,
     CODE_BOOTSTRAP_PERMISSIONS_READ_FAILED,
     CODE_BOOTSTRAP_READ_FAILED,
@@ -81,6 +91,9 @@ pub enum FoundationError {
 
     #[error("data dir missing ({0:?})")]
     DataDirMissing(MessageRef),
+
+    #[error("operating system randomness unavailable: {0}")]
+    RandomUnavailable(String),
 }
 
 impl FoundationError {
@@ -91,7 +104,7 @@ impl FoundationError {
             | Self::BootstrapPermissions(r)
             | Self::BootstrapMalformed(r)
             | Self::DataDirMissing(r) => Some(r.clone()),
-            Self::ConfigMissing(_) | Self::IdParse(_) => None,
+            Self::ConfigMissing(_) | Self::IdParse(_) | Self::RandomUnavailable(_) => None,
         }
     }
 }

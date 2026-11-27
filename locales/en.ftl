@@ -167,3 +167,9 @@ referee-malformed = This referee request is missing a field it needs.
 append-kind-forbidden = This kind of record cannot be written from a device.
 stream-bot-missing = This bot stream does not exist.
 sync-after-ahead = This device is ahead of the server (max_seq { $max_seq }): please reset the stream.
+server-bootstrap-line-malformed = Bootstrap file line { $line } is not a name=value entry
+server-bootstrap-name-unknown = Bootstrap file has an unknown name: { $name }
+server-bootstrap-name-duplicate = Bootstrap file has { $name } more than once
+server-bootstrap-name-missing = Bootstrap file is missing { $name }
+server-bootstrap-master-key-malformed = Bootstrap file { $name } must be 64 hexadecimal characters
+server-master-key-mismatch = Master key is wrong: the secrets in this database cannot be opened. Use the original bootstrap file.

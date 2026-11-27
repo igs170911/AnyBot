@@ -11,7 +11,8 @@ use anybot_server::run::{boot_database, connect_retry_line};
 use anybot_server::startup::parse_listen_host;
 use anybot_server::startup::startup_message;
 use anybot_server::{
-    AppState, Pool, Started, build_router, open_lazy, probe, probe_pool, product_migrations,
+    AppState, Pool, SecretKeys, Started, build_router, open_lazy, probe, probe_pool,
+    product_migrations,
 };
 
 use crate::bridge::{code_from_str, params_from_ref};
@@ -95,12 +96,16 @@ pub async fn boot_plan(
     version: &str,
     bootstrap: &ServerBootstrap,
     ctx: &mut Ctx,
-) -> Result<Started, ExitCode> {
+) -> Result<(Started, Arc<SecretKeys>), ExitCode> {
+    let keys = match SecretKeys::from_master(&bootstrap.master_key) {
+        Ok(keys) => Arc::new(keys),
+        Err(err) => return Err(messages_exit(ctx, &err.to_string())),
+    };
     let clock = SystemClock;
     let mut migrations = product_migrations();
-    let outcome = boot_database(pool, &clock, &mut migrations, version).await;
+    let outcome = boot_database(pool, &clock, &mut migrations, version, &keys).await;
     match outcome {
-        Ok(started) => Ok(started),
+        Ok(started) => Ok((started, keys)),
         Err(err) => {
             if ctx.print_ref(&err.log_line(bootstrap)).is_err() {
                 return Err(ExitCode::from(3));
@@ -188,8 +193,8 @@ pub async fn stage_serve(
         Ok(pool) => pool,
         Err(err) => return Err(messages_exit(ctx, &err)),
     };
-    let started = match boot_plan(&pool, version, &startup.bootstrap, ctx).await {
-        Ok(started) => started,
+    let (started, keys) = match boot_plan(&pool, version, &startup.bootstrap, ctx).await {
+        Ok(booted) => booted,
         Err(code) => return Err(code),
     };
     ctx.set_lang(&started.config.language);
@@ -200,8 +205,7 @@ pub async fn stage_serve(
     };
     let account_count = started.account_count;
     let new_invite = started.new_invite.clone();
-    let clock = Arc::new(SystemClock);
-    let mut state = AppState::with_pool(version, clock, pool, started.config);
+    let mut state = AppState::with_pool(version, clock, pool, started.config).with_secrets(keys);
     let mut bound: Vec<u16> = Vec::new();
     for listener in &listeners {
         let addr = listener

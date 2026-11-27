@@ -34,6 +34,7 @@ pub mod auth_pre;
 pub mod auth_time;
 pub mod auth_version;
 pub mod boot;
+pub mod boot_config;
 pub mod caller;
 pub mod caller_session;
 pub mod cleanup;
@@ -56,6 +57,7 @@ pub mod startup;
 pub mod status;
 
 pub use account_input::{normalize_account, password_long_enough};
+pub use anybot_store_server::SecretKeys;
 pub use anybot_store_server::{
     Migrator, Pool, SchemaError, ensure_schema, max_applied_version, min_applied_version,
     open_lazy, open_url, probe, probe_pool, product_migrations, read_config_rows, set_config_rows,
@@ -63,6 +65,7 @@ pub use anybot_store_server::{
 };
 pub use app::{AppState, build_router};
 pub use boot::{BootError, Started, boot};
+pub use boot_config::load_config;
 pub use config::{
     KEY_INVITE_CODE, KEY_LANGUAGE, KEY_LISTEN_ADDRESSES, KEY_LISTEN_PORT, KEY_PROXY_SECRET,
     KEY_PUBLIC_URL, KEY_SERVER_VERSION, KEY_TRUST_PROXY, ServerConfig,

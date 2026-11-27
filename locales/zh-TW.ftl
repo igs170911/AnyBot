@@ -170,3 +170,9 @@ referee-malformed = 這個裁判請求缺少必要的欄位。
 append-kind-forbidden = 這種紀錄不能從裝置寫入。
 stream-bot-missing = 這個 bot 串流不存在。
 sync-after-ahead = 這台裝置比伺服器還新（max_seq { $max_seq }）：請重置這個串流。
+server-bootstrap-line-malformed = 啟動檔第 { $line } 行不是「名稱=值」
+server-bootstrap-name-unknown = 啟動檔有不認得的名稱：{ $name }
+server-bootstrap-name-duplicate = 啟動檔的 { $name } 出現不只一次
+server-bootstrap-name-missing = 啟動檔缺少 { $name }
+server-bootstrap-master-key-malformed = 啟動檔的 { $name } 要是 64 個十六進位字
+server-master-key-mismatch = 主鑰匙不對：這份資料庫的秘密解不開。請用原本的啟動檔。
