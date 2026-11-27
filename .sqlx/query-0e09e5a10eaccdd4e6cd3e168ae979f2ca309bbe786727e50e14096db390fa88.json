@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE records SET content = $3, purged = TRUE WHERE stream_id = $1 AND seq = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Int8", "Text"]
+    },
+    "nullable": []
+  },
+  "hash": "0e09e5a10eaccdd4e6cd3e168ae979f2ca309bbe786727e50e14096db390fa88"
+}

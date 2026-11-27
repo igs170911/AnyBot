@@ -1,3 +1,5 @@
+use sqlx::{Postgres, Transaction};
+
 use crate::Pool;
 
 #[derive(Debug, Clone)]
@@ -89,20 +91,20 @@ pub struct RecordRow {
 }
 
 #[derive(Debug, Clone)]
-struct RecordFields {
-    stream_id: String,
-    seq: i64,
-    device_id: String,
-    kind: String,
-    content: String,
-    created_at_ms: i64,
-    offline_sent: bool,
-    task_id: Option<String>,
-    task_seq: Option<i64>,
-    purged: bool,
+pub(crate) struct RecordFields {
+    pub(crate) stream_id: String,
+    pub(crate) seq: i64,
+    pub(crate) device_id: String,
+    pub(crate) kind: String,
+    pub(crate) content: String,
+    pub(crate) created_at_ms: i64,
+    pub(crate) offline_sent: bool,
+    pub(crate) task_id: Option<String>,
+    pub(crate) task_seq: Option<i64>,
+    pub(crate) purged: bool,
 }
 
-fn record_from_row(r: RecordFields) -> RecordRow {
+pub(crate) fn record_from_row(r: RecordFields) -> RecordRow {
     RecordRow {
         stream_id: r.stream_id,
         seq: r.seq,
@@ -171,8 +173,19 @@ pub async fn insert_record(
     stream_id: &str,
     spec: &InsertSpec<'_>,
 ) -> Result<i64, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    let seq = insert_in_tx(&mut tx, stream_id, spec).await?;
+    tx.commit().await?;
+    Ok(seq)
+}
+
+pub async fn insert_in_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    stream_id: &str,
+    spec: &InsertSpec<'_>,
+) -> Result<i64, sqlx::Error> {
     let task_id = spec.task_id;
-    let task_seq = bump_task_seq(pool, task_id).await?;
+    let task_seq = bump_task_seq(tx, task_id).await?;
     let row = sqlx::query!(
         "WITH bumped AS (UPDATE record_streams SET next_seq = next_seq + 1 \
          WHERE id = $1 RETURNING next_seq - 1 AS seq) \
@@ -188,12 +201,15 @@ pub async fn insert_record(
         task_id,
         task_seq,
     )
-    .fetch_one(pool)
+    .fetch_one(&mut **tx)
     .await?;
     Ok(row.seq)
 }
 
-async fn bump_task_seq(pool: &Pool, task_id: Option<&str>) -> Result<Option<i64>, sqlx::Error> {
+async fn bump_task_seq(
+    tx: &mut Transaction<'_, Postgres>,
+    task_id: Option<&str>,
+) -> Result<Option<i64>, sqlx::Error> {
     let Some(task_id) = task_id else {
         return Ok(None);
     };
@@ -201,14 +217,14 @@ async fn bump_task_seq(pool: &Pool, task_id: Option<&str>) -> Result<Option<i64>
         "INSERT INTO task_counters (task_id) VALUES ($1) ON CONFLICT (task_id) DO NOTHING",
         task_id,
     )
-    .execute(pool)
+    .execute(&mut **tx)
     .await?;
     let row = sqlx::query!(
         "UPDATE task_counters SET next_seq = next_seq + 1 \
          WHERE task_id = $1 RETURNING next_seq - 1 AS task_seq",
         task_id,
     )
-    .fetch_one(pool)
+    .fetch_one(&mut **tx)
     .await?;
     let seq = row
         .task_seq

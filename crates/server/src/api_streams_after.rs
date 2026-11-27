@@ -147,7 +147,7 @@ async fn build_page(
     })
 }
 
-fn stored_record(row: streams::RecordRow) -> Result<StoredRecord, CallerDenied> {
+pub(crate) fn stored_record(row: streams::RecordRow) -> Result<StoredRecord, CallerDenied> {
     let content = serde_json::from_str(&row.content).map_err(|e| internal_text(e.to_string()))?;
     Ok(StoredRecord {
         seq: row.seq,

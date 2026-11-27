@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE records SET received_ms = $3, corrected_ms = $4 WHERE stream_id = $1 AND seq = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Int8", "Int8", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "e2955d80033d367b31d90132c02d59669d7854fb1262ccd3cfd16ed440bc7594"
+}

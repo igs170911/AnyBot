@@ -264,6 +264,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current synced settings of the caller
+         * @description Replays the setting records of the account stream and returns the winner of every field. A list item is its own field. Device-only settings are never stored here.
+         */
+        get: operations["get_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/streams/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete, clear, restore or permanently delete chat records
+         * @description The server records the action itself. Delete and clear hide chat messages and model answers; restore brings them back within 30 days; purge-permanent empties the content of the chat records behind a delete or clear, and keeps their rows. Only the owner of the stream can act on it.
+         *     The Idempotency-Key header is required; the fingerprint covers the stream key, the action and the target, never any content.
+         */
+        post: operations["post_streams_actions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/streams/after": {
         parameters: {
             query?: never;
@@ -319,6 +360,47 @@ export interface paths {
         get: operations["get_streams_notifications"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/streams/record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One record by sequence number
+         * @description Reads one record of a stream the caller owns. A record that was permanently deleted is refused with record-source-purged, so an evidence reference can show that its source is gone.
+         */
+        get: operations["get_streams_record"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/streams/referee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel, stop, wake, answer a card or change the done criteria of a task
+         * @description A device asks the server to decide. The server records the decision on the bot stream with the task id. A card answer is accepted once per card: the second answer is refused and names the device that answered first.
+         *     The Idempotency-Key header is required.
+         */
+        post: operations["post_streams_referee"];
         delete?: never;
         options?: never;
         head?: never;
@@ -427,6 +509,28 @@ export interface components {
             /** @example https://bot.example.test */
             public_url: string;
         };
+        /**
+         * @example delete
+         * @enum {string}
+         */
+        RecordAction: "delete" | "clear" | "restore" | "purge_permanent";
+        RecordActionReply: {
+            /**
+             * Format: int64
+             * @example 9
+             */
+            seq: number;
+            stream: components["schemas"]["StreamSelector"];
+        };
+        RecordActionRequest: {
+            action: components["schemas"]["RecordAction"];
+            stream: components["schemas"]["StreamSelector"];
+            /**
+             * Format: int64
+             * @example 3
+             */
+            target_seq?: number | null;
+        };
         RecordItem: {
             content: unknown;
             /**
@@ -442,6 +546,30 @@ export interface components {
             offline_sent: boolean;
             /** @example 018f-task-uuidv7 */
             task_id?: string | null;
+        };
+        /**
+         * @example card_answer
+         * @enum {string}
+         */
+        RefereeAction: "cancel" | "stop" | "wake" | "card_answer" | "done_criteria";
+        RefereeReply: {
+            /**
+             * Format: int64
+             * @example 12
+             */
+            seq: number;
+            stream: components["schemas"]["StreamSelector"];
+        };
+        RefereeRequest: {
+            action: components["schemas"]["RefereeAction"];
+            /** @example allow */
+            answer?: string | null;
+            /** @example 018f-card-uuidv7 */
+            card_id?: string | null;
+            criteria?: unknown;
+            stream: components["schemas"]["StreamSelector"];
+            /** @example 018f-task-uuidv7 */
+            task_id: string;
         };
         RegisterAck: {
             /** @example true */
@@ -460,6 +588,17 @@ export interface components {
         ResetPasswordRequest: {
             /** @example newlongenough */
             new: string;
+        };
+        SettingEntry: {
+            /** @example accent_color */
+            field: string;
+            /** @example 018f-chat-uuidv7 */
+            item?: string | null;
+            /** @example green */
+            value: string;
+        };
+        SettingsView: {
+            settings: components["schemas"]["SettingEntry"][];
         };
         StatusResponse: {
             /**
@@ -2072,6 +2211,207 @@ export interface operations {
             };
         };
     };
+    get_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Winning value of every synced setting */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "settings": [
+                     *         {
+                     *           "field": "accent_color",
+                     *           "value": "green"
+                     *         },
+                     *         {
+                     *           "field": "bot_name",
+                     *           "item": "018f-bot-uuidv7",
+                     *           "value": "Helper"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            /** @description Session rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_streams_actions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID of this action */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "action": "clear",
+                 *       "stream": "account",
+                 *       "target_seq": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["RecordActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Sequence of the action record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "seq": 9,
+                     *       "stream": "account"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["RecordActionReply"];
+                };
+            };
+            /** @description Bad body, missing target, or the action cannot apply to that record */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-action-target-invalid",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "This action cannot be applied to that record.",
+                     *       "type": "https://anybot.test/problems/record_action_target_invalid"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not allowed to act on this stream */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "You cannot write this stream.",
+                     *       "type": "https://anybot.test/problems/record_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Target record is not in this stream */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-action-target-missing",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "The record to act on is not in this stream.",
+                     *       "type": "https://anybot.test/problems/record_action_target_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Restore after the 30-day window, or same key with a different fingerprint */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-restore-expired",
+                     *       "params": {},
+                     *       "status": 409,
+                     *       "title": "The 30-day window to restore this has passed.",
+                     *       "type": "https://anybot.test/problems/record_restore_expired"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
     get_streams_after: {
         parameters: {
             query: {
@@ -2369,6 +2709,257 @@ export interface operations {
                      *       "status": 400,
                      *       "title": "The request was malformed.",
                      *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    get_streams_record: {
+        parameters: {
+            query: {
+                /** @description Stream key, for example account/alice or bot/<id> */
+                stream: string;
+                /** @description Sequence number of the record */
+                seq: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "content": {
+                     *         "text": "hi"
+                     *       },
+                     *       "created_at_ms": 1700000000100,
+                     *       "device_id": "018f-uuidv7",
+                     *       "kind": "message",
+                     *       "offline_sent": false,
+                     *       "seq": 3
+                     *     }
+                     */
+                    "application/json": components["schemas"]["StoredRecord"];
+                };
+            };
+            /** @description Bad stream key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The request was malformed.",
+                     *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No permission for this stream */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "You cannot write this stream.",
+                     *       "type": "https://anybot.test/problems/record_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No record with this sequence number */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-action-target-missing",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "The record to act on is not in this stream.",
+                     *       "type": "https://anybot.test/problems/record_action_target_missing"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description The record was permanently deleted */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-source-purged",
+                     *       "params": {},
+                     *       "status": 410,
+                     *       "title": "The source was permanently deleted.",
+                     *       "type": "https://anybot.test/problems/record_source_purged"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_streams_referee: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID of this decision */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "action": "card_answer",
+                 *       "answer": "allow",
+                 *       "card_id": "018f-card-uuidv7",
+                 *       "stream": {
+                 *         "bot": {
+                 *           "id": "018f-bot-uuidv7"
+                 *         }
+                 *       },
+                 *       "task_id": "018f-task-uuidv7"
+                 *     }
+                 */
+                "application/json": components["schemas"]["RefereeRequest"];
+            };
+        };
+        responses: {
+            /** @description Sequence of the decision record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "seq": 12,
+                     *       "stream": {
+                     *         "bot": {
+                     *           "id": "018f-bot-uuidv7"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["RefereeReply"];
+                };
+            };
+            /** @description Bad body or a field this action needs is missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "referee-malformed",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "This referee request is missing a field it needs.",
+                     *       "type": "https://anybot.test/problems/referee_malformed"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not allowed to act on this stream */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "You cannot write this stream.",
+                     *       "type": "https://anybot.test/problems/record_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description The card was already answered, or the page is out of date */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "card-already-answered",
+                     *       "params": {
+                     *         "device": "018f-uuidv7"
+                     *       },
+                     *       "status": 409,
+                     *       "title": "This card was already answered from 018f-uuidv7.",
+                     *       "type": "https://anybot.test/problems/card_already_answered"
                      *     }
                      */
                     "application/problem+json": components["schemas"]["ProblemJson"];

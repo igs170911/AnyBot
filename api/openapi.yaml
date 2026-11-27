@@ -1151,6 +1151,151 @@ paths:
                 type: https://anybot.test/problems/internal
       security:
       - {}
+  /v1/settings:
+    get:
+      tags:
+      - account
+      summary: Current synced settings of the caller
+      description: Replays the setting records of the account stream and returns the winner of every field. A list item is its own field. Device-only settings are never stored here.
+      operationId: get_settings
+      responses:
+        '200':
+          description: Winning value of every synced setting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+              example:
+                settings:
+                - field: accent_color
+                  value: green
+                - field: bot_name
+                  item: 018f-bot-uuidv7
+                  value: Helper
+        '401':
+          description: Session rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - bearer: []
+  /v1/streams/actions:
+    post:
+      tags:
+      - streams
+      summary: Delete, clear, restore or permanently delete chat records
+      description: |-
+        The server records the action itself. Delete and clear hide chat messages and model answers; restore brings them back within 30 days; purge-permanent empties the content of the chat records behind a delete or clear, and keeps their rows. Only the owner of the stream can act on it.
+        The Idempotency-Key header is required; the fingerprint covers the stream key, the action and the target, never any content.
+      operationId: post_streams_actions
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: UUID of this action
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordActionRequest'
+            example:
+              action: clear
+              stream: account
+              target_seq: null
+        required: true
+      responses:
+        '200':
+          description: Sequence of the action record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordActionReply'
+              example:
+                seq: 9
+                stream: account
+        '400':
+          description: Bad body, missing target, or the action cannot apply to that record
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-action-target-invalid
+                params: {}
+                status: 400
+                title: This action cannot be applied to that record.
+                type: https://anybot.test/problems/record_action_target_invalid
+        '403':
+          description: Not allowed to act on this stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-no-permission
+                params: {}
+                status: 403
+                title: You cannot write this stream.
+                type: https://anybot.test/problems/record_no_permission
+        '404':
+          description: Target record is not in this stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-action-target-missing
+                params: {}
+                status: 404
+                title: The record to act on is not in this stream.
+                type: https://anybot.test/problems/record_action_target_missing
+        '409':
+          description: Restore after the 30-day window, or same key with a different fingerprint
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-restore-expired
+                params: {}
+                status: 409
+                title: The 30-day window to restore this has passed.
+                type: https://anybot.test/problems/record_restore_expired
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - bearer: []
   /v1/streams/after:
     get:
       tags:
@@ -1400,6 +1545,197 @@ paths:
                 type: https://anybot.test/problems/internal
       security:
       - bearer: []
+  /v1/streams/record:
+    get:
+      tags:
+      - streams
+      summary: One record by sequence number
+      description: Reads one record of a stream the caller owns. A record that was permanently deleted is refused with record-source-purged, so an evidence reference can show that its source is gone.
+      operationId: get_streams_record
+      parameters:
+      - name: stream
+        in: query
+        description: Stream key, for example account/alice or bot/<id>
+        required: true
+        schema:
+          type: string
+      - name: seq
+        in: query
+        description: Sequence number of the record
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: The record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredRecord'
+              example:
+                content:
+                  text: hi
+                created_at_ms: 1700000000100
+                device_id: 018f-uuidv7
+                kind: message
+                offline_sent: false
+                seq: 3
+        '400':
+          description: Bad stream key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-bad-request
+                params: {}
+                status: 400
+                title: The request was malformed.
+                type: https://anybot.test/problems/bad-request
+        '403':
+          description: No permission for this stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-no-permission
+                params: {}
+                status: 403
+                title: You cannot write this stream.
+                type: https://anybot.test/problems/record_no_permission
+        '404':
+          description: No record with this sequence number
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-action-target-missing
+                params: {}
+                status: 404
+                title: The record to act on is not in this stream.
+                type: https://anybot.test/problems/record_action_target_missing
+        '410':
+          description: The record was permanently deleted
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-source-purged
+                params: {}
+                status: 410
+                title: The source was permanently deleted.
+                type: https://anybot.test/problems/record_source_purged
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - bearer: []
+  /v1/streams/referee:
+    post:
+      tags:
+      - streams
+      summary: Cancel, stop, wake, answer a card or change the done criteria of a task
+      description: |-
+        A device asks the server to decide. The server records the decision on the bot stream with the task id. A card answer is accepted once per card: the second answer is refused and names the device that answered first.
+        The Idempotency-Key header is required.
+      operationId: post_streams_referee
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: UUID of this decision
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefereeRequest'
+            example:
+              action: card_answer
+              answer: allow
+              card_id: 018f-card-uuidv7
+              stream:
+                bot:
+                  id: 018f-bot-uuidv7
+              task_id: 018f-task-uuidv7
+        required: true
+      responses:
+        '200':
+          description: Sequence of the decision record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefereeReply'
+              example:
+                seq: 12
+                stream:
+                  bot:
+                    id: 018f-bot-uuidv7
+        '400':
+          description: Bad body or a field this action needs is missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: referee-malformed
+                params: {}
+                status: 400
+                title: This referee request is missing a field it needs.
+                type: https://anybot.test/problems/referee_malformed
+        '403':
+          description: Not allowed to act on this stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: record-no-permission
+                params: {}
+                status: 403
+                title: You cannot write this stream.
+                type: https://anybot.test/problems/record_no_permission
+        '409':
+          description: The card was already answered, or the page is out of date
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: card-already-answered
+                params:
+                  device: 018f-uuidv7
+                status: 409
+                title: This card was already answered from 018f-uuidv7.
+                type: https://anybot.test/problems/card_already_answered
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - bearer: []
 components:
   schemas:
     ActionAck:
@@ -1597,6 +1933,42 @@ components:
         public_url:
           type: string
           example: https://bot.example.test
+    RecordAction:
+      type: string
+      enum:
+      - delete
+      - clear
+      - restore
+      - purge_permanent
+      example: delete
+    RecordActionReply:
+      type: object
+      required:
+      - stream
+      - seq
+      properties:
+        seq:
+          type: integer
+          format: int64
+          example: 9
+        stream:
+          $ref: '#/components/schemas/StreamSelector'
+    RecordActionRequest:
+      type: object
+      required:
+      - stream
+      - action
+      properties:
+        action:
+          $ref: '#/components/schemas/RecordAction'
+        stream:
+          $ref: '#/components/schemas/StreamSelector'
+        target_seq:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          example: 3
     RecordItem:
       type: object
       required:
@@ -1624,6 +1996,52 @@ components:
           type:
           - string
           - 'null'
+          example: 018f-task-uuidv7
+    RefereeAction:
+      type: string
+      enum:
+      - cancel
+      - stop
+      - wake
+      - card_answer
+      - done_criteria
+      example: card_answer
+    RefereeReply:
+      type: object
+      required:
+      - stream
+      - seq
+      properties:
+        seq:
+          type: integer
+          format: int64
+          example: 12
+        stream:
+          $ref: '#/components/schemas/StreamSelector'
+    RefereeRequest:
+      type: object
+      required:
+      - stream
+      - task_id
+      - action
+      properties:
+        action:
+          $ref: '#/components/schemas/RefereeAction'
+        answer:
+          type:
+          - string
+          - 'null'
+          example: allow
+        card_id:
+          type:
+          - string
+          - 'null'
+          example: 018f-card-uuidv7
+        criteria: {}
+        stream:
+          $ref: '#/components/schemas/StreamSelector'
+        task_id:
+          type: string
           example: 018f-task-uuidv7
     RegisterAck:
       type: object
@@ -1661,6 +2079,32 @@ components:
         new:
           type: string
           example: newlongenough
+    SettingEntry:
+      type: object
+      required:
+      - field
+      - value
+      properties:
+        field:
+          type: string
+          example: accent_color
+        item:
+          type:
+          - string
+          - 'null'
+          example: 018f-chat-uuidv7
+        value:
+          type: string
+          example: green
+    SettingsView:
+      type: object
+      required:
+      - settings
+      properties:
+        settings:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingEntry'
     StatusResponse:
       type: object
       required:

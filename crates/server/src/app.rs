@@ -122,6 +122,13 @@ pub fn build_router(state: AppState) -> Router {
             post(crate::api_streams_append::append),
         )
         .route("/v1/streams/after", get(crate::api_streams_after::after))
+        .route("/v1/streams/record", get(crate::api_streams_record::record))
+        .route("/v1/settings", get(crate::api_settings::settings))
+        .route("/v1/streams/referee", post(crate::api_referee::referee))
+        .route(
+            "/v1/streams/actions",
+            post(crate::api_streams_action::action),
+        )
         .route(
             "/v1/streams/notifications",
             get(crate::api_streams_sse::notifications),

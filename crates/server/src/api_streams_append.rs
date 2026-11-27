@@ -7,7 +7,7 @@ use serde::Serialize;
 use anybot_domain::{AcceptOutcome, DedupFields, decide_accept, dedup_same};
 use anybot_messages::MessageCode;
 use anybot_protocol::StreamSelector;
-use anybot_protocol::{AppendReply, AppendResult, RecordItem, selector_key};
+use anybot_protocol::{AppendReply, AppendResult, RecordItem, SETTING_KIND, selector_key};
 use anybot_store_server::{Pool, streams};
 
 use crate::api_streams_util::{ResolvedStream, denial_code, resolve_stream, too_many_items};
@@ -145,7 +145,7 @@ fn fingerprint_body(
     serde_json::to_vec(&print).map_err(|e| internal_text(e.to_string()))
 }
 
-async fn replay_guard(
+pub(crate) async fn replay_guard(
     pool: &Pool,
     key: &str,
     raw: &[u8],
@@ -212,7 +212,24 @@ async fn append_one(
         let code = denial_code(outcome).map_err(internal_text)?;
         return Ok(AppendResult::rejected(code.as_str().to_owned()));
     }
+    if item.kind == SETTING_KIND {
+        return setting_item(work, resolved, item).await;
+    }
     insert_item(work, resolved, item).await
+}
+
+async fn setting_item(
+    work: &AppendWork<'_>,
+    resolved: &ResolvedStream,
+    item: &RecordItem,
+) -> Result<AppendResult, CallerDenied> {
+    if resolved.bot.is_some() {
+        let code = MessageCode::AppendKindForbidden;
+        return Ok(AppendResult::rejected(code.as_str().to_owned()));
+    }
+    let now = i64::try_from(work.state.clock.now_ms().millis())
+        .map_err(|e| internal_text(e.to_string()))?;
+    crate::api_settings_write::accept_setting(work.pool, &resolved.key, item, now).await
 }
 
 fn duplicate_result(

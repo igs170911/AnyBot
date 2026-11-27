@@ -7,9 +7,12 @@ pub mod conn_auth;
 pub mod goal_brake;
 pub mod goal_followup;
 pub mod invite;
+pub mod record_actions;
 pub mod record_rules;
+pub mod referee;
 pub mod session_term;
 pub mod settings_merge;
+pub mod settings_registry;
 pub mod source_addr;
 pub mod task_attention;
 pub mod task_budget;
@@ -34,7 +37,11 @@ pub mod window;
 mod conn_auth_tests;
 #[cfg(test)]
 #[cfg(test)]
+mod record_actions_tests;
+#[cfg(test)]
 mod record_rules_tests;
+#[cfg(test)]
+mod referee_tests;
 #[cfg(test)]
 mod settings_merge_lists_tests;
 #[cfg(test)]
@@ -43,6 +50,8 @@ mod settings_merge_proptest;
 pub mod settings_merge_shared;
 #[cfg(test)]
 mod settings_merge_tests;
+#[cfg(test)]
+mod settings_registry_tests;
 
 pub use anybot_foundation::{DeviceId, TimestampMs};
 pub use anybot_protocol::TaskStatus;

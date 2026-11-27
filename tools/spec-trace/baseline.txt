@@ -174,7 +174,6 @@ T-appearance-style-2
 T-appearance-style-3
 T-appearance-theme-1
 T-appearance-theme-2
-T-approval-answers-1
 T-approval-answers-10
 T-approval-answers-2
 T-approval-answers-3
@@ -886,10 +885,6 @@ T-computers-send-5
 T-conn-batch-1
 T-conn-batch-2
 T-conn-batch-3
-T-conn-heartbeat-1
-T-conn-heartbeat-2
-T-conn-heartbeat-3
-T-conn-heartbeat-4
 T-conn-heartbeat-5
 T-conn-post-1
 T-conn-post-3
@@ -901,7 +896,6 @@ T-conn-sse-1
 T-conn-sse-2
 T-conn-sse-3
 T-conn-sse-4
-T-conn-sse-5
 T-conn-ws-1
 T-conn-ws-2
 T-conn-ws-3
@@ -1256,10 +1250,7 @@ T-install-n24-1
 T-install-n25-3
 T-install-n25-1
 T-install-n25-2
-T-install-n25-5
 T-install-n25-6
-T-install-n25-1
-T-install-n25-2
 T-install-n25-4
 T-install-n26-1
 T-install-n26-2
@@ -2267,7 +2258,6 @@ T-sync-files-2
 T-sync-files-3
 T-sync-id-1
 T-sync-id-3
-T-sync-id-4
 T-sync-offline-1
 T-sync-offline-2
 T-sync-offline-3
@@ -2294,12 +2284,8 @@ T-sync-scope-2
 T-sync-seq-1
 T-sync-seq-2
 T-sync-settings-1
-T-sync-settings-2
-T-sync-settings-3
 T-sync-settings-4
 T-sync-settings-5
-T-sync-settings-6
-T-sync-settings-7
 T-task-badge-1
 T-task-badge-2
 T-task-bot-1
@@ -2309,7 +2295,6 @@ T-task-bot-4
 T-task-bot-5
 T-task-bot-6
 T-task-budget-7
-T-task-budget-8
 T-task-cancel-1
 T-task-cancel-2
 T-task-cancel-3

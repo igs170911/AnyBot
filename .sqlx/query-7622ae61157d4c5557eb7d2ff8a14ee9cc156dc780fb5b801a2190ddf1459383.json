@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO card_answers (stream_id, card_id, device_id, answer, seq) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (stream_id, card_id) DO NOTHING RETURNING device_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "card_answers",
+            "name": "device_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Text", "Text", "Text", "Int8"]
+    },
+    "nullable": [false]
+  },
+  "hash": "7622ae61157d4c5557eb7d2ff8a14ee9cc156dc780fb5b801a2190ddf1459383"
+}

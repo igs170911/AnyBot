@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT next_seq FROM record_streams WHERE id = $1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "next_seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "record_streams",
+            "name": "next_seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [false]
+  },
+  "hash": "586da6c970e4762a8b0ac57138252d3c7373f2b18f989e8a42f9d37c148364f9"
+}

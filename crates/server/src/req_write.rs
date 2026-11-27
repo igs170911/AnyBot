@@ -5,13 +5,13 @@ use axum::response::{IntoResponse, Response};
 
 use std::net::SocketAddr;
 
-use anybot_messages::MessageCode;
+use anybot_messages::{MessageCode, Params};
 use anybot_protocol::{PROBLEM_JSON_CONTENT_TYPE, PROBLEM_TYPE_BASE, ProblemJson};
 
 use crate::app::AppState;
 pub use crate::caller::CallerDenied;
 use crate::idem::IDEMPOTENCY_HEADER;
-use crate::problems::{auth_problem, status_of};
+use crate::problems::{auth_problem, auth_problem_params, status_of};
 use crate::req_source::{FORWARDED_HEADER, request_source_address};
 use anybot_store_server::Pool;
 
@@ -19,6 +19,13 @@ use anybot_store_server::Pool;
 pub fn denied(status: StatusCode, code: MessageCode) -> CallerDenied {
     CallerDenied {
         problem: auth_problem(status.as_u16(), code),
+    }
+}
+
+#[must_use]
+pub fn denied_with(status: StatusCode, code: MessageCode, params: &Params) -> CallerDenied {
+    CallerDenied {
+        problem: auth_problem_params(status.as_u16(), code, params),
     }
 }
 

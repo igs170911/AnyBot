@@ -11,7 +11,10 @@ pub mod migrate;
 pub mod rows;
 pub mod sessions;
 pub mod streams;
+pub mod streams_action;
 pub mod streams_bots;
+pub mod streams_card;
+pub mod streams_settings;
 pub use streams_bots as bots;
 
 pub use config::{

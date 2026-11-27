@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT seq, device_id, content, received_ms FROM records WHERE stream_id = $1 AND kind = 'setting' ORDER BY seq",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "device_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "received_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "received_ms"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [false, false, false, true]
+  },
+  "hash": "9437fefe54b31b6fcd16221a27c9f8075c8d52d786bde8357eab2106644362b4"
+}

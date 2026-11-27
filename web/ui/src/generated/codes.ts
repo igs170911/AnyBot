@@ -155,6 +155,17 @@ export type MessageCode =
   "record-no-permission" |
   "record-id-conflict" |
   "record-bot-deleted" |
+  "record-action-target-missing" |
+  "record-action-target-invalid" |
+  "record-action-target-required" |
+  "record-restore-expired" |
+  "record-source-purged" |
+  "setting-unknown" |
+  "setting-device-only" |
+  "setting-malformed" |
+  "card-answer-stale" |
+  "card-already-answered" |
+  "referee-malformed" |
   "append-kind-forbidden" |
   "stream-bot-missing" |
   "sync-after-ahead";
@@ -314,6 +325,17 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "record-no-permission",
   "record-id-conflict",
   "record-bot-deleted",
+  "record-action-target-missing",
+  "record-action-target-invalid",
+  "record-action-target-required",
+  "record-restore-expired",
+  "record-source-purged",
+  "setting-unknown",
+  "setting-device-only",
+  "setting-malformed",
+  "card-answer-stale",
+  "card-already-answered",
+  "referee-malformed",
   "append-kind-forbidden",
   "stream-bot-missing",
   "sync-after-ahead",
