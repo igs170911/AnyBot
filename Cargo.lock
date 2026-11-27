@@ -456,11 +456,24 @@ dependencies = [
 name = "anybot-sync"
 version = "0.1.0"
 dependencies = [
+ "anybot-app-test",
  "anybot-foundation",
  "anybot-protocol",
+ "anybot-server",
+ "anybot-server-test",
  "anybot-store-client",
+ "futures-util",
  "proptest",
+ "rand",
  "reqwest 0.12.28",
+ "rustls",
+ "serde_json",
+ "sqlx",
+ "test-harness",
+ "thiserror 2.0.21",
+ "tokio",
+ "tower",
+ "url",
 ]
 
 [[package]]

@@ -150,6 +150,7 @@ anybot-models
 anybot-runner
 anybot-server
 anybot-store-client
+anybot-sync
 api-docs
 api-compat
 anybot-versions

@@ -4,13 +4,27 @@ name = "anybot-sync"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AnyBot sync skeleton crate (spec/07 section 2)"
+description = "AnyBot client sync library: outbox sending, pulling after N, replica repair (spec/07 section 2)"
 [dependencies]
 anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-store-client = { workspace = true }
 reqwest = { workspace = true }
-[lints]
-workspace = true
+rustls = { workspace = true }
+tower = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+futures-util = { workspace = true }
+url = { workspace = true }
+rand = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
+test-harness = { workspace = true }
+anybot-app-test = { workspace = true }
+anybot-server-test = { workspace = true }
+anybot-server = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
+[lints]
+workspace = true

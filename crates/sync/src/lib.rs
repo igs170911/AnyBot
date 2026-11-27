@@ -1,42 +1,42 @@
 pub use anybot_foundation::Secret;
-use anybot_foundation::{Clock, TimestampMs};
-use anybot_protocol::RunEvent;
-use anybot_store_client as store_client;
 
 #[cfg(test)]
+use anybot_app_test as _;
+#[cfg(test)]
+use anybot_server as _;
+#[cfg(test)]
+use anybot_server_test as _;
+#[cfg(test)]
 use proptest as _;
+#[cfg(test)]
+use sqlx as _;
+#[cfg(test)]
+use test_harness as _;
+
 pub mod after_merge;
+pub mod client;
+pub mod config;
+mod core;
+pub mod error;
+mod flush;
+mod http_gate;
+mod http_phase;
+pub mod http_wire;
+pub mod idem;
 pub mod outbox;
+pub mod random;
+pub mod status;
+pub mod wire;
+mod worker;
 
 pub use after_merge::{Replica, StreamDelta, StreamItem, delta_from};
+pub use client::{NewRecord, StreamTarget, SyncClient};
+pub use config::SyncConfig;
+pub use error::SyncError;
 pub use outbox::{RETRY_CAP_SECONDS, retry_delay_secs, retry_schedule};
-
-pub type SyncHttpClient = reqwest::Client;
-
-#[must_use]
-pub fn default_client() -> SyncHttpClient {
-    reqwest::Client::new()
-}
-
-#[derive(Debug)]
-pub struct BoxedRecords {
-    pub pool_ref: Option<store_client::Pool>,
-    pub events: Vec<RunEvent>,
-    pub packed_at: TimestampMs,
-    pub server_token: Secret,
-}
-
-impl BoxedRecords {
-    #[must_use]
-    pub fn pack(events: Vec<RunEvent>, server_token: Secret, clock: &dyn Clock) -> Self {
-        BoxedRecords {
-            pool_ref: None,
-            events,
-            packed_at: clock.now_ms(),
-            server_token,
-        }
-    }
-}
+pub use random::{RandomSource, SystemRandom};
+pub use status::{ConnectionState, ReplicaNotice, SyncStatus};
+pub use wire::{Wire, WireFailure, WireFuture, WireLimits, WireMethod, WireReply, WireRequest};
 
 #[cfg(test)]
 mod after_merge_tests;
