@@ -64,6 +64,10 @@ impl Modify for BearerAuth {
         crate::api_pairing_redeem::redeem_pairing,
         crate::api_mailbox::deliver_round,
         crate::api_mailbox::claim_letter,
+        crate::api_push::server_key,
+        crate::api_push::subscribe,
+        crate::api_push::unsubscribe,
+        crate::api_push::mine,
     ),
     components(schemas(
         crate::health::HealthResponse,
@@ -110,6 +114,11 @@ impl Modify for BearerAuth {
         anybot_protocol::RoundReply,
         anybot_protocol::ClaimRequest,
         anybot_protocol::ClaimReply,
+        anybot_protocol::PushServerKey,
+        anybot_protocol::PushSubscriptionKeys,
+        anybot_protocol::PushSubscribeRequest,
+        anybot_protocol::PushSubscribeReply,
+        anybot_protocol::PushMineReply,
     )),
     servers(
         (url = "http://127.0.0.1:8787", description = "loopback development server (M3 listens on loopback only)"),
@@ -123,7 +132,8 @@ impl Modify for BearerAuth {
         (name = "admin", description = "admin-only server operations"),
         (name = "streams", description = "record streams: append and replay after N"),
         (name = "computers", description = "the computers of an account: list, rename, remove"),
-        (name = "mailbox", description = "letters for a computer: hand a round over, claim a letter")
+        (name = "mailbox", description = "letters for a computer: hand a round over, claim a letter"),
+        (name = "push", description = "Web Push: the server key and the push subscriptions of an account")
     )
 )]
 pub struct ApiDoc;

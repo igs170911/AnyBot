@@ -158,6 +158,11 @@ pub async fn get(base: &str, path: &str, spec: &RequestSpec) -> Result<ResponseS
     send(&client, base, path, spec, "GET").await
 }
 
+pub async fn delete(base: &str, path: &str, spec: &RequestSpec) -> Result<ResponseSpec, String> {
+    let client = build_client(spec)?;
+    send(&client, base, path, spec, "DELETE").await
+}
+
 pub async fn options(base: &str, path: &str, spec: &RequestSpec) -> Result<ResponseSpec, String> {
     let client = build_client(spec)?;
     send(&client, base, path, spec, "OPTIONS").await
@@ -216,6 +221,7 @@ async fn send(
     let mut request = match method {
         "POST" => client.post(url),
         "OPTIONS" => client.request(Method::OPTIONS, url),
+        "DELETE" => client.delete(url),
         _ => client.get(url),
     };
     request = request.headers(spec.headers()?);

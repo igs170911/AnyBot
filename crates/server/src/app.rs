@@ -161,6 +161,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(two_step_routes())
         .merge(crate::computers_routes::routes())
         .merge(crate::mailbox_routes::routes())
+        .merge(crate::push_routes::routes())
         .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO push_server_key (public_key, private_sealed, created_at_ms) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Bytea", "Int8"]
+    },
+    "nullable": []
+  },
+  "hash": "a133ac9823b8d3885846f66711e18cdbe1e807efbcb0f8be413e0efe1b8bb854"
+}

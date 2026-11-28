@@ -439,9 +439,14 @@ name = "anybot-server-test"
 version = "0.1.0"
 dependencies = [
  "anybot-app-test",
+ "anybot-channels",
  "anybot-domain",
+ "anybot-foundation",
+ "anybot-server",
+ "data-encoding",
  "serde_json",
  "sqlx",
+ "test-harness",
 ]
 
 [[package]]

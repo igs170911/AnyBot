@@ -1,0 +1,79 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, account, device_id, endpoint, p256dh, auth_sealed FROM push_subscriptions WHERE account = $1 ORDER BY created_at_ms, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "push_subscriptions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "account",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "push_subscriptions",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "device_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "push_subscriptions",
+            "name": "device_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "endpoint",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "push_subscriptions",
+            "name": "endpoint"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "p256dh",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "push_subscriptions",
+            "name": "p256dh"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "auth_sealed",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "push_subscriptions",
+            "name": "auth_sealed"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text"]
+    },
+    "nullable": [false, false, false, false, false, false]
+  },
+  "hash": "cef75759dbd44447e48165bb215d1ae55cbe00ffef4a7200dd8dbc29e54ad695"
+}
