@@ -5,7 +5,7 @@ use crate::fake_helpers::{
 };
 use anybot_protocol::{
     ActualResult, CommandOutcome, ComputerCaps, ComputerFailure, ListOutcome, PathOutcome,
-    ReadOutcome, TargetKind,
+    ReadOutcome, SearchEngine, SearchRequest, TargetKind,
 };
 use anybot_trust::{GateConfig, GatedComputer, OpKind, OpRejection, OpTicket, normalize_command};
 
@@ -129,6 +129,32 @@ impl GatedComputer for FakeComputer {
             canonical,
             entries,
         }))
+    }
+
+    fn search(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.accept_path(&ticket, &self.name, OpKind::Search)?;
+        let path = Self::ticket_path(&ticket)?.to_owned();
+        let (pattern, files_only) = ticket.search_query().unwrap_or(("", false));
+        let pattern = pattern.to_owned();
+        self.record(format!("search {path} {pattern}"));
+        self.reachable()?;
+        let engine = if self.ripgrep.load(Ordering::SeqCst) {
+            SearchEngine::Ripgrep
+        } else {
+            SearchEngine::Plain
+        };
+        let step_ms = self.search_step_ms.load(Ordering::SeqCst);
+        let query = SearchRequest {
+            pattern,
+            path,
+            files_only,
+        };
+        let outcome = {
+            let tree = Self::guard(&self.tree);
+            crate::fake_search::run_search(&tree, &self.clock, engine, &query, step_ms)
+        }
+        .map_err(|reason| OpRejection::from_failure(ComputerFailure::operation(reason)))?;
+        Ok(ActualResult::Search(outcome))
     }
 
     fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {

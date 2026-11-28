@@ -50,6 +50,8 @@ pub trait GatedComputer: Send + Sync {
 
     fn list_dir(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
 
+    fn search(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
+
     fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;
 
     fn edit_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection>;

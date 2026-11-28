@@ -151,6 +151,27 @@ impl FileTree {
         Ok(out.into_values().collect())
     }
 
+    pub fn search_files(&self, path: &str) -> Result<Vec<(String, String)>, String> {
+        let canonical = self.canonical(path);
+        if let Some(content) = self.files.get(&canonical) {
+            let display = display_rel_path(&self.workdir, "/", &canonical);
+            return Ok(vec![(display, content.clone())]);
+        }
+        if !self.dirs.contains(&canonical) {
+            return Err(format!("{canonical} is not a directory"));
+        }
+        let dir_prefix = dir_prefix(&canonical);
+        let workdir_prefix = dir_prefix_for(&self.workdir);
+        let mut out = Vec::new();
+        for (file_path, content) in &self.files {
+            if file_path.starts_with(&dir_prefix) {
+                let display = display_rel_path(&workdir_prefix, &dir_prefix, file_path);
+                out.push((display, content.clone()));
+            }
+        }
+        Ok(out)
+    }
+
     fn register_parents(&mut self, canonical: &str) {
         let mut rest = canonical;
         while let Some((parent, _)) = rest.rsplit_once('/') {
@@ -170,6 +191,30 @@ fn immediate_child<'a>(path: &'a str, prefix: &str) -> Option<&'a str> {
         return None;
     }
     Some(rest)
+}
+
+fn dir_prefix(canonical: &str) -> String {
+    if canonical == "/" {
+        "/".to_owned()
+    } else {
+        format!("{canonical}/")
+    }
+}
+
+fn dir_prefix_for(workdir: &str) -> String {
+    dir_prefix(&normalize_path(workdir))
+}
+
+fn display_rel_path(workdir_prefix: &str, dir_prefix: &str, file_path: &str) -> String {
+    if let Some(rel) = file_path.strip_prefix(workdir_prefix) {
+        return rel.to_owned();
+    }
+    if let Some(rel) = file_path.strip_prefix(dir_prefix) {
+        return rel.to_owned();
+    }
+    file_path
+        .rsplit_once('/')
+        .map_or_else(|| file_path.to_owned(), |(_, name)| name.to_owned())
 }
 
 fn normalize_path(path: &str) -> String {

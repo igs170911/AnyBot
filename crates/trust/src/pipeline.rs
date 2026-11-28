@@ -17,6 +17,11 @@ pub enum RequestedAction {
     ListDir {
         path: String,
     },
+    Search {
+        path: String,
+        pattern: String,
+        files_only: bool,
+    },
     WriteFile {
         path: String,
         content: String,
@@ -75,6 +80,15 @@ fn subject_of(requested: &RequestedAction) -> ActionSubject {
         },
         RequestedAction::ListDir { path } => ActionSubject::ListDir {
             path: PathView::raw(path),
+        },
+        RequestedAction::Search {
+            path,
+            pattern,
+            files_only,
+        } => ActionSubject::Search {
+            path: PathView::raw(path),
+            pattern: pattern.clone(),
+            files_only: *files_only,
         },
         RequestedAction::WriteFile { path, content } => ActionSubject::WriteFile {
             path: PathView::raw(path),

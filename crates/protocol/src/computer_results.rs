@@ -104,12 +104,50 @@ pub struct ListOutcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchRequest {
+    pub pattern: String,
+    pub path: String,
+    pub files_only: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchEngine {
+    Ripgrep,
+    Plain,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchHit {
+    pub path: String,
+    pub line: u32,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchCut {
+    None,
+    MaxLines,
+    MaxTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchOutcome {
+    pub engine: SearchEngine,
+    pub hits: Vec<SearchHit>,
+    pub files: Vec<String>,
+    pub cut: SearchCut,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActualResult {
     Command(CommandOutcome),
     Write(WriteOutcome),
     Read(ReadOutcome),
     List(ListOutcome),
+    Search(SearchOutcome),
     Path(PathOutcome),
     Caps(ComputerCaps),
 }
@@ -122,7 +160,7 @@ impl ActualResult {
             ActualResult::Read(outcome) => Some(&outcome.path),
             ActualResult::List(outcome) => Some(&outcome.path),
             ActualResult::Path(outcome) => Some(&outcome.path),
-            ActualResult::Command(_) | ActualResult::Caps(_) => None,
+            ActualResult::Command(_) | ActualResult::Search(_) | ActualResult::Caps(_) => None,
         }
     }
 }

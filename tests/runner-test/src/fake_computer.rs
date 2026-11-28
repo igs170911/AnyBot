@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
@@ -25,6 +25,8 @@ pub struct FakeComputer {
     pub(crate) unreachable: AtomicBool,
     pub(crate) unresolvable: Vec<String>,
     pub(crate) workdir: Mutex<String>,
+    pub(crate) ripgrep: AtomicBool,
+    pub(crate) search_step_ms: AtomicU64,
     pub(crate) shift_declaration: AtomicBool,
     pub(crate) mutate_after_write: AtomicBool,
     pub(crate) log: Mutex<Vec<String>>,
@@ -72,6 +74,10 @@ changed"
 
     pub fn set_unreachable(&self, on: bool) {
         self.unreachable.store(on, Ordering::SeqCst);
+    }
+
+    pub fn set_ripgrep(&self, on: bool) {
+        self.ripgrep.store(on, Ordering::SeqCst);
     }
 
     pub fn retarget_link(&self, path: &str, target: &str) {

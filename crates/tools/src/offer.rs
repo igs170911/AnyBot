@@ -3,9 +3,11 @@ use serde_json::{Value, json};
 
 use crate::message_codes::{
     CODE_TOOL_DESC_EDIT_FILE, CODE_TOOL_DESC_LIST_DIR, CODE_TOOL_DESC_READ_FILE,
-    CODE_TOOL_DESC_SHELL,
+    CODE_TOOL_DESC_SEARCH, CODE_TOOL_DESC_SHELL,
 };
-use crate::registry::{TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SHELL, registry};
+use crate::registry::{
+    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SEARCH, TOOL_SHELL, registry,
+};
 
 pub const COMPUTER_PARAM: &str = "computer";
 
@@ -33,6 +35,7 @@ fn tool_if_offered(name: &str, caps: &ComputerCaps) -> Option<ToolDef> {
         TOOL_READ_FILE if caps.read_files.yes() => Some(read_def()),
         TOOL_SHELL if caps.run_commands.yes() => Some(shell_def()),
         TOOL_LIST_DIR if caps.read_files.yes() => Some(list_def()),
+        TOOL_SEARCH if caps.read_files.yes() => Some(search_def()),
         _ => None,
     }
 }
@@ -98,6 +101,22 @@ fn list_def() -> ToolDef {
     }
 }
 
+fn search_def() -> ToolDef {
+    ToolDef {
+        name: TOOL_SEARCH,
+        description_code: CODE_TOOL_DESC_SEARCH,
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "pattern": { "type": "string" },
+                "path": { "type": "string" },
+                "files_only": { "type": "boolean" }
+            },
+            "required": ["pattern"]
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,7 +137,7 @@ mod tests {
         };
         assert_eq!(
             names_of(&offered_tools(&only_read)),
-            vec![TOOL_READ_FILE, TOOL_LIST_DIR]
+            vec![TOOL_READ_FILE, TOOL_LIST_DIR, TOOL_SEARCH]
         );
 
         let only_write = ComputerCaps {

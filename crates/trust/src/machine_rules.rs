@@ -53,9 +53,9 @@ fn bot_machine_rule(action: &GateAction) -> RuleVerdict {
         ActionSubject::PathCheck { .. } => {
             RuleVerdict::of(MachineLevel::Direct, "bot-machine-files", true)
         }
-        ActionSubject::ReadFile { path } | ActionSubject::ListDir { path } => {
-            outside_check(path, action, true)
-        }
+        ActionSubject::ReadFile { path }
+        | ActionSubject::ListDir { path }
+        | ActionSubject::Search { path, .. } => outside_check(path, action, true),
         ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
             outside_check(path, action, false)
         }
@@ -127,7 +127,8 @@ fn user_machine_rule(action: &GateAction, caps: &ComputerCaps) -> RuleVerdict {
         }
         ActionSubject::PathCheck { path }
         | ActionSubject::ReadFile { path }
-        | ActionSubject::ListDir { path } => user_file_rule(action, path, true),
+        | ActionSubject::ListDir { path }
+        | ActionSubject::Search { path, .. } => user_file_rule(action, path, true),
         ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
             user_file_rule(action, path, false)
         }

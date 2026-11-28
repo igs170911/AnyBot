@@ -7,6 +7,7 @@ pub enum OpKind {
     Run,
     Read,
     ListDir,
+    Search,
     Write,
     Edit,
     Path,
@@ -20,6 +21,7 @@ impl OpKind {
             ActionSubject::Command { .. } => OpKind::Run,
             ActionSubject::ReadFile { .. } => OpKind::Read,
             ActionSubject::ListDir { .. } => OpKind::ListDir,
+            ActionSubject::Search { .. } => OpKind::Search,
             ActionSubject::WriteFile { .. } => OpKind::Write,
             ActionSubject::EditFile { .. } => OpKind::Edit,
             ActionSubject::PathCheck { .. } => OpKind::Path,
@@ -113,6 +115,7 @@ impl OpTicket {
             ActionSubject::Command { line, timeout_ms } => Some((line.as_str(), *timeout_ms)),
             ActionSubject::ReadFile { .. }
             | ActionSubject::ListDir { .. }
+            | ActionSubject::Search { .. }
             | ActionSubject::WriteFile { .. }
             | ActionSubject::EditFile { .. }
             | ActionSubject::PathCheck { .. }
@@ -130,10 +133,29 @@ impl OpTicket {
         match &self.subject {
             ActionSubject::ReadFile { path }
             | ActionSubject::ListDir { path }
+            | ActionSubject::Search { path, .. }
             | ActionSubject::WriteFile { path, .. }
             | ActionSubject::EditFile { path, .. }
             | ActionSubject::PathCheck { path } => path.resolved_text().or(Some(path.raw_text())),
             ActionSubject::Command { .. } | ActionSubject::Capabilities => None,
+        }
+    }
+
+    #[must_use]
+    pub fn search_query(&self) -> Option<(&str, bool)> {
+        match &self.subject {
+            ActionSubject::Search {
+                pattern,
+                files_only,
+                ..
+            } => Some((pattern.as_str(), *files_only)),
+            ActionSubject::Command { .. }
+            | ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
+            | ActionSubject::WriteFile { .. }
+            | ActionSubject::EditFile { .. }
+            | ActionSubject::PathCheck { .. }
+            | ActionSubject::Capabilities => None,
         }
     }
 
@@ -144,6 +166,7 @@ impl OpTicket {
             ActionSubject::Command { .. }
             | ActionSubject::ReadFile { .. }
             | ActionSubject::ListDir { .. }
+            | ActionSubject::Search { .. }
             | ActionSubject::EditFile { .. }
             | ActionSubject::PathCheck { .. }
             | ActionSubject::Capabilities => None,
@@ -159,6 +182,7 @@ impl OpTicket {
             ActionSubject::Command { .. }
             | ActionSubject::ReadFile { .. }
             | ActionSubject::ListDir { .. }
+            | ActionSubject::Search { .. }
             | ActionSubject::WriteFile { .. }
             | ActionSubject::PathCheck { .. }
             | ActionSubject::Capabilities => None,

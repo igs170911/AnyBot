@@ -1,6 +1,8 @@
 use serde_json::Value;
 
-use crate::registry::{TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SHELL, is_known_tool};
+use crate::registry::{
+    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SEARCH, TOOL_SHELL, is_known_tool,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EditArgs {
@@ -22,6 +24,13 @@ pub struct ListArgs {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchArgs {
+    pub pattern: String,
+    pub path: String,
+    pub files_only: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellArgs {
     pub line: String,
     pub timeout_ms: Option<u64>,
@@ -32,6 +41,7 @@ pub enum ToolArgs {
     Edit(EditArgs),
     Read(ReadArgs),
     List(ListArgs),
+    Search(SearchArgs),
     Shell(ShellArgs),
 }
 
@@ -109,6 +119,7 @@ pub fn parse_call(tool: &str, json: &str) -> Result<ToolArgs, ArgsRejection> {
         TOOL_EDIT_FILE => parse_edit(object),
         TOOL_READ_FILE => parse_read(object),
         TOOL_LIST_DIR => parse_list(object),
+        TOOL_SEARCH => parse_search(object),
         TOOL_SHELL => parse_shell(object),
         _ => Err(ArgsRejection::Malformed {
             reason: "unknown tool".to_owned(),
@@ -149,6 +160,17 @@ fn parse_list(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsR
     Ok(ToolArgs::List(ListArgs { path }))
 }
 
+fn parse_search(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
+    let pattern = text_field(object, "pattern", TOOL_SEARCH)?;
+    let path = optional_text_field(object, "path")?.unwrap_or_else(|| ".".to_owned());
+    let files_only = bool_field(object, "files_only")?.unwrap_or(false);
+    Ok(ToolArgs::Search(SearchArgs {
+        pattern,
+        path,
+        files_only,
+    }))
+}
+
 fn text_field(
     object: &serde_json::Map<String, Value>,
     name: &str,
@@ -163,6 +185,32 @@ fn text_field(
             field: name.to_owned(),
             tool: tool.to_owned(),
         }),
+    }
+}
+
+fn optional_text_field(
+    object: &serde_json::Map<String, Value>,
+    name: &str,
+) -> Result<Option<String>, ArgsRejection> {
+    match object.get(name) {
+        Some(Value::String(text)) => Ok(Some(text.clone())),
+        Some(_) => Err(ArgsRejection::Malformed {
+            reason: format!("{name} is not a string"),
+        }),
+        None => Ok(None),
+    }
+}
+
+fn bool_field(
+    object: &serde_json::Map<String, Value>,
+    name: &str,
+) -> Result<Option<bool>, ArgsRejection> {
+    match object.get(name) {
+        Some(Value::Bool(flag)) => Ok(Some(*flag)),
+        Some(_) => Err(ArgsRejection::Malformed {
+            reason: format!("{name} is not a boolean"),
+        }),
+        None => Ok(None),
     }
 }
 
@@ -185,83 +233,5 @@ fn small_field(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_arguments_reject_a_tool_that_is_not_in_this_turn() {
-        let parsed = parse_call("browser", "{}");
-        let Err(ArgsRejection::UnknownTool { tool, available }) = parsed else {
-            panic!("unknown tool not rejected: {parsed:?}");
-        };
-        assert_eq!(tool, "browser");
-        assert_eq!(
-            available,
-            vec![
-                "edit_file".to_owned(),
-                "read_file".to_owned(),
-                "shell".to_owned(),
-                "list_dir".to_owned(),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_arguments_reject_text_that_is_not_json() {
-        let parsed = parse_call(TOOL_SHELL, "not json");
-        assert!(matches!(parsed, Err(ArgsRejection::Malformed { .. })));
-    }
-
-    #[test]
-    fn test_arguments_require_every_field_of_a_call() {
-        let parsed = parse_call(TOOL_EDIT_FILE, r#"{"path":"a.txt","old_text":"x"}"#);
-        let Err(ArgsRejection::MissingField { field, tool }) = parsed else {
-            panic!("missing field not rejected: {parsed:?}");
-        };
-        assert_eq!(field, "new_text");
-        assert_eq!(tool, "edit_file");
-    }
-
-    #[test]
-    fn test_arguments_read_optional_numbers_with_defaults() {
-        let parsed = parse_call(TOOL_READ_FILE, r#"{"path":"a.txt"}"#);
-        let Ok(ToolArgs::Read(args)) = parsed else {
-            panic!("read args missing: {parsed:?}");
-        };
-        assert_eq!(args.offset, 0);
-        assert_eq!(args.limit, 2000);
-    }
-
-    #[test]
-    fn shell_rejects_old_line_parameter() {
-        let parsed = parse_call(TOOL_SHELL, r#"{"line":"ls"}"#);
-        let Err(ArgsRejection::MissingField { field, tool }) = parsed else {
-            panic!("old line param not rejected: {parsed:?}");
-        };
-        assert_eq!(field, "command");
-        assert_eq!(tool, "shell");
-    }
-
-    #[test]
-    fn check_offered_rejects_unoffered_and_computer_param() {
-        let offered = [TOOL_READ_FILE, TOOL_SHELL];
-        let missing = check_offered(TOOL_EDIT_FILE, "{}", &offered);
-        assert_eq!(
-            missing,
-            Err(ArgsRejection::NotInTurn {
-                tool: TOOL_EDIT_FILE.to_owned(),
-                available: vec![TOOL_READ_FILE.to_owned(), TOOL_SHELL.to_owned()],
-            })
-        );
-        let routed = check_offered(
-            TOOL_SHELL,
-            r#"{"command":"ls","computer":"Linux"}"#,
-            &offered,
-        );
-        assert_eq!(routed, Err(ArgsRejection::OtherComputer));
-        assert_eq!(
-            check_offered(TOOL_SHELL, r#"{"command":"ls"}"#, &offered),
-            Ok(())
-        );
-    }
-}
+#[path = "arguments_tests.rs"]
+mod tests;

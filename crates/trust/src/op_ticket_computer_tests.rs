@@ -89,6 +89,10 @@ impl GatedComputer for MinComputer {
         Self::refuse(&ticket, OpKind::ListDir)
     }
 
+    fn search(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::refuse(&ticket, OpKind::Search)
+    }
+
     fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
         Self::refuse(&ticket, OpKind::Write)
     }
@@ -153,6 +157,10 @@ impl GatedComputer for RootWrapper {
 
     fn list_dir(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
         Self::spend(&ticket, OpKind::ListDir)
+    }
+
+    fn search(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::spend(&ticket, OpKind::Search)
     }
 
     fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {

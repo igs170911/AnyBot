@@ -11,6 +11,9 @@ pub const CODE_TOOL_READ_LINES: &str = "tool-read-lines";
 pub const CODE_TOOL_READ_MORE: &str = "tool-read-more";
 pub const CODE_TOOL_LIST_MORE: &str = "tool-list-more";
 pub const CODE_TOOL_LIST_EMPTY: &str = "tool-list-empty";
+pub const CODE_TOOL_SEARCH_CUT: &str = "tool-search-cut";
+pub const CODE_TOOL_SEARCH_EMPTY: &str = "tool-search-empty";
+pub const CODE_TOOL_SEARCH_TIMED_OUT: &str = "tool-search-timed-out";
 pub const CODE_TOOL_SHELL_NO_OUTPUT: &str = "tool-shell-no-output";
 pub const CODE_TOOL_SHELL_FAILED: &str = "tool-shell-failed";
 pub const CODE_TOOL_SHELL_TRIMMED: &str = "tool-shell-trimmed";
@@ -21,9 +24,10 @@ pub const CODE_TOOL_DESC_EDIT_FILE: &str = "tool-desc-edit-file";
 pub const CODE_TOOL_DESC_READ_FILE: &str = "tool-desc-read-file";
 pub const CODE_TOOL_DESC_SHELL: &str = "tool-desc-shell";
 pub const CODE_TOOL_DESC_LIST_DIR: &str = "tool-desc-list-dir";
+pub const CODE_TOOL_DESC_SEARCH: &str = "tool-desc-search";
 
 #[must_use]
-pub fn all_tool_codes() -> [&'static str; 23] {
+pub fn all_tool_codes() -> [&'static str; 27] {
     [
         CODE_TOOL_EDIT_CREATED,
         CODE_TOOL_EDIT_OVERWRITTEN,
@@ -38,6 +42,9 @@ pub fn all_tool_codes() -> [&'static str; 23] {
         CODE_TOOL_READ_MORE,
         CODE_TOOL_LIST_MORE,
         CODE_TOOL_LIST_EMPTY,
+        CODE_TOOL_SEARCH_CUT,
+        CODE_TOOL_SEARCH_EMPTY,
+        CODE_TOOL_SEARCH_TIMED_OUT,
         CODE_TOOL_SHELL_NO_OUTPUT,
         CODE_TOOL_SHELL_FAILED,
         CODE_TOOL_SHELL_TRIMMED,
@@ -48,6 +55,7 @@ pub fn all_tool_codes() -> [&'static str; 23] {
         CODE_TOOL_DESC_READ_FILE,
         CODE_TOOL_DESC_SHELL,
         CODE_TOOL_DESC_LIST_DIR,
+        CODE_TOOL_DESC_SEARCH,
     ]
 }
 

@@ -51,7 +51,10 @@ async fn t_computer_platforms_1() -> Result<(), String> {
         .and_then(|v| v.as_array())
         .ok_or("missing tools array".to_owned())?;
     let names = offered_names(tools)?;
-    assert_eq!(names, vec!["edit_file", "read_file", "shell", "list_dir"]);
+    assert_eq!(
+        names,
+        vec!["edit_file", "read_file", "shell", "list_dir", "search"]
+    );
     assert!(!names.iter().any(|n| n == "browser" || n == "computer"));
     let sys = system_content(&body)?;
     let wanted_sys = fmt_text(Lang::ZhTw, "turn-fixed-computer-windows", &Params::new())?;
@@ -195,7 +198,7 @@ async fn unknown_tool_lists_this_turn() -> Result<(), String> {
         "tool-not-in-turn",
         &Params::new()
             .with_text("tool", "edit_file")
-            .with_text("available", "read_file, list_dir"),
+            .with_text("available", "read_file, list_dir, search"),
     )?;
     assert_eq!(got, wanted);
     let changed = task_kinds(&world, &task).iter().any(|k| {

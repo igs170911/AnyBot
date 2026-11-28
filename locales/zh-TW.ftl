@@ -108,6 +108,9 @@ tool-read-lines = { $path } 的第 { $from } 到 { $to } 行。
 tool-read-more = ……還有 { $remaining } 行（用 offset={ $next_offset } 繼續讀）。
 tool-list-more = ……還有 { $count } 項
 tool-list-empty = （空資料夾）
+tool-search-cut = ……只列前 { $shown } 行（共找到 { $found } 行）
+tool-search-empty = 沒有找到。
+tool-search-timed-out = 搜尋超過 25 秒上限，以上為已找到的內容。
 tool-shell-no-output = 完成，沒有輸出。
 tool-shell-failed = 結束代碼 { $code }。
 tool-shell-trimmed = …（中間省略 { $omitted } 個字；完整內容用 read_result 讀：id={ $id }）…
@@ -118,6 +121,7 @@ tool-desc-edit-file = 建立、覆寫或修改檔案（path、old_text、new_tex
 tool-desc-read-file = 讀取文字檔並附上行號（path、offset、limit）。
 tool-desc-shell = 在工作資料夾執行指令（command、timeout_ms）。
 tool-desc-list-dir = 列出資料夾裡的檔案與子資料夾（path）。
+tool-desc-search = 在資料夾裡搜尋符合的文字或正規表示式（pattern、path、files_only）。
 
 gate-ask-computer-mismatch = 這張核准是在 { $asked_for } 上問的，不能在 { $answered_on } 上回答。
 

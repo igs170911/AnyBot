@@ -27,6 +27,7 @@ pub struct WorldSetup {
     pub probe_requests: bool,
     pub fail_on_kind: Option<&'static str>,
     pub sandbox: bool,
+    pub ripgrep: bool,
     pub files: Vec<(String, String)>,
     pub dirs: Vec<String>,
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
@@ -47,6 +48,7 @@ impl Default for WorldSetup {
             probe_requests: false,
             fail_on_kind: None,
             sandbox: true,
+            ripgrep: true,
             files: Vec::new(),
             dirs: Vec::new(),
             scripts: Vec::new(),
@@ -108,6 +110,7 @@ impl TurnWorld {
             .named(&setup.computer_name)
             .caps(setup_caps(setup))
             .gate(setup.gate.clone())
+            .ripgrep(setup.ripgrep)
             .clock(Arc::clone(&clock));
         let builder = apply_world_files(builder, setup);
         let built = Arc::new(builder.build());

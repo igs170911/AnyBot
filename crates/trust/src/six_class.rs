@@ -11,6 +11,7 @@ pub(crate) fn holds_a_class(action: &GateAction, caps_bot: bool) -> bool {
         }
         ActionSubject::ReadFile { .. }
         | ActionSubject::ListDir { .. }
+        | ActionSubject::Search { .. }
         | ActionSubject::PathCheck { .. }
         | ActionSubject::Capabilities => false,
     }

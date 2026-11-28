@@ -1,9 +1,14 @@
 use anybot_foundation::ContentDigest;
 use anybot_messages::{Catalog, Lang, MessageCode, Params};
-use anybot_protocol::{BeforeDigest, ListOutcome, ReadOutcome, TargetKind, WriteOutcome};
+use anybot_protocol::{
+    BeforeDigest, ListOutcome, ReadOutcome, SearchCut, SearchOutcome, TargetKind, WriteOutcome,
+};
 use anybot_tools::list::{list_empty_code, list_more_code, render_listing};
 use anybot_tools::read::{block_of, format_numbered, numbered_lines, read_code, read_more_code};
 use anybot_tools::result_id;
+use anybot_tools::search::{
+    render_search, search_cut_code, search_empty_code, search_timed_out_code,
+};
 use anybot_tools::shell::{trim_code, trim_output};
 use anybot_trust::OutcomeText;
 
@@ -135,6 +140,46 @@ pub(crate) fn list_text(lang: Lang, outcome: &ListOutcome) -> (OutcomeText, Opti
         );
         if let Ok(line) = render_text(lang, &more) {
             body.push('\n');
+            body.push_str(&line);
+        }
+    }
+    (
+        OutcomeText::of(anybot_trust::CODE_TOOL_EMPTY, Vec::new()),
+        Some(body),
+    )
+}
+
+pub(crate) fn search_text(
+    lang: Lang,
+    outcome: &SearchOutcome,
+    files_only: bool,
+) -> (OutcomeText, Option<String>) {
+    let rendered = render_search(outcome, files_only);
+    if rendered.is_empty && rendered.cut != SearchCut::MaxTime {
+        return (OutcomeText::of(search_empty_code(), Vec::new()), None);
+    }
+    let mut body = rendered.lines.join("\n");
+    if rendered.found > rendered.lines.len() || rendered.cut == SearchCut::MaxLines {
+        let cut = OutcomeText::of(
+            search_cut_code(),
+            vec![
+                ("shown".to_owned(), rendered.lines.len().to_string()),
+                ("found".to_owned(), rendered.found.to_string()),
+            ],
+        );
+        if let Ok(line) = render_text(lang, &cut) {
+            if !body.is_empty() {
+                body.push('\n');
+            }
+            body.push_str(&line);
+        }
+    }
+    if rendered.cut == SearchCut::MaxTime {
+        let timed_out = OutcomeText::of(search_timed_out_code(), Vec::new());
+        if let Ok(line) = render_text(lang, &timed_out) {
+            if !body.is_empty() {
+                body.push('\n');
+            }
             body.push_str(&line);
         }
     }

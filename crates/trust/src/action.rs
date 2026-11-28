@@ -105,6 +105,11 @@ pub enum ActionSubject {
     ListDir {
         path: PathView,
     },
+    Search {
+        path: PathView,
+        pattern: String,
+        files_only: bool,
+    },
     WriteFile {
         path: PathView,
         content: String,
@@ -128,6 +133,7 @@ impl ActionSubject {
         match self {
             ActionSubject::ReadFile { path }
             | ActionSubject::ListDir { path }
+            | ActionSubject::Search { path, .. }
             | ActionSubject::WriteFile { path, content: _ }
             | ActionSubject::EditFile { path, .. }
             | ActionSubject::PathCheck { path } => vec![path],
@@ -204,6 +210,11 @@ impl GateAction {
             ActionSubject::Command { line, .. } => normalize_command(line),
             ActionSubject::ReadFile { path } => format!("read:{}", path.raw_text()),
             ActionSubject::ListDir { path } => format!("list:{}", path.raw_text()),
+            ActionSubject::Search {
+                path,
+                pattern,
+                files_only,
+            } => format!("search:{}:{files_only}:{pattern}", path.raw_text()),
             ActionSubject::WriteFile { path, content: _ } => format!("write:{}", path.raw_text()),
             ActionSubject::EditFile { path, .. } => format!("edit:{}", path.raw_text()),
             ActionSubject::PathCheck { path } => format!("path:{}", path.raw_text()),

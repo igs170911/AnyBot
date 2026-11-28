@@ -43,6 +43,7 @@ fn card_specs(action: &GateAction, computer: String) -> Vec<ActionSpec> {
         }
         ActionSubject::ReadFile { path }
         | ActionSubject::ListDir { path }
+        | ActionSubject::Search { path, .. }
         | ActionSubject::PathCheck { path } => {
             vec![ActionSpec::ReadFile {
                 computer,
@@ -69,6 +70,7 @@ fn card_classes(action: &GateAction) -> Vec<String> {
             .collect(),
         ActionSubject::ReadFile { .. }
         | ActionSubject::ListDir { .. }
+        | ActionSubject::Search { .. }
         | ActionSubject::WriteFile { .. }
         | ActionSubject::EditFile { .. }
         | ActionSubject::PathCheck { .. }
@@ -89,9 +91,9 @@ fn reason_base(action: &GateAction) -> &'static str {
         ActionSubject::Command { line, .. } if has_hidden_shape(line) => "hidden-subcommand",
         ActionSubject::Command { line, .. } if starts_interactive(line) => "interactive-shell",
         ActionSubject::Command { .. } => "run-command",
-        ActionSubject::ReadFile { path } | ActionSubject::ListDir { path } => {
-            outside_word(path, action, "read")
-        }
+        ActionSubject::ReadFile { path }
+        | ActionSubject::ListDir { path }
+        | ActionSubject::Search { path, .. } => outside_word(path, action, "read"),
         ActionSubject::PathCheck { path } => outside_word(path, action, "path"),
         ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
             outside_word(path, action, "write")

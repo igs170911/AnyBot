@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex};
 
 use anybot_protocol::{ComputerCaps, ComputerOwner, ComputerPlatform};
@@ -21,6 +21,8 @@ pub struct FakeComputerBuilder {
     unresolvable: Vec<String>,
     workdir: String,
     gate: GateConfig,
+    ripgrep: bool,
+    search_step_ms: u64,
 }
 
 impl Default for FakeComputerBuilder {
@@ -35,6 +37,8 @@ impl Default for FakeComputerBuilder {
             unresolvable: Vec::new(),
             workdir: "/workspace".to_owned(),
             gate: GateConfig::plain(),
+            ripgrep: true,
+            search_step_ms: 0,
         }
     }
 }
@@ -162,6 +166,18 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
+    pub fn ripgrep(mut self, on: bool) -> Self {
+        self.ripgrep = on;
+        self
+    }
+
+    #[must_use]
+    pub fn search_step_ms(mut self, ms: u64) -> Self {
+        self.search_step_ms = ms;
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> FakeComputer {
         FakeComputer {
             name: self.name,
@@ -174,6 +190,8 @@ impl FakeComputerBuilder {
             workdir: Mutex::new(self.workdir),
             gate: Mutex::new(self.gate),
             bound: Mutex::new(std::collections::BTreeMap::new()),
+            ripgrep: AtomicBool::new(self.ripgrep),
+            search_step_ms: AtomicU64::new(self.search_step_ms),
             shift_declaration: AtomicBool::new(false),
             mutate_after_write: AtomicBool::new(false),
             log: Mutex::new(Vec::new()),

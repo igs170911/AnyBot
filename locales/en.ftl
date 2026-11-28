@@ -107,6 +107,9 @@ tool-read-lines = Lines { $from } to { $to } of { $path }.
 tool-read-more = ...{ $remaining } more lines (use offset={ $next_offset } to continue reading).
 tool-list-more = ...{ $count } more items
 tool-list-empty = (empty folder)
+tool-search-cut = ...showing first { $shown } lines ({ $found } lines found)
+tool-search-empty = No matches found.
+tool-search-timed-out = Search stopped at the 25-second limit; showing matches found so far.
 tool-shell-no-output = Finished with no output.
 tool-shell-failed = Exit code { $code }.
 tool-shell-trimmed = ... ({ $omitted } characters omitted; use read_result to read full content: id={ $id }) ...
@@ -117,6 +120,7 @@ tool-desc-edit-file = Create, overwrite, or edit a file (path, old_text, new_tex
 tool-desc-read-file = Read a text file with line numbers (path, offset, limit).
 tool-desc-shell = Run a command in the working folder (command, timeout_ms).
 tool-desc-list-dir = List files and subfolders in a folder (path).
+tool-desc-search = Search files in a folder for matching text or regular expressions (pattern, path, files_only).
 gate-ask-computer-mismatch = The approval was asked on { $asked_for }; it cannot be answered on { $answered_on }.
 tool-unreadable-eval = The command uses eval, which cannot be read ahead.
 tool-unreadable-quotes = The command has quotes that do not match, so it cannot be read ahead.

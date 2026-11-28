@@ -5,7 +5,7 @@ use anybot_trust::{ModelResultView, OpRejection, OutcomeText};
 
 use crate::error::TurnError;
 pub(crate) use crate::view_text::render_text;
-use crate::view_text::{command_text, list_text, read_text, write_text};
+use crate::view_text::{command_text, list_text, read_text, search_text, write_text};
 
 #[derive(Debug, Clone)]
 pub(crate) struct CapturedShell {
@@ -20,6 +20,7 @@ pub(crate) struct ActionView {
     read_offset: usize,
     read_limit: usize,
     read_path: String,
+    search_files_only: bool,
     computer: String,
     edit_path: String,
     output: std::sync::Mutex<Option<CapturedShell>>,
@@ -35,6 +36,7 @@ impl ActionView {
             read_offset: 0,
             read_limit: DEFAULT_READ_LIMIT,
             read_path: String::new(),
+            search_files_only: false,
             computer: String::new(),
             edit_path: String::new(),
             output: std::sync::Mutex::new(None),
@@ -77,6 +79,12 @@ impl ActionView {
         self
     }
 
+    #[must_use]
+    pub(crate) fn with_search_files_only(mut self, files_only: bool) -> Self {
+        self.search_files_only = files_only;
+        self
+    }
+
     pub(crate) fn render(&self, text: &OutcomeText) -> Result<String, TurnError> {
         render_text(self.lang, text)
     }
@@ -105,6 +113,13 @@ impl ModelResultView for ActionView {
             }
             ActualResult::List(outcome) => {
                 let (header, body) = list_text(self.lang, outcome);
+                if let Some(text) = body {
+                    self.capture_body(&text);
+                }
+                header
+            }
+            ActualResult::Search(outcome) => {
+                let (header, body) = search_text(self.lang, outcome, self.search_files_only);
                 if let Some(text) = body {
                     self.capture_body(&text);
                 }
@@ -224,6 +239,7 @@ impl Clone for ActionView {
             read_offset: self.read_offset,
             read_limit: self.read_limit,
             read_path: self.read_path.clone(),
+            search_files_only: self.search_files_only,
             computer: self.computer.clone(),
             edit_path: self.edit_path.clone(),
             output: std::sync::Mutex::new(output),

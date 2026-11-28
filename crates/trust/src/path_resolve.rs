@@ -13,6 +13,15 @@ pub(crate) fn resolve_subject(
         ActionSubject::ListDir { path } => ActionSubject::ListDir {
             path: resolve_one(&path, computer, workdir),
         },
+        ActionSubject::Search {
+            path,
+            pattern,
+            files_only,
+        } => ActionSubject::Search {
+            path: resolve_one(&path, computer, workdir),
+            pattern,
+            files_only,
+        },
         ActionSubject::WriteFile { path, content } => ActionSubject::WriteFile {
             path: resolve_one(&path, computer, workdir),
             content,
