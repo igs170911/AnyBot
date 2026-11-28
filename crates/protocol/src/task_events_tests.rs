@@ -105,3 +105,24 @@ fn test_task_events_card_shown_round_trips() {
     let back: TaskEvent = serde_json::from_str(&text).unwrap();
     assert_eq!(back, e);
 }
+
+#[test]
+fn test_task_events_claim_checked_round_trips() {
+    let e = event(
+        5,
+        KnownTaskEventKind::ClaimChecked {
+            covers_claim: true,
+            verified: false,
+            reasons: vec![ReasonPayload {
+                code: "claim-chat-count".to_owned(),
+                params: vec![
+                    ("said".to_owned(), "2".to_owned()),
+                    ("found".to_owned(), "1".to_owned()),
+                ],
+            }],
+        },
+    );
+    let text = serde_json::to_string(&e).unwrap();
+    let back: TaskEvent = serde_json::from_str(&text).unwrap();
+    assert_eq!(back, e);
+}

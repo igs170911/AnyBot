@@ -227,3 +227,7 @@ always-run-command-bot-computer = 在 Bot 的電腦跑 { $words }
 always-write-workspace = 在「{ $computer }」改工作資料夾裡的檔
 always-read-outside = 在「{ $computer }」讀工作資料夾以外的檔
 always-read-workspace = 在「{ $computer }」讀工作資料夾裡的檔
+claim-chat-step-failed = 說已經完成了，但那一步失敗或被拒絕了
+claim-chat-no-file = 這一輪沒有放任何檔案
+claim-chat-count = 說 { $said } 則，只有 { $found } 則
+claim-chat-dead-link = 這個連結指到 Bot 電腦上的位置，手機打不開；聊天裡也沒有這個檔案

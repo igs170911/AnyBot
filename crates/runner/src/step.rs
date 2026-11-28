@@ -182,6 +182,7 @@ async fn finish_answer(
         )
         .await?;
     if requests.is_empty() {
+        crate::ending::maybe_record_claim_check(runner, ctx, &result.text, result.stop).await?;
         runner
             .append_turn_end(&ctx.task, TurnEndReason::Answered, true)
             .await?;

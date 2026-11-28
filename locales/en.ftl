@@ -224,3 +224,7 @@ always-run-command-bot-computer = Run { $words } on the Bot computer
 always-write-workspace = Edit files in the workspace on "{ $computer }"
 always-read-outside = Read files outside the workspace on "{ $computer }"
 always-read-workspace = Read files in the workspace on "{ $computer }"
+claim-chat-step-failed = Claimed completion, but that step failed or was rejected
+claim-chat-no-file = No file was placed in chat during this turn
+claim-chat-count = Claimed { $said }, found { $found }
+claim-chat-dead-link = This link points to a location on the Bot computer that cannot be opened on mobile, and no matching file is in chat

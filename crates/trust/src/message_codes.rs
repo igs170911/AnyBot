@@ -44,9 +44,13 @@ pub const CODE_ALWAYS_RUN_COMMAND_BOT_COMPUTER: &str = "always-run-command-bot-c
 pub const CODE_ALWAYS_WRITE_WORKSPACE: &str = "always-write-workspace";
 pub const CODE_ALWAYS_READ_OUTSIDE: &str = "always-read-outside";
 pub const CODE_ALWAYS_READ_WORKSPACE: &str = "always-read-workspace";
+pub const CODE_CLAIM_CHAT_STEP_FAILED: &str = "claim-chat-step-failed";
+pub const CODE_CLAIM_CHAT_NO_FILE: &str = "claim-chat-no-file";
+pub const CODE_CLAIM_CHAT_COUNT: &str = "claim-chat-count";
+pub const CODE_CLAIM_CHAT_DEAD_LINK: &str = "claim-chat-dead-link";
 
 #[must_use]
-pub fn all_codes() -> [&'static str; 46] {
+pub fn all_codes() -> [&'static str; 50] {
     [
         CODE_GATE_COMMAND_DENIED,
         CODE_GATE_PRIVATE_FILE,
@@ -94,6 +98,10 @@ pub fn all_codes() -> [&'static str; 46] {
         CODE_ALWAYS_WRITE_WORKSPACE,
         CODE_ALWAYS_READ_OUTSIDE,
         CODE_ALWAYS_READ_WORKSPACE,
+        CODE_CLAIM_CHAT_STEP_FAILED,
+        CODE_CLAIM_CHAT_NO_FILE,
+        CODE_CLAIM_CHAT_COUNT,
+        CODE_CLAIM_CHAT_DEAD_LINK,
     ]
 }
 
@@ -109,6 +117,6 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), 46);
+        assert_eq!(seen.len(), 50);
     }
 }

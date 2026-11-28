@@ -21,6 +21,12 @@ pub mod card_view;
 #[cfg(test)]
 mod card_view_tests;
 pub mod claim_levels;
+pub mod claims_check;
+#[cfg(test)]
+mod claims_check_tests;
+mod claims_links;
+pub mod claims_phrases;
+mod claims_text;
 pub mod command_key;
 pub mod command_lex;
 pub mod command_read;
@@ -69,6 +75,8 @@ pub use card_buttons::{AskOrigin, button_set};
 pub use card_data::{CardData, build_card};
 pub use card_view::{CardView, CardViewError, card_view};
 pub use claim_levels::{Claim, ClaimLevel, EvidenceKind, Link, Scope, Verification};
+pub use claims_check::{ClaimVerdict, StepFact, TurnFacts, check_reply, is_send_tool};
+pub use claims_phrases::{DONE_PHRASES, EN_DONE_PHRASES, EN_SEND_PHRASES, SEND_PHRASES};
 pub use command_key::{command_action_key, command_tokens};
 pub use command_target::{DeleteBase, DeleteTarget, command_targets, has_expansion_token};
 pub use edit_rule::{
@@ -89,13 +97,15 @@ pub use message_codes::{
     CODE_CARD_FLOOR_RULE, CODE_CARD_HIDDEN_SUBCOMMAND, CODE_CARD_INTERACTIVE_SHELL,
     CODE_CARD_NOTE_EVERY_TIME, CODE_CARD_NOTE_NO_SANDBOX_PRIVATE, CODE_CARD_READ_FILE,
     CODE_CARD_READ_OUTSIDE, CODE_CARD_RUN_COMMAND, CODE_CARD_UNPARSEABLE, CODE_CARD_USER_HOOK,
-    CODE_GATE_ASK_DECLINED, CODE_GATE_ASK_PENDING, CODE_GATE_BOT_MACHINE_OUTSIDE,
-    CODE_GATE_COMMAND_DENIED, CODE_GATE_DENIED, CODE_GATE_DENIED_BY_RULE, CODE_GATE_NO_SANDBOX,
-    CODE_GATE_OUTSIDE_WRITE_DENIED, CODE_GATE_PRIVATE_FILE, CODE_GATE_TICKET_MISMATCH,
-    CODE_GATE_USER_REJECTED, CODE_TOOL_COMPUTER_UNREACHABLE, CODE_TOOL_EMPTY,
-    CODE_TOOL_EXECUTION_FAILED, CODE_TOOL_OPERATION_FAILED, CODE_TOOL_UNREADABLE_SHAPE,
-    CODE_TURN_AWAITING_APPROVAL, CODE_TURN_COMPLETED, CODE_TURN_FAILED, CODE_TURN_NOT_EXECUTED,
-    CODE_TURN_REJECTED, CODE_TURN_TOOL_FAILED, all_codes,
+    CODE_CLAIM_CHAT_COUNT, CODE_CLAIM_CHAT_DEAD_LINK, CODE_CLAIM_CHAT_NO_FILE,
+    CODE_CLAIM_CHAT_STEP_FAILED, CODE_GATE_ASK_DECLINED, CODE_GATE_ASK_PENDING,
+    CODE_GATE_BOT_MACHINE_OUTSIDE, CODE_GATE_COMMAND_DENIED, CODE_GATE_DENIED,
+    CODE_GATE_DENIED_BY_RULE, CODE_GATE_NO_SANDBOX, CODE_GATE_OUTSIDE_WRITE_DENIED,
+    CODE_GATE_PRIVATE_FILE, CODE_GATE_TICKET_MISMATCH, CODE_GATE_USER_REJECTED,
+    CODE_TOOL_COMPUTER_UNREACHABLE, CODE_TOOL_EMPTY, CODE_TOOL_EXECUTION_FAILED,
+    CODE_TOOL_OPERATION_FAILED, CODE_TOOL_UNREADABLE_SHAPE, CODE_TURN_AWAITING_APPROVAL,
+    CODE_TURN_COMPLETED, CODE_TURN_FAILED, CODE_TURN_NOT_EXECUTED, CODE_TURN_REJECTED,
+    CODE_TURN_TOOL_FAILED, all_codes,
 };
 pub use message_codes::{CODE_REPORT_SUMMARY_MISSING, CODE_TURN_ANSWER_EMPTY};
 pub use op_ticket::{OpKind, OpTicket};

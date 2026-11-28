@@ -138,6 +138,7 @@ pub enum KnownTaskEventKind {
     ClaimChecked {
         covers_claim: bool,
         verified: bool,
+        reasons: Vec<ReasonPayload>,
     },
     BudgetUsage {
         item: BudgetItem,

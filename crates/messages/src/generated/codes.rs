@@ -229,6 +229,10 @@ pub enum MessageCode {
     AlwaysWriteWorkspace,
     AlwaysReadOutside,
     AlwaysReadWorkspace,
+    ClaimChatStepFailed,
+    ClaimChatNoFile,
+    ClaimChatCount,
+    ClaimChatDeadLink,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -675,6 +679,10 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::AlwaysWriteWorkspace, "always-write-workspace"),
     (MessageCode::AlwaysReadOutside, "always-read-outside"),
     (MessageCode::AlwaysReadWorkspace, "always-read-workspace"),
+    (MessageCode::ClaimChatStepFailed, "claim-chat-step-failed"),
+    (MessageCode::ClaimChatNoFile, "claim-chat-no-file"),
+    (MessageCode::ClaimChatCount, "claim-chat-count"),
+    (MessageCode::ClaimChatDeadLink, "claim-chat-dead-link"),
 ];
 
 impl MessageCode {

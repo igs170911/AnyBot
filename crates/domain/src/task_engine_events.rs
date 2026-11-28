@@ -116,6 +116,7 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
         KnownTaskEventKind::ClaimChecked {
             covers_claim,
             verified,
+            ..
         } => {
             if !covers_claim || !verified {
                 view.evidence.claims_ok = false;

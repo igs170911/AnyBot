@@ -225,7 +225,11 @@ export type MessageCode =
   "always-run-command-bot-computer" |
   "always-write-workspace" |
   "always-read-outside" |
-  "always-read-workspace";
+  "always-read-workspace" |
+  "claim-chat-step-failed" |
+  "claim-chat-no-file" |
+  "claim-chat-count" |
+  "claim-chat-dead-link";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -453,4 +457,8 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "always-write-workspace",
   "always-read-outside",
   "always-read-workspace",
+  "claim-chat-step-failed",
+  "claim-chat-no-file",
+  "claim-chat-count",
+  "claim-chat-dead-link",
 ];

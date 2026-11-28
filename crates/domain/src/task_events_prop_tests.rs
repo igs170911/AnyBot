@@ -118,6 +118,7 @@ fn card_goal_events() -> BoxedStrategy<KnownTaskEventKind> {
         (0usize..2usize, 0usize..2usize).prop_map(|(c, v)| KnownTaskEventKind::ClaimChecked {
             covers_claim: c == 1,
             verified: v == 1,
+            reasons: Vec::new(),
         }),
     ]
     .boxed()
