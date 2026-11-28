@@ -38,7 +38,7 @@
 | 手機畫面 | `ws/m7-phone` | U1、U3、U4 | `ae1b6e74-91b1-4499-a3d9-4a8053a50c43` |
 
 M7j 伺服器整合規劃已完成並合進 `dev`：`docs/tasks/M7-plan-server-integration.md`（23 片 J1–J23，伺服器遷移 0400–0449；問題全部照建議，其中 Q1 `model-reach` 放 J18、Q2 兩列解讀、Q7 跨區分類、Q25 客戶端遷移用 0060–0069，要在最後回報給使用者）。
-第二波已派出（2026-11-28 13:10）：`ws/m7-jpush`（J3 Web Push→J2 伺服器半段，agent `6995339f-7196-4c81-a358-861ab6504932`）、`ws/m7-jguard`（J19→J20，agent `b65af779-b6e5-4b3a-96ff-8b3ccfdca9b5`）。J1（狀態入口＋👍）、J5（卡片鑰匙）等第一波整合進 `dev` 後再開。
+第二波已派出（2026-11-28 13:10）：`ws/m7-jpush`（J3 Web Push→J2 伺服器半段，agent `6995339f-7196-4c81-a358-861ab6504932`）、`ws/m7-jguard`（J19→J20，agent `b65af779-b6e5-4b3a-96ff-8b3ccfdca9b5`，已完成，等整合進 `dev` 後再合）。J1（狀態入口＋👍）、J5（卡片鑰匙）等第一波整合進 `dev` 後再開。
 
 第一波整合：agent `d1fd70ab-59bd-4ff6-ab63-0e4eed9ee1ce` 正在 `integ/m7-w1` 合併四條分支、重產生成檔、跑快的檢查（2026-11-28 12:30 派出）。它回報後，監督者審最難的衝突（`action.rs`、`approvals.rs`、`runner.rs`、`step.rs`），跑完整驗證再推。
 
@@ -89,3 +89,14 @@ M7j 伺服器整合規劃已完成並合進 `dev`：`docs/tasks/M7-plan-server-i
 - 卡片由呼叫端（`outcome.pending`）持有：`release_for_yolo`、`answer_expired_cards` 要由呼叫端（執行端主程式）叫；到期開新一輪也要 T7。
 - 智慧模式的 `tool_risk` 只認 `read_file`、`shell`、Bot 電腦上的 `write_file`／`edit_file`；`AutoDeny` 沒有工具會走到。
 - `report_due` 回 `Result`，跟藍圖簽名不同；「要你注意」的「拒絕」也含自動拒絕；trust 直接用 `url` 套件。
+
+## 七、J19／J20（`ws/m7-jguard`）留下的
+
+- 完整驗證 6 列：`T-safety-n10-4`、`T-server-n2-3`、`T-safety-n11-2`、`T-safety-n11-3`、`T-server-n1-2`、`T-server-n1-3`（要在 `make spec-baseline` 拿掉）。
+- 跳過 `T-safety-n11-4`：規格、程式、規劃都沒定義「只准本機的介面」是哪個入口，要問使用者。
+- `T-server-n2-4` 只驗前兩項（本體上限 256 KB／64 MB，413 `server-request-too-large`）；慢速上傳要等 J11 的上傳入口。
+- `server-n2` S3 的逾時（一般請求 90 秒、上傳下載 30 秒內有資料就不算逾時）沒有任何切片負責，要補一片。
+- 連線計數放記憶體（Q21 建議），和 `safety-n10` S4 寫的「存資料庫」不同；「私有網段」多算了 link-local 和 fc00::/7，要使用者確認。
+- 沒宣告大小且超過 256 KB 的請求，現有處理函式回 500 不是 413（原本的行為）。
+- 舊檔 `apps/server/tests/pg_api_source_addr.rs` 的描述性代理測試和新測試重複，可收掉。
+- `build_router` 被改成包一層，內容搬到私有的 `layered_routes`，合併別的路由時注意。
