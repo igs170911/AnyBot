@@ -12,6 +12,7 @@ use crate::turn_tool_helpers::{all_specs, call, one_tool_step};
 
 pub const MAC: &str = "Work Mac";
 
+#[must_use]
 pub fn mac_setup(name: &str) -> WorldSetup {
     WorldSetup {
         lang: Some(Lang::ZhTw),
@@ -36,6 +37,7 @@ pub fn mac_setup(name: &str) -> WorldSetup {
     }
 }
 
+#[must_use]
 pub fn unticked() -> ComputerUse {
     ComputerUse {
         usable_by_bot: false,
@@ -44,6 +46,7 @@ pub fn unticked() -> ComputerUse {
     }
 }
 
+#[must_use]
 pub fn ask_every_time() -> ComputerUse {
     ComputerUse {
         usable_by_bot: true,
@@ -52,6 +55,7 @@ pub fn ask_every_time() -> ComputerUse {
     }
 }
 
+#[must_use]
 pub fn never() -> ComputerUse {
     ComputerUse {
         usable_by_bot: true,
@@ -60,6 +64,7 @@ pub fn never() -> ComputerUse {
     }
 }
 
+#[must_use]
 pub fn cards_of(kinds: &[KnownTaskEventKind]) -> Vec<KnownTaskEventKind> {
     kinds
         .iter()
@@ -68,6 +73,7 @@ pub fn cards_of(kinds: &[KnownTaskEventKind]) -> Vec<KnownTaskEventKind> {
         .collect()
 }
 
+#[must_use]
 pub fn rejected_reason(kinds: &[KnownTaskEventKind]) -> Option<ReasonPayload> {
     kinds.iter().find_map(|k| {
         let KnownTaskEventKind::EvidenceAdded { record } = k else {
@@ -84,6 +90,7 @@ pub fn rejected_reason(kinds: &[KnownTaskEventKind]) -> Option<ReasonPayload> {
     })
 }
 
+#[must_use]
 pub fn param<'a>(reason: &'a ReasonPayload, key: &str) -> Option<&'a str> {
     reason
         .params
@@ -104,6 +111,7 @@ pub async fn first_turn(
         .map_err(|e| format!("{e:?}"))
 }
 
+#[must_use]
 pub fn modes(yolo: bool, direct: bool) -> GateConfig {
     GateConfig {
         modes: ModeFlags {
