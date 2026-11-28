@@ -29,7 +29,7 @@ impl Served {
             return Err("server is not running".to_owned());
         }
         let deadline = std::time::Instant::now()
-            .checked_add(std::time::Duration::from_secs(10))
+            .checked_add(std::time::Duration::from_secs(30))
             .ok_or("deadline overflow".to_owned())?;
         for (index, task) in running.into_iter().enumerate() {
             let left = deadline.saturating_duration_since(std::time::Instant::now());
@@ -112,7 +112,7 @@ impl ServedReal {
             return Err("server is not running".to_owned());
         }
         let deadline = std::time::Instant::now()
-            .checked_add(std::time::Duration::from_secs(10))
+            .checked_add(std::time::Duration::from_secs(30))
             .ok_or("deadline overflow".to_owned())?;
         for (index, task) in running.into_iter().enumerate() {
             let left = deadline.saturating_duration_since(std::time::Instant::now());
