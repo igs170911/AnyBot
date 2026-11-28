@@ -15,9 +15,9 @@ pub struct PendingCard {
     pub tool: String,
     pub computer: String,
     pub actions: Vec<String>,
-    ticket: AskTicket,
-    request: ToolRequest,
-    view: ActionView,
+    pub(crate) ticket: AskTicket,
+    pub(crate) request: ToolRequest,
+    pub(crate) view: ActionView,
 }
 
 impl PendingCard {
@@ -107,27 +107,47 @@ pub async fn resolve_approval(
     let existing = runner.record.task_events(ctx.task).await?;
     let next = max_evidence_short(&existing).saturating_add(1);
     ctx.advance_evidence_to(next);
-    let gate = gate_answer_of(answer);
     runner
         .append_task_event(&ctx.task, KnownTaskEventKind::CardAnswered { answer })
         .await?;
+    let result = if card.ticket.switch_info().is_some() && answer != CardAnswer::Deny {
+        crate::switch_answer::continue_after_switch(runner, ctx, card).await
+    } else {
+        execute_answer(runner, ctx, card, answer).await
+    };
+    refresh_last_ctx(runner, ctx);
+    result
+}
+
+async fn execute_answer(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    card: &PendingCard,
+    answer: CardAnswer,
+) -> Result<(), TurnError> {
+    let gate = gate_answer_of(answer);
     let computer = runner.gated_ref();
     let run = anybot_trust::answer_ask(&card.ticket, gate, &*computer, &card.view, &*runner.clock);
-    let result = match answer {
+    match answer {
         CardAnswer::Deny => {
             crate::action_record::record_denied(runner, ctx, &card.request, &run).await?;
-            record_refusal(runner, ctx, &card.request, &run, &card.view).await
+            record_refusal(runner, ctx, card, &run).await
         }
-        CardAnswer::AllowOnce | CardAnswer::AllowConversation | CardAnswer::AlwaysAllow => {
+        CardAnswer::AllowOnce
+        | CardAnswer::AllowConversation
+        | CardAnswer::AlwaysAllow
+        | CardAnswer::DirectMode => {
             record_approval_run(runner, ctx, &card.request, &run, &card.view).await
         }
-    };
+    }
+}
+
+fn refresh_last_ctx(runner: &TurnRunner, ctx: &TurnCtx) {
     if let Ok(mut guard) = runner.last_ctx.lock()
         && guard.as_ref().is_some_and(|prev| prev.task == ctx.task)
     {
         *guard = Some(ctx.clone());
     }
-    result
 }
 
 async fn record_approval_run(
@@ -146,9 +166,10 @@ async fn record_approval_run(
 
 fn gate_answer_of(answer: CardAnswer) -> GateAnswer {
     match answer {
-        CardAnswer::AllowOnce | CardAnswer::AllowConversation | CardAnswer::AlwaysAllow => {
-            GateAnswer::Allow
-        }
+        CardAnswer::AllowOnce
+        | CardAnswer::AllowConversation
+        | CardAnswer::AlwaysAllow
+        | CardAnswer::DirectMode => GateAnswer::Allow,
         CardAnswer::Deny => GateAnswer::Deny,
     }
 }
@@ -156,24 +177,28 @@ fn gate_answer_of(answer: CardAnswer) -> GateAnswer {
 async fn record_refusal(
     runner: &TurnRunner,
     ctx: &TurnCtx,
-    request: &ToolRequest,
+    card: &PendingCard,
     run: &ActionRun,
-    view: &ActionView,
 ) -> Result<(), TurnError> {
-    let refusal_code = anybot_trust::CODE_GATE_ASK_DECLINED.to_owned();
-    let text = view.render(&anybot_trust::OutcomeText::of(
-        "gate-denied",
-        vec![
-            ("computer".to_owned(), view.computer_name().to_owned()),
-            ("rule".to_owned(), run.gate.rule.clone()),
-            ("refusal".to_owned(), refusal_code),
-        ],
-    ))?;
+    let text = match card.ticket.decline_text() {
+        Some(declined) => card.view.render(&declined)?,
+        None => card.view.render(&anybot_trust::OutcomeText::of(
+            "gate-denied",
+            vec![
+                ("computer".to_owned(), card.view.computer_name().to_owned()),
+                ("rule".to_owned(), run.gate.rule.clone()),
+                (
+                    "refusal".to_owned(),
+                    anybot_trust::CODE_GATE_ASK_DECLINED.to_owned(),
+                ),
+            ],
+        ))?,
+    };
     runner
         .append_task_event(
             &ctx.task,
             KnownTaskEventKind::ToolCompleted {
-                call_id: request.call_id,
+                call_id: card.request.call_id,
                 summary: text,
                 raw_id: None,
             },
@@ -183,6 +208,10 @@ async fn record_refusal(
 }
 
 impl TurnRunner {
+    pub fn take_parked_cards(&self) -> Vec<PendingCard> {
+        take_parked(self)
+    }
+
     pub fn approval_context(&self, task: TaskId, turn: u32) -> TurnCtx {
         let next = self
             .last_ctx()

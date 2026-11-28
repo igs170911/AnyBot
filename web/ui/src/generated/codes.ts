@@ -238,7 +238,15 @@ export type MessageCode =
   "claim-kind-mismatch" |
   "claim-count-mismatch" |
   "claim-recipient-mismatch" |
-  "claim-not-in-task";
+  "claim-not-in-task" |
+  "gate-local-never" |
+  "gate-local-locked" |
+  "gate-switch-declined-bot" |
+  "gate-switch-declined-local" |
+  "card-switch" |
+  "card-switch-action" |
+  "card-switch-always-bot" |
+  "card-switch-always-local";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -479,4 +487,12 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "claim-count-mismatch",
   "claim-recipient-mismatch",
   "claim-not-in-task",
+  "gate-local-never",
+  "gate-local-locked",
+  "gate-switch-declined-bot",
+  "gate-switch-declined-local",
+  "card-switch",
+  "card-switch-action",
+  "card-switch-always-bot",
+  "card-switch-always-local",
 ];

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub enum CardKind {
     Action,
     EveryTime,
+    Switch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,6 +17,7 @@ pub enum CardButton {
     AllowConversation,
     AlwaysAllow,
     Deny,
+    DirectMode,
 }
 
 #[cfg(test)]
@@ -24,7 +26,7 @@ mod tests {
 
     #[test]
     fn card_kind_and_button_round_trip() {
-        for kind in [CardKind::Action, CardKind::EveryTime] {
+        for kind in [CardKind::Action, CardKind::EveryTime, CardKind::Switch] {
             let text = serde_json::to_string(&kind).unwrap();
             let back: CardKind = serde_json::from_str(&text).unwrap();
             assert_eq!(back, kind);
@@ -34,6 +36,7 @@ mod tests {
             CardButton::AllowConversation,
             CardButton::AlwaysAllow,
             CardButton::Deny,
+            CardButton::DirectMode,
         ] {
             let text = serde_json::to_string(&button).unwrap();
             let back: CardButton = serde_json::from_str(&text).unwrap();

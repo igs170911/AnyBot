@@ -38,34 +38,52 @@ async fn run_one(
         crate::questions::park_question(runner, ctx, request, ask_args).await?;
         return Ok(true);
     }
-    let context = crate::action_record::action_context(runner, ctx, request)?;
-    let view = view_of(runner.lang, &args).with_computer(&context.computer);
-    let areq = anybot_tools::build_request(&request.tool, args, context);
-    let computer = Arc::clone(&runner.gated);
-    let mut config = computer.gate_config();
-    if config.bot_name.is_empty() {
-        config.bot_name.clone_from(&runner.bot.name);
-    }
+    let (areq, view) = build_areq(runner, ctx, request, args)?;
     let call_ctx =
         anybot_trust::CallContext::new(request.call_id, ctx.turn_id, &request.provider_call_id);
-    let step =
-        anybot_trust::gate_step(&areq, &call_ctx, &*computer, &config, &view, &*runner.clock);
+    let step = crate::gate_run::decide(runner, &areq, &call_ctx, &view, true)?;
+    apply_step(runner, ctx, request, &areq, &view, step).await
+}
+
+pub(crate) fn build_areq(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    args: anybot_tools::ToolArgs,
+) -> Result<(anybot_trust::ActionRequest, ActionView), TurnError> {
+    let context = crate::action_record::action_context(runner, ctx, request)?;
+    let view = view_of(runner.lang, &args).with_computer(&context.computer);
+    Ok((
+        anybot_tools::build_request(&request.tool, args, context),
+        view,
+    ))
+}
+
+pub(crate) async fn apply_step(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    areq: &anybot_trust::ActionRequest,
+    view: &ActionView,
+    step: GateStep,
+) -> Result<bool, TurnError> {
     match step {
         GateStep::Denied(run) => {
             record_denied(runner, ctx, request, &run).await?;
-            crate::approvals::record_ask_summary(runner, ctx, request, &run, &view).await?;
+            crate::approvals::record_ask_summary(runner, ctx, request, &run, view).await?;
             Ok(true)
         }
         GateStep::Ask(ticket) => {
-            let run = anybot_trust::ask_declined_run(&areq, &ticket, &view, &*runner.clock);
+            let run = anybot_trust::ask_declined_run(areq, &ticket, view, &*runner.clock);
             record_denied(runner, ctx, request, &run).await?;
-            crate::approvals::record_ask_summary(runner, ctx, request, &run, &view).await?;
+            crate::approvals::record_ask_summary(runner, ctx, request, &run, view).await?;
             let parked_view = ActionView::new(runner.lang).with_computer(ticket.computer_name());
             crate::approvals::park_approval(runner, ctx, request, parked_view, *ticket).await?;
             Ok(true)
         }
         GateStep::Allow(ticket) => {
-            record_executed(runner, ctx, request, &areq, ticket, &view, &*computer).await?;
+            let computer = Arc::clone(&runner.gated);
+            record_executed(runner, ctx, request, areq, ticket, view, &*computer).await?;
             Ok(false)
         }
     }

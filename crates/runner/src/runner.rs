@@ -36,6 +36,7 @@ pub struct RunnerParts {
     pub tools: Vec<ToolSpec>,
     pub lang: Option<Lang>,
     pub computer: ComputerRef,
+    pub trust: Arc<dyn crate::trust_settings::TrustSettings>,
 }
 
 pub struct TurnCtx {
@@ -68,6 +69,8 @@ pub struct TurnRunner {
     pub(crate) tools: Vec<ToolSpec>,
     pub(crate) lang: Lang,
     pub(crate) computer: ComputerRef,
+    pub(crate) trust: Arc<dyn crate::trust_settings::TrustSettings>,
+    pub(crate) conversation: std::sync::atomic::AtomicU64,
     pub(crate) active: Arc<tokio::sync::Mutex<()>>,
     pub(crate) parked: std::sync::Mutex<Vec<crate::approvals::PendingCard>>,
     pub(crate) pending_question: std::sync::Mutex<Option<crate::questions::PendingQuestion>>,
@@ -89,11 +92,25 @@ impl TurnRunner {
             tools: parts.tools,
             lang,
             computer: parts.computer,
+            trust: parts.trust,
+            conversation: std::sync::atomic::AtomicU64::new(0),
             active: Arc::new(tokio::sync::Mutex::new(())),
             parked: std::sync::Mutex::new(Vec::new()),
             pending_question: std::sync::Mutex::new(None),
             last_ctx: std::sync::Mutex::new(None),
         }
+    }
+
+    #[must_use]
+    pub fn conversation(&self) -> crate::trust_settings::ConversationKey {
+        crate::trust_settings::ConversationKey(
+            self.conversation.load(std::sync::atomic::Ordering::SeqCst),
+        )
+    }
+
+    pub fn start_new_conversation(&self) {
+        self.conversation
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     pub async fn on_user_message(&self, message: UserMessage) -> Result<TurnOutcome, TurnError> {

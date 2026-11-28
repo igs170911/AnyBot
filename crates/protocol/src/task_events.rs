@@ -39,6 +39,7 @@ pub enum CardAnswer {
     AllowConversation,
     AlwaysAllow,
     Deny,
+    DirectMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

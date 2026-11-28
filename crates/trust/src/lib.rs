@@ -32,6 +32,7 @@ pub mod command_lex;
 pub mod command_read;
 pub mod command_target;
 pub mod command_wrappers;
+pub mod computer_use;
 pub mod edit_rule;
 pub mod evidence;
 pub mod evidence_payload;
@@ -44,15 +45,18 @@ pub mod machine_rules;
 #[cfg(test)]
 mod machine_rules_tests;
 pub mod message_codes;
+pub mod message_codes_flow;
 pub mod op_ticket;
 #[cfg(test)]
 mod op_ticket_computer_tests;
 mod path_resolve;
 pub mod pipeline;
 mod pipeline_ask;
+mod pipeline_denied;
 pub mod pipeline_exec;
 mod pipeline_gate;
 pub mod pipeline_run;
+mod pipeline_switch;
 pub mod pipeline_verify;
 pub mod private_paths;
 #[cfg(test)]
@@ -83,6 +87,10 @@ pub use claims_check::{ClaimVerdict, StepFact, TurnFacts, check_reply, is_send_t
 pub use claims_phrases::{DONE_PHRASES, EN_DONE_PHRASES, EN_SEND_PHRASES, SEND_PHRASES};
 pub use command_key::{command_action_key, command_tokens};
 pub use command_target::{DeleteBase, DeleteTarget, command_targets, has_expansion_token};
+pub use computer_use::{
+    ComputerUse, LocalPolicy, RunHere, StepFour, SwitchReason, computer_use_step,
+    direct_button_offered, direct_is_on,
+};
 pub use edit_rule::{
     EDIT_MULTIPLE_REASON, EDIT_NOT_FOUND_REASON, EditApplied, EditKind, EditRejection, apply_edit,
     line_count, occurrences, replace_once,
@@ -114,11 +122,18 @@ pub use message_codes::{
     CODE_TURN_TOOL_FAILED, all_codes,
 };
 pub use message_codes::{CODE_REPORT_SUMMARY_MISSING, CODE_TURN_ANSWER_EMPTY};
+pub use message_codes_flow::{
+    CODE_CARD_SWITCH, CODE_CARD_SWITCH_ACTION, CODE_CARD_SWITCH_ALWAYS_BOT,
+    CODE_CARD_SWITCH_ALWAYS_LOCAL, CODE_GATE_LOCAL_LOCKED, CODE_GATE_LOCAL_NEVER,
+    CODE_GATE_SWITCH_DECLINED_BOT, CODE_GATE_SWITCH_DECLINED_LOCAL,
+};
 pub use op_ticket::{OpKind, OpTicket};
 pub use pipeline::{ActionRequest, GateAnswer, RequestedAction};
 pub use pipeline_ask::{AskTicket, CallContext, answer_ask};
+pub use pipeline_denied::{StepDenial, step_denied_run, step_four_denial};
 pub use pipeline_gate::{GateStep, ask_declined_run, exec_step, gate_step, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
+pub use pipeline_switch::{SWITCH_RULE, SwitchInfo, switch_ticket};
 pub use private_paths::is_private_path;
 pub use report::{ReportFail, delivery_report, delivery_report_for_task, report_summary};
 pub use report_claims::{VerifiedRef, count_levels, grade_reply};
@@ -153,6 +168,8 @@ mod always_list_tests;
 mod claim_levels_tests;
 #[cfg(test)]
 mod command_shape_tests;
+#[cfg(test)]
+mod computer_use_tests;
 #[cfg(test)]
 mod gate_engine_tests;
 #[cfg(test)]

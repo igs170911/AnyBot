@@ -27,6 +27,8 @@ pub enum TurnError {
     Report(#[from] anybot_trust::ReportFail),
     #[error(transparent)]
     Card(#[from] anybot_trust::CardViewError),
+    #[error(transparent)]
+    TrustSettings(#[from] crate::trust_settings::TrustSettingsError),
     #[error("the parked approval list is busy")]
     ParkedBusy,
     #[error("no parked card matches digest {digest}")]

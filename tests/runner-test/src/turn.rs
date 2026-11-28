@@ -102,6 +102,7 @@ pub enum Device {
 
 pub struct TurnWorld {
     pub gated: Arc<FakeComputer>,
+    pub trust: Arc<crate::fake_trust::FakeTrust>,
     pub runner: Arc<TurnRunner>,
     pub model: Arc<FakeModel>,
     pub port: u16,
@@ -126,6 +127,7 @@ impl TurnWorld {
         let builder = crate::turn_setup::build_world_computer(setup, &clock);
         let built = Arc::new(builder.build());
         let gated = Arc::clone(&built);
+        let trust = Arc::new(crate::fake_trust::FakeTrust::new(Arc::clone(&gated)));
         let gated_dyn: Arc<dyn anybot_trust::GatedComputer> = built;
         let runner = Arc::new(TurnRunner::new(RunnerParts {
             gated: gated_dyn,
@@ -138,9 +140,11 @@ impl TurnWorld {
             tools: setup.tools.clone(),
             lang: setup.lang,
             computer: computer_of(setup),
+            trust: Arc::clone(&trust) as Arc<dyn anybot_runner::TrustSettings>,
         }));
         Ok(Self {
             gated,
+            trust,
             runner,
             model,
             port,

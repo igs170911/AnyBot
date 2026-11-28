@@ -56,7 +56,7 @@ pub const CODE_CLAIM_RECIPIENT_MISMATCH: &str = "claim-recipient-mismatch";
 pub const CODE_CLAIM_NOT_IN_TASK: &str = "claim-not-in-task";
 
 #[must_use]
-pub fn all_codes() -> [&'static str; 56] {
+pub fn base_codes() -> [&'static str; 56] {
     [
         CODE_GATE_COMMAND_DENIED,
         CODE_GATE_PRIVATE_FILE,
@@ -117,9 +117,17 @@ pub fn all_codes() -> [&'static str; 56] {
     ]
 }
 
+#[must_use]
+pub fn all_codes() -> Vec<&'static str> {
+    let mut all: Vec<&'static str> = base_codes().to_vec();
+    all.extend(crate::message_codes_flow::flow_codes());
+    all
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::message_codes_flow::flow_codes;
 
     #[test]
     fn test_message_codes_are_unique_and_dash_separated() {
@@ -129,6 +137,6 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), 56);
+        assert_eq!(seen.len(), base_codes().len() + flow_codes().len());
     }
 }

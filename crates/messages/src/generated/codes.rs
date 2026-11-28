@@ -242,6 +242,14 @@ pub enum MessageCode {
     ClaimCountMismatch,
     ClaimRecipientMismatch,
     ClaimNotInTask,
+    GateLocalNever,
+    GateLocalLocked,
+    GateSwitchDeclinedBot,
+    GateSwitchDeclinedLocal,
+    CardSwitch,
+    CardSwitchAction,
+    CardSwitchAlwaysBot,
+    CardSwitchAlwaysLocal,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -704,6 +712,23 @@ const TABLE: &[(MessageCode, &str)] = &[
         "claim-recipient-mismatch",
     ),
     (MessageCode::ClaimNotInTask, "claim-not-in-task"),
+    (MessageCode::GateLocalNever, "gate-local-never"),
+    (MessageCode::GateLocalLocked, "gate-local-locked"),
+    (
+        MessageCode::GateSwitchDeclinedBot,
+        "gate-switch-declined-bot",
+    ),
+    (
+        MessageCode::GateSwitchDeclinedLocal,
+        "gate-switch-declined-local",
+    ),
+    (MessageCode::CardSwitch, "card-switch"),
+    (MessageCode::CardSwitchAction, "card-switch-action"),
+    (MessageCode::CardSwitchAlwaysBot, "card-switch-always-bot"),
+    (
+        MessageCode::CardSwitchAlwaysLocal,
+        "card-switch-always-local",
+    ),
 ];
 
 impl MessageCode {

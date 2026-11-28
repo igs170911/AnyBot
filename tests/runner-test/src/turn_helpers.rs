@@ -218,3 +218,16 @@ pub async fn answer_card(
         .await
         .map_err(|e| format!("approval answer failed: {e}"))
 }
+
+pub async fn answer_pending(
+    world: &TurnWorld,
+    task: TaskId,
+    turn: u32,
+    card: &anybot_runner::PendingCard,
+    answer: anybot_protocol::CardAnswer,
+) -> Result<(), String> {
+    let ctx = world.runner().approval_context(task, turn);
+    anybot_runner::approvals::resolve_approval(world.runner(), &ctx, card, answer)
+        .await
+        .map_err(|e| format!("approval answer failed: {e}"))
+}
