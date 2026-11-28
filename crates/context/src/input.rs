@@ -33,7 +33,7 @@ pub struct StepRecord {
     pub source_ref: String,
     pub content: String,
     pub exit_code: Option<i64>,
-    pub error_at: Vec<usize>,
+    pub error_at: Option<usize>,
 }
 
 impl StepRecord {

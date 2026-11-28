@@ -96,7 +96,7 @@ pub(crate) fn step_len(idx: usize, len: usize, ref_id: &str) -> StepRecord {
             format!("{head}{}", "x".repeat(pad))
         },
         exit_code: None,
-        error_at: Vec::new(),
+        error_at: None,
     }
 }
 

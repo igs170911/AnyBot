@@ -98,38 +98,30 @@ pub(crate) fn step_record(index: usize) -> BoxedStrategy<StepRecord> {
         ],
         mixed_text(1_600),
         0usize..2usize,
-        0usize..4usize,
         prop::bool::ANY,
     )
-        .prop_map(
-            move |(args, outcome, level, content, exit, errors, unconfirmed)| {
-                let width = content.chars().count();
-                let divisors: [usize; 4] = [2, 3, 4, 5];
-                let error_at: Vec<usize> = divisors
-                    .iter()
-                    .take(errors)
-                    .map(|d: &usize| width.checked_div(*d).unwrap_or(0))
-                    .collect();
-                StepRecord {
-                    seq: u64::try_from(index).unwrap_or(0).saturating_add(1),
-                    call_id: CallId::generate(&SystemClock),
-                    tool: format!("tool{index}"),
-                    args_summary: args.clone(),
-                    arguments: serde_json::json!({ "path": args }),
-                    level,
-                    unconfirmed,
-                    outcome,
-                    source_ref: format!("ref{index}"),
-                    content,
-                    exit_code: if outcome == StepOutcomeKind::Failed {
-                        Some(i64::from(i32::try_from(exit).unwrap_or(0)).saturating_add(1))
-                    } else {
-                        None
-                    },
-                    error_at,
-                }
-            },
-        )
+        .prop_map(move |(args, outcome, level, content, exit, unconfirmed)| {
+            let exit_code = if outcome == StepOutcomeKind::Failed {
+                Some(i64::from(i32::try_from(exit).unwrap_or(0)).saturating_add(1))
+            } else {
+                None
+            };
+            let error_at = crate::error_line::find_error_line(&content, exit_code);
+            StepRecord {
+                seq: u64::try_from(index).unwrap_or(0).saturating_add(1),
+                call_id: CallId::generate(&SystemClock),
+                tool: format!("tool{index}"),
+                args_summary: args.clone(),
+                arguments: serde_json::json!({ "path": args }),
+                level,
+                unconfirmed,
+                outcome,
+                source_ref: format!("ref{index}"),
+                content,
+                exit_code,
+                error_at,
+            }
+        })
         .boxed()
 }
 

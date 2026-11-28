@@ -53,7 +53,7 @@ fn mk_step(index: usize, len: usize) -> StepRecord {
         } else {
             None
         },
-        error_at: Vec::new(),
+        error_at: None,
     }
 }
 

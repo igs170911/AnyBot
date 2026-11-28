@@ -5,11 +5,6 @@ use crate::mask::render_view;
 use crate::numbers::K114_2_DEFAULT_RESULT_CHARS;
 use crate::output::{BlockKind, Compiled, NewEvent};
 
-fn line(count: usize, marker: &str) -> String {
-    let parts: Vec<String> = (0..count).map(|n| format!("line {n} {marker}\n")).collect();
-    parts.join("")
-}
-
 fn big_step(len: usize, unconfirmed: bool, outcome: crate::input::StepOutcomeKind) -> StepRecord {
     StepRecord {
         content: "y".repeat(len),
@@ -19,15 +14,51 @@ fn big_step(len: usize, unconfirmed: bool, outcome: crate::input::StepOutcomeKin
     }
 }
 
+fn count_elided_and_kept(view: &str, source_ref: &str) -> (usize, usize, usize) {
+    let mut parts = view.split("[elided ");
+    let first = parts.next().unwrap_or("");
+    let mut kept_chars = first.chars().count();
+    let mut elided_sum = 0usize;
+    let mut marker_count = 0usize;
+    let suffix = format!(" chars, full text ref={source_ref}] ");
+    for part in parts {
+        let (count_str, rest) = part.split_once(&suffix).expect("elision marker format");
+        let count: usize = count_str.parse().expect("elided count");
+        elided_sum = elided_sum.saturating_add(count);
+        kept_chars = kept_chars.saturating_add(rest.chars().count());
+        marker_count = marker_count.saturating_add(1);
+    }
+    (marker_count, elided_sum, kept_chars)
+}
+
+fn build_5000_line_doc() -> String {
+    (1..=5_000)
+        .map(|n| {
+            if n == 3_000 {
+                "L3000 ERROR abcdefg\n".to_owned()
+            } else {
+                format!("L{n:04} filler abcdef\n")
+            }
+        })
+        .collect()
+}
+
+fn assert_mask_3_summary(step: &StepRecord) {
+    let summary = crate::mask::result_summary(step);
+    assert!(summary.contains("tool=cmd"));
+    assert!(summary.contains("args=run"));
+    assert!(summary.contains("status=fail"));
+    assert!(summary.contains("exit=1"));
+    assert!(summary.contains("size=100000"));
+    assert!(summary.contains("ref=ref-5000"));
+}
+
 #[test]
-fn five_thousand_line_result_keeps_head_tail_and_error() {
-    let content = line(5_000, "filler");
-    let error_line = "line 3000 ERROR boom\n".to_owned();
-    let positions: Vec<usize> = content
-        .char_indices()
-        .nth(3_000 * 13)
-        .map(|(idx, _)| vec![idx])
-        .unwrap_or_default();
+fn t_context_mask_3() {
+    let content = build_5000_line_doc();
+    assert_eq!(content.chars().count(), 100_000);
+    let error_at = crate::error_line::find_error_line(&content, Some(1));
+    assert_eq!(error_at, Some(2_999usize.saturating_mul(20)));
     let step = StepRecord {
         seq: 1,
         call_id: sup::step_len(0, 0, "r").call_id,
@@ -38,25 +69,22 @@ fn five_thousand_line_result_keeps_head_tail_and_error() {
         unconfirmed: false,
         outcome: crate::input::StepOutcomeKind::Failed,
         source_ref: "ref-5000".to_owned(),
-        content: content + &error_line,
+        content,
         exit_code: Some(1),
-        error_at: positions,
+        error_at,
     };
     let view = render_view(&step, K114_2_DEFAULT_RESULT_CHARS);
-
-    assert!(view.starts_with("line 0 filler"));
-    assert!(view.contains("line 3000"));
-    assert!(view.contains("ERROR boom"));
-    assert!(view.contains("line 4999"));
-    assert_eq!(
-        view.matches("elided").count(),
-        2,
-        "two elision markers around error window"
-    );
+    assert!(view.starts_with("L0001 filler abcdef\n"));
+    assert!(view.contains("L2999 filler abcdef\n"));
+    assert!(view.contains("L3000 ERROR abcdefg\n"));
+    assert!(view.contains("L3001 filler abcdef\n"));
+    assert!(view.ends_with("L5000 filler abcdef\n"));
     assert!(view.contains("ref-5000"));
-    let summary = crate::mask::result_summary(&step);
-    assert!(summary.contains("status=fail"));
-    assert!(summary.contains("exit=1"));
+
+    let (marker_count, elided_sum, kept_chars) = count_elided_and_kept(&view, "ref-5000");
+    assert_eq!(marker_count, 2);
+    assert_eq!(elided_sum, 100_000usize.saturating_sub(kept_chars));
+    assert_mask_3_summary(&step);
 }
 
 #[test]

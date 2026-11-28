@@ -104,10 +104,12 @@ pub fn render_view(step: &StepRecord, limit: usize) -> String {
     if total <= limit {
         return step.content.clone();
     }
-    let has_error = !step.error_at.is_empty();
-    let w = windows(limit, has_error);
+    let error_at = step
+        .error_at
+        .or_else(|| crate::error_line::find_error_line(&step.content, step.exit_code));
+    let w = windows(limit, error_at.is_some());
     let mut intervals: Vec<(usize, usize)> = vec![(0, w.head)];
-    if let Some(last) = step.error_at.iter().max() {
+    if let Some(last) = error_at {
         let half = w.middle.saturating_div(2);
         intervals.push(clip(
             last.saturating_sub(half),
