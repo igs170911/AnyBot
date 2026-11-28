@@ -1,3 +1,5 @@
+use anybot_protocol::EnvPlan;
+
 use crate::sandbox_deny::normalize_command;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,6 +100,7 @@ pub enum ActionSubject {
     Command {
         line: String,
         timeout_ms: u64,
+        env: EnvPlan,
     },
     ReadFile {
         path: PathView,
@@ -158,6 +161,7 @@ impl GateAction {
             subject: ActionSubject::Command {
                 line: line.to_owned(),
                 timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
+                env: crate::sandbox_env::command_env_plan(),
             },
             extra_paths,
             workdir: workdir.to_owned(),

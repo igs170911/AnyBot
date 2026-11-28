@@ -28,6 +28,7 @@ fn command_ticket(line: &str, computer: &str) -> OpTicket {
     let subject = ActionSubject::Command {
         line: line.to_owned(),
         timeout_ms: 1000,
+        env: crate::sandbox_env::command_env_plan(),
     };
     let key = ActionKey::command("shell", line);
     OpTicket::issue(

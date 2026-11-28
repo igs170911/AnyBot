@@ -31,6 +31,7 @@ pub struct WorldSetup {
     pub files: Vec<(String, String)>,
     pub dirs: Vec<String>,
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
+    pub inherited_env: Vec<(String, String)>,
     pub gate: anybot_trust::GateConfig,
 }
 
@@ -52,6 +53,7 @@ impl Default for WorldSetup {
             files: Vec::new(),
             dirs: Vec::new(),
             scripts: Vec::new(),
+            inherited_env: Vec::new(),
             gate: anybot_trust::GateConfig::plain(),
         }
     }
@@ -157,7 +159,12 @@ fn apply_world_files(
     for (line, script) in &setup.scripts {
         built = built.script(line, script.clone());
     }
-    built
+    let env_refs: Vec<(&str, &str)> = setup
+        .inherited_env
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+    built.inherited_env(&env_refs)
 }
 
 impl TurnWorld {

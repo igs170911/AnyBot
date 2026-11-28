@@ -23,6 +23,7 @@ pub struct FakeComputerBuilder {
     gate: GateConfig,
     ripgrep: bool,
     search_step_ms: u64,
+    inherited_env: Vec<(String, String)>,
 }
 
 impl Default for FakeComputerBuilder {
@@ -39,6 +40,7 @@ impl Default for FakeComputerBuilder {
             gate: GateConfig::plain(),
             ripgrep: true,
             search_step_ms: 0,
+            inherited_env: Vec::new(),
         }
     }
 }
@@ -178,6 +180,15 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
+    pub fn inherited_env(mut self, vars: &[(&str, &str)]) -> Self {
+        self.inherited_env = vars
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect();
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> FakeComputer {
         FakeComputer {
             name: self.name,
@@ -194,6 +205,8 @@ impl FakeComputerBuilder {
             search_step_ms: AtomicU64::new(self.search_step_ms),
             shift_declaration: AtomicBool::new(false),
             mutate_after_write: AtomicBool::new(false),
+            inherited_env: self.inherited_env,
+            env_seen: Mutex::new(std::collections::BTreeMap::new()),
             log: Mutex::new(Vec::new()),
         }
     }

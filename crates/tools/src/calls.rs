@@ -32,6 +32,7 @@ pub fn subject_of(tool: &str, args: ToolArgs) -> RequestedAction {
         (TOOL_SHELL, ToolArgs::Shell(shell)) => RequestedAction::Command {
             line: shell.line,
             timeout_ms: clamp_timeout(shell.timeout_ms),
+            env: anybot_trust::command_env_plan(),
         },
         _ => RequestedAction::Capabilities,
     }
@@ -89,5 +90,20 @@ mod tests {
         assert_eq!(path, "notes.md");
         assert_eq!(old_text, "");
         assert_eq!(new_text, "hello");
+    }
+
+    #[test]
+    fn shell_subject_attaches_env_plan() {
+        let subject = subject_of(
+            TOOL_SHELL,
+            ToolArgs::Shell(ShellArgs {
+                line: "env".to_owned(),
+                timeout_ms: None,
+            }),
+        );
+        let RequestedAction::Command { env, .. } = subject else {
+            panic!("command subject missing: {subject:?}");
+        };
+        assert_eq!(env, anybot_trust::command_env_plan());
     }
 }

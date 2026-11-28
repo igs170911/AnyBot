@@ -67,23 +67,34 @@ impl GatedComputer for FakeComputer {
 
     fn run_command(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
         self.accept(&ticket, OpKind::Run)?;
-        let (command, timeout_ms) = ticket.command_line().unwrap_or(("", 0));
-        let command = command.to_owned();
-        self.record(format!("run_command {}", normalize_command(&command)));
+        let Some(req) = ticket.command_request() else {
+            return Err(OpRejection::mismatch(
+                "the ticket has no command request".to_owned(),
+            ));
+        };
+        let normalized = normalize_command(&req.command);
+        self.record(format!("run_command {normalized}"));
         self.reachable()?;
-        let Some(script) = self.scripts.lookup(&command) else {
+        let Some(script) = self.scripts.lookup(&req.command) else {
             return Err(OpRejection::from_failure(ComputerFailure::operation(
                 NO_SCRIPT_REASON.to_owned(),
             )));
         };
-        let (elapsed_ms, exit_code, wakes) = self.measured(script, timeout_ms);
+        let env = anybot_trust::apply_env_plan(&self.inherited_env, &req.env);
+        Self::guard(&self.env_seen).insert(normalized, env.keys().cloned().collect());
+        let output = if script.expand_env {
+            expand_vars(&script.output, &env)
+        } else {
+            script.output.clone()
+        };
+        let (elapsed_ms, exit_code, wakes) = self.measured(script, req.timeout_ms);
         self.record(format!("run_command done wakes {wakes}"));
         apply_writes(&self.tree, &script.writes);
         Ok(ActualResult::Command(CommandOutcome {
-            command,
+            command: req.command,
             computer: self.name.clone(),
             exit_code: Some(exit_code),
-            output: script.output.clone(),
+            output,
             elapsed_ms,
         }))
     }
@@ -207,4 +218,46 @@ impl GatedComputer for FakeComputer {
         }
         Some(Self::guard(&self.tree).canonical(path))
     }
+}
+
+fn expand_vars(template: &str, env: &std::collections::BTreeMap<String, String>) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    while !rest.is_empty() {
+        if let Some(after_dollar) = rest.strip_prefix('$') {
+            let name_len = var_name_len(after_dollar);
+            if name_len > 0
+                && let (Some(name), Some(tail)) =
+                    (after_dollar.get(..name_len), after_dollar.get(name_len..))
+            {
+                if let Some(val) = env.get(name) {
+                    out.push_str(val);
+                }
+                rest = tail;
+                continue;
+            }
+        }
+        let Some(ch) = rest.chars().next() else {
+            break;
+        };
+        out.push(ch);
+        rest = rest.get(ch.len_utf8()..).unwrap_or("");
+    }
+    out
+}
+
+fn var_name_len(text: &str) -> usize {
+    let mut len = 0;
+    for (idx, b) in text.bytes().enumerate() {
+        let valid = if idx == 0 {
+            b.is_ascii_alphabetic() || b == b'_'
+        } else {
+            b.is_ascii_alphanumeric() || b == b'_'
+        };
+        if !valid {
+            break;
+        }
+        len = idx.saturating_add(1);
+    }
+    len
 }

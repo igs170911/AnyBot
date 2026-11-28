@@ -8,6 +8,7 @@ pub struct CommandScript {
     pub exit_code: i32,
     pub duration_ms: u64,
     pub writes: Vec<(String, String)>,
+    pub expand_env: bool,
 }
 
 impl CommandScript {
@@ -18,6 +19,18 @@ impl CommandScript {
             exit_code: 0,
             duration_ms: 10,
             writes: Vec::new(),
+            expand_env: false,
+        }
+    }
+
+    #[must_use]
+    pub fn ok_expanding(template: &str) -> Self {
+        CommandScript {
+            output: template.to_owned(),
+            exit_code: 0,
+            duration_ms: 10,
+            writes: Vec::new(),
+            expand_env: true,
         }
     }
 
@@ -28,6 +41,7 @@ impl CommandScript {
             exit_code,
             duration_ms: 10,
             writes: Vec::new(),
+            expand_env: false,
         }
     }
 

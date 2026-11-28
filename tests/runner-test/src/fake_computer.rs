@@ -29,6 +29,8 @@ pub struct FakeComputer {
     pub(crate) search_step_ms: AtomicU64,
     pub(crate) shift_declaration: AtomicBool,
     pub(crate) mutate_after_write: AtomicBool,
+    pub(crate) inherited_env: Vec<(String, String)>,
+    pub(crate) env_seen: Mutex<std::collections::BTreeMap<String, Vec<String>>>,
     pub(crate) log: Mutex<Vec<String>>,
 }
 
@@ -50,6 +52,14 @@ impl FakeComputer {
     #[must_use]
     pub fn logged(&self) -> Vec<String> {
         Self::guard(&self.log).clone()
+    }
+
+    #[must_use]
+    pub fn env_seen(&self, command: &str) -> Vec<String> {
+        Self::guard(&self.env_seen)
+            .get(&anybot_trust::normalize_command(command))
+            .cloned()
+            .unwrap_or_default()
     }
 
     #[must_use]

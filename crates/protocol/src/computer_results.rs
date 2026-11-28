@@ -3,10 +3,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::computer_caps::ComputerCaps;
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct EnvPlan {
+    pub unset_exact: Vec<String>,
+    pub unset_prefix: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommandRequest {
     pub command: String,
     pub timeout_ms: u64,
+    pub env: EnvPlan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

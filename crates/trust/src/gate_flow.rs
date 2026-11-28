@@ -122,10 +122,7 @@ fn rule_layer(layer: GateLayer) -> RuleLayer {
 pub fn floor_view(action: &GateAction, caps: &ComputerCaps) -> FloorAction {
     let bot_machine = caps.owner == ComputerOwner::Bot;
     match &action.subject {
-        ActionSubject::Command {
-            line,
-            timeout_ms: _,
-        } => FloorAction::Command {
+        ActionSubject::Command { line, .. } => FloorAction::Command {
             line: line.clone(),
             bot_machine,
             has_sandbox: caps.command_sandbox.yes(),

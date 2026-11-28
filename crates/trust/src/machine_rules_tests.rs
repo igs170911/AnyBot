@@ -232,6 +232,7 @@ fn delete_command(line: &str) -> GateAction {
         subject: crate::pipeline::RequestedAction::Command {
             line: line.to_owned(),
             timeout_ms: 1000,
+            env: crate::sandbox_env::command_env_plan(),
         },
     };
     GateAction::command("shell", line, "/workspace", request.delete_targets())
