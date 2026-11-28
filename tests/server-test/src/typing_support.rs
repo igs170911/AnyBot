@@ -73,7 +73,9 @@ pub async fn send_typing(stage: &Stage, bearer: &str, body: &str) -> Result<Resp
     post(
         &stage.served.base_url(),
         "/v1/streams/typing",
-        &RequestSpec::new(body).with_bearer(bearer),
+        &RequestSpec::new(body)
+            .with_bearer(bearer)
+            .with_key("k-typing"),
     )
     .await
 }

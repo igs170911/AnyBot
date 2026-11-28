@@ -4,7 +4,7 @@ import type { Failure } from "./problemText.ts";
 
 export const SERVER_CHECK_TIMEOUT_MS = 15_000;
 
-type StatusBody = components["schemas"]["StatusResponse"] & { admin_account?: string | null };
+type StatusBody = components["schemas"]["StatusResponse"];
 
 export interface ServerInfo {
   readonly adminAccount: string | null;

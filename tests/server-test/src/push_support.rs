@@ -76,12 +76,16 @@ pub async fn subscribe(
     keys: &SubscriptionKeys,
 ) -> Result<ResponseSpec, String> {
     let body = subscribe_body(endpoint, keys).to_string();
-    let spec = RequestSpec::new(&body).with_bearer(bearer);
+    let spec = RequestSpec::new(&body)
+        .with_bearer(bearer)
+        .with_key("k-push-subscribe");
     post(&served.base_url(), "/v1/push/subscriptions", &spec).await
 }
 
 pub async fn unsubscribe(served: &Served, bearer: &str, id: &str) -> Result<ResponseSpec, String> {
-    let spec = RequestSpec::new("").with_bearer(bearer);
+    let spec = RequestSpec::new("")
+        .with_bearer(bearer)
+        .with_key("k-push-delete");
     delete(
         &served.base_url(),
         &format!("/v1/push/subscriptions/{id}"),

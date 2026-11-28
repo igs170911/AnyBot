@@ -2245,12 +2245,271 @@ paths:
                 type: https://anybot.test/problems/problem_internal
       security:
       - bearer: []
+  /v1/push/server-key:
+    get:
+      tags:
+      - push
+      summary: Public key phones need to subscribe to push
+      description: The VAPID public key of this server (base64url, uncompressed P-256). The key pair is made on first use and kept sealed in the database.
+      operationId: get_push_server_key
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushServerKey'
+              example:
+                public_key: BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/push/subscriptions:
+    post:
+      tags:
+      - push
+      summary: Subscribe this device to push
+      description: The address must be https and at most 2048 characters. The same address replaces the older entry. An account keeps at most 16 subscriptions; the oldest one is dropped when a new one would be the 17th. Requires the Idempotency-Key header.
+      operationId: post_push_subscriptions
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscribeRequest'
+            example:
+              endpoint: https://push.example.org/send/abc123
+              keys:
+                auth: xS03Fi5ErfTNH_l9WHE9Ig
+                p256dh: BLMbF9ffKBiWQLCKvTHb6LO8Nb6dcUh6TItC455vu2kElga6PQvUmaFyCdykxY2nOSSL3yKgfbmFLRTUaGv4yV8
+        required: true
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushSubscribeReply'
+              example:
+                id: 018f-push-uuidv7
+        '400':
+          description: Address or keys invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: push-endpoint-invalid
+                params: {}
+                status: 400
+                title: The push address must be https and at most 2048 characters
+                type: https://anybot.test/problems/push_endpoint_invalid
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '403':
+          description: Only a login can subscribe
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: device-no-permission
+                params: {}
+                status: 403
+                title: This device has no permission to do this
+                type: https://anybot.test/problems/device_no_permission
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/push/subscriptions/mine:
+    get:
+      tags:
+      - push
+      summary: Whether this device has a push subscription
+      description: Looks up the device of the signed-in session and says whether it has a push subscription.
+      operationId: get_push_subscription_mine
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushMineReply'
+              example:
+                subscribed: true
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '403':
+          description: Only a login can do this
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: device-no-permission
+                params: {}
+                status: 403
+                title: This device has no permission to do this
+                type: https://anybot.test/problems/device_no_permission
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
+  /v1/push/subscriptions/{id}:
+    delete:
+      tags:
+      - push
+      summary: Remove one push subscription of the account
+      description: Deletes one subscription that belongs to the signed-in account. Requires the Idempotency-Key header.
+      operationId: delete_push_subscription
+      parameters:
+      - name: id
+        in: path
+        description: subscription id
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAck'
+              example:
+                ok: true
+        '401':
+          description: Credential rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: account-login-credentials
+                params: {}
+                status: 401
+                title: This session is no longer valid.
+                type: https://anybot.test/problems/account_login_credentials
+        '403':
+          description: Only a login can do this
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: device-no-permission
+                params: {}
+                status: 403
+                title: This device has no permission to do this
+                type: https://anybot.test/problems/device_no_permission
+        '404':
+          description: No such subscription
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: push-subscription-not-found
+                params: {}
+                status: 404
+                title: There is no such push subscription for this account
+                type: https://anybot.test/problems/push_subscription_not_found
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/problem_internal
+      security:
+      - bearer: []
   /v1/server/status:
     get:
       tags:
       - system
       summary: Public server status
-      description: Returns version, protocol version, uptime, listen port and the configured public URL; no identity required.
+      description: Returns version, protocol version, uptime, listen port, the configured public URL and the account name of the server admin (null while the server has no admin yet); no identity required.
       operationId: get_server_status
       responses:
         '200':
@@ -2260,6 +2519,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/StatusResponse'
               example:
+                admin_account: alice
                 listen_port: 8787
                 protocol_version: 1
                 public_url: null
@@ -2635,7 +2895,7 @@ paths:
       tags:
       - streams
       summary: Notification stream of every record stream the caller can see (SSE)
-      description: 'Stays open and carries notifications for every stream this caller can see, never record content. The first event is progress: for each stream the current seq and which record that seq is. Then new-records events for whichever stream gained records. A heartbeat line every 15 seconds. One final stream-progress event with the current seq of every stream when the server closes the stream, including when credentials stop working. There is no N on the request and no Last-Event-ID: data is fetched with GET /v1/streams/after. X-Accel-Buffering is set to no.'
+      description: 'Stays open and carries notifications for every stream this caller can see, never record content. A typing event carries the answer a Bot has typed so far, at most once per second per task, and is never stored. The first event is progress: for each stream the current seq and which record that seq is. Then new-records events for whichever stream gained records. A heartbeat line every 15 seconds. One final stream-progress event with the current seq of every stream when the server closes the stream, including when credentials stop working. There is no N on the request and no Last-Event-ID: data is fetched with GET /v1/streams/after. X-Accel-Buffering is set to no.'
       operationId: get_streams_notifications
       parameters:
       - name: init_seq
@@ -2862,6 +3122,86 @@ paths:
                 status: 409
                 title: This card was already answered from 018f-uuidv7.
                 type: https://anybot.test/problems/card_already_answered
+        '500':
+          description: Internal error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-internal
+                params: {}
+                status: 500
+                title: The server hit an internal error.
+                type: https://anybot.test/problems/internal
+      security:
+      - bearer: []
+  /v1/streams/typing:
+    post:
+      tags:
+      - streams
+      summary: Hand the answer typed so far to the devices that are watching
+      description: 'Only a computer credential that may write the Bot stream can call this. The body carries the whole answer typed so far, and the thinking so far (an empty string when there is none). The server forwards it as a typing event on the notification stream of every connection that can see the Bot stream, at most once per second per task for each connection, and keeps nothing: no database row, no record. It is a hint, not a record. The Idempotency-Key header is required; a repeat is another hint and is not stored.'
+      operationId: post_streams_typing
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: client-generated idempotency key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TypingRequest'
+            example:
+              stream:
+                bot:
+                  id: 018f-bot-uuidv7
+              task_id: 018f-task-uuidv7
+              text: The answer so far
+              thinking: ''
+        required: true
+      responses:
+        '204':
+          description: Forwarded
+        '400':
+          description: Bad body, or the stream is not a Bot stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-bad-request
+                params: {}
+                status: 400
+                title: The request was malformed.
+                type: https://anybot.test/problems/bad-request
+        '403':
+          description: Not a computer credential, or not allowed to write this Bot stream
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: device-no-permission
+                params: {}
+                status: 403
+                title: This device cannot do that.
+                type: https://anybot.test/problems/device_no_permission
+        '413':
+          description: Body larger than the write limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemJson'
+              example:
+                code: problem-bad-request
+                params: {}
+                status: 413
+                title: The request body is too large.
+                type: https://anybot.test/problems/bad-request
         '500':
           description: Internal error
           content:
@@ -3212,6 +3552,53 @@ components:
         public_url:
           type: string
           example: https://bot.example.test
+    PushMineReply:
+      type: object
+      required:
+      - subscribed
+      properties:
+        subscribed:
+          type: boolean
+          example: true
+    PushServerKey:
+      type: object
+      required:
+      - public_key
+      properties:
+        public_key:
+          type: string
+          example: BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM
+    PushSubscribeReply:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          example: 018f-push-uuidv7
+    PushSubscribeRequest:
+      type: object
+      required:
+      - endpoint
+      - keys
+      properties:
+        endpoint:
+          type: string
+          example: https://push.example.org/send/abc123
+        keys:
+          $ref: '#/components/schemas/PushSubscriptionKeys'
+    PushSubscriptionKeys:
+      type: object
+      required:
+      - p256dh
+      - auth
+      properties:
+        auth:
+          type: string
+          example: xS03Fi5ErfTNH_l9WHE9Ig
+        p256dh:
+          type: string
+          example: BLMbF9ffKBiWQLCKvTHb6LO8Nb6dcUh6TItC455vu2kElga6PQvUmaFyCdykxY2nOSSL3yKgfbmFLRTUaGv4yV8
     RecordAction:
       type: string
       enum:
@@ -3317,6 +3704,10 @@ components:
           - 'null'
           example: 018f-card-uuidv7
         criteria: {}
+        reason:
+          oneOf:
+          - $ref: '#/components/schemas/WakeReason'
+          - type: 'null'
         stream:
           $ref: '#/components/schemas/StreamSelector'
         task_id:
@@ -3422,6 +3813,11 @@ components:
       - uptime_ms
       - listen_port
       properties:
+        admin_account:
+          type:
+          - string
+          - 'null'
+          example: alice
         listen_port:
           type: integer
           format: int32
@@ -3553,6 +3949,30 @@ components:
         secret:
           type: string
           example: GEZDGNBVGY3TQOJQ
+    TypingRequest:
+      type: object
+      required:
+      - stream
+      - task_id
+      - text
+      - thinking
+      properties:
+        stream:
+          $ref: '#/components/schemas/StreamSelector'
+        task_id:
+          type: string
+          example: 018f-task-uuidv7
+        text:
+          type: string
+          example: The answer so far
+        thinking:
+          type: string
+          example: ''
+    WakeReason:
+      type: string
+      enum:
+      - resume
+      - verification
   securitySchemes:
     bearer:
       type: http
@@ -3572,3 +3992,5 @@ tags:
   description: 'the computers of an account: list, rename, remove'
 - name: mailbox
   description: 'letters for a computer: hand a round over, claim a letter'
+- name: push
+  description: 'Web Push: the server key and the push subscriptions of an account'

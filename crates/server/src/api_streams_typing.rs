@@ -14,7 +14,7 @@ use crate::api_streams_util::{denial_code, resolve_stream};
 use crate::app::AppState;
 use crate::caller::{Caller, CredentialKind};
 use crate::req_write::{
-    CallerDenied, MAX_WRITE_BODY, denied, denied_detail, internal_text, pool_of,
+    CallerDenied, MAX_WRITE_BODY, denied, denied_detail, idempotency_key_of, internal_text, pool_of,
 };
 
 const WRITER_KIND: &str = "message";
@@ -24,9 +24,10 @@ const WRITER_KIND: &str = "message";
     path = "/v1/streams/typing",
     operation_id = "post_streams_typing",
     summary = "Hand the answer typed so far to the devices that are watching",
-    description = "Only a computer credential that may write the Bot stream can call this. The body carries the whole answer typed so far, and the thinking so far (an empty string when there is none). The server forwards it as a typing event on the notification stream of every connection that can see the Bot stream, at most once per second per task for each connection, and keeps nothing: no database row, no record. It is a hint, not a record. No Idempotency-Key is needed because this is not a write.",
+    description = "Only a computer credential that may write the Bot stream can call this. The body carries the whole answer typed so far, and the thinking so far (an empty string when there is none). The server forwards it as a typing event on the notification stream of every connection that can see the Bot stream, at most once per second per task for each connection, and keeps nothing: no database row, no record. It is a hint, not a record. The Idempotency-Key header is required; a repeat is another hint and is not stored.",
     tag = "streams",
     security(("bearer" = [])),
+    params(("Idempotency-Key" = String, Header, description = "client-generated idempotency key")),
     request_body(content = TypingRequest, example = json!({"stream": {"bot": {"id": "018f-bot-uuidv7"}}, "task_id": "018f-task-uuidv7", "text": "The answer so far", "thinking": ""})),
     responses(
         (status = 204, description = "Forwarded"),
@@ -54,6 +55,7 @@ pub async fn typing(
     request: Request,
 ) -> Result<Response, CallerDenied> {
     require_device(&caller)?;
+    let _key = idempotency_key_of(request.headers())?;
     let req = read_request(request).await?;
     if !matches!(req.stream, StreamSelector::Bot { .. }) {
         return Err(denied_detail(

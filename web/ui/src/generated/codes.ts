@@ -279,7 +279,29 @@ export type MessageCode =
   "turn-yolo-on" |
   "turn-yolo-off" |
   "turn-yolo-status" |
-  "gate-smart-auto-allowed";
+  "gate-smart-auto-allowed" |
+  "turn-fixed-task-evidence" |
+  "memory-empty-content" |
+  "memory-contradiction-target-missing" |
+  "memory-scan-injection" |
+  "memory-scan-secret" |
+  "memory-scan-invisible" |
+  "login-submit" |
+  "login-url-label" |
+  "login-account-label" |
+  "login-password-label" |
+  "login-create-account" |
+  "login-invite-label" |
+  "login-privacy-note" |
+  "login-privacy-ack" |
+  "login-ack-required" |
+  "login-not-anybot" |
+  "login-unreachable" |
+  "login-other-origin" |
+  "login-two-step-later" |
+  "server-request-too-large" |
+  "push-endpoint-invalid" |
+  "push-subscription-not-found";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -561,4 +583,26 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "turn-yolo-off",
   "turn-yolo-status",
   "gate-smart-auto-allowed",
+  "turn-fixed-task-evidence",
+  "memory-empty-content",
+  "memory-contradiction-target-missing",
+  "memory-scan-injection",
+  "memory-scan-secret",
+  "memory-scan-invisible",
+  "login-submit",
+  "login-url-label",
+  "login-account-label",
+  "login-password-label",
+  "login-create-account",
+  "login-invite-label",
+  "login-privacy-note",
+  "login-privacy-ack",
+  "login-ack-required",
+  "login-not-anybot",
+  "login-unreachable",
+  "login-other-origin",
+  "login-two-step-later",
+  "server-request-too-large",
+  "push-endpoint-invalid",
+  "push-subscription-not-found",
 ];

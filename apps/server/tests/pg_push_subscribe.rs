@@ -100,7 +100,9 @@ async fn subscription_keys_with_wrong_length_are_refused() -> Result<(), String>
         "keys": {"p256dh": "short", "auth": keys.auth_b64()},
     })
     .to_string();
-    let spec = anybot_app_test::http::RequestSpec::new(&body).with_bearer(&phone);
+    let spec = anybot_app_test::http::RequestSpec::new(&body)
+        .with_bearer(&phone)
+        .with_key("k-push-bad-keys");
     let reply =
         anybot_app_test::http::post(&served.base_url(), "/v1/push/subscriptions", &spec).await?;
     assert_eq!(reply.status, 400, "{}", reply.json);

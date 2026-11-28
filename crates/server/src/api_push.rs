@@ -1,5 +1,5 @@
 use axum::extract::{Path, Request, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;
 
 use anybot_channels::web_push::endpoint_shape_ok;
@@ -15,8 +15,8 @@ use crate::caller::{Caller, CredentialKind};
 use crate::computer_view::signed;
 use crate::push_vapid::ensure_vapid;
 use crate::req_write::{
-    CallerDenied, denied, denied_detail, internal_sqlx, internal_text, json_response, pool_of,
-    read_json, value_of,
+    CallerDenied, denied, denied_detail, idempotency_key, idempotency_key_of, internal_sqlx,
+    internal_text, json_response, pool_of, read_json, value_of,
 };
 use crate::two_step_check::secrets_of;
 
@@ -86,9 +86,10 @@ pub async fn server_key(
     path = "/v1/push/subscriptions",
     operation_id = "post_push_subscriptions",
     summary = "Subscribe this device to push",
-    description = "The address must be https and at most 2048 characters. The same address replaces the older entry. An account keeps at most 16 subscriptions; the oldest one is dropped when a new one would be the 17th.",
+    description = "The address must be https and at most 2048 characters. The same address replaces the older entry. An account keeps at most 16 subscriptions; the oldest one is dropped when a new one would be the 17th. Requires the Idempotency-Key header.",
     tag = "push",
     security(("bearer" = [])),
+    params(("Idempotency-Key" = String, Header, description = "client-generated idempotency key")),
     request_body(content = PushSubscribeRequest, example = json!({"endpoint": "https://push.example.org/send/abc123", "keys": {"p256dh": "BLMbF9ffKBiWQLCKvTHb6LO8Nb6dcUh6TItC455vu2kElga6PQvUmaFyCdykxY2nOSSL3yKgfbmFLRTUaGv4yV8", "auth": "xS03Fi5ErfTNH_l9WHE9Ig"}})),
     responses(
         (status = 200, description = "Done",
@@ -119,6 +120,7 @@ pub async fn subscribe(
     request: Request,
 ) -> Result<Response, CallerDenied> {
     require_login(&caller)?;
+    let _key = idempotency_key(&request)?;
     let (body, _raw) = read_json::<PushSubscribeRequest>(request).await?;
     if !endpoint_shape_ok(&body.endpoint) {
         return Err(denied(
@@ -159,9 +161,13 @@ pub async fn subscribe(
     path = "/v1/push/subscriptions/{id}",
     operation_id = "delete_push_subscription",
     summary = "Remove one push subscription of the account",
+    description = "Deletes one subscription that belongs to the signed-in account. Requires the Idempotency-Key header.",
     tag = "push",
     security(("bearer" = [])),
-    params(("id" = String, Path, description = "subscription id")),
+    params(
+        ("id" = String, Path, description = "subscription id"),
+        ("Idempotency-Key" = String, Header, description = "client-generated idempotency key"),
+    ),
     responses(
         (status = 200, description = "Done",
             content_type = "application/json",
@@ -189,8 +195,10 @@ pub async fn unsubscribe(
     State(state): State<AppState>,
     caller: Caller,
     Path(id): Path<String>,
+    headers: HeaderMap,
 ) -> Result<Response, CallerDenied> {
     require_login(&caller)?;
+    let _key = idempotency_key_of(&headers)?;
     let pool = pool_of(&state)?;
     let removed = push_subscriptions::delete_owned(pool, &caller.account, &id)
         .await
@@ -212,6 +220,7 @@ pub async fn unsubscribe(
     path = "/v1/push/subscriptions/mine",
     operation_id = "get_push_subscription_mine",
     summary = "Whether this device has a push subscription",
+    description = "Looks up the device of the signed-in session and says whether it has a push subscription.",
     tag = "push",
     security(("bearer" = [])),
     responses(
