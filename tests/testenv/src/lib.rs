@@ -5,6 +5,7 @@ use serde_json as _;
 use test_harness as _;
 use tokio as _;
 
+pub mod account_delete;
 pub mod control;
 pub mod control_world;
 pub mod env;

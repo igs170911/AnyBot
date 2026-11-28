@@ -16,5 +16,6 @@ axum = { workspace = true }
 uuid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio"] }
 test-harness = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "signal"] }

@@ -1,6 +1,7 @@
 use anybot_foundation as _;
 use anybot_server as _;
 use serde as _;
+use sqlx as _;
 use test_harness as _;
 use uuid as _;
 

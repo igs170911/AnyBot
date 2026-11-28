@@ -2,6 +2,7 @@ use anybot_foundation as _;
 use anybot_server as _;
 use axum as _;
 use serde as _;
+use sqlx as _;
 use test_harness as _;
 use tokio as _;
 use uuid as _;
@@ -134,5 +135,21 @@ async fn disabled_account_is_refused_at_login_and_locks_queue_callers() -> Resul
         .map_err(|e| e.to_string())??;
     assert_eq!(got.0, 200);
     assert_eq!(control_delete(&ports, "/control/lock/missing").await?, 404);
+    Ok(())
+}
+
+#[tokio::test]
+async fn account_delete_removes_a_seeded_account_once_and_refuses_the_admin() -> Result<(), String>
+{
+    let ports = Box::pin(started()).await?;
+    let (_status, world) = control_post(&ports, "/control/seed", &json!({"bots": ["A"]})).await?;
+    let account = json!({"account": text_at(&world, &["account"])?});
+    let (status, _body) = control_post(&ports, "/control/account/delete", &account).await?;
+    assert_eq!(status, 204);
+    let (status, _body) = control_post(&ports, "/control/account/delete", &account).await?;
+    assert_eq!(status, 404);
+    let admin = json!({"account": "alice"});
+    let (status, _body) = control_post(&ports, "/control/account/delete", &admin).await?;
+    assert_eq!(status, 500);
     Ok(())
 }

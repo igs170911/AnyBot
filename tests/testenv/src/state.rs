@@ -27,6 +27,7 @@ pub struct TestEnvState {
     pub push: Arc<FakePush>,
     pub net: Arc<NetCtl>,
     pub pg: PgInstance,
+    pub pool: anybot_server::Pool,
     pub api: ServerApi,
     pub admin: Admin,
     pub locks: LockTable,

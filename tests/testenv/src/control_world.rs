@@ -8,6 +8,7 @@ use axum::routing::{delete, get, post};
 
 use test_harness::model_script::{RecordedRequest, Step};
 
+use crate::account_delete::delete_account;
 use crate::locks::{LOCK_WAIT, LockTable};
 use crate::seed::{SeedReply, SeedRequest, disable_account, seed_world};
 use crate::state::TestEnvState;
@@ -33,7 +34,7 @@ pub struct LockBody {
 }
 
 #[derive(serde::Deserialize)]
-pub struct DisableBody {
+pub struct AccountBody {
     pub account: String,
 }
 
@@ -72,11 +73,27 @@ async fn seed(
 
 async fn disable(
     State(state): State<Shared>,
-    Json(body): Json<DisableBody>,
+    Json(body): Json<AccountBody>,
 ) -> Result<StatusCode, Failure> {
     disable_account(&state.api, &state.admin, &body.account)
         .await
         .map(|()| StatusCode::NO_CONTENT)
+        .map_err(failed)
+}
+
+async fn remove_account(
+    State(state): State<Shared>,
+    Json(body): Json<AccountBody>,
+) -> Result<StatusCode, Failure> {
+    delete_account(&state.pool, &body.account)
+        .await
+        .map(|existed| {
+            if existed {
+                StatusCode::NO_CONTENT
+            } else {
+                StatusCode::NOT_FOUND
+            }
+        })
         .map_err(failed)
 }
 
@@ -106,6 +123,7 @@ pub fn routes() -> Router<Shared> {
         .route("/control/model/requests", get(list_requests))
         .route("/control/seed", post(seed))
         .route("/control/account/disable", post(disable))
+        .route("/control/account/delete", post(remove_account))
         .route("/control/lock", post(take_lock))
         .route("/control/lock/{name}", delete(drop_lock))
 }
