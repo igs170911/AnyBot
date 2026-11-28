@@ -4,10 +4,10 @@ use std::time::Duration;
 use anybot_foundation::TaskId;
 use anybot_protocol::KnownTaskEventKind;
 use anybot_runner::StoredBody;
-use test_harness::{advance_clock, model_accept_then_delay, model_replies_text, model_tool_calls};
+use test_harness::{model_accept_then_delay, model_replies_text, model_tool_calls, timeout_real};
 
 use crate::turn::{Device, TurnWorld};
-use crate::turn_helpers::{chat_requests, drive};
+use crate::turn_helpers::drive;
 use crate::turn_tool_helpers::edit_call;
 
 #[must_use]
@@ -24,14 +24,10 @@ pub fn first_task_of(world: &TurnWorld) -> Option<TaskId> {
 }
 
 async fn wait_for_request(world: &TurnWorld, count: usize) -> Result<(), String> {
-    for _step in 0..400 {
-        if chat_requests(&world.model).len() >= count {
-            return Ok(());
-        }
-        advance_clock(&world.clock, Duration::from_millis(10));
-        tokio::task::yield_now().await;
-    }
-    Err("the second model request never arrived".to_owned())
+    let arrived = world.model.wait_recorded(count);
+    timeout_real(arrived, Duration::from_secs(10))
+        .await
+        .map_err(|e| format!("the second model request never arrived: {e}"))?
 }
 
 async fn send_shared(

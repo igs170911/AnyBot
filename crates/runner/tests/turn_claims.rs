@@ -24,7 +24,7 @@ use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{chat_requests, drive, kind_names, task_kinds, task_of};
 use runner_test::turn_tool_helpers::call;
-use test_harness::{advance_clock, model_accept_then_delay, model_replies_text, model_tool_calls};
+use test_harness::{model_accept_then_delay, model_replies_text, model_tool_calls, timeout_real};
 
 fn created_task(world: &TurnWorld) -> Option<anybot_foundation::TaskId> {
     for row in world.record.snapshot() {
@@ -39,14 +39,10 @@ fn created_task(world: &TurnWorld) -> Option<anybot_foundation::TaskId> {
 }
 
 async fn wait_for_request(world: &TurnWorld, count: usize) -> Result<(), String> {
-    for _step in 0..400 {
-        if chat_requests(&world.model).len() >= count {
-            return Ok(());
-        }
-        advance_clock(&world.clock, Duration::from_millis(10));
-        tokio::task::yield_now().await;
-    }
-    Err("request never arrived".to_owned())
+    let arrived = world.model.wait_recorded(count);
+    timeout_real(arrived, Duration::from_secs(10))
+        .await
+        .map_err(|e| format!("request never arrived: {e}"))?
 }
 
 async fn run_shared(
