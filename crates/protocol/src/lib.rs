@@ -1,5 +1,6 @@
 pub mod account_api;
 pub mod api;
+pub mod card_record;
 pub mod computer_caps;
 pub mod computer_results;
 pub mod computers_api;
@@ -28,6 +29,7 @@ pub use api::{
     PROBLEM_JSON_CONTENT_TYPE, PROBLEM_TITLE_BAD_REQUEST, PROBLEM_TITLE_INTERNAL,
     PROBLEM_TYPE_BASE, PageCursor, ProblemJson, SSE_CONTENT_TYPE,
 };
+pub use card_record::{CardButton, CardKind};
 pub use computer_caps::{CapState, ComputerCaps, ComputerOwner, ComputerPlatform};
 pub use computer_results::{
     ActualResult, BeforeDigest, CommandOutcome, CommandRequest, ComputerFailure,

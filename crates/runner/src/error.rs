@@ -25,6 +25,8 @@ pub enum TurnError {
     Replay(anybot_domain::ReplayGap),
     #[error(transparent)]
     Report(#[from] anybot_trust::ReportFail),
+    #[error(transparent)]
+    Card(#[from] anybot_trust::CardViewError),
     #[error("the parked approval list is busy")]
     ParkedBusy,
     #[error("no parked card matches digest {digest}")]

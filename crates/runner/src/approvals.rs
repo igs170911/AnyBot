@@ -34,16 +34,24 @@ pub(crate) async fn park_approval(
     view: ActionView,
     ticket: AskTicket,
 ) -> Result<(), TurnError> {
+    let card_view = ticket.card_view()?;
+    let digest = ticket.card_digest();
     let kind = KnownTaskEventKind::CardShown {
-        action: first_action(&ticket),
-        card: ticket.card_digest(),
+        action: card_view.action,
+        card: digest.clone(),
+        kind: card_view.kind,
+        buttons: card_view.buttons,
+        reason: card_view.reason,
+        always_label: card_view.always_label,
+        notes: card_view.notes,
+        classes: card_view.classes,
     };
     runner.append_task_event(&ctx.task, kind).await?;
     let card = PendingCard {
-        digest: ticket.card_digest(),
+        digest,
         tool: request.tool.clone(),
         computer: ticket.computer_name().to_owned(),
-        actions: ticket.card().actions.clone(),
+        actions: card_view.actions,
         ticket,
         request: request.clone(),
         view,
@@ -163,15 +171,6 @@ async fn record_refusal(
         )
         .await
         .map(|_| ())
-}
-
-fn first_action(ticket: &AskTicket) -> String {
-    ticket
-        .card()
-        .actions
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "approval".to_owned())
 }
 
 impl TurnRunner {

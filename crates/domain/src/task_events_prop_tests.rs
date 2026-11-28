@@ -76,6 +76,18 @@ fn card_goal_events() -> BoxedStrategy<KnownTaskEventKind> {
         "[a-z]{1,4}".prop_map(|a| KnownTaskEventKind::CardShown {
             action: a.clone(),
             card: a,
+            kind: anybot_protocol::CardKind::Action,
+            buttons: vec![
+                anybot_protocol::CardButton::AllowOnce,
+                anybot_protocol::CardButton::Deny,
+            ],
+            reason: anybot_protocol::ReasonPayload {
+                code: "card-run-command".to_owned(),
+                params: Vec::new(),
+            },
+            always_label: None,
+            notes: Vec::new(),
+            classes: Vec::new(),
         }),
         Just(CardAnswer::AllowOnce).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),
         Just(CardAnswer::Deny).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),

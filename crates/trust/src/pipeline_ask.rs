@@ -1,5 +1,8 @@
 use crate::action::GateAction;
 use crate::card_data::{CardData, build_card};
+use crate::card_view::{CardView, CardViewError, card_view};
+use crate::gate_engine::GateLayer;
+use crate::gate_flow::GateVerdict;
 use crate::op_ticket::OpTicket;
 use crate::pipeline::{ActionRequest, GateAnswer};
 use crate::pipeline_run::{ActionRun, ModelResultView, prepared_gate};
@@ -28,6 +31,7 @@ impl CallContext {
 #[derive(Debug)]
 pub struct AskTicket {
     gate: GateRecord,
+    verdict: GateVerdict,
     outcome: GateOutcome,
     action: GateAction,
     card: CardData,
@@ -43,6 +47,10 @@ impl AskTicket {
     #[must_use]
     pub fn card(&self) -> &CardData {
         &self.card
+    }
+
+    pub fn card_view(&self) -> Result<CardView, CardViewError> {
+        card_view(&self.verdict, &self.action, &self.caps, &self.computer)
     }
 
     #[must_use]
@@ -69,9 +77,18 @@ impl AskTicket {
         computer: &str,
         ctx: &CallContext,
     ) -> Self {
+        let verdict = GateVerdict {
+            outcome,
+            layer: GateLayer::Default,
+            step: gate.gate,
+            rule: gate.rule.clone(),
+            read_only: gate.read_only,
+            params: Vec::new(),
+        };
         let card = build_card(&action, caps);
         AskTicket {
             gate,
+            verdict,
             outcome,
             action,
             card,
@@ -82,6 +99,11 @@ impl AskTicket {
             turn: ctx.turn,
             provider: ctx.provider.clone(),
         }
+    }
+
+    pub(super) fn with_verdict(mut self, verdict: GateVerdict) -> Self {
+        self.verdict = verdict;
+        self
     }
 
     #[must_use]
@@ -197,6 +219,7 @@ impl AskTicket {
     pub(crate) fn clone_ticket(&self) -> Self {
         AskTicket {
             gate: self.gate.clone(),
+            verdict: self.verdict.clone(),
             outcome: self.outcome,
             action: self.action.clone(),
             card: self.card.clone(),

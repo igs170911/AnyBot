@@ -14,7 +14,12 @@ use proptest as _;
 
 pub mod action;
 pub mod always_list;
+pub mod card_buttons;
 pub mod card_data;
+mod card_reason;
+pub mod card_view;
+#[cfg(test)]
+mod card_view_tests;
 pub mod claim_levels;
 pub mod command_key;
 pub mod command_lex;
@@ -60,7 +65,9 @@ mod wrapper_flags;
 
 pub use action::{ActionKey, ActionSubject, DEFAULT_COMMAND_TIMEOUT_MS, GateAction, PathView};
 pub use always_list::{AddSource, AlwaysAddEvent, AlwaysEntry, AlwaysList, parse_untrusted_adds};
+pub use card_buttons::{AskOrigin, button_set};
 pub use card_data::{CardData, build_card};
+pub use card_view::{CardView, CardViewError, card_view};
 pub use claim_levels::{Claim, ClaimLevel, EvidenceKind, Link, Scope, Verification};
 pub use command_key::{command_action_key, command_tokens};
 pub use command_target::{DeleteBase, DeleteTarget, command_targets, has_expansion_token};
@@ -72,8 +79,16 @@ pub use evidence::ActionContext;
 pub use gate_engine::{GateLayer, LayerCall, Opinion, Outcome, precedence_decision};
 pub use gate_flow::{AdminRules, GateConfig, GateVerdict, RuleEntry, UserRules, rule_code};
 pub use gate_full::{ModeFlags, StyleFlags};
-pub use machine_rules::{MachineLevel, RuleVerdict, default_rule, inside_workdir};
+pub use machine_rules::{
+    MachineLevel, RuleVerdict, default_rule, default_rule_with_always, inside_workdir,
+};
 pub use message_codes::{
+    CODE_ALWAYS_READ_OUTSIDE, CODE_ALWAYS_READ_WORKSPACE, CODE_ALWAYS_RUN_COMMAND,
+    CODE_ALWAYS_RUN_COMMAND_BOT_COMPUTER, CODE_ALWAYS_WRITE_WORKSPACE, CODE_CARD_ADMIN_RULE,
+    CODE_CARD_ASK_RULE, CODE_CARD_EDIT_FILE, CODE_CARD_EDIT_OUTSIDE, CODE_CARD_FLOOR_NO_SANDBOX,
+    CODE_CARD_FLOOR_RULE, CODE_CARD_HIDDEN_SUBCOMMAND, CODE_CARD_INTERACTIVE_SHELL,
+    CODE_CARD_NOTE_EVERY_TIME, CODE_CARD_NOTE_NO_SANDBOX_PRIVATE, CODE_CARD_READ_FILE,
+    CODE_CARD_READ_OUTSIDE, CODE_CARD_RUN_COMMAND, CODE_CARD_UNPARSEABLE, CODE_CARD_USER_HOOK,
     CODE_GATE_ASK_DECLINED, CODE_GATE_ASK_PENDING, CODE_GATE_BOT_MACHINE_OUTSIDE,
     CODE_GATE_COMMAND_DENIED, CODE_GATE_DENIED, CODE_GATE_DENIED_BY_RULE, CODE_GATE_NO_SANDBOX,
     CODE_GATE_OUTSIDE_WRITE_DENIED, CODE_GATE_PRIVATE_FILE, CODE_GATE_TICKET_MISMATCH,

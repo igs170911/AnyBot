@@ -35,19 +35,24 @@ pub(crate) struct GateDecision {
     pub rule: String,
 }
 
-fn unreadable_command(action: &FloorAction) -> bool {
+fn floor_ask_only(action: &FloorAction) -> bool {
     matches!(
         action,
-        FloorAction::Command { line, .. } if crate::sandbox_peel::unreadable_reason(line).is_some()
+        FloorAction::Command {
+            line,
+            bot_machine,
+            has_sandbox,
+        } if !crate::trust_floor::is_denied_command(line, *bot_machine)
+            && (crate::sandbox_peel::unreadable_reason(line).is_some() || !*has_sandbox)
     )
 }
 
 fn floor_call(input: &EngineInput, floor_hit: bool) -> LayerCall {
-    let unreadable = unreadable_command(&input.action);
+    let ask_only = floor_ask_only(&input.action);
     LayerCall {
         layer: GateLayer::Floor,
-        deny: (floor_hit && !unreadable) || input.modes.ask_every_time,
-        ask: unreadable,
+        deny: (floor_hit && !ask_only) || input.modes.ask_every_time,
+        ask: ask_only,
         allow: false,
     }
 }
@@ -104,9 +109,9 @@ pub(crate) fn decide(input: &EngineInput) -> GateDecision {
 }
 
 fn relax_outcome(input: &EngineInput, layer: GateLayer, outcome: Outcome) -> Outcome {
-    let unreadable = unreadable_command(&input.action);
+    let ask_only = floor_ask_only(&input.action);
     match outcome {
-        Outcome::Ask if unreadable => Outcome::Ask,
+        Outcome::Ask if ask_only => Outcome::Ask,
         Outcome::Ask if input.modes.yolo && !input.modes.ask_every_time => Outcome::Allow,
         Outcome::Ask if input.modes.direct_mode && layer == GateLayer::Default => Outcome::Ask,
         Outcome::Ask => Outcome::Ask,

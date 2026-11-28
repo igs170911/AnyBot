@@ -64,7 +64,7 @@ fn test_machine_rules_bot_machine_reads_writes_and_deletes_in_own_folder() {
     );
     let verdict = default_rule(&delete, &caps);
     assert_eq!(verdict.level, MachineLevel::Direct);
-    assert_eq!(verdict.rule, "bot-machine-own-folder");
+    assert_eq!(verdict.rule, "bot-computer-own-folder");
     let outside = GateAction::command(
         "shell",
         "rm /etc/hosts",
@@ -118,7 +118,7 @@ fn test_a_delete_keeps_the_letters_of_its_paths() {
     let outside_case = delete_action("rm /ETC/hosts", vec![PathView::raw("/ETC/hosts")]);
     assert_eq!(
         default_rule(&mixed_case, &caps).rule,
-        "bot-machine-own-folder"
+        "bot-computer-own-folder"
     );
     assert_eq!(
         default_rule(&outside_case, &caps).rule,
@@ -143,7 +143,7 @@ fn test_machine_rules_bot_machine_denies_outside_and_asks_for_outbound() {
     );
     let send = shell("git push origin main", "/workspace");
     let verdict = default_rule(&send, &caps);
-    assert_eq!(verdict.level, MachineLevel::AskEveryTime);
+    assert_eq!(verdict.level, MachineLevel::Ask);
     assert_eq!(verdict.rule, "bot-machine-sending");
     let shell_verdict = default_rule(&shell("ls", "/workspace"), &caps);
     assert_eq!(shell_verdict.level, MachineLevel::Direct);
@@ -200,7 +200,7 @@ fn test_a_wrapped_push_asks_on_the_bot_machine() {
         &shell("sudo nohup git push origin", "/workspace"),
         &bot_caps(),
     );
-    assert_eq!(verdict.level, MachineLevel::AskEveryTime);
+    assert_eq!(verdict.level, MachineLevel::Ask);
     assert_eq!(verdict.rule, "bot-machine-sending");
 }
 

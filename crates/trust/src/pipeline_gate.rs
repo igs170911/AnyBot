@@ -31,15 +31,18 @@ pub fn gate_step(
     let gate = verdict.record();
     match verdict.outcome {
         GateOutcome::Deny => GateStep::Denied(denied_run(request, &verdict, &gate, view, clock)),
-        GateOutcome::Ask => GateStep::Ask(Box::new(AskTicket::new(
-            GateOutcome::Ask,
-            gate.clone(),
-            action,
-            &caps,
-            request,
-            computer.name(),
-            ctx,
-        ))),
+        GateOutcome::Ask => GateStep::Ask(Box::new(
+            AskTicket::new(
+                GateOutcome::Ask,
+                gate.clone(),
+                action,
+                &caps,
+                request,
+                computer.name(),
+                ctx,
+            )
+            .with_verdict(verdict),
+        )),
         GateOutcome::Allow => {
             let fresh = prepared_action(request, computer);
             if fresh.subject != action.subject {

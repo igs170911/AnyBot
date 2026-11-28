@@ -37,6 +37,25 @@ fn call() -> CallId {
     CallId::generate(&SystemClock)
 }
 
+fn card_shown(action: &str, card: &str) -> KnownTaskEventKind {
+    KnownTaskEventKind::CardShown {
+        action: action.to_owned(),
+        card: card.to_owned(),
+        kind: anybot_protocol::CardKind::Action,
+        buttons: vec![
+            anybot_protocol::CardButton::AllowOnce,
+            anybot_protocol::CardButton::Deny,
+        ],
+        reason: anybot_protocol::ReasonPayload {
+            code: "card-run-command".to_owned(),
+            params: Vec::new(),
+        },
+        always_label: None,
+        notes: Vec::new(),
+        classes: Vec::new(),
+    }
+}
+
 #[test]
 fn t_task_state_9() {
     let c = call();
@@ -48,10 +67,7 @@ fn t_task_state_9() {
             parent: None,
         },
         turn_started_kind(),
-        KnownTaskEventKind::CardShown {
-            action: "a".to_owned(),
-            card: "card-a".to_owned(),
-        },
+        card_shown("a", "card-a"),
         KnownTaskEventKind::CardAnswered {
             answer: CardAnswer::Deny,
         },

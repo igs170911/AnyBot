@@ -83,6 +83,18 @@ fn answered_card_is_not_an_open_question() {
             anybot_protocol::KnownTaskEventKind::CardShown {
                 action: "which colour?".to_owned(),
                 card: "card-1".to_owned(),
+                kind: anybot_protocol::CardKind::Action,
+                buttons: vec![
+                    anybot_protocol::CardButton::AllowOnce,
+                    anybot_protocol::CardButton::Deny,
+                ],
+                reason: anybot_protocol::ReasonPayload {
+                    code: "card-run-command".to_owned(),
+                    params: Vec::new(),
+                },
+                always_label: None,
+                notes: Vec::new(),
+                classes: Vec::new(),
             },
         ),
         sup::known(
@@ -96,6 +108,18 @@ fn answered_card_is_not_an_open_question() {
             anybot_protocol::KnownTaskEventKind::CardShown {
                 action: "which file?".to_owned(),
                 card: "card-1".to_owned(),
+                kind: anybot_protocol::CardKind::Action,
+                buttons: vec![
+                    anybot_protocol::CardButton::AllowOnce,
+                    anybot_protocol::CardButton::Deny,
+                ],
+                reason: anybot_protocol::ReasonPayload {
+                    code: "card-run-command".to_owned(),
+                    params: Vec::new(),
+                },
+                always_label: None,
+                notes: Vec::new(),
+                classes: Vec::new(),
             },
         ),
     ];

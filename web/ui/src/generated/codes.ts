@@ -205,7 +205,27 @@ export type MessageCode =
   "mailbox-reassign-offline" |
   "mailbox-reassign-delegate-off" |
   "card-not-waiting" |
-  "account-action-unreachable";
+  "account-action-unreachable" |
+  "card-edit-file" |
+  "card-run-command" |
+  "card-read-outside" |
+  "card-read-file" |
+  "card-edit-outside" |
+  "card-unparseable" |
+  "card-hidden-subcommand" |
+  "card-interactive-shell" |
+  "card-ask-rule" |
+  "card-user-hook" |
+  "card-admin-rule" |
+  "card-floor-rule" |
+  "card-floor-no-sandbox" |
+  "card-note-every-time" |
+  "card-note-no-sandbox-private" |
+  "always-run-command" |
+  "always-run-command-bot-computer" |
+  "always-write-workspace" |
+  "always-read-outside" |
+  "always-read-workspace";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -413,4 +433,24 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "mailbox-reassign-delegate-off",
   "card-not-waiting",
   "account-action-unreachable",
+  "card-edit-file",
+  "card-run-command",
+  "card-read-outside",
+  "card-read-file",
+  "card-edit-outside",
+  "card-unparseable",
+  "card-hidden-subcommand",
+  "card-interactive-shell",
+  "card-ask-rule",
+  "card-user-hook",
+  "card-admin-rule",
+  "card-floor-rule",
+  "card-floor-no-sandbox",
+  "card-note-every-time",
+  "card-note-no-sandbox-private",
+  "always-run-command",
+  "always-run-command-bot-computer",
+  "always-write-workspace",
+  "always-read-outside",
+  "always-read-workspace",
 ];

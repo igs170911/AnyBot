@@ -24,9 +24,29 @@ pub const CODE_TOOL_OPERATION_FAILED: &str = "tool-operation-failed";
 pub const CODE_TOOL_COMPUTER_UNREACHABLE: &str = "tool-computer-unreachable";
 pub const CODE_TOOL_EXECUTION_FAILED: &str = "tool-execution-failed";
 pub const CODE_TOOL_UNREADABLE_SHAPE: &str = "tool-unreadable-shape";
+pub const CODE_CARD_EDIT_FILE: &str = "card-edit-file";
+pub const CODE_CARD_RUN_COMMAND: &str = "card-run-command";
+pub const CODE_CARD_READ_OUTSIDE: &str = "card-read-outside";
+pub const CODE_CARD_READ_FILE: &str = "card-read-file";
+pub const CODE_CARD_EDIT_OUTSIDE: &str = "card-edit-outside";
+pub const CODE_CARD_UNPARSEABLE: &str = "card-unparseable";
+pub const CODE_CARD_HIDDEN_SUBCOMMAND: &str = "card-hidden-subcommand";
+pub const CODE_CARD_INTERACTIVE_SHELL: &str = "card-interactive-shell";
+pub const CODE_CARD_ASK_RULE: &str = "card-ask-rule";
+pub const CODE_CARD_USER_HOOK: &str = "card-user-hook";
+pub const CODE_CARD_ADMIN_RULE: &str = "card-admin-rule";
+pub const CODE_CARD_FLOOR_RULE: &str = "card-floor-rule";
+pub const CODE_CARD_FLOOR_NO_SANDBOX: &str = "card-floor-no-sandbox";
+pub const CODE_CARD_NOTE_EVERY_TIME: &str = "card-note-every-time";
+pub const CODE_CARD_NOTE_NO_SANDBOX_PRIVATE: &str = "card-note-no-sandbox-private";
+pub const CODE_ALWAYS_RUN_COMMAND: &str = "always-run-command";
+pub const CODE_ALWAYS_RUN_COMMAND_BOT_COMPUTER: &str = "always-run-command-bot-computer";
+pub const CODE_ALWAYS_WRITE_WORKSPACE: &str = "always-write-workspace";
+pub const CODE_ALWAYS_READ_OUTSIDE: &str = "always-read-outside";
+pub const CODE_ALWAYS_READ_WORKSPACE: &str = "always-read-workspace";
 
 #[must_use]
-pub fn all_codes() -> [&'static str; 26] {
+pub fn all_codes() -> [&'static str; 46] {
     [
         CODE_GATE_COMMAND_DENIED,
         CODE_GATE_PRIVATE_FILE,
@@ -54,6 +74,26 @@ pub fn all_codes() -> [&'static str; 26] {
         CODE_TOOL_COMPUTER_UNREACHABLE,
         CODE_TOOL_EXECUTION_FAILED,
         CODE_TOOL_UNREADABLE_SHAPE,
+        CODE_CARD_EDIT_FILE,
+        CODE_CARD_RUN_COMMAND,
+        CODE_CARD_READ_OUTSIDE,
+        CODE_CARD_READ_FILE,
+        CODE_CARD_EDIT_OUTSIDE,
+        CODE_CARD_UNPARSEABLE,
+        CODE_CARD_HIDDEN_SUBCOMMAND,
+        CODE_CARD_INTERACTIVE_SHELL,
+        CODE_CARD_ASK_RULE,
+        CODE_CARD_USER_HOOK,
+        CODE_CARD_ADMIN_RULE,
+        CODE_CARD_FLOOR_RULE,
+        CODE_CARD_FLOOR_NO_SANDBOX,
+        CODE_CARD_NOTE_EVERY_TIME,
+        CODE_CARD_NOTE_NO_SANDBOX_PRIVATE,
+        CODE_ALWAYS_RUN_COMMAND,
+        CODE_ALWAYS_RUN_COMMAND_BOT_COMPUTER,
+        CODE_ALWAYS_WRITE_WORKSPACE,
+        CODE_ALWAYS_READ_OUTSIDE,
+        CODE_ALWAYS_READ_WORKSPACE,
     ]
 }
 
@@ -69,6 +109,6 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), 26);
+        assert_eq!(seen.len(), 46);
     }
 }

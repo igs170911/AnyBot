@@ -3,8 +3,8 @@ use crate::always_list::AlwaysList;
 use crate::gate_engine::{GateLayer, Opinion, Outcome};
 use crate::gate_flow_params::{decision_rule, floor_denied_token, gate_outcome, verdict_params};
 use crate::gate_full::{EngineInput, ModeFlags, decide};
-use crate::gate_rules::{hook_opinion, style_hits};
-use crate::machine_rules::default_rule;
+use crate::gate_rules::{ask_style_label, hook_opinion, style_hits};
+use crate::machine_rules::default_rule_with_always;
 use crate::op_ticket::OpTicket;
 use crate::trust_floor::{FloorAction, floor_check};
 use anybot_foundation::TimestampMs;
@@ -142,16 +142,20 @@ pub(crate) fn floor_view_with_dir(
             bot_machine,
             has_sandbox: caps.command_sandbox.yes(),
         },
-        ActionSubject::ReadFile { path }
-        | ActionSubject::WriteFile { path, content: _ }
-        | ActionSubject::EditFile { path, .. }
-        | ActionSubject::PathCheck { path } => file_floor_action(path, caps, anybot_dir),
+        ActionSubject::ReadFile { path } | ActionSubject::PathCheck { path } => {
+            file_floor_action(path, &action.workdir, false, caps, anybot_dir)
+        }
+        ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
+            file_floor_action(path, &action.workdir, true, caps, anybot_dir)
+        }
         ActionSubject::Capabilities => FloorAction::Capabilities,
     }
 }
 
 fn file_floor_action(
     path: &crate::action::PathView,
+    workdir: &str,
+    is_write: bool,
     caps: &ComputerCaps,
     anybot_dir: &str,
 ) -> FloorAction {
@@ -161,6 +165,12 @@ fn file_floor_action(
     let Some(canonical) = path.resolved_text() else {
         return FloorAction::UnresolvedPath;
     };
+    if caps.owner == ComputerOwner::User
+        && is_write
+        && crate::machine_rules::is_git_hook_or_config(path, workdir)
+    {
+        return FloorAction::Capabilities;
+    }
     FloorAction::FilePath {
         path: canonical.to_owned(),
         caps: caps.clone(),
@@ -175,7 +185,7 @@ pub(crate) fn judge(
     config: &GateConfig,
     computer: &str,
 ) -> GateVerdict {
-    let verdict = default_rule(action, caps);
+    let verdict = default_rule_with_always(action, caps, &config.user.always, computer);
     let floor_action = floor_view_with_dir(action, caps, &config.anybot_dir);
     let floor_hit = floor_check(&floor_action);
     let input = EngineInput {
@@ -199,7 +209,7 @@ pub(crate) fn judge(
     );
     let bot_machine = caps.owner == ComputerOwner::Bot;
     let denied_token = floor_denied_token(action, bot_machine);
-    let params = verdict_params(
+    let mut params = verdict_params(
         decision.layer,
         floor_hit,
         &rule,
@@ -208,6 +218,11 @@ pub(crate) fn judge(
         &config.bot_name,
         computer,
     );
+    if step == GateStep::AskPatterns
+        && let Some(label) = ask_style_label(action, &config.user)
+    {
+        params.push(("rule".to_owned(), label));
+    }
     GateVerdict {
         outcome: gate_outcome(decision.outcome),
         layer: decision.layer,

@@ -2,10 +2,10 @@ use anybot_foundation::{BotId, CallId, TaskId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BudgetItem, CardAnswer, CheckSource, ComputerRef, Criterion, DeviceReportKind, DoneWhenChange,
-    EvidenceRecord, FinishReason, GateRecord, ModelName, NativeRef, NotRunReason, Proposer,
-    ReconcileOutcome, TaskOpener, ThinkingChoice, TokenUsage, ToolEffect, ToolRequest,
-    TurnEndReason, TurnInitiator,
+    BudgetItem, CardAnswer, CardButton, CardKind, CheckSource, ComputerRef, Criterion,
+    DeviceReportKind, DoneWhenChange, EvidenceRecord, FinishReason, GateRecord, ModelName,
+    NativeRef, NotRunReason, Proposer, ReasonPayload, ReconcileOutcome, TaskOpener, ThinkingChoice,
+    TokenUsage, ToolEffect, ToolRequest, TurnEndReason, TurnInitiator,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -150,6 +150,12 @@ pub enum KnownTaskEventKind {
     CardShown {
         action: String,
         card: String,
+        kind: CardKind,
+        buttons: Vec<CardButton>,
+        reason: ReasonPayload,
+        always_label: Option<ReasonPayload>,
+        notes: Vec<ReasonPayload>,
+        classes: Vec<String>,
     },
     CardAnswered {
         answer: CardAnswer,
