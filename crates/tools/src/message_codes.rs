@@ -8,6 +8,7 @@ pub const CODE_TOOL_READ_TOO_BIG: &str = "tool-read-too-big";
 pub const CODE_TOOL_READ_NOT_TEXT: &str = "tool-read-not-text";
 pub const CODE_TOOL_READ_DIRECTORY: &str = "tool-read-directory";
 pub const CODE_TOOL_READ_LINES: &str = "tool-read-lines";
+pub const CODE_TOOL_READ_MORE: &str = "tool-read-more";
 pub const CODE_TOOL_SHELL_NO_OUTPUT: &str = "tool-shell-no-output";
 pub const CODE_TOOL_SHELL_FAILED: &str = "tool-shell-failed";
 pub const CODE_TOOL_SHELL_TRIMMED: &str = "tool-shell-trimmed";
@@ -19,7 +20,7 @@ pub const CODE_TOOL_DESC_READ_FILE: &str = "tool-desc-read-file";
 pub const CODE_TOOL_DESC_SHELL: &str = "tool-desc-shell";
 
 #[must_use]
-pub fn all_tool_codes() -> [&'static str; 19] {
+pub fn all_tool_codes() -> [&'static str; 20] {
     [
         CODE_TOOL_EDIT_CREATED,
         CODE_TOOL_EDIT_OVERWRITTEN,
@@ -31,6 +32,7 @@ pub fn all_tool_codes() -> [&'static str; 19] {
         CODE_TOOL_READ_NOT_TEXT,
         CODE_TOOL_READ_DIRECTORY,
         CODE_TOOL_READ_LINES,
+        CODE_TOOL_READ_MORE,
         CODE_TOOL_SHELL_NO_OUTPUT,
         CODE_TOOL_SHELL_FAILED,
         CODE_TOOL_SHELL_TRIMMED,

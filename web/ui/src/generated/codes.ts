@@ -107,6 +107,7 @@ export type MessageCode =
   "tool-read-not-text" |
   "tool-read-directory" |
   "tool-read-lines" |
+  "tool-read-more" |
   "tool-shell-no-output" |
   "tool-shell-failed" |
   "tool-shell-trimmed" |
@@ -319,6 +320,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-read-not-text",
   "tool-read-directory",
   "tool-read-lines",
+  "tool-read-more",
   "tool-shell-no-output",
   "tool-shell-failed",
   "tool-shell-trimmed",

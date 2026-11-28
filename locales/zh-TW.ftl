@@ -101,10 +101,11 @@ tool-edit-modified = 已修改 { $path }。
 tool-edit-not-found = 在 { $path } 找不到要取代的文字。檔案沒有動。
 tool-edit-multiple = 要取代的文字在 { $path } 出現 { $count } 次。檔案沒有動。
 tool-edit-file-missing = { $path } 不存在，找不到要取代的文字。
-tool-read-too-big = { $path } 超過讀取上限（{ $size } 位元組）。
+tool-read-too-big = { $path } 太大了，最多讀 8 MB。
 tool-read-not-text = { $path } 不是文字檔。
-tool-read-directory = { $path } 是資料夾，不是檔案。
+tool-read-directory = { $path } 是資料夾，請用 list_dir。
 tool-read-lines = { $path } 的第 { $from } 到 { $to } 行。
+tool-read-more = ……還有 { $remaining } 行（用 offset={ $next_offset } 繼續讀）。
 tool-shell-no-output = 完成，沒有輸出。
 tool-shell-failed = 結束代碼 { $code }。
 tool-shell-trimmed = 輸出很長：省略了 { $omitted } 個字，原文的編號是 { $digest }。

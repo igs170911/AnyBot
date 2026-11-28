@@ -100,10 +100,11 @@ tool-edit-modified = Modified { $path }.
 tool-edit-not-found = The text to replace was not found in { $path }. The file was left unchanged.
 tool-edit-multiple = The text to replace appears { $count } times in { $path }. The file was left unchanged.
 tool-edit-file-missing = { $path } does not exist, so the text to replace cannot be found.
-tool-read-too-big = { $path } is larger than the read limit ({ $size } bytes).
+tool-read-too-big = { $path } is too large (maximum 8 MB).
 tool-read-not-text = { $path } is not a text file.
-tool-read-directory = { $path } is a folder, not a file.
+tool-read-directory = { $path } is a folder; use list_dir.
 tool-read-lines = Lines { $from } to { $to } of { $path }.
+tool-read-more = ...{ $remaining } more lines (use offset={ $next_offset } to continue reading).
 tool-shell-no-output = Finished with no output.
 tool-shell-failed = Exit code { $code }.
 tool-shell-trimmed = Output was long: { $omitted } characters were omitted; the full text digest is { $digest }.

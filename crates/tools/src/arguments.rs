@@ -123,7 +123,7 @@ fn parse_edit(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsR
 fn parse_read(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
     let path = text_field(object, "path", TOOL_READ_FILE)?;
     let offset = small_field(object, "offset")?.unwrap_or(0);
-    let limit = small_field(object, "limit")?.unwrap_or(2000);
+    let limit = small_field(object, "limit")?.unwrap_or(crate::read::DEFAULT_READ_LIMIT);
     Ok(ToolArgs::Read(ReadArgs {
         path,
         offset,

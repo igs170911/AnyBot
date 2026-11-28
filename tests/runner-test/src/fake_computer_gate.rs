@@ -93,10 +93,19 @@ impl GatedComputer for FakeComputer {
         let path = Self::ticket_path(&ticket)?;
         self.record(format!("read_file {path}"));
         self.reachable()?;
+        let canonical = self.resolve_target(path).unwrap_or_else(|| path.to_owned());
+        if Self::guard(&self.tree).is_directory(path) {
+            return Ok(ActualResult::Read(ReadOutcome {
+                path: canonical,
+                kind: TargetKind::Directory,
+                digest: digest_text(""),
+                size: 0,
+                content: String::new(),
+            }));
+        }
         let content = Self::guard(&self.tree).read(path).ok_or_else(|| {
             OpRejection::from_failure(ComputerFailure::operation(MISSING_FILE_REASON.to_owned()))
         })?;
-        let canonical = self.resolve_target(path).unwrap_or_else(|| path.to_owned());
         Ok(ActualResult::Read(ReadOutcome {
             path: canonical,
             kind: TargetKind::File,

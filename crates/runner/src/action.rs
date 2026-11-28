@@ -85,11 +85,9 @@ fn view_of(lang: anybot_messages::Lang, args: &anybot_tools::ToolArgs) -> Action
             .with_edit_lines(line_count(&edit.new_text))
             .with_edit_path(&edit.path),
 
-        anybot_tools::ToolArgs::Read(read) => {
-            let from = read.offset.saturating_add(1);
-            let to = from.saturating_add(read.limit.saturating_sub(1));
-            ActionView::new(lang).with_read_range(u32_of(from), u32_of(to))
-        }
+        anybot_tools::ToolArgs::Read(read) => ActionView::new(lang)
+            .with_read_window(read.offset, read.limit)
+            .with_read_path(&read.path),
         anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
     }
 }
@@ -105,10 +103,6 @@ fn line_count(text: &str) -> u32 {
         return 0;
     }
     lines
-}
-
-fn u32_of(value: usize) -> u32 {
-    u32::try_from(value).unwrap_or(u32::MAX)
 }
 
 pub(crate) fn model_word(text: &OutcomeText) -> Option<String> {

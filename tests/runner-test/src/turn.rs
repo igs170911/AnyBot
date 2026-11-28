@@ -28,6 +28,7 @@ pub struct WorldSetup {
     pub fail_on_kind: Option<&'static str>,
     pub sandbox: bool,
     pub files: Vec<(String, String)>,
+    pub dirs: Vec<String>,
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
     pub gate: anybot_trust::GateConfig,
 }
@@ -47,6 +48,7 @@ impl Default for WorldSetup {
             fail_on_kind: None,
             sandbox: true,
             files: Vec::new(),
+            dirs: Vec::new(),
             scripts: Vec::new(),
             gate: anybot_trust::GateConfig::plain(),
         }
@@ -143,6 +145,9 @@ fn apply_world_files(
     setup: &WorldSetup,
 ) -> crate::fake_builder::FakeComputerBuilder {
     let mut built = computer;
+    for dir in &setup.dirs {
+        built = built.directory(dir);
+    }
     for (path, content) in &setup.files {
         built = built.file(path, content);
     }

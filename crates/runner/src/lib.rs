@@ -19,6 +19,7 @@ pub mod runner;
 pub mod step;
 mod tool_specs;
 pub mod view;
+mod view_text;
 
 pub use approvals::PendingCard;
 pub use error::TurnError;
