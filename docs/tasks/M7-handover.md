@@ -38,7 +38,7 @@
 | 手機畫面 | `ws/m7-phone` | U1、U3、U4 | `ae1b6e74-91b1-4499-a3d9-4a8053a50c43` |
 
 M7j 伺服器整合規劃已完成並合進 `dev`：`docs/tasks/M7-plan-server-integration.md`（23 片 J1–J23，伺服器遷移 0400–0449；問題全部照建議，其中 Q1 `model-reach` 放 J18、Q2 兩列解讀、Q7 跨區分類、Q25 客戶端遷移用 0060–0069，要在最後回報給使用者）。
-第二波已派出（2026-11-28 13:10）：`ws/m7-jpush`（J3 Web Push→J2 伺服器半段，agent `6995339f-7196-4c81-a358-861ab6504932`）、`ws/m7-jguard`（J19→J20，agent `b65af779-b6e5-4b3a-96ff-8b3ccfdca9b5`，已完成，等整合進 `dev` 後再合）。J1（狀態入口＋👍）、J5（卡片鑰匙）等第一波整合進 `dev` 後再開。
+第二波已派出（2026-11-28 13:10）：`ws/m7-jpush`（J3 Web Push→J2 伺服器半段，agent `6995339f-7196-4c81-a358-861ab6504932`，已完成，等整合進 `dev` 後再合）、`ws/m7-jguard`（J19→J20，agent `b65af779-b6e5-4b3a-96ff-8b3ccfdca9b5`，已完成，等整合進 `dev` 後再合）。J1（狀態入口＋👍）、J5（卡片鑰匙）等第一波整合進 `dev` 後再開。
 
 第一波整合：agent `d1fd70ab-59bd-4ff6-ab63-0e4eed9ee1ce` 正在 `integ/m7-w1` 合併四條分支、重產生成檔、跑快的檢查（2026-11-28 12:30 派出）。它回報後，監督者審最難的衝突（`action.rs`、`approvals.rs`、`runner.rs`、`step.rs`），跑完整驗證再推。
 
@@ -100,3 +100,14 @@ M7j 伺服器整合規劃已完成並合進 `dev`：`docs/tasks/M7-plan-server-i
 - 沒宣告大小且超過 256 KB 的請求，現有處理函式回 500 不是 413（原本的行為）。
 - 舊檔 `apps/server/tests/pg_api_source_addr.rs` 的描述性代理測試和新測試重複，可收掉。
 - `build_router` 被改成包一層，內容搬到私有的 `layered_routes`，合併別的路由時注意。
+
+## 八、J3／J2 伺服器半段（`ws/m7-jpush`）留下的
+
+- 完整驗證：`T-server-n4-2`、`T-server-n4-3`、`T-server-n4-4`。`T-conn-batch-2` 要等執行端半段（T13 之後：`sync/typing_send.rs`、`runner/typing.rs`）。
+- 新入口：`GET /v1/push/server-key`、`POST /v1/push/subscriptions`、`GET /v1/push/subscriptions/mine`、`DELETE /v1/push/subscriptions/{id}`、`POST /v1/streams/typing`；遷移 `0400`、`0401`；`.sqlx` 9 個檔。
+- 重產時注意：`api/asyncapi.yaml` 不用動（不描述串流 SSE）；檢查資料庫結構的測試（`pg_schema_migrate` 一類）要看。
+- 待辦：`domain::computer_actions::RUNNER_ALLOWED_PATHS` 要放行 `/v1/streams/typing`，做 J2 執行端半段時一起改（現在只有電腦憑證可以打）。
+- `WebPushNotifier` 沒有 HTTP 入口，J4／T19 才接；VAPID contact 先由建構函式傳入。
+- `sad-web-push 0.12.0`：Apache-2.0，三位作者（Sadco Security Team 等），不是單一作者，workspace 已有。DNS rebinding 目前只在送出前檢查一次，沒有鎖定解析結果（先不處理，要不要鎖放給使用者）。
+- 新依賴要在全套檢查看：channels 的 `sad-web-push`、`getrandom` 等；`tests/server-test` 新增 `anybot-channels`、`anybot-foundation`、`anybot-server`、`test-harness`、`data-encoding`；`tests/harness/fake_push_tls.rs` 用 rcgen、tokio-rustls，depcheck 是否允許沒驗。
+- `build_router` 多了 `integration_routes()`；和 `ws/m7-jguard` 都動了 `app.rs`，合併時兩邊都保留。
