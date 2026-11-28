@@ -46,10 +46,14 @@ export function scenarioLang(locale: string | undefined): Lang {
   return "en";
 }
 
-export function textFor(code: string, lang: Lang): string {
+export function textFor(
+  code: string,
+  lang: Lang,
+  args: Readonly<Record<string, string>> = {},
+): string {
   const entry = entriesFor(lang).get(code);
   if (entry === undefined) {
     throw new Error(`locale ${lang} has no entry for message code ${code}`);
   }
-  return entry;
+  return entry.replace(/\{\s*\$(\w+)\s*\}/g, (whole, name: string) => args[name] ?? whole);
 }
