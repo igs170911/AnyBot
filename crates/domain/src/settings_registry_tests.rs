@@ -23,3 +23,19 @@ fn names_outside_the_registry_are_unknown() {
     assert_eq!(check_setting("accentcolour"), SettingCheck::Unknown);
     assert_eq!(check_setting(""), SettingCheck::Unknown);
 }
+
+#[test]
+fn autonomy_switches_follow_the_account_across_devices() {
+    assert_eq!(
+        check_setting("yolo"),
+        SettingCheck::Synced { per_item: false }
+    );
+    assert_eq!(
+        check_setting("smart_seconds"),
+        SettingCheck::Synced { per_item: false }
+    );
+    assert_eq!(
+        check_setting("direct_mode"),
+        SettingCheck::Synced { per_item: false }
+    );
+}

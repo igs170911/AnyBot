@@ -7,6 +7,7 @@ use serde as _;
 use serde_json as _;
 use std::sync::Arc;
 use std::time::Duration;
+use tiktoken_rs as _;
 use tokio_rustls as _;
 use trybuild as _;
 use url as _;

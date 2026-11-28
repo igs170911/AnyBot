@@ -104,6 +104,11 @@ pub(crate) fn prepared_gate(
     source: JudgementSource,
 ) -> GateRecord {
     let mut record = gate.clone();
+    if matches!(source, JudgementSource::You | JudgementSource::RuleTimeout) {
+        record.gate = anybot_protocol::GateStep::AskYou;
+    } else if source == JudgementSource::AlwaysApprove {
+        record.gate = anybot_protocol::GateStep::Relax;
+    }
     record.source = source;
     record.outcome = match answer {
         GateAnswer::Allow => GateOutcome::Allow,
@@ -120,7 +125,7 @@ pub(crate) fn user_approved_run(
     view: &dyn ModelResultView,
     clock: &dyn Clock,
 ) -> ActionRun {
-    let approved = approved_evidence(&request.context, gate, JudgementSource::You, clock);
+    let approved = approved_evidence(&request.context, gate, gate.source, clock);
     let mut run = executed_run(request, ticket, computer, view, clock);
     run.gate = gate.clone();
     run.summary

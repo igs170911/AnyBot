@@ -74,30 +74,39 @@ fn deficit_counts_prefix_blocks_once() {
     assert_eq!(info.deficit_tokens, 1_249);
 }
 
+fn card_shown(action: &str) -> anybot_protocol::KnownTaskEventKind {
+    anybot_protocol::KnownTaskEventKind::CardShown {
+        action: action.to_owned(),
+        card: "card-1".to_owned(),
+        kind: anybot_protocol::CardKind::Action,
+        resume: None,
+        buttons: vec![
+            anybot_protocol::CardButton::AllowOnce,
+            anybot_protocol::CardButton::Deny,
+        ],
+        reason: anybot_protocol::ReasonPayload {
+            code: "card-run-command".to_owned(),
+            params: Vec::new(),
+        },
+        always_label: None,
+        notes: Vec::new(),
+        classes: Vec::new(),
+    }
+}
+
 #[test]
 fn answered_card_is_not_an_open_question() {
     let mut input = sup::base_input();
     input.events = vec![
-        sup::known(
-            1,
-            anybot_protocol::KnownTaskEventKind::CardShown {
-                action: "which colour?".to_owned(),
-                card: "card-1".to_owned(),
-            },
-        ),
+        sup::known(1, card_shown("which colour?")),
         sup::known(
             2,
             anybot_protocol::KnownTaskEventKind::CardAnswered {
                 answer: anybot_protocol::CardAnswer::AllowOnce,
+                origin: anybot_protocol::AnswerOrigin::Hand,
             },
         ),
-        sup::known(
-            3,
-            anybot_protocol::KnownTaskEventKind::CardShown {
-                action: "which file?".to_owned(),
-                card: "card-1".to_owned(),
-            },
-        ),
+        sup::known(3, card_shown("which file?")),
     ];
     let Compiled::Sent { request, .. } = compile(&input).unwrap() else {
         panic!("expected sent");

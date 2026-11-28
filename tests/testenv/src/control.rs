@@ -6,7 +6,6 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use axum::routing::{get, post};
 
-use test_harness::model_script::Step;
 use test_harness::netctl::{net_cut, net_restore};
 
 use crate::state::{TestEnvState, advance_ms};
@@ -33,20 +32,6 @@ async fn status(State(state): State<Arc<TestEnvState>>) -> Json<StatusView> {
         ports: state.ports.clone(),
         now_ms: state.clock.now_ms(),
     })
-}
-
-async fn set_script(
-    State(state): State<Arc<TestEnvState>>,
-    Json(steps): Json<Vec<Step>>,
-) -> StatusCode {
-    state.model.script_set(steps);
-    StatusCode::ACCEPTED
-}
-
-async fn list_requests(
-    State(state): State<Arc<TestEnvState>>,
-) -> Json<Vec<test_harness::model_script::RecordedRequest>> {
-    Json(state.model.recorded())
 }
 
 async fn advance(
@@ -82,11 +67,10 @@ async fn push_records(
 pub fn control_router(state: Arc<TestEnvState>) -> Router {
     Router::new()
         .route("/control/status", get(status))
-        .route("/control/model/script", post(set_script))
-        .route("/control/model/requests", get(list_requests))
         .route("/control/clock/advance", post(advance))
         .route("/control/net/cut", post(cut))
         .route("/control/net/restore", post(restore))
         .route("/control/push/records", get(push_records))
+        .merge(crate::control_world::routes())
         .with_state(state)
 }

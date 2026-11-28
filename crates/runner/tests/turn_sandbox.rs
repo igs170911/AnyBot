@@ -4,6 +4,7 @@ use anybot_messages as _;
 use anybot_models as _;
 use anybot_protocol as _;
 use anybot_runner as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use anybot_trust as _;
 use proptest as _;
@@ -17,11 +18,10 @@ use anybot_protocol::{EvidenceKind, EvidencePayload, KnownTaskEventKind};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{fmt_text, messages_of, request_body, task_kinds, task_of};
-use runner_test::turn_tool_helpers::{all_specs, one_tool_step};
+use runner_test::turn_tool_helpers::one_tool_step;
 
 fn sandbox_setup() -> WorldSetup {
     WorldSetup {
-        tools: all_specs(),
         scripts: vec![
             (
                 "sudo apt-get install jq".to_owned(),
@@ -37,7 +37,7 @@ fn sandbox_setup() -> WorldSetup {
 }
 
 fn shell_call(line: &str, id: &str) -> test_harness::ToolCallScript {
-    runner_test::turn_tool_helpers::call("shell", &format!("{{\"line\":\"{line}\"}}"), id)
+    runner_test::turn_tool_helpers::call("shell", &format!("{{\"command\":\"{line}\"}}"), id)
 }
 
 fn deny_reason(world: &TurnWorld, task: &anybot_foundation::TaskId) -> Result<String, String> {
@@ -64,7 +64,8 @@ impl EvidencePayloadExt for EvidencePayload {
             | EvidencePayload::Changed { .. }
             | EvidencePayload::Seen { .. }
             | EvidencePayload::Executed { .. }
-            | EvidencePayload::NotExecuted { .. } => String::new(),
+            | EvidencePayload::NotExecuted { .. }
+            | EvidencePayload::Relayed { .. } => String::new(),
         }
     }
 }

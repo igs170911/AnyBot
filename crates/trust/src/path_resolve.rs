@@ -10,6 +10,18 @@ pub(crate) fn resolve_subject(
         ActionSubject::ReadFile { path } => ActionSubject::ReadFile {
             path: resolve_one(&path, computer, workdir),
         },
+        ActionSubject::ListDir { path } => ActionSubject::ListDir {
+            path: resolve_one(&path, computer, workdir),
+        },
+        ActionSubject::Search {
+            path,
+            pattern,
+            files_only,
+        } => ActionSubject::Search {
+            path: resolve_one(&path, computer, workdir),
+            pattern,
+            files_only,
+        },
         ActionSubject::WriteFile { path, content } => ActionSubject::WriteFile {
             path: resolve_one(&path, computer, workdir),
             content,
@@ -38,7 +50,12 @@ pub(crate) fn resolve_one(
     if !view.is_resolvable() {
         return view.clone();
     }
-    let effective = view.effective(workdir);
+    let raw = view.raw_text();
+    let effective = if raw == "~" || raw.starts_with("~/") || raw.starts_with("~\\") {
+        raw.to_owned()
+    } else {
+        view.effective(workdir)
+    };
     match computer.resolve_target(&effective) {
         Some(canonical) => PathView::resolved(view.raw_text(), &canonical),
         None => PathView::unresolvable(view.raw_text()),

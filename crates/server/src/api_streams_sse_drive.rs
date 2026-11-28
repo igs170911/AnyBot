@@ -5,7 +5,7 @@ use std::time::Duration;
 use futures_util::future::{self, Ready};
 use tokio::sync::broadcast;
 
-use anybot_bus::{Notification, stream_id_of_note};
+use anybot_bus::{Notification, TypingNote, stream_id_of_note};
 use anybot_foundation::Clock;
 use anybot_protocol::{
     HEARTBEAT_INTERVAL_SECS, NewRecordsEvent, ProgressEvent, StreamProgress, sse_event_line,
@@ -13,8 +13,11 @@ use anybot_protocol::{
 };
 use anybot_store_server::{Pool, streams};
 
+use crate::sse_typing::TypingFeed;
+
 pub struct Tail {
     pub rx: broadcast::Receiver<Notification>,
+    pub typing: broadcast::Receiver<TypingNote>,
     pub pool: Pool,
     pub shutdown: Arc<tokio::sync::Notify>,
     pub clock: Arc<dyn Clock>,
@@ -41,8 +44,7 @@ pub fn json_line<T: serde::Serialize>(name: &str, event: &T) -> Result<String, s
 
 enum Step {
     End,
-    Beat,
-    Push(String),
+    Send(Vec<String>),
     Skip,
 }
 
@@ -58,6 +60,7 @@ async fn drive(head: Vec<String>, tail: Tail, tx: tokio::sync::mpsc::Sender<Stri
     let mut last: HashMap<String, i64> = HashMap::new();
     last.insert("account/".to_owned() + &tail.account, tail.init_seq);
     let keys = tail.keys;
+    let mut typing = TypingFeed::new(tail.typing, keys.clone(), Arc::clone(&tail.clock));
     let pool = tail.pool;
     let clock = tail.clock;
     let account = tail.account;
@@ -65,18 +68,14 @@ async fn drive(head: Vec<String>, tail: Tail, tx: tokio::sync::mpsc::Sender<Stri
         let step = tokio::select! {
             biased;
             () = &mut ending => Step::End,
-            () = clock.sleep(Duration::from_secs(HEARTBEAT_INTERVAL_SECS)) => Step::Beat,
+            () = clock.sleep(Duration::from_secs(HEARTBEAT_INTERVAL_SECS)) => Step::Send(vec![sse_heartbeat_line().to_owned()]),
             note = rx.recv() => on_note(&account, &keys, &pool, &mut last, note).await,
+            lines = typing.next_lines() => Step::Send(lines),
         };
         match step {
             Step::End => break,
-            Step::Beat => {
-                if tx.send(sse_heartbeat_line().to_owned()).await.is_err() {
-                    return;
-                }
-            }
-            Step::Push(line) => {
-                if tx.send(line).await.is_err() {
+            Step::Send(lines) => {
+                if !send_all(&tx, lines).await {
                     return;
                 }
             }
@@ -118,7 +117,7 @@ async fn on_note(
     let Ok(line) = json_line("new-records", &event) else {
         return Step::Skip;
     };
-    Step::Push(line)
+    Step::Send(vec![line])
 }
 
 async fn send_closing(
@@ -157,4 +156,13 @@ async fn closing_device(pool: &Pool, key: &str, seq: i64) -> String {
             String::new()
         }
     }
+}
+
+async fn send_all(tx: &tokio::sync::mpsc::Sender<String>, lines: Vec<String>) -> bool {
+    for line in lines {
+        if tx.send(line).await.is_err() {
+            return false;
+        }
+    }
+    true
 }

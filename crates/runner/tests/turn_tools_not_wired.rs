@@ -1,6 +1,8 @@
 use anybot_context as _;
 use anybot_domain as _;
+use anybot_models as _;
 use anybot_runner as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use anybot_trust as _;
 use proptest as _;
@@ -11,21 +13,13 @@ use thiserror as _;
 use anybot_foundation::TaskId;
 use anybot_messages::{Lang, Params};
 use anybot_protocol::{KnownTaskEventKind, ToolRequest};
-use runner_test::turn::{Device, TurnWorld, WorldSetup, tool_spec};
+use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{
     chat_requests, fmt_text, kind_names, messages_of, raw_has, state_of, task_kinds, task_of,
 };
 use test_harness::{
     ModelFormat, ToolCallScript, model_replies_text, model_think_then_tool, model_tool_calls,
 };
-
-fn two_specs() -> Vec<anybot_models::ToolSpec> {
-    vec![
-        tool_spec("read_file", "Read a file"),
-        tool_spec("shell", "Run a shell command"),
-        tool_spec("edit_file", "Edit a file"),
-    ]
-}
 
 fn call(name: &str, args: &str, id: &str) -> ToolCallScript {
     ToolCallScript {
@@ -38,16 +32,13 @@ fn call(name: &str, args: &str, id: &str) -> ToolCallScript {
 
 #[tokio::test]
 async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
-    let setup = WorldSetup {
-        tools: two_specs(),
-        ..WorldSetup::default()
-    };
+    let setup = WorldSetup::default();
     let world = TurnWorld::start(&setup).await?;
     world.script(vec![
         model_tool_calls(
             vec![
                 call("read_file", "{\"path\":\"a.txt\"}", "c1"),
-                call("shell", "{\"line\":\"ls\"}", "c2"),
+                call("shell", "{\"command\":\"ls\"}", "c2"),
             ],
             "tool_calls",
             false,
@@ -67,6 +58,7 @@ async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
+            "budget_usage",
             "gate_result",
             "tool_intent",
             "tool_started",
@@ -83,6 +75,7 @@ async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
+            "budget_usage",
             "turn_ended",
             "delivery_report"
         ]
@@ -173,7 +166,6 @@ fn failed_text(reason: &str) -> Result<String, String> {
 async fn turn_native_reply_kept_as_attachment() -> Result<(), String> {
     let setup = WorldSetup {
         format: ModelFormat::Anthropic,
-        tools: two_specs(),
         ..WorldSetup::default()
     };
     let world = TurnWorld::start(&setup).await?;

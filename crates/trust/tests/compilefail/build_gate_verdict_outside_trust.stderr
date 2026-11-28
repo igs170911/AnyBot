@@ -1,15 +1,17 @@
-error[E0451]: fields `outcome`, `layer`, `rule`, `read_only` and `params` of struct `GateVerdict` are private
-  --> tests/compilefail/build_gate_verdict_outside_trust.rs:6:9
+error: cannot construct `GateVerdict` with struct literal syntax due to private fields
+  --> tests/compilefail/build_gate_verdict_outside_trust.rs:5:19
    |
  5 |     let verdict = anybot_trust::GateVerdict {
-   |                   ------------------------- in this type
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
  6 |         outcome: GateOutcome::Allow,
-   |         ^^^^^^^ private field
+   |         --------------------------- private field
  7 |         layer: GateLayer::Default,
-   |         ^^^^^ private field
+   |         ------------------------- private field
  8 |         rule: "made-by-me".to_owned(),
-   |         ^^^^ private field
+   |         ----------------------------- private field
  9 |         read_only: false,
-   |         ^^^^^^^^^ private field
+   |         ---------------- private field
 10 |         params: Vec::new(),
-   |         ^^^^^^ private field
+   |         ------------------ private field
+   |
+   = note: ...and other private fields `step` and `source` that were not provided

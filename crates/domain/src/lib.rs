@@ -13,6 +13,12 @@ pub mod goal_followup;
 pub mod invite;
 pub mod mailbox_letter;
 pub mod mailbox_route;
+pub mod memory_admit;
+pub mod memory_projection;
+mod memory_projection_ops;
+pub mod memory_scan;
+pub mod memory_secret_rules;
+pub mod memory_types;
 pub mod pairing_rules;
 pub mod record_actions;
 pub mod record_rules;
@@ -32,9 +38,13 @@ pub mod task_engine_lifecycle;
 pub mod task_entry;
 pub mod task_gate;
 pub mod task_journal;
+mod task_lifecycle_ops;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
+pub mod turn_summary;
+#[cfg(test)]
+mod turn_summary_tests;
 pub mod two_step;
 pub mod version_release;
 #[cfg(test)]
@@ -45,6 +55,12 @@ pub mod window;
 mod card_waiting_tests;
 #[cfg(test)]
 mod conn_auth_tests;
+#[cfg(test)]
+mod memory_prop_tests;
+#[cfg(test)]
+mod memory_tests;
+#[cfg(test)]
+mod memory_tests_extra;
 #[cfg(test)]
 #[cfg(test)]
 mod record_actions_tests;
@@ -66,6 +82,24 @@ mod settings_registry_tests;
 pub use anybot_foundation::{DeviceId, TimestampMs};
 pub use anybot_protocol::TaskStatus;
 pub use invite::{INVITE_ALPHABET, alphabet_len, format_invite, is_valid_invite};
+pub use memory_admit::{
+    Admission, AdmitReject, AdmittedMemory, CODE_MEMORY_CONTRADICTION_MISSING,
+    CODE_MEMORY_EMPTY_CONTENT, MemoryClaimSource, MemoryProposal, admit,
+};
+pub use memory_projection::project;
+pub use memory_scan::{
+    CODE_MEMORY_SCAN_INJECTION, CODE_MEMORY_SCAN_INVISIBLE, CODE_MEMORY_SCAN_SECRET, ScanCategory,
+    ScanFinding, scan,
+};
+pub use memory_secret_rules::{
+    SecretMatch, find_secret_patterns, has_secret_pattern, redact_secret_patterns,
+};
+pub use memory_types::{
+    ContradictionNote, MAX_MEMORY_CHARS, MemoryBook, MemoryEventContent, MemoryEventKind,
+    MemoryEventRecord, MemoryEvidenceRef, MemoryKind, MemoryOrigin, MemoryRecordError, MemoryScope,
+    MemorySource, MemoryState, MemoryVersionEntry, ProjectedMemory, normalize_for_match,
+    truncate_memory_content,
+};
 pub use record_rules::{
     AcceptContext, AcceptOutcome, BotState, DedupFields, decide_accept, dedup_same,
     is_device_forbidden,
@@ -89,6 +123,7 @@ pub use task_replay::{
 };
 pub use task_stall::{RunningSpan, is_stalled};
 pub use task_view::{TaskView, initial_view};
+pub use turn_summary::{SummaryError, TurnSummary, turn_summary};
 
 #[must_use]
 pub fn needs_attention(status: TaskStatus) -> bool {

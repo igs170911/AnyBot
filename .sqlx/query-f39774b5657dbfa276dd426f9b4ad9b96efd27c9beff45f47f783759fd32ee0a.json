@@ -1,0 +1,24 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT kind FROM records WHERE stream = ? AND task_id = ? AND seq > ?\n                AND kind IN ('task_stopped', 'task_cancelled') ORDER BY seq",
+  "describe": {
+    "columns": [
+      {
+        "name": "kind",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "kind"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [false]
+  },
+  "hash": "f39774b5657dbfa276dd426f9b4ad9b96efd27c9beff45f47f783759fd32ee0a"
+}

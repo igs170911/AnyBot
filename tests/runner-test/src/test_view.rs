@@ -39,6 +39,14 @@ fn result_params(result: &ActualResult) -> Vec<(String, String)> {
             ("path".to_owned(), outcome.path.clone()),
             ("digest".to_owned(), outcome.digest.hex().to_owned()),
         ],
+        ActualResult::List(outcome) => vec![
+            ("path".to_owned(), outcome.canonical.clone()),
+            ("count".to_owned(), outcome.entries.len().to_string()),
+        ],
+        ActualResult::Search(outcome) => vec![
+            ("hits".to_owned(), outcome.hits.len().to_string()),
+            ("files".to_owned(), outcome.files.len().to_string()),
+        ],
         ActualResult::Path(outcome) => vec![("canonical".to_owned(), outcome.canonical.clone())],
         ActualResult::Caps(caps) => vec![("caps".to_owned(), caps.capability_label())],
     }

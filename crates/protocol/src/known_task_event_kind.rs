@@ -2,9 +2,10 @@ use anybot_foundation::{BotId, CallId, TaskId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BudgetItem, CardAnswer, CheckSource, ComputerRef, Criterion, DeviceReportKind, DoneWhenChange,
-    EvidenceRecord, FinishReason, GateRecord, ModelName, NativeRef, NotRunReason, Proposer,
-    ReconcileOutcome, TaskOpener, ThinkingChoice, TokenUsage, ToolEffect, ToolRequest,
+    AnswerOrigin, BudgetItem, CardAnswer, CardButton, CardKind, CheckSource, ComputerRef,
+    Criterion, DeviceReportKind, DoneWhenChange, EvidenceRecord, FinishReason, GateRecord,
+    ModelName, NativeRef, NotRunReason, Proposer, QuestionAnswer, QuestionItem, ReasonPayload,
+    ReconcileOutcome, ResumeCard, TaskOpener, ThinkingChoice, TokenUsage, ToolEffect, ToolRequest,
     TurnEndReason, TurnInitiator,
 };
 
@@ -135,9 +136,11 @@ pub enum KnownTaskEventKind {
         observed: String,
     },
     AcceptanceUnavailable,
+    VerificationStarted,
     ClaimChecked {
         covers_claim: bool,
         verified: bool,
+        reasons: Vec<ReasonPayload>,
     },
     BudgetUsage {
         item: BudgetItem,
@@ -150,9 +153,28 @@ pub enum KnownTaskEventKind {
     CardShown {
         action: String,
         card: String,
+        #[serde(default)]
+        kind: CardKind,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resume: Option<Box<ResumeCard>>,
+        buttons: Vec<CardButton>,
+        reason: ReasonPayload,
+        always_label: Option<ReasonPayload>,
+        notes: Vec<ReasonPayload>,
+        classes: Vec<String>,
     },
     CardAnswered {
         answer: CardAnswer,
+        #[serde(default)]
+        origin: AnswerOrigin,
+    },
+    QuestionShown {
+        card: String,
+        questions: Vec<QuestionItem>,
+    },
+    QuestionAnswered {
+        card: String,
+        answer: QuestionAnswer,
     },
     DeviceReport {
         kind: DeviceReportKind,

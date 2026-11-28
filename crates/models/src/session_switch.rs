@@ -20,12 +20,7 @@ pub(crate) fn keep_or_stop(
         return ChainStep::Stop(err);
     };
     session.notices.extend(notices.clone());
-    session.logs.push(crate::failure_log::failure_log(
-        &classified,
-        u32::try_from(session.logs.len().saturating_add(1)).unwrap_or(u32::MAX),
-        notice_detail(&notices),
-        None,
-    ));
+    push_failure_log(session, &classified, &notices);
     if classified.code == "model-budget" {
         return ChainStep::Stop(crate::ask::classified_fail(
             classified,
@@ -66,6 +61,19 @@ pub(crate) fn finish_ask(
         handoffs,
         skips,
     }
+}
+
+pub(crate) fn push_failure_log(
+    session: &mut Session,
+    classified: &crate::errors::Classified,
+    notices: &[crate::notice::Notice],
+) {
+    session.logs.push(crate::failure_log::failure_log(
+        classified,
+        u32::try_from(session.logs.len().saturating_add(1)).unwrap_or(u32::MAX),
+        notice_detail(notices),
+        None,
+    ));
 }
 
 fn notice_detail(notices: &[crate::notice::Notice]) -> &str {
@@ -188,7 +196,10 @@ fn push_handoff(
     ));
 }
 
-fn same_model(left: &crate::session::ModelRef, right: &crate::session::ModelRef) -> bool {
+pub(crate) fn same_model(
+    left: &crate::session::ModelRef,
+    right: &crate::session::ModelRef,
+) -> bool {
     left.endpoint.kind == right.endpoint.kind
         && left.endpoint.model == right.endpoint.model
         && left.endpoint.base_url == right.endpoint.base_url

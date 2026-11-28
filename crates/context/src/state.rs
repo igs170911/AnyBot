@@ -128,6 +128,7 @@ fn apply_criteria(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
             set_outcome(b, *index, false, seq);
         }
         KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
@@ -153,6 +154,8 @@ fn apply_criteria(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::ModelUnreachable
@@ -192,6 +195,7 @@ fn apply_steps(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
@@ -209,6 +213,8 @@ fn apply_steps(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::ModelSwapped { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }

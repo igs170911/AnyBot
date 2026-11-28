@@ -37,7 +37,7 @@ test("testenv control api drives fake model, records, and clock end to end", asy
   const content = body.choices?.[0]?.message?.content;
   expect(content).toBe(SCRIPT_TEXT);
 
-  const recorded = await request.get(`${control}/control/model/requests`);
+  const recorded = await request.get(`${control}/control/model/requests?model=gpt-test`);
   const recordList = (await recorded.json()) as { path: string; body: string }[];
   expect(recordList.length).toBe(1);
   expect(recordList[0]?.path).toBe("/v1/chat/completions");

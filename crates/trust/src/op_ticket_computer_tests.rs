@@ -3,7 +3,7 @@ use crate::op_ticket::{OpKind, OpTicket};
 use crate::runner::{GatedComputer, OpRejection};
 use anybot_foundation::TimestampMs;
 use anybot_protocol::{
-    ActualResult, ComputerCaps, ComputerOwner, ComputerPlatform, GateNo, GateOutcome, GateRecord,
+    ActualResult, ComputerCaps, ComputerOwner, ComputerPlatform, GateOutcome, GateRecord, GateStep,
     JudgementSource, RuleLayer,
 };
 
@@ -15,7 +15,7 @@ fn ticket_caps() -> ComputerCaps {
 
 fn allow_record() -> GateRecord {
     GateRecord::new(
-        GateNo(1),
+        GateStep::DefaultRule,
         RuleLayer::Default,
         "bot-machine-command".to_owned(),
         JudgementSource::Rule,
@@ -28,6 +28,7 @@ fn command_ticket(line: &str, computer: &str) -> OpTicket {
     let subject = ActionSubject::Command {
         line: line.to_owned(),
         timeout_ms: 1000,
+        env: crate::sandbox_env::command_env_plan(),
     };
     let key = ActionKey::command("shell", line);
     OpTicket::issue(
@@ -83,6 +84,14 @@ impl GatedComputer for MinComputer {
 
     fn read_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
         Self::refuse(&ticket, OpKind::Read)
+    }
+
+    fn list_dir(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::refuse(&ticket, OpKind::ListDir)
+    }
+
+    fn search(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::refuse(&ticket, OpKind::Search)
     }
 
     fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
@@ -145,6 +154,14 @@ impl GatedComputer for RootWrapper {
 
     fn read_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
         Self::spend(&ticket, OpKind::Read)
+    }
+
+    fn list_dir(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::spend(&ticket, OpKind::ListDir)
+    }
+
+    fn search(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        Self::spend(&ticket, OpKind::Search)
     }
 
     fn write_file(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {

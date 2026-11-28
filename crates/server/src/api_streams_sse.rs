@@ -24,7 +24,7 @@ pub struct SseQuery {
     path = "/v1/streams/notifications",
     operation_id = "get_streams_notifications",
     summary = "Notification stream of every record stream the caller can see (SSE)",
-    description = "Stays open and carries notifications for every stream this caller can see, never record content. The first event is progress: for each stream the current seq and which record that seq is. Then new-records events for whichever stream gained records. A heartbeat line every 15 seconds. One final stream-progress event with the current seq of every stream when the server closes the stream, including when credentials stop working. There is no N on the request and no Last-Event-ID: data is fetched with GET /v1/streams/after. X-Accel-Buffering is set to no.",
+    description = "Stays open and carries notifications for every stream this caller can see, never record content. A typing event carries the answer a Bot has typed so far, at most once per second per task, and is never stored. The first event is progress: for each stream the current seq and which record that seq is. Then new-records events for whichever stream gained records. A heartbeat line every 15 seconds. One final stream-progress event with the current seq of every stream when the server closes the stream, including when credentials stop working. There is no N on the request and no Last-Event-ID: data is fetched with GET /v1/streams/after. X-Accel-Buffering is set to no.",
     tag = "streams",
     security(("bearer" = [])),
     responses(
@@ -55,6 +55,7 @@ pub async fn notifications(
     let head = head_lines(pool, &keys, init_seq).await?;
     let tail = Tail {
         rx: state.bus.subscribe(),
+        typing: state.typing.subscribe(),
         pool: pool.clone(),
         shutdown: std::sync::Arc::clone(&state.shutdown),
         clock: std::sync::Arc::clone(&state.clock),

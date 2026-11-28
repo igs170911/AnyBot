@@ -1,3 +1,5 @@
+use anybot_protocol::EnvPlan;
+
 use crate::sandbox_deny::normalize_command;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,9 +100,18 @@ pub enum ActionSubject {
     Command {
         line: String,
         timeout_ms: u64,
+        env: EnvPlan,
     },
     ReadFile {
         path: PathView,
+    },
+    ListDir {
+        path: PathView,
+    },
+    Search {
+        path: PathView,
+        pattern: String,
+        files_only: bool,
     },
     WriteFile {
         path: PathView,
@@ -124,6 +135,8 @@ impl ActionSubject {
     pub fn path_views(&self) -> Vec<&PathView> {
         match self {
             ActionSubject::ReadFile { path }
+            | ActionSubject::ListDir { path }
+            | ActionSubject::Search { path, .. }
             | ActionSubject::WriteFile { path, content: _ }
             | ActionSubject::EditFile { path, .. }
             | ActionSubject::PathCheck { path } => vec![path],
@@ -148,6 +161,7 @@ impl GateAction {
             subject: ActionSubject::Command {
                 line: line.to_owned(),
                 timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
+                env: crate::sandbox_env::command_env_plan(),
             },
             extra_paths,
             workdir: workdir.to_owned(),
@@ -199,6 +213,12 @@ impl GateAction {
         let subject = match &self.subject {
             ActionSubject::Command { line, .. } => normalize_command(line),
             ActionSubject::ReadFile { path } => format!("read:{}", path.raw_text()),
+            ActionSubject::ListDir { path } => format!("list:{}", path.raw_text()),
+            ActionSubject::Search {
+                path,
+                pattern,
+                files_only,
+            } => format!("search:{}:{files_only}:{pattern}", path.raw_text()),
             ActionSubject::WriteFile { path, content: _ } => format!("write:{}", path.raw_text()),
             ActionSubject::EditFile { path, .. } => format!("edit:{}", path.raw_text()),
             ActionSubject::PathCheck { path } => format!("path:{}", path.raw_text()),

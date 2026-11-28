@@ -15,6 +15,7 @@ use test_harness::{
     FakeClock, ModelFormat, UsageScript, model_error_body, model_replies_text,
     model_start_with_format, model_usage,
 };
+use tiktoken_rs as _;
 use tokio as _;
 use tokio_rustls as _;
 use trybuild as _;

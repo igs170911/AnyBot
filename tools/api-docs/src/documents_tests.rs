@@ -154,11 +154,14 @@ fn test_openapi_every_response_has_example() {
             continue;
         };
         for (code, response) in responses {
+            let Some(content) = response.get("content").and_then(|c| c.as_object()) else {
+                assert_eq!(code, "204", "response {code} lacks content");
+                continue;
+            };
             assert!(
-                response
-                    .get("content")
-                    .and_then(|c| c.as_object())
-                    .and_then(|m| m.values().next())
+                content
+                    .values()
+                    .next()
                     .and_then(|media| media.get("example"))
                     .is_some(),
                 "response {code} lacks an example"

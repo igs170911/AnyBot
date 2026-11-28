@@ -28,6 +28,7 @@ pub(crate) mod scripted_body;
 pub(crate) mod scripted_steps;
 pub mod session;
 pub(crate) mod session_ask;
+pub(crate) mod session_ask_step;
 pub(crate) mod session_chain;
 pub(crate) mod session_io;
 pub(crate) mod session_rest;
@@ -53,14 +54,15 @@ pub use capabilities::{
 };
 pub use catalog::{LIST_WAIT_SECS, empty_list_code, list_timeout_code, normalize_ids};
 pub use catalog_fetch::{ListOutcome, fetch_models};
-pub use client::{Gateway, GatewayFail};
+pub use client::{Gateway, GatewayFail, ModelChoice};
 pub use egress::{
     DataPolicy, JudgeCandidate, ModelUse, SendPermit, allowed, default_policy, pick_judge,
 };
 pub use errors::{Classified, FailInput, FailKind, FallbackPlan, RetryPlan, classify};
 pub use errors_text::{clip_detail, context_limit, provider_label, redact};
 pub use estimate::{
-    Calibration, EstimateInput, apply_calibration, fits, formula_tokens, margin_milli,
+    Calibration, EstimateError, EstimateInput, apply_calibration, estimate_input_tokens,
+    estimate_tokens, fits, formula_tokens, margin_milli,
 };
 pub use failure_log::{FailureLog, failure_log};
 pub use handoff::{HandoffRecord, SwitchReason, handoff_code, record};

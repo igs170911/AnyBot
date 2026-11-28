@@ -1,4 +1,4 @@
-use anybot_foundation::CallId;
+use anybot_foundation::{CallId, TaskId};
 use thiserror::Error;
 
 use crate::record::{RawStoreError, RecordError};
@@ -7,6 +7,10 @@ use crate::record::{RawStoreError, RecordError};
 pub enum TurnError {
     #[error("a turn is already running for this bot")]
     Busy,
+    #[error("task {task} was not found")]
+    TaskNotFound { task: TaskId },
+    #[error("task {task} is closed")]
+    TaskClosed { task: TaskId },
     #[error(transparent)]
     Record(#[from] RecordError),
     #[error(transparent)]
@@ -25,10 +29,22 @@ pub enum TurnError {
     Replay(anybot_domain::ReplayGap),
     #[error(transparent)]
     Report(#[from] anybot_trust::ReportFail),
+    #[error(transparent)]
+    Card(#[from] anybot_trust::CardViewError),
+    #[error(transparent)]
+    TrustSettings(#[from] crate::trust_settings::TrustSettingsError),
     #[error("the parked approval list is busy")]
     ParkedBusy,
     #[error("no parked card matches digest {digest}")]
     ApprovalNotFound { digest: String },
     #[error("the runner is not serving the parked card of digest {digest}")]
     ApprovalForeign { digest: String },
+    #[error("no user-initiated turn is running")]
+    NoOwnTurn,
+    #[error("the card of digest {digest} does not offer that answer")]
+    AnswerNotOffered { digest: String },
+    #[error("no pending question matches card {card}")]
+    QuestionNotFound { card: String },
 }
+
+pub type RunnerError = TurnError;

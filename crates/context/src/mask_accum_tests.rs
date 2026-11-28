@@ -5,13 +5,10 @@ use crate::compile_tests_support as sup;
 use crate::fixtures::unique_step_refs;
 use crate::input::{BuildInput, ChatRecord, PinnedSnapshot, StepRecord};
 use crate::mask_prop_tests::mask_2_problems;
-use crate::numbers::{
-    K114_2_DEFAULT_RESULT_CHARS, K114_3_ACCUMULATE_MARGIN_MILLI, K114_3_SHORT_RESULT_CHARS,
-    milli_of,
-};
+use crate::numbers::{K114_2_DEFAULT_RESULT_CHARS, K114_3_ACCUMULATE_MARGIN_MILLI, milli_of};
 use crate::output::{BlockKind, Compiled, CompiledRequest};
 
-pub(crate) const FIXED_LENS: [usize; 4] = [300, 600, 900, 2_500];
+pub(crate) const FIXED_LENS: [usize; 4] = [300, 600, 1_200, 3_600];
 
 fn mk_step(index: usize, len: usize) -> StepRecord {
     let levels: [anybot_protocol::ToolEffect; 3] = [
@@ -53,7 +50,7 @@ fn mk_step(index: usize, len: usize) -> StepRecord {
         } else {
             None
         },
-        error_at: Vec::new(),
+        error_at: None,
     }
 }
 
@@ -160,8 +157,6 @@ pub(crate) struct Occurrences {
 
 struct CaseState {
     events: Vec<anybot_protocol::TaskEvent>,
-    last_ids: Vec<String>,
-    pending: u64,
     floor: u64,
 }
 
@@ -187,32 +182,30 @@ fn used_upto(
 }
 
 fn margin_round(
-    c: &anybot_domain::ContextCollapsed,
+    ids: &[String],
     used_steps: &[StepRecord],
-    state: &mut CaseState,
+    state: &CaseState,
     st: &mut Occurrences,
 ) -> Result<(), TestCaseError> {
-    let added: usize = c
-        .ids
-        .iter()
-        .filter(|id| !state.last_ids.iter().any(|x| x.as_str() == id.as_str()))
-        .count();
     let added_tokens: u64 = used_steps
         .iter()
-        .filter(|s| c.ids.contains(&s.source_ref))
-        .map(|s| u64::try_from(s.content.chars().count()).unwrap_or(0))
+        .filter(|s| ids.contains(&s.source_ref))
+        .map(|s| {
+            let view = crate::mask::render_view(s, K114_2_DEFAULT_RESULT_CHARS);
+            anybot_models::formula_tokens(&anybot_models::EstimateInput {
+                text: &view,
+                messages: 1,
+                images: 0,
+            })
+        })
         .sum();
-    state.pending = state.pending.saturating_add(added_tokens);
-    if added > 0 {
-        prop_assert!(
-            state.pending >= state.floor,
-            "collapsed before accumulating the margin",
-        );
-        state.pending = 0;
-        st.margin_checks = st.margin_checks.saturating_add(1);
-    }
+    prop_assert!(
+        added_tokens >= state.floor,
+        "collapsed before accumulating 15% margin: {added_tokens} < {}",
+        state.floor,
+    );
+    st.margin_checks = st.margin_checks.saturating_add(1);
     st.accumulate_collapses = st.accumulate_collapses.saturating_add(1);
-    state.last_ids.clone_from(&c.ids);
     Ok(())
 }
 
@@ -227,11 +220,7 @@ fn sent_round(
     let mut problems = mask_2_problems(request, &used.1, &used.2, &used.0);
     problems.extend(order_problems(request, &used.0));
     prop_assert!(problems.is_empty(), "{problems:?}");
-    if used
-        .0
-        .iter()
-        .any(|s| s.content.chars().count() <= K114_3_SHORT_RESULT_CHARS)
-    {
+    if used.0.iter().any(|s| s.content.chars().count() <= 600) {
         st.short_kept = st.short_kept.saturating_add(1);
     }
     if request
@@ -241,14 +230,14 @@ fn sent_round(
     {
         st.masks_seen = st.masks_seen.saturating_add(1);
     }
-    let fresh = state
-        .events
-        .iter()
-        .rev()
-        .find_map(|e| anybot_domain::parse_collapsed(&e.kind).unwrap());
-    if let Some(c) = fresh.filter(|c| c.reason == anybot_domain::ContextCollapseReason::Accumulated)
-    {
-        margin_round(&c, &used.0, state, st)?;
+    for event in new {
+        if let crate::output::NewEvent::Collapsed {
+            ids,
+            reason: crate::output::CollapseReason::Accumulated,
+        } = event
+        {
+            margin_round(ids, &used.0, state, st)?;
+        }
     }
     Ok(())
 }
@@ -270,8 +259,6 @@ pub(crate) fn one_case(
     st.cases = st.cases.saturating_add(1);
     let mut state = CaseState {
         events: Vec::new(),
-        last_ids: Vec::new(),
-        pending: 0,
         floor: milli_of(sup::plan(usable).usable(), K114_3_ACCUMULATE_MARGIN_MILLI),
     };
     let mut sent_here = false;

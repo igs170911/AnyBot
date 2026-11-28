@@ -105,3 +105,7 @@ mod prop_tests;
 #[cfg(test)]
 #[path = "task_turn_end_tests.rs"]
 mod task_turn_end_tests;
+
+#[cfg(test)]
+#[path = "task_turn_end_t0_tests.rs"]
+mod task_turn_end_t0_tests;

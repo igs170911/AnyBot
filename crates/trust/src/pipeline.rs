@@ -1,3 +1,5 @@
+use anybot_protocol::EnvPlan;
+
 use crate::action::{GateAction, PathView};
 use crate::command_target::{DeleteBase, command_targets};
 use crate::evidence::ActionContext;
@@ -10,9 +12,18 @@ pub enum RequestedAction {
     Command {
         line: String,
         timeout_ms: u64,
+        env: EnvPlan,
     },
     ReadFile {
         path: String,
+    },
+    ListDir {
+        path: String,
+    },
+    Search {
+        path: String,
+        pattern: String,
+        files_only: bool,
     },
     WriteFile {
         path: String,
@@ -63,12 +74,29 @@ impl ActionRequest {
 
 fn subject_of(requested: &RequestedAction) -> ActionSubject {
     match requested {
-        RequestedAction::Command { line, timeout_ms } => ActionSubject::Command {
+        RequestedAction::Command {
+            line,
+            timeout_ms,
+            env,
+        } => ActionSubject::Command {
             line: line.clone(),
             timeout_ms: *timeout_ms,
+            env: env.clone(),
         },
         RequestedAction::ReadFile { path } => ActionSubject::ReadFile {
             path: PathView::raw(path),
+        },
+        RequestedAction::ListDir { path } => ActionSubject::ListDir {
+            path: PathView::raw(path),
+        },
+        RequestedAction::Search {
+            path,
+            pattern,
+            files_only,
+        } => ActionSubject::Search {
+            path: PathView::raw(path),
+            pattern: pattern.clone(),
+            files_only: *files_only,
         },
         RequestedAction::WriteFile { path, content } => ActionSubject::WriteFile {
             path: PathView::raw(path),

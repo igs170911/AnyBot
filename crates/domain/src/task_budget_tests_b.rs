@@ -68,6 +68,26 @@ fn ask_once() -> KnownTaskEventKind {
     }
 }
 
+fn card_shown(action: &str, card: &str) -> KnownTaskEventKind {
+    KnownTaskEventKind::CardShown {
+        action: action.to_owned(),
+        card: card.to_owned(),
+        kind: anybot_protocol::CardKind::Action,
+        resume: None,
+        buttons: vec![
+            anybot_protocol::CardButton::AllowOnce,
+            anybot_protocol::CardButton::Deny,
+        ],
+        reason: anybot_protocol::ReasonPayload {
+            code: "card-run-command".to_owned(),
+            params: Vec::new(),
+        },
+        always_label: None,
+        notes: Vec::new(),
+        classes: Vec::new(),
+    }
+}
+
 fn time_events() -> Vec<anybot_protocol::TaskEvent> {
     use anybot_foundation::{EventId, TimestampMs};
     use anybot_protocol::{TaskEvent, TaskEventKind};
@@ -90,31 +110,18 @@ fn time_events() -> Vec<anybot_protocol::TaskEvent> {
             limit: 3_600,
         },
     );
-    push(
-        4,
-        3_000,
-        KnownTaskEventKind::CardShown {
-            action: "a".to_owned(),
-            card: "card-1".to_owned(),
-        },
-    );
+    push(4, 3_000, card_shown("a", "card-1"));
     push(
         5,
         3_600_000,
         KnownTaskEventKind::CardAnswered {
             answer: anybot_protocol::CardAnswer::AllowOnce,
+            origin: anybot_protocol::AnswerOrigin::Hand,
         },
     );
     push(6, 3_604_000, turns_ended());
     push(7, 3_605_000, turn_started_kind());
-    push(
-        8,
-        3_606_000,
-        KnownTaskEventKind::CardShown {
-            action: "b".to_owned(),
-            card: "card-1".to_owned(),
-        },
-    );
+    push(8, 3_606_000, card_shown("b", "card-1"));
     push(9, 4_606_000, turns_ended());
     out
 }
@@ -152,10 +159,24 @@ fn t_task_budget_8() {
     let card = KnownTaskEventKind::CardShown {
         action: "shell".to_owned(),
         card: "d".to_owned(),
+        kind: anybot_protocol::CardKind::Action,
+        resume: None,
+        buttons: vec![
+            anybot_protocol::CardButton::AllowOnce,
+            anybot_protocol::CardButton::Deny,
+        ],
+        reason: anybot_protocol::ReasonPayload {
+            code: "card-run-command".to_owned(),
+            params: Vec::new(),
+        },
+        always_label: None,
+        notes: Vec::new(),
+        classes: Vec::new(),
     };
     advance(&mut view, &card);
     let answer = KnownTaskEventKind::CardAnswered {
         answer: anybot_protocol::CardAnswer::AllowOnce,
+        origin: anybot_protocol::AnswerOrigin::Hand,
     };
     advance(&mut view, &answer);
     crate::task_budget::note_time(&mut view, ts(1_000), &turn_start);

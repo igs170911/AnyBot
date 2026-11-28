@@ -78,6 +78,16 @@ pub fn claim_level(claim: &Claim) -> ClaimLevel {
 }
 
 #[must_use]
+pub fn to_report_level(level: ClaimLevel) -> anybot_protocol::ReportLevel {
+    match level {
+        ClaimLevel::Unknown => anybot_protocol::ReportLevel::Unknown,
+        ClaimLevel::Inferred => anybot_protocol::ReportLevel::Inferred,
+        ClaimLevel::SourceBacked => anybot_protocol::ReportLevel::Sourced,
+        ClaimLevel::Verified => anybot_protocol::ReportLevel::Verified,
+    }
+}
+
+#[must_use]
 pub fn unverified_scopes(claim: &Claim) -> Vec<Scope> {
     let covered = claim.verification.as_ref().map(|v| v.scope);
     [Scope::BotComputer, Scope::UserComputer, Scope::Phone]

@@ -504,6 +504,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/push/server-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public key phones need to subscribe to push
+         * @description The VAPID public key of this server (base64url, uncompressed P-256). The key pair is made on first use and kept sealed in the database.
+         */
+        get: operations["get_push_server_key"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Subscribe this device to push
+         * @description The address must be https and at most 2048 characters. The same address replaces the older entry. An account keeps at most 16 subscriptions; the oldest one is dropped when a new one would be the 17th. Requires the Idempotency-Key header.
+         */
+        post: operations["post_push_subscriptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push/subscriptions/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether this device has a push subscription
+         * @description Looks up the device of the signed-in session and says whether it has a push subscription.
+         */
+        get: operations["get_push_subscription_mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push/subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove one push subscription of the account
+         * @description Deletes one subscription that belongs to the signed-in account. Requires the Idempotency-Key header.
+         */
+        delete: operations["delete_push_subscription"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/server/status": {
         parameters: {
             query?: never;
@@ -513,7 +593,7 @@ export interface paths {
         };
         /**
          * Public server status
-         * @description Returns version, protocol version, uptime, listen port and the configured public URL; no identity required.
+         * @description Returns version, protocol version, uptime, listen port, the configured public URL and the account name of the server admin (null while the server has no admin yet); no identity required.
          */
         get: operations["get_server_status"];
         put?: never;
@@ -615,7 +695,7 @@ export interface paths {
         };
         /**
          * Notification stream of every record stream the caller can see (SSE)
-         * @description Stays open and carries notifications for every stream this caller can see, never record content. The first event is progress: for each stream the current seq and which record that seq is. Then new-records events for whichever stream gained records. A heartbeat line every 15 seconds. One final stream-progress event with the current seq of every stream when the server closes the stream, including when credentials stop working. There is no N on the request and no Last-Event-ID: data is fetched with GET /v1/streams/after. X-Accel-Buffering is set to no.
+         * @description Stays open and carries notifications for every stream this caller can see, never record content. A typing event carries the answer a Bot has typed so far, at most once per second per task, and is never stored. The first event is progress: for each stream the current seq and which record that seq is. Then new-records events for whichever stream gained records. A heartbeat line every 15 seconds. One final stream-progress event with the current seq of every stream when the server closes the stream, including when credentials stop working. There is no N on the request and no Last-Event-ID: data is fetched with GET /v1/streams/after. X-Accel-Buffering is set to no.
          */
         get: operations["get_streams_notifications"];
         put?: never;
@@ -661,6 +741,26 @@ export interface paths {
          *     The Idempotency-Key header is required.
          */
         post: operations["post_streams_referee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/streams/typing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand the answer typed so far to the devices that are watching
+         * @description Only a computer credential that may write the Bot stream can call this. The body carries the whole answer typed so far, and the thinking so far (an empty string when there is none). The server forwards it as a typing event on the notification stream of every connection that can see the Bot stream, at most once per second per task for each connection, and keeps nothing: no database row, no record. It is a hint, not a record. The Idempotency-Key header is required; a repeat is another hint and is not stored.
+         */
+        post: operations["post_streams_typing"];
         delete?: never;
         options?: never;
         head?: never;
@@ -840,6 +940,29 @@ export interface components {
             /** @example https://bot.example.test */
             public_url: string;
         };
+        PushMineReply: {
+            /** @example true */
+            subscribed: boolean;
+        };
+        PushServerKey: {
+            /** @example BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM */
+            public_key: string;
+        };
+        PushSubscribeReply: {
+            /** @example 018f-push-uuidv7 */
+            id: string;
+        };
+        PushSubscribeRequest: {
+            /** @example https://push.example.org/send/abc123 */
+            endpoint: string;
+            keys: components["schemas"]["PushSubscriptionKeys"];
+        };
+        PushSubscriptionKeys: {
+            /** @example xS03Fi5ErfTNH_l9WHE9Ig */
+            auth: string;
+            /** @example BLMbF9ffKBiWQLCKvTHb6LO8Nb6dcUh6TItC455vu2kElga6PQvUmaFyCdykxY2nOSSL3yKgfbmFLRTUaGv4yV8 */
+            p256dh: string;
+        };
         /**
          * @example delete
          * @enum {string}
@@ -898,6 +1021,7 @@ export interface components {
             /** @example 018f-card-uuidv7 */
             card_id?: string | null;
             criteria?: unknown;
+            reason?: components["schemas"]["WakeReason"] | null;
             stream: components["schemas"]["StreamSelector"];
             /** @example 018f-task-uuidv7 */
             task_id: string;
@@ -946,6 +1070,8 @@ export interface components {
             settings: components["schemas"]["SettingEntry"][];
         };
         StatusResponse: {
+            /** @example alice */
+            admin_account?: string | null;
             /**
              * Format: int32
              * @example 8787
@@ -1027,6 +1153,17 @@ export interface components {
             /** @example GEZDGNBVGY3TQOJQ */
             secret: string;
         };
+        TypingRequest: {
+            stream: components["schemas"]["StreamSelector"];
+            /** @example 018f-task-uuidv7 */
+            task_id: string;
+            /** @example The answer so far */
+            text: string;
+            /** @example  */
+            thinking: string;
+        };
+        /** @enum {string} */
+        WakeReason: "resume" | "verification";
     };
     responses: never;
     parameters: never;
@@ -4073,6 +4210,362 @@ export interface operations {
             };
         };
     };
+    get_push_server_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "public_key": "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["PushServerKey"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_push_subscriptions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "endpoint": "https://push.example.org/send/abc123",
+                 *       "keys": {
+                 *         "auth": "xS03Fi5ErfTNH_l9WHE9Ig",
+                 *         "p256dh": "BLMbF9ffKBiWQLCKvTHb6LO8Nb6dcUh6TItC455vu2kElga6PQvUmaFyCdykxY2nOSSL3yKgfbmFLRTUaGv4yV8"
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["PushSubscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "id": "018f-push-uuidv7"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["PushSubscribeReply"];
+                };
+            };
+            /** @description Address or keys invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "push-endpoint-invalid",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The push address must be https and at most 2048 characters",
+                     *       "type": "https://anybot.test/problems/push_endpoint_invalid"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Only a login can subscribe */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "device-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "This device has no permission to do this",
+                     *       "type": "https://anybot.test/problems/device_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    get_push_subscription_mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "subscribed": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["PushMineReply"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Only a login can do this */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "device-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "This device has no permission to do this",
+                     *       "type": "https://anybot.test/problems/device_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    delete_push_subscription: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description subscription id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "ok": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionAck"];
+                };
+            };
+            /** @description Credential rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "account-login-credentials",
+                     *       "params": {},
+                     *       "status": 401,
+                     *       "title": "This session is no longer valid.",
+                     *       "type": "https://anybot.test/problems/account_login_credentials"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Only a login can do this */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "device-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "This device has no permission to do this",
+                     *       "type": "https://anybot.test/problems/device_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No such subscription */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "push-subscription-not-found",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "There is no such push subscription for this account",
+                     *       "type": "https://anybot.test/problems/push_subscription_not_found"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/problem_internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
     get_server_status: {
         parameters: {
             query?: never;
@@ -4090,6 +4583,7 @@ export interface operations {
                 content: {
                     /**
                      * @example {
+                     *       "admin_account": "alice",
                      *       "listen_port": 8787,
                      *       "protocol_version": 1,
                      *       "public_url": null,
@@ -4887,6 +5381,115 @@ export interface operations {
                      *       "status": 409,
                      *       "title": "This card was already answered from 018f-uuidv7.",
                      *       "type": "https://anybot.test/problems/card_already_answered"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    post_streams_typing: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description client-generated idempotency key */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "stream": {
+                 *         "bot": {
+                 *           "id": "018f-bot-uuidv7"
+                 *         }
+                 *       },
+                 *       "task_id": "018f-task-uuidv7",
+                 *       "text": "The answer so far",
+                 *       "thinking": ""
+                 *     }
+                 */
+                "application/json": components["schemas"]["TypingRequest"];
+            };
+        };
+        responses: {
+            /** @description Forwarded */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad body, or the stream is not a Bot stream */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The request was malformed.",
+                     *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Not a computer credential, or not allowed to write this Bot stream */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "device-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "This device cannot do that.",
+                     *       "type": "https://anybot.test/problems/device_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Body larger than the write limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 413,
+                     *       "title": "The request body is too large.",
+                     *       "type": "https://anybot.test/problems/bad-request"
                      *     }
                      */
                     "application/problem+json": components["schemas"]["ProblemJson"];

@@ -1,5 +1,5 @@
 use crate::action::{ActionSubject, GateAction, PathView};
-use crate::machine_rules::inside_workdir;
+use crate::machine_rules::{inside_workdir, is_outside_write};
 use crate::safety_n5::{ActionClass, classes_of_command};
 
 #[must_use]
@@ -10,6 +10,8 @@ pub(crate) fn holds_a_class(action: &GateAction, caps_bot: bool) -> bool {
             write_holds(path, &action.workdir)
         }
         ActionSubject::ReadFile { .. }
+        | ActionSubject::ListDir { .. }
+        | ActionSubject::Search { .. }
         | ActionSubject::PathCheck { .. }
         | ActionSubject::Capabilities => false,
     }
@@ -49,5 +51,5 @@ fn own_folder_delete(action: &GateAction) -> bool {
 }
 
 fn write_holds(path: &PathView, workdir: &str) -> bool {
-    !inside_workdir(path, workdir)
+    is_outside_write(path, workdir)
 }

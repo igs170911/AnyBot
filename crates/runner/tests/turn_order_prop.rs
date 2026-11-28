@@ -2,6 +2,7 @@ use anybot_context as _;
 use anybot_domain as _;
 use anybot_messages as _;
 use anybot_models as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use anybot_trust as _;
 use serde_json as _;
@@ -13,7 +14,7 @@ use std::sync::Arc;
 use anybot_protocol::KnownTaskEventKind;
 use proptest::prelude::*;
 use runner_test::mem_store::MemoryRecord;
-use runner_test::turn::{Device, TurnWorld, WorldSetup, tool_spec};
+use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{probe_of, task_of};
 use test_harness::{Step, ToolCallScript, model_replies_text, model_tool_calls};
 
@@ -79,11 +80,6 @@ fn run_case(middles: &[Vec<usize>]) -> Result<(), String> {
 fn world_setup() -> WorldSetup {
     WorldSetup {
         probe_requests: true,
-        tools: vec![
-            tool_spec("read_file", "Read a file"),
-            tool_spec("shell", "Run a shell command"),
-            tool_spec("edit_file", "Edit a file"),
-        ],
         ..WorldSetup::default()
     }
 }

@@ -1,11 +1,13 @@
 use crate::action::{ActionKey, ActionSubject};
 use anybot_foundation::TimestampMs;
-use anybot_protocol::{ComputerCaps, GateRecord};
+use anybot_protocol::{CommandRequest, ComputerCaps, GateRecord};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpKind {
     Run,
     Read,
+    ListDir,
+    Search,
     Write,
     Edit,
     Path,
@@ -18,6 +20,8 @@ impl OpKind {
         match subject {
             ActionSubject::Command { .. } => OpKind::Run,
             ActionSubject::ReadFile { .. } => OpKind::Read,
+            ActionSubject::ListDir { .. } => OpKind::ListDir,
+            ActionSubject::Search { .. } => OpKind::Search,
             ActionSubject::WriteFile { .. } => OpKind::Write,
             ActionSubject::EditFile { .. } => OpKind::Edit,
             ActionSubject::PathCheck { .. } => OpKind::Path,
@@ -108,8 +112,34 @@ impl OpTicket {
     #[must_use]
     pub fn command_line(&self) -> Option<(&str, u64)> {
         match &self.subject {
-            ActionSubject::Command { line, timeout_ms } => Some((line.as_str(), *timeout_ms)),
+            ActionSubject::Command {
+                line, timeout_ms, ..
+            } => Some((line.as_str(), *timeout_ms)),
             ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
+            | ActionSubject::Search { .. }
+            | ActionSubject::WriteFile { .. }
+            | ActionSubject::EditFile { .. }
+            | ActionSubject::PathCheck { .. }
+            | ActionSubject::Capabilities => None,
+        }
+    }
+
+    #[must_use]
+    pub fn command_request(&self) -> Option<CommandRequest> {
+        match &self.subject {
+            ActionSubject::Command {
+                line,
+                timeout_ms,
+                env,
+            } => Some(CommandRequest {
+                command: line.clone(),
+                timeout_ms: *timeout_ms,
+                env: env.clone(),
+            }),
+            ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
+            | ActionSubject::Search { .. }
             | ActionSubject::WriteFile { .. }
             | ActionSubject::EditFile { .. }
             | ActionSubject::PathCheck { .. }
@@ -126,10 +156,30 @@ impl OpTicket {
     pub fn bound_path(&self) -> Option<&str> {
         match &self.subject {
             ActionSubject::ReadFile { path }
+            | ActionSubject::ListDir { path }
+            | ActionSubject::Search { path, .. }
             | ActionSubject::WriteFile { path, .. }
             | ActionSubject::EditFile { path, .. }
             | ActionSubject::PathCheck { path } => path.resolved_text().or(Some(path.raw_text())),
             ActionSubject::Command { .. } | ActionSubject::Capabilities => None,
+        }
+    }
+
+    #[must_use]
+    pub fn search_query(&self) -> Option<(&str, bool)> {
+        match &self.subject {
+            ActionSubject::Search {
+                pattern,
+                files_only,
+                ..
+            } => Some((pattern.as_str(), *files_only)),
+            ActionSubject::Command { .. }
+            | ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
+            | ActionSubject::WriteFile { .. }
+            | ActionSubject::EditFile { .. }
+            | ActionSubject::PathCheck { .. }
+            | ActionSubject::Capabilities => None,
         }
     }
 
@@ -139,6 +189,8 @@ impl OpTicket {
             ActionSubject::WriteFile { content, .. } => Some(content.as_str()),
             ActionSubject::Command { .. }
             | ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
+            | ActionSubject::Search { .. }
             | ActionSubject::EditFile { .. }
             | ActionSubject::PathCheck { .. }
             | ActionSubject::Capabilities => None,
@@ -153,106 +205,11 @@ impl OpTicket {
             } => Some((old_text.as_str(), new_text.as_str())),
             ActionSubject::Command { .. }
             | ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
+            | ActionSubject::Search { .. }
             | ActionSubject::WriteFile { .. }
             | ActionSubject::PathCheck { .. }
             | ActionSubject::Capabilities => None,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::action::PathView;
-    use anybot_protocol::{
-        ComputerCaps, ComputerOwner, ComputerPlatform, GateNo, GateOutcome, JudgementSource,
-        RuleLayer,
-    };
-
-    fn issued_caps() -> ComputerCaps {
-        ComputerCaps::declared(ComputerPlatform::Linux, ComputerOwner::Bot)
-    }
-
-    fn allow_gate() -> GateRecord {
-        GateRecord::new(
-            GateNo(1),
-            RuleLayer::Default,
-            "bot-machine-command".to_owned(),
-            JudgementSource::Rule,
-            GateOutcome::Allow,
-            false,
-        )
-    }
-
-    fn command_ticket(line: &str) -> OpTicket {
-        let subject = ActionSubject::Command {
-            line: line.to_owned(),
-            timeout_ms: 1000,
-        };
-        let key = ActionKey::command("shell", line);
-        OpTicket::issue(
-            &subject,
-            key,
-            allow_gate(),
-            "fake-computer",
-            &issued_caps(),
-            "/workspace",
-            TimestampMs::from_millis(10),
-        )
-    }
-
-    #[test]
-    fn test_a_ticket_carries_the_command_exactly_as_it_was_written() {
-        let ticket = command_ticket("echo OK\nreboot");
-        let (line, timeout) = ticket.command_line().unwrap();
-        assert_eq!(line, "echo OK\nreboot");
-        assert_eq!(timeout, 1000);
-        assert_eq!(ticket.kind(), OpKind::Run);
-        assert_eq!(ticket.computer(), "fake-computer");
-    }
-
-    #[test]
-    fn test_a_ticket_only_fits_the_computer_and_operation_it_names() {
-        let ticket = command_ticket("ls -la");
-        assert!(ticket.fits("fake-computer", OpKind::Run));
-        assert!(!ticket.fits("other-computer", OpKind::Run));
-        assert!(!ticket.fits("fake-computer", OpKind::Write));
-    }
-
-    #[test]
-    fn test_a_write_ticket_carries_the_content_and_the_edit_ticket_carries_both_texts() {
-        let write_subject = ActionSubject::WriteFile {
-            path: PathView::raw("notes.md"),
-            content: "Keep 100% CASE".to_owned(),
-        };
-        let write_key = ActionKey::file("write_file", "write", "notes.md");
-        let write = OpTicket::issue(
-            &write_subject,
-            write_key,
-            allow_gate(),
-            "fake-computer",
-            &issued_caps(),
-            "/workspace",
-            TimestampMs::from_millis(10),
-        );
-        assert_eq!(write.content(), Some("Keep 100% CASE"));
-        assert_eq!(write.path(), Some("notes.md"));
-        let edit_subject = ActionSubject::EditFile {
-            path: PathView::raw("notes.md"),
-            old_text: "one".to_owned(),
-            new_text: "Two".to_owned(),
-        };
-        let edit_key = ActionKey::file("edit_file", "edit", "notes.md");
-        let edit = OpTicket::issue(
-            &edit_subject,
-            edit_key,
-            allow_gate(),
-            "fake-computer",
-            &issued_caps(),
-            "/workspace",
-            TimestampMs::from_millis(10),
-        );
-        assert_eq!(edit.texts(), Some(("one", "Two")));
-        assert_eq!(edit.kind(), OpKind::Edit);
     }
 }

@@ -15,7 +15,13 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
         KnownTaskEventKind::CardShown { action, .. } => {
             b.questions.push((seq, action.clone()));
         }
-        KnownTaskEventKind::CardAnswered { answer } => {
+        KnownTaskEventKind::CardAnswered { answer, .. } => {
+            b.answers.push((seq, format!("{answer:?}")));
+        }
+        KnownTaskEventKind::QuestionShown { card, .. } => {
+            b.questions.push((seq, card.clone()));
+        }
+        KnownTaskEventKind::QuestionAnswered { answer, .. } => {
             b.answers.push((seq, format!("{answer:?}")));
         }
         KnownTaskEventKind::ModelSwapped { from, to, .. } => {
@@ -27,6 +33,7 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped

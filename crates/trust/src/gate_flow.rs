@@ -1,15 +1,19 @@
 use crate::action::{ActionKey, ActionSubject, GateAction};
 use crate::always_list::AlwaysList;
-use crate::gate_engine::{GateLayer, Opinion};
+use crate::gate_engine::{GateLayer, Opinion, Outcome};
+use crate::gate_flow_params::{decision_rule, floor_denied_token, gate_outcome, verdict_params};
 use crate::gate_full::{EngineInput, ModeFlags, decide};
-use crate::gate_rules::{hook_opinion, style_hits};
-use crate::machine_rules::{RuleVerdict, default_rule};
+use crate::gate_rules::{ask_style_label, hook_opinion, style_hits};
+use crate::machine_rules::default_rule_with_always;
 use crate::op_ticket::OpTicket;
-use crate::trust_floor::{FloorAction, FloorDeny, floor_check};
+use crate::pattern::RulePattern;
+use crate::trust_floor::{FloorAction, floor_check};
 use anybot_foundation::TimestampMs;
 use anybot_protocol::{
-    ComputerCaps, ComputerOwner, GateNo, GateOutcome, GateRecord, JudgementSource, RuleLayer,
+    ComputerCaps, ComputerOwner, GateOutcome, GateRecord, GateStep, JudgementSource, RuleLayer,
 };
+
+pub use crate::gate_flow_params::rule_code;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuleEntry {
@@ -23,6 +27,8 @@ pub struct UserRules {
     pub session: Vec<ActionKey>,
     pub ask_style: Vec<ActionKey>,
     pub allow_style: Vec<ActionKey>,
+    pub ask_patterns: Vec<RulePattern>,
+    pub allow_patterns: Vec<RulePattern>,
     pub hook: Vec<RuleEntry>,
 }
 
@@ -36,6 +42,8 @@ pub struct GateConfig {
     pub modes: ModeFlags,
     pub user: UserRules,
     pub admin: AdminRules,
+    pub anybot_dir: String,
+    pub bot_name: String,
 }
 
 impl GateConfig {
@@ -50,6 +58,8 @@ impl GateConfig {
             },
             user: UserRules::default(),
             admin: AdminRules::default(),
+            anybot_dir: String::new(),
+            bot_name: String::new(),
         }
     }
 }
@@ -58,29 +68,26 @@ impl GateConfig {
 pub struct GateVerdict {
     pub(crate) outcome: GateOutcome,
     pub(crate) layer: GateLayer,
+    pub(crate) step: GateStep,
     pub(crate) rule: String,
     pub(crate) read_only: bool,
+    pub(crate) source: JudgementSource,
     pub(crate) params: Vec<(String, String)>,
 }
 
 impl GateVerdict {
     #[must_use]
-    pub(crate) fn gate_no(&self) -> GateNo {
-        GateNo(match self.layer {
-            GateLayer::Floor => 1,
-            GateLayer::Admin => 2,
-            GateLayer::User => 3,
-            GateLayer::Default => 4,
-        })
+    pub(crate) fn gate_step(&self) -> GateStep {
+        self.step
     }
 
     #[must_use]
     pub(crate) fn record(&self) -> GateRecord {
         GateRecord::new(
-            self.gate_no(),
+            self.gate_step(),
             rule_layer(self.layer),
             self.rule.clone(),
-            JudgementSource::Rule,
+            self.source,
             self.outcome,
             self.read_only,
         )
@@ -120,25 +127,58 @@ fn rule_layer(layer: GateLayer) -> RuleLayer {
 
 #[must_use]
 pub fn floor_view(action: &GateAction, caps: &ComputerCaps) -> FloorAction {
+    floor_view_with_dir(action, caps, "")
+}
+
+#[must_use]
+pub(crate) fn floor_view_with_dir(
+    action: &GateAction,
+    caps: &ComputerCaps,
+    anybot_dir: &str,
+) -> FloorAction {
     let bot_machine = caps.owner == ComputerOwner::Bot;
     match &action.subject {
-        ActionSubject::Command {
-            line,
-            timeout_ms: _,
-        } => FloorAction::Command {
+        ActionSubject::Command { line, .. } => FloorAction::Command {
             line: line.clone(),
             bot_machine,
             has_sandbox: caps.command_sandbox.yes(),
         },
         ActionSubject::ReadFile { path }
-        | ActionSubject::WriteFile { path, content: _ }
-        | ActionSubject::EditFile { path, .. }
-        | ActionSubject::PathCheck { path } => FloorAction::FilePath {
-            path: path.effective(&action.workdir),
-        },
-        ActionSubject::Capabilities => FloorAction::FilePath {
-            path: String::new(),
-        },
+        | ActionSubject::ListDir { path }
+        | ActionSubject::Search { path, .. }
+        | ActionSubject::PathCheck { path } => {
+            file_floor_action(path, &action.workdir, false, caps, anybot_dir)
+        }
+        ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
+            file_floor_action(path, &action.workdir, true, caps, anybot_dir)
+        }
+        ActionSubject::Capabilities => FloorAction::Capabilities,
+    }
+}
+
+fn file_floor_action(
+    path: &crate::action::PathView,
+    workdir: &str,
+    is_write: bool,
+    caps: &ComputerCaps,
+    anybot_dir: &str,
+) -> FloorAction {
+    if !path.is_resolvable() {
+        return FloorAction::UnresolvedPath;
+    }
+    let Some(canonical) = path.resolved_text() else {
+        return FloorAction::UnresolvedPath;
+    };
+    if caps.owner == ComputerOwner::User
+        && is_write
+        && crate::machine_rules::is_git_hook_or_config(path, workdir)
+    {
+        return FloorAction::Capabilities;
+    }
+    FloorAction::FilePath {
+        path: canonical.to_owned(),
+        caps: caps.clone(),
+        anybot_dir: anybot_dir.to_owned(),
     }
 }
 
@@ -149,126 +189,107 @@ pub(crate) fn judge(
     config: &GateConfig,
     computer: &str,
 ) -> GateVerdict {
-    let verdict = default_rule(action, caps);
+    let verdict = default_rule_with_always(action, caps, &config.user.always, computer);
+    let floor_action = floor_view_with_dir(action, caps, &config.anybot_dir);
+    let floor_hit = floor_check(&floor_action);
     let input = EngineInput {
-        action: floor_view(action, caps),
+        action: floor_action,
         modes: config.modes.clone(),
         six_class: crate::six_class::holds_a_class(action, caps.owner == ComputerOwner::Bot),
-        styles: style_hits(action, computer, &config.user),
+        styles: style_hits(action, computer, &config.user, &caps.home_dir),
         admin_hook: hook_opinion(&config.admin.hook, &action.key()),
         user_hook: hook_opinion(&config.user.hook, &action.key()),
         default_rule: verdict.opinion(),
     };
-    let floor_hit = floor_check(&floor_view(action, caps));
 
     let decision = decide(&input);
     let rule = decision_rule(decision.layer, &verdict, floor_hit);
+    let step = if decision.relaxed {
+        GateStep::Relax
+    } else {
+        resolve_gate_step(
+            decision.layer,
+            verdict.opinion(),
+            config,
+            &input,
+            decision.outcome,
+        )
+    };
+    let source = if decision.relaxed {
+        JudgementSource::AlwaysApprove
+    } else {
+        JudgementSource::Rule
+    };
     let bot_machine = caps.owner == ComputerOwner::Bot;
     let denied_token = floor_denied_token(action, bot_machine);
-    let params = verdict_params(decision.layer, floor_hit, &rule, action, denied_token);
+    let mut params = verdict_params(
+        decision.layer,
+        floor_hit,
+        &rule,
+        action,
+        denied_token,
+        &config.bot_name,
+        computer,
+    );
+    if step == GateStep::AskPatterns
+        && let Some(label) = ask_style_label(action, &config.user, &caps.home_dir)
+    {
+        params.push(("rule".to_owned(), label));
+    }
     GateVerdict {
         outcome: gate_outcome(decision.outcome),
         layer: decision.layer,
+        step,
         rule,
         read_only: verdict.read_only,
+        source,
         params,
     }
 }
 
-fn verdict_params(
+fn resolve_gate_step(
     layer: GateLayer,
-    floor_hit: Option<FloorDeny>,
-    rule: &str,
-    action: &GateAction,
-    denied_token: Option<&'static str>,
-) -> Vec<(String, String)> {
-    match (layer, floor_hit, denied_token) {
-        (GateLayer::Floor, Some(FloorDeny::DeniedCommand), Some(token)) => vec![
-            ("token".to_owned(), token.to_owned()),
-            ("command".to_owned(), command_label(action)),
-        ],
-        (GateLayer::Floor, Some(FloorDeny::PrivateFile), _) => {
-            vec![("path".to_owned(), path_label(action))]
-        }
-        (GateLayer::Floor, Some(FloorDeny::NoSandbox), _) => {
-            vec![("capability".to_owned(), "commands".to_owned())]
-        }
-        _ if rule == "bot-machine-outside" || rule == "user-machine-outside-write" => {
-            vec![("path".to_owned(), path_label(action))]
-        }
-        _ => Vec::new(),
-    }
-}
-
-fn floor_denied_token(action: &GateAction, bot_machine: bool) -> Option<&'static str> {
-    match &action.subject {
-        ActionSubject::Command { line, .. } => crate::sandbox_deny::deny_token(line, bot_machine),
-        ActionSubject::ReadFile { .. }
-        | ActionSubject::WriteFile { .. }
-        | ActionSubject::EditFile { .. }
-        | ActionSubject::PathCheck { .. }
-        | ActionSubject::Capabilities => None,
-    }
-}
-
-fn command_label(action: &GateAction) -> String {
-    match &action.subject {
-        ActionSubject::Command { line, .. } => line.clone(),
-        ActionSubject::ReadFile { .. }
-        | ActionSubject::WriteFile { .. }
-        | ActionSubject::EditFile { .. }
-        | ActionSubject::PathCheck { .. }
-        | ActionSubject::Capabilities => String::new(),
-    }
-}
-
-fn path_label(action: &GateAction) -> String {
-    match &action.subject {
-        ActionSubject::ReadFile { path }
-        | ActionSubject::WriteFile { path, .. }
-        | ActionSubject::EditFile { path, .. }
-        | ActionSubject::PathCheck { path } => path.effective(&action.workdir),
-        ActionSubject::Command { .. } | ActionSubject::Capabilities => String::new(),
-    }
-}
-
-#[must_use]
-pub fn rule_code(rule: &str) -> String {
-    match rule {
-        "sandbox-deny" => crate::message_codes::CODE_GATE_COMMAND_DENIED.to_owned(),
-        "private-file" => crate::message_codes::CODE_GATE_PRIVATE_FILE.to_owned(),
-        "computer-no-sandbox" | "user-machine-no-sandbox" => {
-            crate::message_codes::CODE_GATE_NO_SANDBOX.to_owned()
-        }
-        "bot-machine-outside" => crate::message_codes::CODE_GATE_BOT_MACHINE_OUTSIDE.to_owned(),
-        "user-machine-outside-write" => {
-            crate::message_codes::CODE_GATE_OUTSIDE_WRITE_DENIED.to_owned()
-        }
-        "tool-unreadable-eval"
-        | "tool-unreadable-quotes"
-        | "tool-unreadable-heredoc"
-        | "tool-unreadable-head"
-        | "tool-unreadable-shape" => rule.to_owned(),
-        _ => crate::message_codes::CODE_GATE_DENIED_BY_RULE.to_owned(),
-    }
-}
-
-fn gate_outcome(outcome: crate::gate_engine::Outcome) -> GateOutcome {
-    match outcome {
-        crate::gate_engine::Outcome::Deny => GateOutcome::Deny,
-        crate::gate_engine::Outcome::Ask => GateOutcome::Ask,
-        crate::gate_engine::Outcome::Allow => GateOutcome::Allow,
-    }
-}
-
-fn decision_rule(layer: GateLayer, verdict: &RuleVerdict, floor_hit: Option<FloorDeny>) -> String {
+    default_opinion: Opinion,
+    config: &GateConfig,
+    input: &EngineInput,
+    outcome: Outcome,
+) -> GateStep {
     match layer {
-        GateLayer::Default => verdict.rule.to_owned(),
-        GateLayer::Floor => match floor_hit {
-            Some(deny) => deny.to_string(),
-            None => "floor-deny".to_owned(),
-        },
-        GateLayer::Admin => "admin-rule".to_owned(),
-        GateLayer::User => "user-rule".to_owned(),
+        GateLayer::Floor => GateStep::Floor,
+        GateLayer::Admin => GateStep::Admin,
+        GateLayer::User => resolve_user_step(input),
+        GateLayer::Default => {
+            if default_opinion == Opinion::Ask
+                && outcome == Outcome::Allow
+                && config.modes.yolo
+                && !config.modes.ask_every_time
+            {
+                GateStep::Relax
+            } else {
+                GateStep::DefaultRule
+            }
+        }
     }
+}
+
+fn resolve_user_step(input: &EngineInput) -> GateStep {
+    let can_ask = !input.modes.ask_every_time;
+    if input.user_hook == Opinion::Deny || (input.user_hook == Opinion::Ask && can_ask) {
+        return GateStep::UserHooks;
+    }
+    if input.styles.ask_style_hit {
+        return GateStep::AskPatterns;
+    }
+    let list_allow = input.styles.always_hit || input.styles.session_allowed;
+    let style_allow = input.styles.allow_style_hit && !input.six_class;
+    if list_allow || style_allow {
+        return GateStep::AllowLists;
+    }
+    if input.modes.direct_mode && !input.six_class {
+        return GateStep::Relax;
+    }
+    if input.user_hook == Opinion::Allow && !input.six_class {
+        return GateStep::UserHooks;
+    }
+    GateStep::AllowLists
 }

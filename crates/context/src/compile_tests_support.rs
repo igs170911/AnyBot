@@ -9,7 +9,7 @@ use crate::input::{
 };
 use crate::output::{CollapseReason, NewEvent};
 
-fn context_built_kind() -> KnownTaskEventKind {
+pub(crate) fn context_built_kind() -> KnownTaskEventKind {
     KnownTaskEventKind::ContextBuilt {
         manifest_id: "m".to_owned(),
         model: anybot_protocol::ModelName {
@@ -96,7 +96,7 @@ pub(crate) fn step_len(idx: usize, len: usize, ref_id: &str) -> StepRecord {
             format!("{head}{}", "x".repeat(pad))
         },
         exit_code: None,
-        error_at: Vec::new(),
+        error_at: None,
     }
 }
 
@@ -140,6 +140,19 @@ pub(crate) fn memory(id: &str, relevance: u32, candidate: bool) -> MemoryRecord 
     }
 }
 
+pub(crate) fn done_when_event(seq: u64, crits: Vec<anybot_protocol::Criterion>) -> TaskEvent {
+    let kind = KnownTaskEventKind::DoneWhenChange {
+        by: anybot_protocol::Proposer::User,
+        change: anybot_protocol::DoneWhenChange::SetItems {
+            items: crits.clone(),
+        },
+        before: Vec::new(),
+        after: crits,
+        reason: "r".to_owned(),
+    };
+    event(seq, TaskEventKind::Known(kind))
+}
+
 pub(crate) fn push_new(events: &mut Vec<TaskEvent>, new: &[NewEvent]) {
     for (offset, e) in new.iter().enumerate() {
         let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
@@ -166,5 +179,30 @@ pub(crate) fn push_new(events: &mut Vec<TaskEvent>, new: &[NewEvent]) {
                 ));
             }
         }
+    }
+}
+
+pub(crate) fn push_plan_questions(events: &mut Vec<TaskEvent>) {
+    for q in 0..20u64 {
+        events.push(known(
+            q.saturating_add(400),
+            KnownTaskEventKind::CardShown {
+                action: format!("question {q}"),
+                card: format!("card-{q}"),
+                kind: anybot_protocol::CardKind::Action,
+                resume: None,
+                buttons: vec![
+                    anybot_protocol::CardButton::AllowOnce,
+                    anybot_protocol::CardButton::Deny,
+                ],
+                reason: anybot_protocol::ReasonPayload {
+                    code: "card-run-command".to_owned(),
+                    params: Vec::new(),
+                },
+                always_label: None,
+                notes: Vec::new(),
+                classes: Vec::new(),
+            },
+        ));
     }
 }

@@ -1,3 +1,5 @@
+use std::net::{IpAddr, Ipv4Addr};
+
 pub const FORWARDED_MAX_LEN: usize = 64;
 
 #[must_use]
@@ -31,9 +33,63 @@ pub fn source_address(
     peer.to_owned()
 }
 
+#[must_use]
+pub fn peer_is_unlimited(peer: IpAddr) -> bool {
+    match peer.to_canonical() {
+        IpAddr::V4(v4) => v4_is_unlimited(v4),
+        IpAddr::V6(v6) => v6.is_loopback() || v6.is_unique_local() || v6.is_unicast_link_local(),
+    }
+}
+
+fn v4_is_unlimited(ip: Ipv4Addr) -> bool {
+    ip.is_loopback() || ip.is_private() || ip.is_link_local() || in_tailnet(ip)
+}
+
+fn in_tailnet(ip: Ipv4Addr) -> bool {
+    let [first, second, _, _] = ip.octets();
+    first == 100 && (second & 0xC0) == 64
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn unlimited(text: &str) -> bool {
+        peer_is_unlimited(text.parse().unwrap())
+    }
+
+    #[test]
+    fn local_private_and_tailnet_peers_are_unlimited() {
+        for peer in [
+            "127.0.0.1",
+            "::1",
+            "10.1.2.3",
+            "172.16.0.9",
+            "192.168.1.20",
+            "100.64.0.1",
+            "100.127.255.254",
+            "169.254.1.1",
+            "fd7a:115c:a1e0::1",
+            "fe80::1",
+            "::ffff:192.168.1.20",
+        ] {
+            assert!(unlimited(peer), "{peer} must be unlimited");
+        }
+    }
+
+    #[test]
+    fn public_peers_are_limited() {
+        for peer in [
+            "1.2.3.4",
+            "100.63.255.255",
+            "100.128.0.1",
+            "172.32.0.1",
+            "2001:db8::1",
+            "::ffff:1.2.3.4",
+        ] {
+            assert!(!unlimited(peer), "{peer} must be limited");
+        }
+    }
 
     #[test]
     fn forwarded_uses_last_value_and_length_cap() {

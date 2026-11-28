@@ -46,6 +46,18 @@ pub struct Stored {
     pub body: StoredBody,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Halt {
+    Stopped,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Appended {
+    Stored(Box<Stored>),
+    Halted(Halt),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[error("record failed: {reason}")]
 pub struct RecordError {
@@ -61,15 +73,36 @@ pub struct RawStoreError {
 pub trait Record: Send + Sync {
     fn append(&self, entry: RecordEntry) -> PinBoxFuture<'_, Result<Stored, RecordError>>;
 
+    fn append_unless_halted(
+        &self,
+        entry: RecordEntry,
+        turn_started: u64,
+    ) -> PinBoxFuture<'_, Result<Appended, RecordError>>;
+
     fn conversation(&self, bot: BotId) -> PinBoxFuture<'_, Result<Vec<Stored>, RecordError>>;
 
     fn task_events(&self, task: TaskId) -> PinBoxFuture<'_, Result<Vec<TaskEvent>, RecordError>>;
+
+    fn trim_turn(&self, _task: TaskId, _turn: u32) -> PinBoxFuture<'_, Result<(), RecordError>> {
+        Box::pin(std::future::ready(Ok(())))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawBlob {
+    pub bytes: Vec<u8>,
+    pub original_len: u64,
+}
+
+#[must_use]
+pub fn clamp_raw_bytes(bytes: Vec<u8>) -> (Vec<u8>, u64) {
+    anybot_tools::clamp_raw_bytes(bytes, anybot_tools::RAW_MAX_BYTES)
 }
 
 pub trait RawStore: Send + Sync {
     fn put(&self, bytes: Vec<u8>) -> PinBoxFuture<'_, Result<ContentDigest, RawStoreError>>;
 
-    fn get(&self, id: ContentDigest) -> PinBoxFuture<'_, Result<Option<Vec<u8>>, RawStoreError>>;
+    fn get(&self, id: ContentDigest) -> PinBoxFuture<'_, Result<Option<RawBlob>, RawStoreError>>;
 }
 
 #[must_use]

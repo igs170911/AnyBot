@@ -24,11 +24,18 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
     add("mcp", &["foundation", "protocol", "domain", "trust"]);
     add("blob", &["foundation"]);
     add("bus", &["foundation"]);
-    add("store-server", &CORE);
-    add("store-client", &CORE);
+    add(
+        "store-server",
+        &["foundation", "protocol", "domain", "terms"],
+    );
+    add(
+        "store-client",
+        &["foundation", "protocol", "domain", "terms"],
+    );
     add("sync", &["foundation", "protocol", "store-client"]);
     add("channels", &CORE);
     add("runner", &runner_deps());
+    add("terms", &[]);
     add(
         "external-agents",
         &["foundation", "protocol", "trust", "mcp"],
@@ -73,6 +80,7 @@ fn runner_deps() -> Vec<&'static str> {
         "bus",
         "blob",
         "channels",
+        "terms",
     ]
 }
 
@@ -104,6 +112,20 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     );
     m.insert("locale-gen".to_owned(), BTreeSet::new());
     m.insert("anybot-versions".to_owned(), BTreeSet::new());
+}
+
+fn server_test_deps() -> BTreeSet<String> {
+    [
+        "anybot-app-test",
+        "anybot-channels",
+        "anybot-domain",
+        "anybot-foundation",
+        "anybot-server",
+        "test-harness",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
 }
 
 fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
@@ -142,12 +164,7 @@ fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
         .into_iter()
         .collect(),
     );
-    m.insert(
-        "anybot-server-test".to_owned(),
-        ["anybot-app-test".to_owned(), "anybot-domain".to_owned()]
-            .into_iter()
-            .collect(),
-    );
+    m.insert("anybot-server-test".to_owned(), server_test_deps());
     m.insert("anybot-sync-test".to_owned(), BTreeSet::new());
     m.insert(
         "anybot-app-test".to_owned(),

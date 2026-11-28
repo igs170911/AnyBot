@@ -20,7 +20,7 @@ pub(crate) fn evidence_fixture(short: u32) -> anybot_protocol::EvidenceRecord {
         tool: format!("t{short}"),
         classes: Vec::new(),
         gate: anybot_protocol::GateRecord::new(
-            anybot_protocol::GateNo(1),
+            anybot_protocol::GateStep::DefaultRule,
             anybot_protocol::RuleLayer::Default,
             "r".to_owned(),
             anybot_protocol::JudgementSource::Rule,
@@ -40,40 +40,77 @@ pub(crate) fn evidence_fixture(short: u32) -> anybot_protocol::EvidenceRecord {
     }
 }
 
+pub(crate) fn changed_evidence_fixture(short: u32) -> anybot_protocol::EvidenceRecord {
+    let mut rec = evidence_fixture(short);
+    rec.tool = "write_file".to_owned();
+    rec.kind = anybot_protocol::EvidenceKind::Changed;
+    rec.payload = anybot_protocol::EvidencePayload::Changed {
+        path: format!("dir/file_{short}.rs"),
+        before: anybot_protocol::BeforeDigest::Present(anybot_foundation::ContentDigest::sha256(
+            format!("before-{short}").as_bytes(),
+        )),
+        after: anybot_foundation::ContentDigest::sha256(format!("after-{short}").as_bytes()),
+        size: 42,
+    };
+    rec
+}
+
 pub(crate) fn ev(kind: KnownTaskEventKind) -> TaskEventKind {
     TaskEventKind::Known(kind)
 }
 
+fn shown_card() -> TaskEventKind {
+    ev(KnownTaskEventKind::CardShown {
+        action: "q?".to_owned(),
+        card: "card-q".to_owned(),
+        kind: anybot_protocol::CardKind::Action,
+        resume: None,
+        buttons: vec![
+            anybot_protocol::CardButton::AllowOnce,
+            anybot_protocol::CardButton::Deny,
+        ],
+        reason: anybot_protocol::ReasonPayload {
+            code: "card-run-command".to_owned(),
+            params: Vec::new(),
+        },
+        always_label: None,
+        notes: Vec::new(),
+        classes: Vec::new(),
+    })
+}
+
 pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
     use KnownTaskEventKind::{
-        ActionVerified, BudgetUsage, CardShown, CriterionFailed, CriterionPassed, EvidenceAdded,
-        ModelAnswer, ModelAsked, ModelSwapped, ModelUsage, OutcomeUnknown, ToolIntent, ToolNotRun,
+        ActionVerified, BudgetUsage, CriterionFailed, CriterionPassed, EvidenceAdded, ModelAnswer,
+        ModelAsked, ModelSwapped, ModelUsage, OutcomeUnknown, ToolIntent, ToolNotRun,
     };
     prop_oneof![
         3 => crate::fixtures::criterion().prop_map(|c| ev(KnownTaskEventKind::DoneWhenChange {
             by: Proposer::User,
-            change: DoneWhenChange::SetItems { items: vec![c] },
+            change: DoneWhenChange::SetItems { items: vec![c.clone()] },
             before: Vec::new(),
-            after: Vec::new(),
+            after: vec![c],
             reason: "r".to_owned(),
         })),
-        10 => Just(ev(ModelAnswer {
+        6 => Just(ev(ModelAnswer {
             text: "t".to_owned(),
             thinking: None,
             tool_requests: Vec::new(),
             finish: anybot_protocol::FinishReason::Finished,
             native: None,
         })),
-        6 => (0usize..3usize).prop_map(|i| ev(ToolIntent { call_id: CallId::generate(&SystemClock), name: format!("e{i}"), args_summary: "a".to_owned(), level: ToolEffect::ReadOnly })),
-        4 => (0u32..9u32).prop_map(|i| {
+        10 => (0usize..3usize).prop_map(|i| ev(ToolIntent { call_id: CallId::generate(&SystemClock), name: format!("e{i}"), args_summary: "a".to_owned(), level: ToolEffect::ReadOnly })),
+        3 => (0u32..9u32).prop_map(|i| {
             ev(EvidenceAdded {
                 record: Box::new(evidence_fixture(i)),
             })
         }),
-        2 => Just(ev(CardShown {
-            action: "q?".to_owned(),
-            card: "card-q".to_owned(),
-        })),
+        3 => (0u32..9u32).prop_map(|i| {
+            ev(EvidenceAdded {
+                record: Box::new(changed_evidence_fixture(i)),
+            })
+        }),
+        2 => Just(shown_card()),
         2 => Just(ev(OutcomeUnknown { call_id: CallId::generate(&SystemClock) })),
         1 => Just(ev(ActionVerified {
             call_id: CallId::generate(&SystemClock),

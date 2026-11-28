@@ -205,11 +205,11 @@ pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind
             view.budget.turn_paused_ms = 0;
             view.budget.card_start_ms = None;
         }
-        KnownTaskEventKind::CardShown { .. } => {
+        KnownTaskEventKind::CardShown { .. } | KnownTaskEventKind::QuestionShown { .. } => {
             view.budget.last_ms = millis;
             view.budget.card_start_ms = Some(millis);
         }
-        KnownTaskEventKind::CardAnswered { .. } => {
+        KnownTaskEventKind::CardAnswered { .. } | KnownTaskEventKind::QuestionAnswered { .. } => {
             view.budget.last_ms = millis;
             pause_answered(view, millis);
         }
@@ -247,6 +247,7 @@ pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }

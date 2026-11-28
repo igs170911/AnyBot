@@ -1,3 +1,5 @@
+use crate::always_list::AlwaysList;
+use crate::command_key::command_action_key;
 use crate::sandbox_peel::visible_segments;
 
 pub const READ_ONLY_COMMANDS: [&str; 20] = [
@@ -57,33 +59,71 @@ pub fn is_read_only_segment(segment: &str) -> bool {
 
 #[must_use]
 pub fn command_level(line: &str) -> CommandLevel {
-    if crate::sandbox_peel::unreadable_reason(line).is_some() {
+    command_level_with_always(line, &AlwaysList::default(), "")
+}
+
+#[must_use]
+pub fn command_level_with_always(line: &str, always: &AlwaysList, computer: &str) -> CommandLevel {
+    if has_ask_every_time_hazard(line) {
         return CommandLevel::AskEveryTime;
     }
     let segments = visible_segments(line);
-    let joined = segments.join(" ");
-    if has_unbalanced_shape(&joined) || has_hidden_subcommand(&joined) {
-        return CommandLevel::AskEveryTime;
-    }
-    if segments.iter().any(|s| is_interactive_shell(s)) {
-        return CommandLevel::AskEveryTime;
-    }
-    if segments.iter().any(|s| writes_new_file(s)) {
-        return CommandLevel::AskEveryTime;
-    }
-    if has_redirect(&joined) {
-        return CommandLevel::AskEveryTime;
-    }
     if segments.iter().all(|s| is_read_only_segment(s)) {
         return CommandLevel::Direct;
     }
-    if segments.iter().filter(|s| !is_read_only_segment(s)).count() >= 2 {
+    if segments
+        .iter()
+        .filter(|s| !is_read_only_segment(s) && !segment_in_always(s, always, computer))
+        .count()
+        >= 2
+    {
         return CommandLevel::AskEveryTime;
     }
     if segments.iter().any(|s| edits_in_place(s)) {
         return CommandLevel::Ask;
     }
     CommandLevel::Ask
+}
+
+#[must_use]
+pub(crate) fn has_ask_every_time_hazard(line: &str) -> bool {
+    if crate::sandbox_peel::unreadable_reason(line).is_some() {
+        return true;
+    }
+    let segments = visible_segments(line);
+    let joined = segments.join(" ");
+    has_unbalanced_shape(&joined)
+        || has_hidden_subcommand(&joined)
+        || segments.iter().any(|s| is_interactive_shell(s))
+        || segments.iter().any(|s| writes_new_file(s))
+        || has_redirect(&joined)
+}
+
+#[must_use]
+pub(crate) fn segment_in_always(segment: &str, always: &AlwaysList, computer: &str) -> bool {
+    if computer.is_empty() {
+        return false;
+    }
+    let key = format!("command {} on {computer}", command_action_key(segment));
+    always.contains(&key)
+}
+
+#[must_use]
+pub(crate) fn all_segments_always_covered(line: &str, always: &AlwaysList, computer: &str) -> bool {
+    if has_ask_every_time_hazard(line) {
+        return false;
+    }
+    let segments = visible_segments(line);
+    if segments.is_empty() {
+        return false;
+    }
+    let all_ok = segments
+        .iter()
+        .all(|s| is_read_only_segment(s) || segment_in_always(s, always, computer));
+    let any_always = segments
+        .iter()
+        .any(|s| segment_in_always(s, always, computer));
+    all_ok && any_always
 }
 
 fn is_interactive_shell(segment: &str) -> bool {

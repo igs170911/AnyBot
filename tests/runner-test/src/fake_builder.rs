@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex};
 
 use anybot_protocol::{ComputerCaps, ComputerOwner, ComputerPlatform};
@@ -21,6 +21,9 @@ pub struct FakeComputerBuilder {
     unresolvable: Vec<String>,
     workdir: String,
     gate: GateConfig,
+    ripgrep: bool,
+    search_step_ms: u64,
+    inherited_env: Vec<(String, String)>,
 }
 
 impl Default for FakeComputerBuilder {
@@ -35,6 +38,9 @@ impl Default for FakeComputerBuilder {
             unresolvable: Vec::new(),
             workdir: "/workspace".to_owned(),
             gate: GateConfig::plain(),
+            ripgrep: true,
+            search_step_ms: 0,
+            inherited_env: Vec::new(),
         }
     }
 }
@@ -53,9 +59,14 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
-    pub fn bot_machine(self) -> Self {
-        let declared = ComputerCaps::declared(ComputerPlatform::BotMachine, ComputerOwner::Bot);
-        self.caps(declared).commands().files()
+    pub fn bot_machine(mut self) -> Self {
+        let home = self.caps.home_dir.clone();
+        let anybot_dir = self.caps.anybot_dir.clone();
+        let mut declared = ComputerCaps::declared(ComputerPlatform::BotMachine, ComputerOwner::Bot);
+        declared.home_dir = home;
+        declared.anybot_dir = anybot_dir;
+        self = self.caps(declared);
+        self.commands().files()
     }
 
     #[must_use]
@@ -74,31 +85,49 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
-    pub fn sandbox(self, on: bool) -> Self {
-        let caps = ComputerCaps {
-            command_sandbox: if on {
-                anybot_protocol::CapState::Supported
-            } else {
-                anybot_protocol::CapState::Unsupported
-            },
-            ..self.caps
+    pub fn sandbox(mut self, on: bool) -> Self {
+        self.caps.command_sandbox = if on {
+            anybot_protocol::CapState::Supported
+        } else {
+            anybot_protocol::CapState::Unsupported
         };
-        self.caps(caps)
+        self
     }
 
     #[must_use]
-    pub fn platform(self, platform: ComputerPlatform) -> Self {
-        let caps = ComputerCaps::declared(platform, self.caps.owner);
-        self.caps(caps)
+    pub fn platform(mut self, platform: ComputerPlatform) -> Self {
+        let home = self.caps.home_dir.clone();
+        let anybot_dir = self.caps.anybot_dir.clone();
+        let mut caps = ComputerCaps::declared(platform, self.caps.owner);
+        caps.home_dir = home;
+        caps.anybot_dir = anybot_dir;
+        self.caps = caps;
+        self
     }
 
     #[must_use]
-    pub fn user_machine(self) -> Self {
-        let caps = ComputerCaps {
-            owner: ComputerOwner::User,
-            ..self.caps
-        };
-        self.caps(caps)
+    pub fn home_dir(mut self, home: &str) -> Self {
+        home.clone_into(&mut self.caps.home_dir);
+        self.tree.set_home_dir(home);
+        self
+    }
+
+    #[must_use]
+    pub fn anybot_dir(mut self, dir: &str) -> Self {
+        dir.clone_into(&mut self.caps.anybot_dir);
+        self
+    }
+
+    #[must_use]
+    pub fn case_insensitive(mut self, on: bool) -> Self {
+        self.tree.set_case_insensitive(on);
+        self
+    }
+
+    #[must_use]
+    pub fn user_machine(mut self) -> Self {
+        self.caps.owner = ComputerOwner::User;
+        self
     }
 
     #[must_use]
@@ -145,6 +174,7 @@ impl FakeComputerBuilder {
     #[must_use]
     pub fn workdir(mut self, workdir: &str) -> Self {
         workdir.clone_into(&mut self.workdir);
+        self.tree.set_workdir(workdir);
         self
     }
 
@@ -161,6 +191,27 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
+    pub fn ripgrep(mut self, on: bool) -> Self {
+        self.ripgrep = on;
+        self
+    }
+
+    #[must_use]
+    pub fn search_step_ms(mut self, ms: u64) -> Self {
+        self.search_step_ms = ms;
+        self
+    }
+
+    #[must_use]
+    pub fn inherited_env(mut self, vars: &[(&str, &str)]) -> Self {
+        self.inherited_env = vars
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect();
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> FakeComputer {
         FakeComputer {
             name: self.name,
@@ -173,8 +224,12 @@ impl FakeComputerBuilder {
             workdir: Mutex::new(self.workdir),
             gate: Mutex::new(self.gate),
             bound: Mutex::new(std::collections::BTreeMap::new()),
+            ripgrep: AtomicBool::new(self.ripgrep),
+            search_step_ms: AtomicU64::new(self.search_step_ms),
             shift_declaration: AtomicBool::new(false),
             mutate_after_write: AtomicBool::new(false),
+            inherited_env: self.inherited_env,
+            env_seen: Mutex::new(std::collections::BTreeMap::new()),
             log: Mutex::new(Vec::new()),
         }
     }

@@ -3,10 +3,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::computer_caps::ComputerCaps;
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct EnvPlan {
+    pub unset_exact: Vec<String>,
+    pub unset_prefix: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommandRequest {
     pub command: String,
     pub timeout_ms: u64,
+    pub env: EnvPlan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -85,11 +92,69 @@ pub struct PathOutcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListRequest {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DirEntry {
+    pub name: String,
+    pub kind: TargetKind,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListOutcome {
+    pub path: String,
+    pub canonical: String,
+    pub entries: Vec<DirEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchRequest {
+    pub pattern: String,
+    pub path: String,
+    pub files_only: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchEngine {
+    Ripgrep,
+    Plain,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchHit {
+    pub path: String,
+    pub line: u32,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchCut {
+    None,
+    MaxLines,
+    MaxTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchOutcome {
+    pub engine: SearchEngine,
+    pub hits: Vec<SearchHit>,
+    pub files: Vec<String>,
+    pub cut: SearchCut,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActualResult {
     Command(CommandOutcome),
     Write(WriteOutcome),
     Read(ReadOutcome),
+    List(ListOutcome),
+    Search(SearchOutcome),
     Path(PathOutcome),
     Caps(ComputerCaps),
 }
@@ -100,8 +165,9 @@ impl ActualResult {
         match self {
             ActualResult::Write(outcome) => Some(&outcome.path),
             ActualResult::Read(outcome) => Some(&outcome.path),
+            ActualResult::List(outcome) => Some(&outcome.path),
             ActualResult::Path(outcome) => Some(&outcome.path),
-            ActualResult::Command(_) | ActualResult::Caps(_) => None,
+            ActualResult::Command(_) | ActualResult::Search(_) | ActualResult::Caps(_) => None,
         }
     }
 }

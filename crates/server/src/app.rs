@@ -32,6 +32,7 @@ pub struct AppState {
     pub listen_ports: Arc<Vec<u16>>,
     pub releases: Arc<anybot_domain::version_release::ReleaseTable>,
     pub bus: anybot_bus::SharedBus,
+    pub typing: anybot_bus::SharedTyping,
     pub secrets: Option<Arc<anybot_store_server::SecretKeys>>,
     pub presence: Arc<crate::presence::PresenceBook>,
 }
@@ -66,6 +67,7 @@ impl AppState {
             shutdown: Arc::new(Notify::new()),
             started_at_ms,
             bus: anybot_bus::shared_memory_bus(),
+            typing: anybot_bus::shared_typing_bus(),
             secrets: None,
             presence: Arc::new(crate::presence::PresenceBook::new(started_at_ms.millis())),
         }
@@ -119,7 +121,14 @@ impl AppState {
 }
 
 pub fn build_router(state: AppState) -> Router {
-    Router::new()
+    layered_routes(state.clone()).layer(axum::middleware::from_fn_with_state(
+        state,
+        crate::req_body_limit::body_limit_layer,
+    ))
+}
+
+fn layered_routes(state: AppState) -> Router {
+    let routed = Router::new()
         .route("/v1/health", get(health))
         .route("/v1/server/status", get(status))
         .route("/v1/account/register", post(register))
@@ -161,7 +170,12 @@ pub fn build_router(state: AppState) -> Router {
         .merge(two_step_routes())
         .merge(crate::computers_routes::routes())
         .merge(crate::mailbox_routes::routes())
-        .with_state(state.clone())
+        .merge(integration_routes());
+    session_layers(routed.with_state(state.clone()), state)
+}
+
+fn session_layers(router: Router, state: AppState) -> Router {
+    router
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             crate::auth_csrf::csrf_layer,
@@ -198,4 +212,13 @@ fn two_step_routes() -> Router<AppState> {
             "/v1/account/two-step/disable",
             post(crate::api_two_step_toggle::disable_two_step),
         )
+}
+
+fn integration_routes() -> Router<AppState> {
+    Router::new()
+        .route(
+            "/v1/streams/typing",
+            post(crate::api_streams_typing::typing),
+        )
+        .merge(crate::push_routes::routes())
 }

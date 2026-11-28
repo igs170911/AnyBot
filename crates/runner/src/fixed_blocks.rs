@@ -23,6 +23,12 @@ pub fn lang_of(lang: Option<Lang>) -> Lang {
     }
 }
 
+const SAFETY_CODES: [MessageCode; 3] = [
+    MessageCode::TurnFixedNoRetryAfterReject,
+    MessageCode::TurnFixedUntrustedNotConsent,
+    MessageCode::TurnFixedDraftOnly,
+];
+
 pub fn system_prompt(
     bot: &BotProfile,
     computer: &ComputerRef,
@@ -40,6 +46,10 @@ pub fn system_prompt(
     }
     let code = computer_code(&computer.platform);
     parts.push(catalog.format(lang, &code, &Params::new())?);
+    for safety in SAFETY_CODES {
+        parts.push(catalog.format(lang, &safety, &Params::new())?);
+    }
+    parts.push(catalog.format(lang, &MessageCode::TurnFixedTaskEvidence, &Params::new())?);
     Ok(parts.join("\n"))
 }
 

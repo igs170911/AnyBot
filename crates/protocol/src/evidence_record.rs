@@ -100,6 +100,10 @@ pub enum EvidencePayload {
         reason: NotExecutedReason,
         detail: ReasonPayload,
     },
+    Relayed {
+        from_bot: String,
+        text_head: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -176,6 +180,10 @@ impl EvidenceRecord {
             EvidencePayload::NotExecuted { reason, .. } => {
                 format!("not-executed {reason:?}").to_lowercase()
             }
+            EvidencePayload::Relayed {
+                from_bot,
+                text_head,
+            } => format!("relayed {from_bot} {text_head}"),
         };
         format!(
             "E{} {} {} {}",
@@ -190,7 +198,7 @@ impl EvidenceRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::gate_record::{GateNo, RuleLayer};
+    use crate::gate_record::{GateStep, RuleLayer};
     use anybot_foundation::SystemClock;
 
     fn record(kind: EvidenceKind, outcome: ActionOutcome) -> EvidenceRecord {
@@ -205,7 +213,7 @@ mod tests {
             tool: "shell".to_owned(),
             classes: Vec::new(),
             gate: GateRecord::new(
-                GateNo(1),
+                GateStep::DefaultRule,
                 RuleLayer::Default,
                 "bot-machine-direct".to_owned(),
                 JudgementSource::Rule,
@@ -216,7 +224,7 @@ mod tests {
             outcome,
             payload: EvidencePayload::Approved {
                 gate: GateRecord::new(
-                    GateNo(1),
+                    GateStep::DefaultRule,
                     RuleLayer::Default,
                     "bot-machine-direct".to_owned(),
                     JudgementSource::Rule,

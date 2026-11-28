@@ -16,6 +16,7 @@ url = { workspace = true }
 futures-util = { workspace = true }
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }
+tiktoken-rs = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

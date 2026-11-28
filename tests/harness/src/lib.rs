@@ -18,6 +18,7 @@ pub mod cloud_map;
 pub mod fake_clock;
 pub mod fake_model;
 pub mod fake_push;
+pub mod fake_push_tls;
 pub mod http;
 pub(crate) mod json_edit;
 pub mod launch;
@@ -25,6 +26,7 @@ pub mod model_anthropic;
 pub mod model_extra;
 pub(crate) mod model_hold;
 pub mod model_https;
+pub mod model_named;
 pub mod model_openai;
 pub mod model_plan;
 pub(crate) mod model_request;
@@ -62,6 +64,8 @@ pub mod realtime;
 pub mod reap;
 pub mod running;
 pub mod scratch;
+pub mod server_client;
+pub mod static_files;
 
 pub use capture::{ArcWriter, Capture, poll_contains};
 pub use cloud_map::{NameMap, cloud_name_matches, mapped_origin};
@@ -70,6 +74,7 @@ pub use fake_clock::{
 };
 pub use fake_model::{FakeModel, ModelFormat, model_start, model_start_with_format};
 pub use fake_push::{FakePush, PushRecord, push_start};
+pub use fake_push_tls::{PushTls, push_client_builder, push_start_tls};
 pub use http::{
     http_get, http_get_addr, http_send_get, http_wait, plain_client, request, sse_lines, sse_post,
     sse_post_client, sse_send, sse_wait_for_line, test_delete, test_get_async, test_post, test_put,
@@ -87,7 +92,7 @@ pub use model_script::{
     model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
     model_stop_reason, model_stream_error, model_think_then_reply, model_think_then_tool,
     model_thinking_block, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,
-    model_usage, random_reply,
+    model_tool_calls_with_usage, model_usage, random_reply,
 };
 pub use model_tls::{
     IssuedLeaf, MintedCert, mint_issued, mint_issued_not_yet, mint_issued_window, mint_not_yet,

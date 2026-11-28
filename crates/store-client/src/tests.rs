@@ -3,6 +3,7 @@ use serde_json::{Value, json};
 
 use crate::{ACCOUNT_STREAM, NewOutbox, OutboxState, Store, bot_stream};
 
+mod journal;
 mod recovery;
 
 fn stored(seq: i64, kind: &str, content: Value) -> StoredRecord {

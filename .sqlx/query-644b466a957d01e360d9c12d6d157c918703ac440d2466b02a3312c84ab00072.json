@@ -1,0 +1,145 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT local_id AS \"local_id!\", stream, record_id, kind, content, local_detail,\n                created_at_ms, task_id, turn, effect, offline_at_create, state\n                FROM outbox WHERE stream = ? ORDER BY local_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "local_id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "local_id"
+          }
+        }
+      },
+      {
+        "name": "stream",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "stream"
+          }
+        }
+      },
+      {
+        "name": "record_id",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "record_id"
+          }
+        }
+      },
+      {
+        "name": "kind",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "content",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "name": "local_detail",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "local_detail"
+          }
+        }
+      },
+      {
+        "name": "created_at_ms",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "created_at_ms"
+          }
+        }
+      },
+      {
+        "name": "task_id",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "name": "turn",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "turn"
+          }
+        }
+      },
+      {
+        "name": "effect",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "effect"
+          }
+        }
+      },
+      {
+        "name": "offline_at_create",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "offline_at_create"
+          }
+        }
+      },
+      {
+        "name": "state",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "state"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [false, false, false, false, false, true, false, true, true, true, false, false]
+  },
+  "hash": "644b466a957d01e360d9c12d6d157c918703ac440d2466b02a3312c84ab00072"
+}

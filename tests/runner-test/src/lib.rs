@@ -1,17 +1,26 @@
 extern crate self as runner_test;
 
+pub mod card_turn;
 pub mod fake_builder;
 pub mod fake_computer;
 #[path = "fake_computer_gate.rs"]
 pub mod fake_computer_gate;
 pub mod fake_files;
+mod fake_files_listing;
 pub mod fake_helpers;
 pub mod fake_scripts;
+pub mod fake_search;
+pub mod fake_trust;
+pub mod mem_raw;
 pub mod mem_store;
+pub mod mem_watch;
 pub(crate) mod ops_support;
 pub mod ops_support_exports;
+pub mod second_bot;
+pub mod trust_world;
 pub mod turn;
 pub mod turn_helpers;
+pub mod turn_interrupt;
 pub mod turn_loop1_checks;
 pub mod turn_setup;
 pub mod turn_tool_helpers;

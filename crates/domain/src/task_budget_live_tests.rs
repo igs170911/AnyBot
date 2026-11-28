@@ -82,12 +82,26 @@ fn card_wait_not_counted_mid_turn() {
             KnownTaskEventKind::CardShown {
                 action: "a".to_owned(),
                 card: "card-1".to_owned(),
+                kind: anybot_protocol::CardKind::Action,
+                resume: None,
+                buttons: vec![
+                    anybot_protocol::CardButton::AllowOnce,
+                    anybot_protocol::CardButton::Deny,
+                ],
+                reason: anybot_protocol::ReasonPayload {
+                    code: "card-run-command".to_owned(),
+                    params: Vec::new(),
+                },
+                always_label: None,
+                notes: Vec::new(),
+                classes: Vec::new(),
             },
         ),
         (
             1_000 + 10_800_000,
             KnownTaskEventKind::CardAnswered {
                 answer: anybot_protocol::CardAnswer::AllowOnce,
+                origin: anybot_protocol::AnswerOrigin::Hand,
             },
         ),
         (1_000 + 14_401_000, ask()),
@@ -107,6 +121,19 @@ fn card_open_mid_turn_not_counted() {
             KnownTaskEventKind::CardShown {
                 action: "a".to_owned(),
                 card: "card-1".to_owned(),
+                kind: anybot_protocol::CardKind::Action,
+                resume: None,
+                buttons: vec![
+                    anybot_protocol::CardButton::AllowOnce,
+                    anybot_protocol::CardButton::Deny,
+                ],
+                reason: anybot_protocol::ReasonPayload {
+                    code: "card-run-command".to_owned(),
+                    params: Vec::new(),
+                },
+                always_label: None,
+                notes: Vec::new(),
+                classes: Vec::new(),
             },
         ),
         (1_000 + 14_401_000, ask()),

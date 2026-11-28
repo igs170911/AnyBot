@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
@@ -25,8 +25,12 @@ pub struct FakeComputer {
     pub(crate) unreachable: AtomicBool,
     pub(crate) unresolvable: Vec<String>,
     pub(crate) workdir: Mutex<String>,
+    pub(crate) ripgrep: AtomicBool,
+    pub(crate) search_step_ms: AtomicU64,
     pub(crate) shift_declaration: AtomicBool,
     pub(crate) mutate_after_write: AtomicBool,
+    pub(crate) inherited_env: Vec<(String, String)>,
+    pub(crate) env_seen: Mutex<std::collections::BTreeMap<String, Vec<String>>>,
     pub(crate) log: Mutex<Vec<String>>,
 }
 
@@ -51,6 +55,14 @@ impl FakeComputer {
     }
 
     #[must_use]
+    pub fn env_seen(&self, command: &str) -> Vec<String> {
+        Self::guard(&self.env_seen)
+            .get(&anybot_trust::normalize_command(command))
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    #[must_use]
     pub fn is_unreachable(&self) -> bool {
         self.unreachable.load(Ordering::SeqCst)
     }
@@ -72,6 +84,10 @@ changed"
 
     pub fn set_unreachable(&self, on: bool) {
         self.unreachable.store(on, Ordering::SeqCst);
+    }
+
+    pub fn set_ripgrep(&self, on: bool) {
+        self.ripgrep.store(on, Ordering::SeqCst);
     }
 
     pub fn retarget_link(&self, path: &str, target: &str) {

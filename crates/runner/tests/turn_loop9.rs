@@ -3,6 +3,7 @@ use anybot_domain as _;
 use anybot_messages as _;
 use anybot_models as _;
 use anybot_runner as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use anybot_trust as _;
 use sha2 as _;
@@ -11,7 +12,7 @@ use thiserror as _;
 use anybot_protocol::{EvidencePayload, KnownTaskEventKind};
 use proptest::prelude::*;
 use runner_test::fake_scripts::CommandScript;
-use runner_test::turn::{Device, TurnWorld, WorldSetup, tool_spec};
+use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{task_kinds, task_of};
 use test_harness::{Step, ToolCallScript, model_replies_text, model_tool_calls};
 
@@ -21,9 +22,9 @@ const ARGS: [&str; 8] = [
     "{\"path\":\"missing.txt\",\"old_text\":\"q\",\"new_text\":\"r\"}",
     "{\"path\":\"a.txt\"}",
     "{\"path\":\"missing.txt\"}",
-    "{\"line\":\"ls\"}",
-    "{\"line\":\"exit 3\"}",
-    "{\"line\":\"sudo rm -rf /\"}",
+    "{\"command\":\"ls\"}",
+    "{\"command\":\"exit 3\"}",
+    "{\"command\":\"sudo rm -rf /\"}",
 ];
 
 const NAMES: [&str; 8] = [
@@ -55,11 +56,6 @@ fn arb_prose() -> BoxedStrategy<usize> {
 
 fn setup_of() -> WorldSetup {
     WorldSetup {
-        tools: vec![
-            tool_spec("edit_file", "Edit a file"),
-            tool_spec("read_file", "Read a file"),
-            tool_spec("shell", "Run a shell command"),
-        ],
         files: vec![("a.txt".to_owned(), "x and x".to_owned())],
         scripts: vec![
             ("ls".to_owned(), CommandScript::ok("listed")),
@@ -167,7 +163,8 @@ fn payload_in_log(payload: &EvidencePayload, log: &[String]) -> bool {
         }
         EvidencePayload::Approved { .. }
         | EvidencePayload::Rejected { .. }
-        | EvidencePayload::NotExecuted { .. } => true,
+        | EvidencePayload::NotExecuted { .. }
+        | EvidencePayload::Relayed { .. } => true,
     }
 }
 
@@ -238,7 +235,8 @@ fn check_record_visible(
         }
         EvidencePayload::Approved { .. }
         | EvidencePayload::Rejected { .. }
-        | EvidencePayload::NotExecuted { .. } => {}
+        | EvidencePayload::NotExecuted { .. }
+        | EvidencePayload::Relayed { .. } => {}
     }
     Ok(())
 }
