@@ -79,7 +79,7 @@ pub(crate) async fn record_result(
     }
     if run.summary.status.code == CODE_TURN_COMPLETED {
         let raw_id = store_output(runner, view).await?;
-        let summary = with_body(with_output(&text, &run.evidence), view);
+        let summary = with_body(&run.model.code, with_output(&text, &run.evidence), view);
         runner
             .append_task_event(
                 &ctx.task,
@@ -124,8 +124,9 @@ fn with_output(text: &str, evidence: &[EvidenceRecord]) -> String {
     text.to_owned()
 }
 
-fn with_body(text: String, view: &ActionView) -> String {
+fn with_body(code: &str, text: String, view: &ActionView) -> String {
     match view.take_body() {
+        Some(body) if !body.is_empty() && code == anybot_trust::CODE_TOOL_EMPTY => body,
         Some(body) if !body.is_empty() => format!("{text}\n{body}"),
         _ => text,
     }

@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::registry::{TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL, is_known_tool};
+use crate::registry::{TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SHELL, is_known_tool};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EditArgs {
@@ -17,6 +17,11 @@ pub struct ReadArgs {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListArgs {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellArgs {
     pub line: String,
     pub timeout_ms: Option<u64>,
@@ -26,6 +31,7 @@ pub struct ShellArgs {
 pub enum ToolArgs {
     Edit(EditArgs),
     Read(ReadArgs),
+    List(ListArgs),
     Shell(ShellArgs),
 }
 
@@ -102,6 +108,7 @@ pub fn parse_call(tool: &str, json: &str) -> Result<ToolArgs, ArgsRejection> {
     match tool {
         TOOL_EDIT_FILE => parse_edit(object),
         TOOL_READ_FILE => parse_read(object),
+        TOOL_LIST_DIR => parse_list(object),
         TOOL_SHELL => parse_shell(object),
         _ => Err(ArgsRejection::Malformed {
             reason: "unknown tool".to_owned(),
@@ -135,6 +142,11 @@ fn parse_shell(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, Args
     let line = text_field(object, "command", TOOL_SHELL)?;
     let timeout_ms = number_field(object, "timeout_ms");
     Ok(ToolArgs::Shell(ShellArgs { line, timeout_ms }))
+}
+
+fn parse_list(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
+    let path = text_field(object, "path", TOOL_LIST_DIR)?;
+    Ok(ToolArgs::List(ListArgs { path }))
 }
 
 fn text_field(
@@ -178,17 +190,18 @@ mod tests {
 
     #[test]
     fn test_arguments_reject_a_tool_that_is_not_in_this_turn() {
-        let parsed = parse_call("list_dir", "{}");
+        let parsed = parse_call("browser", "{}");
         let Err(ArgsRejection::UnknownTool { tool, available }) = parsed else {
             panic!("unknown tool not rejected: {parsed:?}");
         };
-        assert_eq!(tool, "list_dir");
+        assert_eq!(tool, "browser");
         assert_eq!(
             available,
             vec![
                 "edit_file".to_owned(),
                 "read_file".to_owned(),
-                "shell".to_owned()
+                "shell".to_owned(),
+                "list_dir".to_owned(),
             ]
         );
     }

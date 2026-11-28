@@ -2,9 +2,10 @@ use anybot_protocol::ComputerCaps;
 use serde_json::{Value, json};
 
 use crate::message_codes::{
-    CODE_TOOL_DESC_EDIT_FILE, CODE_TOOL_DESC_READ_FILE, CODE_TOOL_DESC_SHELL,
+    CODE_TOOL_DESC_EDIT_FILE, CODE_TOOL_DESC_LIST_DIR, CODE_TOOL_DESC_READ_FILE,
+    CODE_TOOL_DESC_SHELL,
 };
-use crate::registry::{TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL, registry};
+use crate::registry::{TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SHELL, registry};
 
 pub const COMPUTER_PARAM: &str = "computer";
 
@@ -31,6 +32,7 @@ fn tool_if_offered(name: &str, caps: &ComputerCaps) -> Option<ToolDef> {
         TOOL_EDIT_FILE if caps.write_files.yes() => Some(edit_def()),
         TOOL_READ_FILE if caps.read_files.yes() => Some(read_def()),
         TOOL_SHELL if caps.run_commands.yes() => Some(shell_def()),
+        TOOL_LIST_DIR if caps.read_files.yes() => Some(list_def()),
         _ => None,
     }
 }
@@ -82,6 +84,20 @@ fn shell_def() -> ToolDef {
     }
 }
 
+fn list_def() -> ToolDef {
+    ToolDef {
+        name: TOOL_LIST_DIR,
+        description_code: CODE_TOOL_DESC_LIST_DIR,
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "path": { "type": "string" }
+            },
+            "required": ["path"]
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,7 +116,10 @@ mod tests {
             read_files: CapState::Supported,
             ..base.clone()
         };
-        assert_eq!(names_of(&offered_tools(&only_read)), vec![TOOL_READ_FILE]);
+        assert_eq!(
+            names_of(&offered_tools(&only_read)),
+            vec![TOOL_READ_FILE, TOOL_LIST_DIR]
+        );
 
         let only_write = ComputerCaps {
             write_files: CapState::Supported,

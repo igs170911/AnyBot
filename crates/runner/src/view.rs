@@ -5,7 +5,7 @@ use anybot_trust::{ModelResultView, OpRejection, OutcomeText};
 
 use crate::error::TurnError;
 pub(crate) use crate::view_text::render_text;
-use crate::view_text::{command_text, read_text, write_text};
+use crate::view_text::{command_text, list_text, read_text, write_text};
 
 #[derive(Debug)]
 pub(crate) struct ActionView {
@@ -92,6 +92,13 @@ impl ModelResultView for ActionView {
                     self.read_limit,
                     &self.read_path,
                 );
+                if let Some(text) = body {
+                    self.capture_body(&text);
+                }
+                header
+            }
+            ActualResult::List(outcome) => {
+                let (header, body) = list_text(self.lang, outcome);
                 if let Some(text) = body {
                     self.capture_body(&text);
                 }

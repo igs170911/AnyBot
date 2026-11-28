@@ -1,7 +1,7 @@
 use anybot_foundation::ContentDigest;
 use anybot_protocol::{
-    ActualResult, CommandOutcome, EvidenceKind, EvidencePayload, PathOutcome, ReadOutcome,
-    WriteOutcome,
+    ActualResult, CommandOutcome, EvidenceKind, EvidencePayload, ListOutcome, PathOutcome,
+    ReadOutcome, WriteOutcome,
 };
 
 #[must_use]
@@ -9,7 +9,10 @@ pub fn payload_kind(result: &ActualResult) -> EvidenceKind {
     match result {
         ActualResult::Command(_) => EvidenceKind::Executed,
         ActualResult::Write(_) => EvidenceKind::Changed,
-        ActualResult::Read(_) | ActualResult::Path(_) | ActualResult::Caps(_) => EvidenceKind::Seen,
+        ActualResult::Read(_)
+        | ActualResult::List(_)
+        | ActualResult::Path(_)
+        | ActualResult::Caps(_) => EvidenceKind::Seen,
     }
 }
 
@@ -19,6 +22,7 @@ pub fn payload_of(result: &ActualResult) -> EvidencePayload {
         ActualResult::Command(outcome) => command_payload(outcome),
         ActualResult::Write(outcome) => write_payload(outcome),
         ActualResult::Read(outcome) => read_payload(outcome),
+        ActualResult::List(outcome) => list_payload(outcome),
         ActualResult::Path(outcome) => path_payload(outcome),
         ActualResult::Caps(caps) => caps_payload(caps),
     }
@@ -73,5 +77,14 @@ pub fn path_payload(outcome: &PathOutcome) -> EvidencePayload {
         path: outcome.canonical.clone(),
         digest: ContentDigest::sha256(outcome.canonical.as_bytes()),
         size: 0,
+    }
+}
+
+#[must_use]
+pub fn list_payload(outcome: &ListOutcome) -> EvidencePayload {
+    EvidencePayload::Seen {
+        path: outcome.canonical.clone(),
+        digest: ContentDigest::sha256(outcome.canonical.as_bytes()),
+        size: outcome.entries.len() as u64,
     }
 }

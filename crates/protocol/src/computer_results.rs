@@ -85,11 +85,31 @@ pub struct PathOutcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListRequest {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DirEntry {
+    pub name: String,
+    pub kind: TargetKind,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListOutcome {
+    pub path: String,
+    pub canonical: String,
+    pub entries: Vec<DirEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActualResult {
     Command(CommandOutcome),
     Write(WriteOutcome),
     Read(ReadOutcome),
+    List(ListOutcome),
     Path(PathOutcome),
     Caps(ComputerCaps),
 }
@@ -100,6 +120,7 @@ impl ActualResult {
         match self {
             ActualResult::Write(outcome) => Some(&outcome.path),
             ActualResult::Read(outcome) => Some(&outcome.path),
+            ActualResult::List(outcome) => Some(&outcome.path),
             ActualResult::Path(outcome) => Some(&outcome.path),
             ActualResult::Command(_) | ActualResult::Caps(_) => None,
         }

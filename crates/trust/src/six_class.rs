@@ -10,6 +10,7 @@ pub(crate) fn holds_a_class(action: &GateAction, caps_bot: bool) -> bool {
             write_holds(path, &action.workdir)
         }
         ActionSubject::ReadFile { .. }
+        | ActionSubject::ListDir { .. }
         | ActionSubject::PathCheck { .. }
         | ActionSubject::Capabilities => false,
     }

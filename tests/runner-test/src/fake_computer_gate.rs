@@ -4,8 +4,8 @@ use crate::fake_helpers::{
     MISSING_FILE_REASON, NO_SCRIPT_REASON, apply_writes, target_kind, write_outcome,
 };
 use anybot_protocol::{
-    ActualResult, CommandOutcome, ComputerCaps, ComputerFailure, PathOutcome, ReadOutcome,
-    TargetKind,
+    ActualResult, CommandOutcome, ComputerCaps, ComputerFailure, ListOutcome, PathOutcome,
+    ReadOutcome, TargetKind,
 };
 use anybot_trust::{GateConfig, GatedComputer, OpKind, OpRejection, OpTicket, normalize_command};
 
@@ -112,6 +112,22 @@ impl GatedComputer for FakeComputer {
             digest: digest_text(&content),
             size: content.len() as u64,
             content,
+        }))
+    }
+
+    fn list_dir(&self, ticket: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.accept_path(&ticket, &self.name, OpKind::ListDir)?;
+        let path = Self::ticket_path(&ticket)?;
+        self.record(format!("list_dir {path}"));
+        self.reachable()?;
+        let canonical = self.resolve_target(path).unwrap_or_else(|| path.to_owned());
+        let entries = Self::guard(&self.tree)
+            .list_entries(path)
+            .map_err(|reason| OpRejection::from_failure(ComputerFailure::operation(reason)))?;
+        Ok(ActualResult::List(ListOutcome {
+            path: path.to_owned(),
+            canonical,
+            entries,
         }))
     }
 

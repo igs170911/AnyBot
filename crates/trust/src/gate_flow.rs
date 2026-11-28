@@ -131,6 +131,7 @@ pub fn floor_view(action: &GateAction, caps: &ComputerCaps) -> FloorAction {
             has_sandbox: caps.command_sandbox.yes(),
         },
         ActionSubject::ReadFile { path }
+        | ActionSubject::ListDir { path }
         | ActionSubject::WriteFile { path, content: _ }
         | ActionSubject::EditFile { path, .. }
         | ActionSubject::PathCheck { path } => FloorAction::FilePath {
@@ -204,6 +205,7 @@ fn floor_denied_token(action: &GateAction, bot_machine: bool) -> Option<&'static
     match &action.subject {
         ActionSubject::Command { line, .. } => crate::sandbox_deny::deny_token(line, bot_machine),
         ActionSubject::ReadFile { .. }
+        | ActionSubject::ListDir { .. }
         | ActionSubject::WriteFile { .. }
         | ActionSubject::EditFile { .. }
         | ActionSubject::PathCheck { .. }
@@ -215,6 +217,7 @@ fn command_label(action: &GateAction) -> String {
     match &action.subject {
         ActionSubject::Command { line, .. } => line.clone(),
         ActionSubject::ReadFile { .. }
+        | ActionSubject::ListDir { .. }
         | ActionSubject::WriteFile { .. }
         | ActionSubject::EditFile { .. }
         | ActionSubject::PathCheck { .. }
@@ -225,6 +228,7 @@ fn command_label(action: &GateAction) -> String {
 fn path_label(action: &GateAction) -> String {
     match &action.subject {
         ActionSubject::ReadFile { path }
+        | ActionSubject::ListDir { path }
         | ActionSubject::WriteFile { path, .. }
         | ActionSubject::EditFile { path, .. }
         | ActionSubject::PathCheck { path } => path.effective(&action.workdir),

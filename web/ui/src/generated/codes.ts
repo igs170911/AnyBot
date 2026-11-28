@@ -108,6 +108,8 @@ export type MessageCode =
   "tool-read-directory" |
   "tool-read-lines" |
   "tool-read-more" |
+  "tool-list-more" |
+  "tool-list-empty" |
   "tool-shell-no-output" |
   "tool-shell-failed" |
   "tool-shell-trimmed" |
@@ -117,6 +119,7 @@ export type MessageCode =
   "tool-desc-edit-file" |
   "tool-desc-read-file" |
   "tool-desc-shell" |
+  "tool-desc-list-dir" |
   "gate-ask-computer-mismatch" |
   "tool-unreadable-eval" |
   "tool-unreadable-quotes" |
@@ -321,6 +324,8 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-read-directory",
   "tool-read-lines",
   "tool-read-more",
+  "tool-list-more",
+  "tool-list-empty",
   "tool-shell-no-output",
   "tool-shell-failed",
   "tool-shell-trimmed",
@@ -330,6 +335,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-desc-edit-file",
   "tool-desc-read-file",
   "tool-desc-shell",
+  "tool-desc-list-dir",
   "gate-ask-computer-mismatch",
   "tool-unreadable-eval",
   "tool-unreadable-quotes",

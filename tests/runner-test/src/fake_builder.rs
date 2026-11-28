@@ -145,6 +145,7 @@ impl FakeComputerBuilder {
     #[must_use]
     pub fn workdir(mut self, workdir: &str) -> Self {
         workdir.clone_into(&mut self.workdir);
+        self.tree.set_workdir(workdir);
         self
     }
 

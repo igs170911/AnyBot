@@ -10,6 +10,9 @@ pub(crate) fn resolve_subject(
         ActionSubject::ReadFile { path } => ActionSubject::ReadFile {
             path: resolve_one(&path, computer, workdir),
         },
+        ActionSubject::ListDir { path } => ActionSubject::ListDir {
+            path: resolve_one(&path, computer, workdir),
+        },
         ActionSubject::WriteFile { path, content } => ActionSubject::WriteFile {
             path: resolve_one(&path, computer, workdir),
             content,

@@ -1,7 +1,7 @@
 use anybot_trust::{ActionContext, ActionRequest, RequestedAction};
 
 use crate::arguments::{ReadArgs, ShellArgs, ToolArgs};
-use crate::registry::{TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL};
+use crate::registry::{TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SHELL};
 
 pub const DEFAULT_SHELL_TIMEOUT_MS: u64 = 30_000;
 pub const MAX_SHELL_TIMEOUT_MS: u64 = 600_000;
@@ -23,6 +23,7 @@ pub fn subject_of(tool: &str, args: ToolArgs) -> RequestedAction {
             new_text: edit.new_text,
         },
         (TOOL_READ_FILE, ToolArgs::Read(read)) => RequestedAction::ReadFile { path: read.path },
+        (TOOL_LIST_DIR, ToolArgs::List(list)) => RequestedAction::ListDir { path: list.path },
         (TOOL_SHELL, ToolArgs::Shell(shell)) => RequestedAction::Command {
             line: shell.line,
             timeout_ms: clamp_timeout(shell.timeout_ms),

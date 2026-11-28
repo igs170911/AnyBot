@@ -105,6 +105,8 @@ tool-read-not-text = { $path } is not a text file.
 tool-read-directory = { $path } is a folder; use list_dir.
 tool-read-lines = Lines { $from } to { $to } of { $path }.
 tool-read-more = ...{ $remaining } more lines (use offset={ $next_offset } to continue reading).
+tool-list-more = ...{ $count } more items
+tool-list-empty = (empty folder)
 tool-shell-no-output = Finished with no output.
 tool-shell-failed = Exit code { $code }.
 tool-shell-trimmed = Output was long: { $omitted } characters were omitted; the full text digest is { $digest }.
@@ -114,6 +116,7 @@ tool-other-computer = All tools in this turn run on "{ $computer }", so another 
 tool-desc-edit-file = Create, overwrite, or edit a file (path, old_text, new_text).
 tool-desc-read-file = Read a text file with line numbers (path, offset, limit).
 tool-desc-shell = Run a command in the working folder (command, timeout_ms).
+tool-desc-list-dir = List files and subfolders in a folder (path).
 gate-ask-computer-mismatch = The approval was asked on { $asked_for }; it cannot be answered on { $answered_on }.
 tool-unreadable-eval = The command uses eval, which cannot be read ahead.
 tool-unreadable-quotes = The command has quotes that do not match, so it cannot be read ahead.

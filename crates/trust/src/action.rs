@@ -102,6 +102,9 @@ pub enum ActionSubject {
     ReadFile {
         path: PathView,
     },
+    ListDir {
+        path: PathView,
+    },
     WriteFile {
         path: PathView,
         content: String,
@@ -124,6 +127,7 @@ impl ActionSubject {
     pub fn path_views(&self) -> Vec<&PathView> {
         match self {
             ActionSubject::ReadFile { path }
+            | ActionSubject::ListDir { path }
             | ActionSubject::WriteFile { path, content: _ }
             | ActionSubject::EditFile { path, .. }
             | ActionSubject::PathCheck { path } => vec![path],
@@ -199,6 +203,7 @@ impl GateAction {
         let subject = match &self.subject {
             ActionSubject::Command { line, .. } => normalize_command(line),
             ActionSubject::ReadFile { path } => format!("read:{}", path.raw_text()),
+            ActionSubject::ListDir { path } => format!("list:{}", path.raw_text()),
             ActionSubject::WriteFile { path, content: _ } => format!("write:{}", path.raw_text()),
             ActionSubject::EditFile { path, .. } => format!("edit:{}", path.raw_text()),
             ActionSubject::PathCheck { path } => format!("path:{}", path.raw_text()),

@@ -88,7 +88,7 @@ fn view_of(lang: anybot_messages::Lang, args: &anybot_tools::ToolArgs) -> Action
         anybot_tools::ToolArgs::Read(read) => ActionView::new(lang)
             .with_read_window(read.offset, read.limit)
             .with_read_path(&read.path),
-        anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
+        anybot_tools::ToolArgs::List(_) | anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
     }
 }
 

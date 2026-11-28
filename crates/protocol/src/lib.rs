@@ -31,8 +31,8 @@ pub use api::{
 pub use computer_caps::{CapState, ComputerCaps, ComputerOwner, ComputerPlatform};
 pub use computer_results::{
     ActualResult, BeforeDigest, CommandOutcome, CommandRequest, ComputerFailure,
-    ComputerFailureKind, PathOutcome, PathRequest, ReadOutcome, ReadRequest, TargetKind,
-    WriteOutcome, WriteRequest,
+    ComputerFailureKind, DirEntry, ListOutcome, ListRequest, PathOutcome, PathRequest, ReadOutcome,
+    ReadRequest, TargetKind, WriteOutcome, WriteRequest,
 };
 pub use computers_api::{
     ComputerDelegateRequest, ComputerRemoveRequest, ComputerRenameRequest, ComputerView,

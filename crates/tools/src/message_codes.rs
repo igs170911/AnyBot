@@ -9,6 +9,8 @@ pub const CODE_TOOL_READ_NOT_TEXT: &str = "tool-read-not-text";
 pub const CODE_TOOL_READ_DIRECTORY: &str = "tool-read-directory";
 pub const CODE_TOOL_READ_LINES: &str = "tool-read-lines";
 pub const CODE_TOOL_READ_MORE: &str = "tool-read-more";
+pub const CODE_TOOL_LIST_MORE: &str = "tool-list-more";
+pub const CODE_TOOL_LIST_EMPTY: &str = "tool-list-empty";
 pub const CODE_TOOL_SHELL_NO_OUTPUT: &str = "tool-shell-no-output";
 pub const CODE_TOOL_SHELL_FAILED: &str = "tool-shell-failed";
 pub const CODE_TOOL_SHELL_TRIMMED: &str = "tool-shell-trimmed";
@@ -18,9 +20,10 @@ pub const CODE_TOOL_OTHER_COMPUTER: &str = "tool-other-computer";
 pub const CODE_TOOL_DESC_EDIT_FILE: &str = "tool-desc-edit-file";
 pub const CODE_TOOL_DESC_READ_FILE: &str = "tool-desc-read-file";
 pub const CODE_TOOL_DESC_SHELL: &str = "tool-desc-shell";
+pub const CODE_TOOL_DESC_LIST_DIR: &str = "tool-desc-list-dir";
 
 #[must_use]
-pub fn all_tool_codes() -> [&'static str; 20] {
+pub fn all_tool_codes() -> [&'static str; 23] {
     [
         CODE_TOOL_EDIT_CREATED,
         CODE_TOOL_EDIT_OVERWRITTEN,
@@ -33,6 +36,8 @@ pub fn all_tool_codes() -> [&'static str; 20] {
         CODE_TOOL_READ_DIRECTORY,
         CODE_TOOL_READ_LINES,
         CODE_TOOL_READ_MORE,
+        CODE_TOOL_LIST_MORE,
+        CODE_TOOL_LIST_EMPTY,
         CODE_TOOL_SHELL_NO_OUTPUT,
         CODE_TOOL_SHELL_FAILED,
         CODE_TOOL_SHELL_TRIMMED,
@@ -42,6 +47,7 @@ pub fn all_tool_codes() -> [&'static str; 20] {
         CODE_TOOL_DESC_EDIT_FILE,
         CODE_TOOL_DESC_READ_FILE,
         CODE_TOOL_DESC_SHELL,
+        CODE_TOOL_DESC_LIST_DIR,
     ]
 }
 

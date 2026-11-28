@@ -14,6 +14,9 @@ pub enum RequestedAction {
     ReadFile {
         path: String,
     },
+    ListDir {
+        path: String,
+    },
     WriteFile {
         path: String,
         content: String,
@@ -68,6 +71,9 @@ fn subject_of(requested: &RequestedAction) -> ActionSubject {
             timeout_ms: *timeout_ms,
         },
         RequestedAction::ReadFile { path } => ActionSubject::ReadFile {
+            path: PathView::raw(path),
+        },
+        RequestedAction::ListDir { path } => ActionSubject::ListDir {
             path: PathView::raw(path),
         },
         RequestedAction::WriteFile { path, content } => ActionSubject::WriteFile {

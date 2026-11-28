@@ -1,35 +1,57 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use anybot_foundation::ContentDigest;
+use anybot_protocol::{DirEntry, TargetKind};
 
 pub const WORKDIR: &str = "/workspace";
 
 const MAX_LINK_HOPS: usize = 8;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct FileTree {
     files: BTreeMap<String, String>,
     links: BTreeMap<String, String>,
     dirs: BTreeSet<String>,
+    workdir: String,
+}
+
+impl Default for FileTree {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FileTree {
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        let mut dirs = BTreeSet::new();
+        dirs.insert(WORKDIR.to_owned());
+        FileTree {
+            files: BTreeMap::new(),
+            links: BTreeMap::new(),
+            dirs,
+            workdir: WORKDIR.to_owned(),
+        }
+    }
+
+    pub fn set_workdir(&mut self, workdir: &str) {
+        let normalized = normalize_path(workdir);
+        self.dirs.insert(normalized.clone());
+        self.workdir = normalized;
     }
 
     #[must_use]
     pub fn canonical(&self, path: &str) -> String {
-        let joined = Self::join_workdir(path);
+        let joined = self.join_workdir(path);
         self.follow_links(&joined)
     }
 
-    fn join_workdir(path: &str) -> String {
+    fn join_workdir(&self, path: &str) -> String {
         if path.starts_with('/') {
-            return path.to_owned();
+            return normalize_path(path);
         }
-        format!("{WORKDIR}/{path}")
+        let base = self.workdir.trim_end_matches('/');
+        normalize_path(&format!("{base}/{path}"))
     }
 
     fn follow_links(&self, joined: &str) -> String {
@@ -38,7 +60,7 @@ impl FileTree {
             let Some(target) = self.links.get(&current) else {
                 return current;
             };
-            current = Self::join_workdir(target);
+            current = self.join_workdir(target);
         }
         current
     }
@@ -56,11 +78,14 @@ impl FileTree {
 
     pub fn write(&mut self, path: &str, content: &str) {
         let canonical = self.canonical(path);
+        self.register_parents(&canonical);
         self.files.insert(canonical, content.to_owned());
     }
 
     pub fn write_exact(&mut self, path: &str, content: &str) {
-        self.files.insert(path.to_owned(), content.to_owned());
+        let normalized = normalize_path(path);
+        self.register_parents(&normalized);
+        self.files.insert(normalized, content.to_owned());
     }
 
     #[must_use]
@@ -75,12 +100,105 @@ impl FileTree {
 
     pub fn link(&mut self, path: &str, target: &str) {
         let canonical = self.canonical(path);
+        self.register_parents(&canonical);
         self.links.insert(canonical, target.to_owned());
     }
 
     pub fn add_dir(&mut self, path: &str) {
         let canonical = self.canonical(path);
+        self.register_parents(&canonical);
         self.dirs.insert(canonical);
+    }
+
+    pub fn list_entries(&self, path: &str) -> Result<Vec<DirEntry>, String> {
+        let canonical = self.canonical(path);
+        if self.files.contains_key(&canonical) {
+            return Err(format!("{canonical} is a file"));
+        }
+        if !self.dirs.contains(&canonical) {
+            return Err(format!("{canonical} is not a directory"));
+        }
+        let prefix = if canonical == "/" {
+            "/".to_owned()
+        } else {
+            format!("{canonical}/")
+        };
+        let mut out: BTreeMap<String, DirEntry> = BTreeMap::new();
+        for dir_path in &self.dirs {
+            if let Some(name) = immediate_child(dir_path, &prefix) {
+                out.insert(
+                    name.to_owned(),
+                    DirEntry {
+                        name: name.to_owned(),
+                        kind: TargetKind::Directory,
+                        size: 0,
+                    },
+                );
+            }
+        }
+        for (file_path, content) in &self.files {
+            if let Some(name) = immediate_child(file_path, &prefix) {
+                out.insert(
+                    name.to_owned(),
+                    DirEntry {
+                        name: name.to_owned(),
+                        kind: TargetKind::File,
+                        size: content.len() as u64,
+                    },
+                );
+            }
+        }
+        Ok(out.into_values().collect())
+    }
+
+    fn register_parents(&mut self, canonical: &str) {
+        let mut rest = canonical;
+        while let Some((parent, _)) = rest.rsplit_once('/') {
+            if parent.is_empty() {
+                self.dirs.insert("/".to_owned());
+                break;
+            }
+            self.dirs.insert(parent.to_owned());
+            rest = parent;
+        }
+    }
+}
+
+fn immediate_child<'a>(path: &'a str, prefix: &str) -> Option<&'a str> {
+    let rest = path.strip_prefix(prefix)?;
+    if rest.is_empty() || rest.contains('/') {
+        return None;
+    }
+    Some(rest)
+}
+
+fn normalize_path(path: &str) -> String {
+    let absolute = path.starts_with('/');
+    let mut parts: Vec<&str> = Vec::new();
+    for segment in path.split('/') {
+        if segment.is_empty() || segment == "." {
+            continue;
+        }
+        if segment == ".." {
+            if parts.last().is_some_and(|last| *last != "..") {
+                parts.pop();
+                continue;
+            }
+            if absolute {
+                continue;
+            }
+            parts.push("..");
+            continue;
+        }
+        parts.push(segment);
+    }
+    let joined = parts.join("/");
+    if absolute {
+        format!("/{joined}")
+    } else if joined.is_empty() {
+        ".".to_owned()
+    } else {
+        joined
     }
 }
 

@@ -6,6 +6,7 @@ use anybot_protocol::{ComputerCaps, GateRecord};
 pub enum OpKind {
     Run,
     Read,
+    ListDir,
     Write,
     Edit,
     Path,
@@ -18,6 +19,7 @@ impl OpKind {
         match subject {
             ActionSubject::Command { .. } => OpKind::Run,
             ActionSubject::ReadFile { .. } => OpKind::Read,
+            ActionSubject::ListDir { .. } => OpKind::ListDir,
             ActionSubject::WriteFile { .. } => OpKind::Write,
             ActionSubject::EditFile { .. } => OpKind::Edit,
             ActionSubject::PathCheck { .. } => OpKind::Path,
@@ -110,6 +112,7 @@ impl OpTicket {
         match &self.subject {
             ActionSubject::Command { line, timeout_ms } => Some((line.as_str(), *timeout_ms)),
             ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
             | ActionSubject::WriteFile { .. }
             | ActionSubject::EditFile { .. }
             | ActionSubject::PathCheck { .. }
@@ -126,6 +129,7 @@ impl OpTicket {
     pub fn bound_path(&self) -> Option<&str> {
         match &self.subject {
             ActionSubject::ReadFile { path }
+            | ActionSubject::ListDir { path }
             | ActionSubject::WriteFile { path, .. }
             | ActionSubject::EditFile { path, .. }
             | ActionSubject::PathCheck { path } => path.resolved_text().or(Some(path.raw_text())),
@@ -139,6 +143,7 @@ impl OpTicket {
             ActionSubject::WriteFile { content, .. } => Some(content.as_str()),
             ActionSubject::Command { .. }
             | ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
             | ActionSubject::EditFile { .. }
             | ActionSubject::PathCheck { .. }
             | ActionSubject::Capabilities => None,
@@ -153,6 +158,7 @@ impl OpTicket {
             } => Some((old_text.as_str(), new_text.as_str())),
             ActionSubject::Command { .. }
             | ActionSubject::ReadFile { .. }
+            | ActionSubject::ListDir { .. }
             | ActionSubject::WriteFile { .. }
             | ActionSubject::PathCheck { .. }
             | ActionSubject::Capabilities => None,

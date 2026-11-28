@@ -1,5 +1,6 @@
 use anybot_messages::{Catalog, Lang, MessageCode, Params};
-use anybot_protocol::{BeforeDigest, ReadOutcome, TargetKind, WriteOutcome};
+use anybot_protocol::{BeforeDigest, ListOutcome, ReadOutcome, TargetKind, WriteOutcome};
+use anybot_tools::list::{list_empty_code, list_more_code, render_listing};
 use anybot_tools::read::{block_of, format_numbered, numbered_lines, read_code, read_more_code};
 use anybot_trust::OutcomeText;
 
@@ -83,6 +84,28 @@ pub(crate) fn read_text(
         ],
     );
     (header, Some(body))
+}
+
+pub(crate) fn list_text(lang: Lang, outcome: &ListOutcome) -> (OutcomeText, Option<String>) {
+    let listing = render_listing(&outcome.entries);
+    if listing.is_empty {
+        return (OutcomeText::of(list_empty_code(), Vec::new()), None);
+    }
+    let mut body = listing.lines.join("\n");
+    if listing.remaining > 0 {
+        let more = OutcomeText::of(
+            list_more_code(),
+            vec![("count".to_owned(), listing.remaining.to_string())],
+        );
+        if let Ok(line) = render_text(lang, &more) {
+            body.push('\n');
+            body.push_str(&line);
+        }
+    }
+    (
+        OutcomeText::of(anybot_trust::CODE_TOOL_EMPTY, Vec::new()),
+        Some(body),
+    )
 }
 
 pub(crate) fn short_path(canonical: &str, requested: &str) -> String {

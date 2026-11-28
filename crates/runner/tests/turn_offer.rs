@@ -29,16 +29,21 @@ async fn t_computer_platforms_1() -> Result<(), String> {
         write_files: CapState::Supported,
         run_commands: CapState::Supported,
         check_path: CapState::Supported,
-        command_sandbox: CapState::Supported,
-        ..ComputerCaps::declared(ComputerPlatform::BotMachine, ComputerOwner::Bot)
+        command_sandbox: CapState::Unsupported,
+        ..ComputerCaps::declared(ComputerPlatform::Windows, ComputerOwner::User)
     };
     let setup = WorldSetup {
+        lang: Some(Lang::ZhTw),
+        platform: ComputerPlatform::Windows,
+        computer_name: "Windows".to_owned(),
         caps: Some(caps),
         ..WorldSetup::default()
     };
     let world = TurnWorld::start(&setup).await?;
     world.script(vec![model_replies_text("ok", false)]);
-    let outcome = world.send(Device::Phone, "hi").await;
+    let outcome = world
+        .send(Device::Phone, "\u{6253}\u{958b} example.test")
+        .await;
     drop(outcome.map_err(|e| format!("{e:?}"))?);
     let body = request_body(&world.model, 0)?;
     let tools = body
@@ -46,8 +51,11 @@ async fn t_computer_platforms_1() -> Result<(), String> {
         .and_then(|v| v.as_array())
         .ok_or("missing tools array".to_owned())?;
     let names = offered_names(tools)?;
-    assert_eq!(names, vec!["edit_file", "read_file", "shell"]);
+    assert_eq!(names, vec!["edit_file", "read_file", "shell", "list_dir"]);
     assert!(!names.iter().any(|n| n == "browser" || n == "computer"));
+    let sys = system_content(&body)?;
+    let wanted_sys = fmt_text(Lang::ZhTw, "turn-fixed-computer-windows", &Params::new())?;
+    assert!(sys.contains(&wanted_sys));
     for tool in tools {
         let props = tool
             .get("function")
@@ -187,7 +195,7 @@ async fn unknown_tool_lists_this_turn() -> Result<(), String> {
         "tool-not-in-turn",
         &Params::new()
             .with_text("tool", "edit_file")
-            .with_text("available", "read_file"),
+            .with_text("available", "read_file, list_dir"),
     )?;
     assert_eq!(got, wanted);
     let changed = task_kinds(&world, &task).iter().any(|k| {
