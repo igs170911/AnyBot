@@ -9,6 +9,7 @@ use crate::message_codes::{
     CODE_CLAIM_CHAT_COUNT, CODE_CLAIM_CHAT_DEAD_LINK, CODE_CLAIM_CHAT_NO_FILE,
     CODE_CLAIM_CHAT_STEP_FAILED,
 };
+use crate::send_detection::is_send_tool;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StepFact {
@@ -138,17 +139,6 @@ fn step_failed_or_rejected(step: &StepFact) -> bool {
         return !(step.exit_code == Some(1) && step.output_empty);
     }
     false
-}
-
-#[must_use]
-pub fn is_send_tool(tool: &str) -> bool {
-    let lower = tool.to_lowercase();
-    lower.contains("send")
-        || lower.contains("deliver")
-        || lower.contains("mail")
-        || lower.contains("post")
-        || lower.contains("upload")
-        || lower.starts_with("connector")
 }
 
 fn split_sentences(text: &str) -> Vec<String> {

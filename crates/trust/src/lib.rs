@@ -81,6 +81,7 @@ pub mod safety_n5;
 pub mod sandbox_deny;
 pub mod sandbox_levels;
 pub mod sandbox_peel;
+mod send_detection;
 mod six_class;
 pub mod smart_timeout;
 pub mod trust_floor;
@@ -92,7 +93,7 @@ pub use card_buttons::{AskOrigin, button_set};
 pub use card_data::{CardData, build_card};
 pub use card_view::{CardView, CardViewError, card_view};
 pub use claim_levels::{Claim, ClaimLevel, EvidenceKind, Link, Scope, Verification};
-pub use claims_check::{ClaimVerdict, StepFact, TurnFacts, check_reply, is_send_tool};
+pub use claims_check::{ClaimVerdict, StepFact, TurnFacts, check_reply};
 pub use claims_phrases::{DONE_PHRASES, EN_DONE_PHRASES, EN_SEND_PHRASES, SEND_PHRASES};
 pub use command_key::{command_action_key, command_tokens};
 pub use command_target::{DeleteBase, DeleteTarget, command_targets, has_expansion_token};
@@ -165,6 +166,7 @@ pub use sandbox_levels::{CommandLevel, READ_ONLY_COMMANDS, command_level};
 pub use sandbox_peel::{
     PEEL_WRAPPERS, PRIVILEGE_WRAPPERS, bare_name, peel_segment, unreadable_reason, visible_segments,
 };
+pub use send_detection::is_send_tool;
 pub use trust_floor::{FloorAction, FloorDeny, floor_check, is_denied_command};
 
 #[derive(Debug, Clone)]

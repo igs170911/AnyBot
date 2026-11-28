@@ -2,14 +2,14 @@ use anybot_protocol::{
     ActionOutcome, EvidenceKind, EvidencePayload, EvidenceRecord, ReasonPayload, VerificationResult,
 };
 
-use crate::claims_check::is_send_tool;
 use crate::claims_text::extract_claim_counts;
 use crate::message_codes::{
     CODE_CLAIM_CHAT_DEAD_LINK, CODE_CLAIM_COUNT_MISMATCH, CODE_CLAIM_KIND_MISMATCH,
     CODE_CLAIM_NO_EVIDENCE, CODE_CLAIM_RECIPIENT_MISMATCH, CODE_CLAIM_STEP_FAILED,
 };
-use crate::report_extract::{extract_emails, extract_filenames, extract_recipients, extract_urls};
+use crate::report_extract::{extract_filenames, extract_recipients, extract_urls};
 use crate::report_sentences::{ExpectedKind, expected_kind, strip_citations};
+use crate::send_detection::{is_send_record, records_recipients};
 
 pub(crate) fn check_records(
     sentence: &str,
@@ -48,14 +48,6 @@ fn matches_expected_kind(rec: &EvidenceRecord, expected: ExpectedKind) -> bool {
         ExpectedKind::Change => is_change_record(rec),
         ExpectedKind::Execute => is_execute_record(rec),
     }
-}
-
-pub(crate) fn is_send_record(rec: &EvidenceRecord) -> bool {
-    is_send_tool(&rec.tool)
-        || rec
-            .classes
-            .iter()
-            .any(|c| matches!(c.as_str(), "send" | "outbound" | "share" | "publish"))
 }
 
 pub(crate) fn is_change_record(rec: &EvidenceRecord) -> bool {
@@ -149,39 +141,6 @@ fn recipient_matches(found: &str, wanted: &str) -> bool {
         return local.eq_ignore_ascii_case(wanted);
     }
     false
-}
-
-fn records_recipients(records: &[&EvidenceRecord]) -> Vec<String> {
-    let mut out = Vec::new();
-    for rec in records {
-        for class in &rec.classes {
-            if let Some(val) = class.strip_prefix("recipient:") {
-                let lower = val.trim().to_lowercase();
-                if !lower.is_empty() && !out.contains(&lower) {
-                    out.push(lower);
-                }
-            }
-        }
-        for email in payload_emails(&rec.payload) {
-            if !out.contains(&email) {
-                out.push(email);
-            }
-        }
-    }
-    out
-}
-
-fn payload_emails(payload: &EvidencePayload) -> Vec<String> {
-    match payload {
-        EvidencePayload::Executed { command, .. } => extract_emails(command),
-        EvidencePayload::Changed { path, .. } | EvidencePayload::Seen { path, .. } => {
-            extract_emails(path)
-        }
-        EvidencePayload::Relayed { text_head, .. } => extract_emails(text_head),
-        EvidencePayload::Approved { .. }
-        | EvidencePayload::Rejected { .. }
-        | EvidencePayload::NotExecuted { .. } => Vec::new(),
-    }
 }
 
 fn check_files_and_urls(
