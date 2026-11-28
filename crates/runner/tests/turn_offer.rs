@@ -60,7 +60,8 @@ async fn t_computer_platforms_1() -> Result<(), String> {
             "shell",
             "list_dir",
             "search",
-            "read_result"
+            "read_result",
+            "ask_person"
         ]
     );
     assert!(!names.iter().any(|n| n == "browser" || n == "computer"));
@@ -204,9 +205,10 @@ async fn unknown_tool_lists_this_turn() -> Result<(), String> {
     let wanted = fmt_text(
         Lang::En,
         "tool-not-in-turn",
-        &Params::new()
-            .with_text("tool", "edit_file")
-            .with_text("available", "read_file, list_dir, search, read_result"),
+        &Params::new().with_text("tool", "edit_file").with_text(
+            "available",
+            "read_file, list_dir, search, read_result, ask_person",
+        ),
     )?;
     assert_eq!(got, wanted);
     let changed = task_kinds(&world, &task).iter().any(|k| {
@@ -222,7 +224,7 @@ async fn unknown_tool_lists_this_turn() -> Result<(), String> {
 }
 
 #[tokio::test]
-async fn empty_caps_offers_only_read_result() -> Result<(), String> {
+async fn empty_caps_offers_read_result_and_ask_person() -> Result<(), String> {
     let caps = ComputerCaps::declared(ComputerPlatform::Linux, ComputerOwner::User);
     let setup = WorldSetup {
         caps: Some(caps),
@@ -237,6 +239,6 @@ async fn empty_caps_offers_only_read_result() -> Result<(), String> {
         .get("tools")
         .and_then(|v| v.as_array())
         .ok_or("missing tools array".to_owned())?;
-    assert_eq!(offered_names(tools)?, vec!["read_result"]);
+    assert_eq!(offered_names(tools)?, vec!["read_result", "ask_person"]);
     Ok(())
 }

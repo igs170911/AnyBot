@@ -124,22 +124,21 @@ async fn record_refusal(
     run: &ActionRun,
 ) -> Result<(), TurnError> {
     let view = &card.view;
-    let text = match card.ticket.decline_text() {
-        Some(declined) => view.render(&declined)?,
-        None => {
-            let refusal = view.render(&anybot_trust::OutcomeText::of(
-                anybot_trust::CODE_GATE_ASK_DECLINED,
-                Vec::new(),
-            ))?;
-            view.render(&anybot_trust::OutcomeText::of(
-                "gate-denied",
-                vec![
-                    ("computer".to_owned(), view.computer_name().to_owned()),
-                    ("rule".to_owned(), run.gate.rule.clone()),
-                    ("refusal".to_owned(), refusal),
-                ],
-            ))?
-        }
+    let text = if let Some(declined) = card.ticket.decline_text() {
+        view.render(&declined)?
+    } else {
+        let refusal = view.render(&anybot_trust::OutcomeText::of(
+            anybot_trust::CODE_GATE_ASK_DECLINED,
+            Vec::new(),
+        ))?;
+        view.render(&anybot_trust::OutcomeText::of(
+            "gate-denied",
+            vec![
+                ("computer".to_owned(), view.computer_name().to_owned()),
+                ("rule".to_owned(), run.gate.rule.clone()),
+                ("refusal".to_owned(), refusal),
+            ],
+        ))?
     };
     runner
         .append_turn_event(

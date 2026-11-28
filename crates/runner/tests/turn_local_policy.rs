@@ -12,10 +12,10 @@ use sha2 as _;
 use test_harness as _;
 use thiserror as _;
 
-use anybot_protocol::{CardButton, CardKind, KnownTaskEventKind};
+use anybot_protocol::{CardAnswer, CardButton, CardKind, KnownTaskEventKind};
 use anybot_trust::{ComputerUse, LocalPolicy, LockState, RunHere};
 use runner_test::trust_world::{
-    MAC, cards_of, first_turn, mac_setup, modes, never, param, rejected_reason,
+    MAC, cards_of, first_card, first_turn, mac_setup, modes, never, param, rejected_reason,
 };
 use runner_test::turn::TurnWorld;
 use runner_test::turn_helpers::{task_kinds, task_of};
@@ -35,7 +35,7 @@ async fn t_safety_lock_5() -> Result<(), String> {
     assert_eq!(param(&reason, "computer"), Some(MAC));
     assert!(cards_of(&kinds).is_empty());
 
-    let other = TurnWorld::start(&mac_setup("Home Linux")).await?;
+    let other = runner_test::turn::arc_world(TurnWorld::start(&mac_setup("Home Linux")).await?);
     other.trust.set_policy("Home Linux", locked);
     other.trust.set_use(
         "Home Linux",
@@ -45,13 +45,14 @@ async fn t_safety_lock_5() -> Result<(), String> {
             this_machine: false,
         },
     );
-    let second = first_turn(&other, "shell", "{\"command\":\"ls\"}").await?;
-    let cards = cards_of(&task_kinds(&other, &task_of(&second)));
+    let second = first_card(&other, "shell", "{\"command\":\"ls\"}").await?;
+    let cards = cards_of(&task_kinds(&other, &second.task));
     let Some(KnownTaskEventKind::CardShown { kind, buttons, .. }) = cards.first() else {
         return Err("missing switch card".to_owned());
     };
     assert_eq!(*kind, CardKind::Switch);
     assert!(!buttons.contains(&CardButton::DirectMode));
+    second.answer(&other, CardAnswer::Deny).await?;
     Ok(())
 }
 

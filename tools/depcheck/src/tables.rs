@@ -114,6 +114,20 @@ fn add_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert("anybot-versions".to_owned(), BTreeSet::new());
 }
 
+fn server_test_deps() -> BTreeSet<String> {
+    [
+        "anybot-app-test",
+        "anybot-channels",
+        "anybot-domain",
+        "anybot-foundation",
+        "anybot-server",
+        "test-harness",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
+}
+
 fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
     m.insert(
         "test-harness".to_owned(),
@@ -150,12 +164,7 @@ fn add_test_tools(m: &mut BTreeMap<String, BTreeSet<String>>) {
         .into_iter()
         .collect(),
     );
-    m.insert(
-        "anybot-server-test".to_owned(),
-        ["anybot-app-test".to_owned(), "anybot-domain".to_owned()]
-            .into_iter()
-            .collect(),
-    );
+    m.insert("anybot-server-test".to_owned(), server_test_deps());
     m.insert("anybot-sync-test".to_owned(), BTreeSet::new());
     m.insert(
         "anybot-app-test".to_owned(),

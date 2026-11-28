@@ -43,7 +43,7 @@ fn step_without_result_is_an_error() {
     let call_id = CallId::generate(&SystemClock);
     let task = TaskId::generate(&SystemClock);
     let rows = vec![model_answer(call_id, task)];
-    let result = steps_of(&rows, &task, Lang::En);
+    let result = steps_of(&rows, &task, Lang::En, "");
     match result {
         Err(TurnError::UnpairedToolRequest { call_id: got }) => assert_eq!(got, call_id),
         other => panic!("unexpected: {other:?}"),

@@ -66,6 +66,11 @@ pub async fn join_turn(job: TurnJob) -> Result<TurnOutcome, String> {
         .map_err(|e| format!("turn error: {e:?}"))
 }
 
+pub enum CardOrEnd {
+    Asked(AskedTurn),
+    Ended(TurnOutcome),
+}
+
 pub async fn send_to_card(
     world: &Arc<TurnWorld>,
     from: Device,
@@ -73,7 +78,7 @@ pub async fn send_to_card(
 ) -> Result<AskedTurn, String> {
     let before = shown_cards(world).len();
     let job = send_job(world, from, text);
-    wait_for_card_after(world, before, job).await
+    asked_only(wait_for_card_after(world, before, job).await?)
 }
 
 pub async fn script_to_card(world: &Arc<TurnWorld>, steps: Vec<Step>) -> Result<AskedTurn, String> {
@@ -81,18 +86,37 @@ pub async fn script_to_card(world: &Arc<TurnWorld>, steps: Vec<Step>) -> Result<
     send_to_card(world, Device::Phone, "go").await
 }
 
+pub async fn script_until_settled(
+    world: &Arc<TurnWorld>,
+    steps: Vec<Step>,
+) -> Result<CardOrEnd, String> {
+    world.script(steps);
+    let before = shown_cards(world).len();
+    let job = send_job(world, Device::Phone, "go");
+    wait_for_card_after(world, before, job).await
+}
+
+fn asked_only(stopped: CardOrEnd) -> Result<AskedTurn, String> {
+    match stopped {
+        CardOrEnd::Asked(asked) => Ok(asked),
+        CardOrEnd::Ended(outcome) => {
+            Err(format!("turn ended without a card: {:?}", outcome.reason))
+        }
+    }
+}
+
 async fn wait_for_card_after(
     world: &TurnWorld,
     before: usize,
     job: TurnJob,
-) -> Result<AskedTurn, String> {
+) -> Result<CardOrEnd, String> {
     for _step in 0..1000 {
         if let Some((task, card)) = shown_cards(world).get(before).cloned() {
-            return Ok(AskedTurn { task, card, job });
+            return Ok(CardOrEnd::Asked(AskedTurn { task, card, job }));
         }
         if job.is_finished() {
             let outcome = join_turn(job).await?;
-            return Err(format!("turn ended without a card: {:?}", outcome.reason));
+            return Ok(CardOrEnd::Ended(outcome));
         }
         sleep_real(Duration::from_millis(5)).await;
     }

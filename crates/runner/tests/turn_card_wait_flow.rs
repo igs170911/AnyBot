@@ -140,10 +140,10 @@ async fn always_allow_added_mid_step_allows_next_action_without_card() -> Result
         model_replies_text("all done", false),
     ]);
 
-    let outcome = timeout_real(
+    let outcome = Box::pin(timeout_real(
         world.send(Device::Phone, "read then make"),
         Duration::from_secs(5),
-    )
+    ))
     .await
     .map_err(|e| format!("turn timed out: {e}"))?
     .map_err(|e| format!("{e:?}"))?;

@@ -36,7 +36,8 @@ pub(crate) async fn build_input_for(
         .map_err(TurnError::Record)?;
     let system_prompt =
         crate::fixed_blocks::system_prompt(&runner.bot, &runner.computer, runner.lang)?;
-    let mut steps = crate::context_denied::steps_of(&stored, &ctx.task, runner.lang)?;
+    let prefix = crate::action_events::computer_label_prefix(runner);
+    let mut steps = crate::context_denied::steps_of(&stored, &ctx.task, runner.lang, &prefix)?;
     let view_limit = effective_view_limit(&mut steps);
     Ok(BuildInput {
         view_limit,

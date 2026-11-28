@@ -122,7 +122,11 @@ async fn run_one(
             crate::questions::park_question(runner, ctx, request, ask_args).await?;
             Ok(OneAction::Refused)
         }
-        other => run_gated(runner, ctx, request, other).await,
+        other @ (anybot_tools::ToolArgs::Edit(_)
+        | anybot_tools::ToolArgs::Read(_)
+        | anybot_tools::ToolArgs::List(_)
+        | anybot_tools::ToolArgs::Search(_)
+        | anybot_tools::ToolArgs::Shell(_)) => run_gated(runner, ctx, request, other).await,
     }
 }
 

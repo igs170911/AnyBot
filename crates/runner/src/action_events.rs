@@ -90,10 +90,6 @@ pub(crate) async fn record_result_noted(
     note: Option<String>,
 ) -> Result<(), TurnError> {
     let rendered = view.render(&run.model)?;
-    let text = match note {
-        Some(note) => format!("{note} {rendered}"),
-        None => rendered,
-    };
     let json = crate::action::args_json(&request.arguments)?;
     if run.summary.status.code == CODE_TURN_REJECTED {
         return Ok(());
@@ -107,7 +103,12 @@ pub(crate) async fn record_result_noted(
         }
         None => None,
     };
-    let summary = combine_body(&run.model.code, text, shell.or_else(|| view.take_body()));
+    let body = combine_body(
+        &run.model.code,
+        rendered,
+        shell.or_else(|| view.take_body()),
+    );
+    let summary = prefix_note(note, body);
     if run.summary.status.code == CODE_TURN_COMPLETED {
         let summary = with_computer_prefix(runner, &summary);
         runner
@@ -137,16 +138,38 @@ pub(crate) async fn record_result_noted(
     }
 }
 
-fn with_computer_prefix(runner: &TurnRunner, text: &str) -> String {
+pub(crate) fn computer_label_prefix(runner: &TurnRunner) -> String {
     if runner.gated.declared_caps().owner != anybot_protocol::ComputerOwner::User {
-        return text.to_owned();
+        return String::new();
     }
     let name = runner.gated.name();
-    let prefix = format!("[{name}] ");
-    if text.starts_with(&prefix) {
+    format!("[{name}] ")
+}
+
+pub(crate) fn without_computer_label(text: &str, prefix: &str) -> String {
+    if prefix.is_empty() {
+        return text.to_owned();
+    }
+    if let Some(rest) = text.strip_prefix(prefix) {
+        rest.to_owned()
+    } else {
+        text.to_owned()
+    }
+}
+
+fn with_computer_prefix(runner: &TurnRunner, text: &str) -> String {
+    let prefix = computer_label_prefix(runner);
+    if prefix.is_empty() || text.starts_with(&prefix) {
         text.to_owned()
     } else {
         format!("{prefix}{text}")
+    }
+}
+
+fn prefix_note(note: Option<String>, body: String) -> String {
+    match note {
+        Some(note) => format!("{note} {body}"),
+        None => body,
     }
 }
 

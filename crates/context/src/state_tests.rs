@@ -51,6 +51,12 @@ fn check_evidence_item(
         EvidencePayload::Executed { command, .. } => {
             prop_assert!(has(&|t| t.contains(command)));
         }
+        EvidencePayload::Relayed {
+            from_bot,
+            text_head,
+        } => {
+            prop_assert!(has(&|t| t.contains(from_bot) && t.contains(text_head)));
+        }
         EvidencePayload::Approved { .. }
         | EvidencePayload::Rejected { .. }
         | EvidencePayload::NotExecuted { .. } => {}
@@ -249,28 +255,7 @@ fn seed_plan_events(
             open_ids.push(call.as_str().clone());
         }
     }
-    for q in 0..20u64 {
-        events.push(sup::known(
-            q.saturating_add(400),
-            KnownTaskEventKind::CardShown {
-                action: format!("question {q}"),
-                card: format!("card-{q}"),
-                kind: anybot_protocol::CardKind::Action,
-                resume: None,
-                buttons: vec![
-                    anybot_protocol::CardButton::AllowOnce,
-                    anybot_protocol::CardButton::Deny,
-                ],
-                reason: anybot_protocol::ReasonPayload {
-                    code: "card-run-command".to_owned(),
-                    params: Vec::new(),
-                },
-                always_label: None,
-                notes: Vec::new(),
-                classes: Vec::new(),
-            },
-        ));
-    }
+    sup::push_plan_questions(events);
 }
 
 #[test]

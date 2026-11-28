@@ -103,32 +103,44 @@ fn action_core(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
 }
 
 pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
+    if criteria_applied(view, event) {
+        return true;
+    }
+    criteria_skipped(event)
+}
+
+fn criteria_applied(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
+    if let KnownTaskEventKind::CriterionPassed { index, .. } = event {
+        apply_criterion_result(view, *index, Some(true));
+        finish_if_verifying_done(view);
+        return true;
+    }
+    if let KnownTaskEventKind::CriterionFailed { index, .. } = event {
+        apply_criterion_result(view, *index, Some(false));
+        finish_if_verifying_done(view);
+        return true;
+    }
+    if let KnownTaskEventKind::AcceptanceUnavailable = event {
+        view.gate.acceptance_unavailable = true;
+        finish_if_verifying_done(view);
+        return true;
+    }
+    if let KnownTaskEventKind::ClaimChecked {
+        covers_claim,
+        verified,
+        ..
+    } = event
+    {
+        if !covers_claim || !verified {
+            view.evidence.claims_ok = false;
+        }
+        return true;
+    }
+    false
+}
+
+fn criteria_skipped(event: &KnownTaskEventKind) -> bool {
     match event {
-        KnownTaskEventKind::CriterionPassed { index, .. } => {
-            apply_criterion_result(view, *index, Some(true));
-            finish_if_verifying_done(view);
-            true
-        }
-        KnownTaskEventKind::CriterionFailed { index, .. } => {
-            apply_criterion_result(view, *index, Some(false));
-            finish_if_verifying_done(view);
-            true
-        }
-        KnownTaskEventKind::AcceptanceUnavailable => {
-            view.gate.acceptance_unavailable = true;
-            finish_if_verifying_done(view);
-            true
-        }
-        KnownTaskEventKind::ClaimChecked {
-            covers_claim,
-            verified,
-            ..
-        } => {
-            if !covers_claim || !verified {
-                view.evidence.claims_ok = false;
-            }
-            true
-        }
         KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
@@ -155,6 +167,10 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
         | KnownTaskEventKind::Reconciled { .. }
         | KnownTaskEventKind::ActionVerified { .. }
         | KnownTaskEventKind::EvidenceAdded { .. }
+        | KnownTaskEventKind::CriterionPassed { .. }
+        | KnownTaskEventKind::CriterionFailed { .. }
+        | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::CardShown { .. }

@@ -15,16 +15,17 @@ use test_harness as _;
 use thiserror as _;
 
 use std::collections::BTreeSet;
+use std::time::Duration;
 
 use anybot_domain::turn_summary;
 use anybot_foundation::{ContentDigest, TimestampMs};
-use anybot_protocol::{CardAnswer, EvidencePayload, KnownTaskEventKind};
+use anybot_protocol::{CardAnswer, EvidenceKind, EvidencePayload, KnownTaskEventKind};
 use anybot_runner::RawStore;
 use anybot_trust::{ActionKey, GateConfig};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{
-    answer_card, messages_of, request_body, shown_card, task_kinds, task_of,
+    messages_of, request_body, task_kinds, task_of, wait_for_shown_card,
 };
 use runner_test::turn_tool_helpers::{
     call, exit_evidence, intent_call_ids, one_tool_step, tool_message_content,
@@ -203,27 +204,36 @@ async fn approval_keeps_short_ids_continuous() -> Result<(), String> {
         gate,
         ..WorldSetup::default()
     };
-    let world = TurnWorld::start(&setup).await?;
+    let world = runner_test::turn::arc_world(TurnWorld::start(&setup).await?);
     world.script(one_tool_step(vec![
         read_call("a.txt", "r1"),
         call("shell", "{\"command\":\"npm install\"}", "c1"),
     ]));
-    let outcome = world
-        .send(Device::Phone, "install")
+    let shared = runner_test::turn::share(&world);
+    let bg = tokio::spawn(async move { shared.send(Device::Phone, "install").await });
+    let (task, _cards) = wait_for_shown_card(&world, 1).await?;
+    world.answer_shown_card(task, CardAnswer::AllowOnce).await?;
+    test_harness::timeout_real(bg, Duration::from_secs(5))
         .await
+        .map_err(|e| format!("turn timed out: {e}"))?
+        .map_err(|e| format!("join failed: {e}"))?
         .map_err(|e| format!("{e:?}"))?;
-    let task = task_of(&outcome);
-    let digest = shown_card(&outcome, &task_kinds(&world, &task)).ok_or("missing card")?;
-    answer_card(&world, &outcome, &digest, CardAnswer::AllowOnce).await?;
-    let shorts: Vec<u32> = task_kinds(&world, &task)
+    let found: Vec<(u32, EvidenceKind)> = task_kinds(&world, &task)
         .into_iter()
         .filter_map(|k| {
             let KnownTaskEventKind::EvidenceAdded { record } = k else {
                 return None;
             };
-            Some(record.short.number())
+            Some((record.short.number(), record.kind))
         })
         .collect();
-    assert_eq!(shorts, vec![1, 2, 3, 4]);
+    assert_eq!(
+        found,
+        vec![
+            (1, EvidenceKind::Seen),
+            (2, EvidenceKind::Approved),
+            (3, EvidenceKind::Executed),
+        ]
+    );
     Ok(())
 }

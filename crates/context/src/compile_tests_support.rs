@@ -181,3 +181,28 @@ pub(crate) fn push_new(events: &mut Vec<TaskEvent>, new: &[NewEvent]) {
         }
     }
 }
+
+pub(crate) fn push_plan_questions(events: &mut Vec<TaskEvent>) {
+    for q in 0..20u64 {
+        events.push(known(
+            q.saturating_add(400),
+            KnownTaskEventKind::CardShown {
+                action: format!("question {q}"),
+                card: format!("card-{q}"),
+                kind: anybot_protocol::CardKind::Action,
+                resume: None,
+                buttons: vec![
+                    anybot_protocol::CardButton::AllowOnce,
+                    anybot_protocol::CardButton::Deny,
+                ],
+                reason: anybot_protocol::ReasonPayload {
+                    code: "card-run-command".to_owned(),
+                    params: Vec::new(),
+                },
+                always_label: None,
+                notes: Vec::new(),
+                classes: Vec::new(),
+            },
+        ));
+    }
+}

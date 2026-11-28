@@ -56,37 +56,48 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
 }
 
 pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
-    match event {
-        KnownTaskEventKind::CardShown { action, kind, .. } => {
-            if !matches!(view.status, TaskStatus::Cancelled | TaskStatus::Stopped) {
-                view.status = TaskStatus::AwaitingUser;
-                view.detail = Some(match kind {
-                    CardKind::Action | CardKind::EveryTime | CardKind::Switch => {
-                        TaskDetail::ApprovalPending {
-                            action: action.clone(),
-                        }
+    if user_signal_applied(view, event) {
+        return true;
+    }
+    user_signal_skipped(event)
+}
+
+fn user_signal_applied(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
+    if let KnownTaskEventKind::CardShown { action, kind, .. } = event {
+        if !matches!(view.status, TaskStatus::Cancelled | TaskStatus::Stopped) {
+            view.status = TaskStatus::AwaitingUser;
+            view.detail = Some(match kind {
+                CardKind::Action | CardKind::EveryTime | CardKind::Switch => {
+                    TaskDetail::ApprovalPending {
+                        action: action.clone(),
                     }
-                    CardKind::Resume => TaskDetail::ResumePending,
-                });
-            }
-            true
+                }
+                CardKind::Resume => TaskDetail::ResumePending,
+            });
         }
-        KnownTaskEventKind::CardAnswered { answer, .. } => {
-            crate::task_lifecycle_ops::answer_card(view, *answer);
-            true
-        }
-        KnownTaskEventKind::QuestionShown { questions, .. } => {
-            show_question(view, questions);
-            true
-        }
-        KnownTaskEventKind::QuestionAnswered { .. } => {
-            answer_question(view);
-            true
-        }
-        KnownTaskEventKind::DeviceReport { kind, .. } => {
-            crate::task_lifecycle_ops::report_device(view, *kind);
-            true
-        }
+        return true;
+    }
+    if let KnownTaskEventKind::CardAnswered { answer, .. } = event {
+        crate::task_lifecycle_ops::answer_card(view, *answer);
+        return true;
+    }
+    if let KnownTaskEventKind::QuestionShown { questions, .. } = event {
+        show_question(view, questions);
+        return true;
+    }
+    if let KnownTaskEventKind::QuestionAnswered { .. } = event {
+        answer_question(view);
+        return true;
+    }
+    if let KnownTaskEventKind::DeviceReport { kind, .. } = event {
+        crate::task_lifecycle_ops::report_device(view, *kind);
+        return true;
+    }
+    false
+}
+
+fn user_signal_skipped(event: &KnownTaskEventKind) -> bool {
+    match event {
         KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
@@ -119,6 +130,11 @@ pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKi
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
+        | KnownTaskEventKind::CardShown { .. }
+        | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
+        | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,

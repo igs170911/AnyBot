@@ -59,10 +59,30 @@ pub(crate) fn ev(kind: KnownTaskEventKind) -> TaskEventKind {
     TaskEventKind::Known(kind)
 }
 
+fn shown_card() -> TaskEventKind {
+    ev(KnownTaskEventKind::CardShown {
+        action: "q?".to_owned(),
+        card: "card-q".to_owned(),
+        kind: anybot_protocol::CardKind::Action,
+        resume: None,
+        buttons: vec![
+            anybot_protocol::CardButton::AllowOnce,
+            anybot_protocol::CardButton::Deny,
+        ],
+        reason: anybot_protocol::ReasonPayload {
+            code: "card-run-command".to_owned(),
+            params: Vec::new(),
+        },
+        always_label: None,
+        notes: Vec::new(),
+        classes: Vec::new(),
+    })
+}
+
 pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
     use KnownTaskEventKind::{
-        ActionVerified, BudgetUsage, CardShown, CriterionFailed, CriterionPassed, EvidenceAdded,
-        ModelAnswer, ModelAsked, ModelSwapped, ModelUsage, OutcomeUnknown, ToolIntent, ToolNotRun,
+        ActionVerified, BudgetUsage, CriterionFailed, CriterionPassed, EvidenceAdded, ModelAnswer,
+        ModelAsked, ModelSwapped, ModelUsage, OutcomeUnknown, ToolIntent, ToolNotRun,
     };
     prop_oneof![
         3 => crate::fixtures::criterion().prop_map(|c| ev(KnownTaskEventKind::DoneWhenChange {
@@ -90,23 +110,7 @@ pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
                 record: Box::new(changed_evidence_fixture(i)),
             })
         }),
-        2 => Just(ev(CardShown {
-            action: "q?".to_owned(),
-            card: "card-q".to_owned(),
-            kind: anybot_protocol::CardKind::Action,
-            resume: None,
-            buttons: vec![
-                anybot_protocol::CardButton::AllowOnce,
-                anybot_protocol::CardButton::Deny,
-            ],
-            reason: anybot_protocol::ReasonPayload {
-                code: "card-run-command".to_owned(),
-                params: Vec::new(),
-            },
-            always_label: None,
-            notes: Vec::new(),
-            classes: Vec::new(),
-        })),
+        2 => Just(shown_card()),
         2 => Just(ev(OutcomeUnknown { call_id: CallId::generate(&SystemClock) })),
         1 => Just(ev(ActionVerified {
             call_id: CallId::generate(&SystemClock),

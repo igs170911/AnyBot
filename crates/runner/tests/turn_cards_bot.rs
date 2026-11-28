@@ -16,14 +16,14 @@ use std::time::Duration;
 
 use anybot_messages::{Lang, Params};
 use anybot_protocol::{
-    CardButton, CardKind, ComputerOwner, ComputerPlatform, EvidenceKind, GateOutcome, GateStep,
-    KnownTaskEventKind, ReasonPayload, TaskDetail, TaskStatus, TurnEndReason,
+    CardAnswer, CardButton, CardKind, ComputerOwner, ComputerPlatform, EvidenceKind, GateOutcome,
+    GateStep, KnownTaskEventKind, ReasonPayload, TaskDetail, TaskStatus,
 };
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
-use runner_test::turn_helpers::{fmt_text, state_of, task_kinds, task_of};
+use runner_test::turn_helpers::{fmt_text, state_of, task_kinds, wait_for_shown_card};
 use runner_test::turn_tool_helpers::{call, one_tool_step};
-use test_harness::advance_clock;
+use test_harness::{advance_clock, sleep_real, timeout_real};
 
 fn bot_computer_setup() -> WorldSetup {
     WorldSetup {
@@ -90,19 +90,28 @@ fn assert_git_push_card(card: &KnownTaskEventKind) -> Result<(), String> {
     Ok(())
 }
 
+async fn finish_bg(
+    bg: tokio::task::JoinHandle<Result<anybot_runner::TurnOutcome, anybot_runner::TurnError>>,
+) -> Result<(), String> {
+    timeout_real(bg, Duration::from_secs(5))
+        .await
+        .map_err(|e| format!("turn timed out: {e}"))?
+        .map_err(|e| format!("join failed: {e}"))?
+        .map_err(|e| format!("{e:?}"))?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn t_safety_n5_12() -> Result<(), String> {
-    let world = TurnWorld::start(&bot_computer_setup()).await?;
+    let world = runner_test::turn::arc_world(TurnWorld::start(&bot_computer_setup()).await?);
     world.script(one_tool_step(vec![
         call("shell", "{\"command\":\"rm a.txt\"}", "c1"),
         call("shell", "{\"command\":\"git push\"}", "c2"),
     ]));
-    let outcome = world
-        .send(Device::Phone, "clean and push")
-        .await
-        .map_err(|e| format!("{e:?}"))?;
-    assert_eq!(outcome.reason, TurnEndReason::PendingApproval);
-    let kinds = task_kinds(&world, &task_of(&outcome));
+    let shared = runner_test::turn::share(&world);
+    let bg = tokio::spawn(async move { shared.send(Device::Phone, "clean and push").await });
+    let (task, _cards) = wait_for_shown_card(&world, 1).await?;
+    let kinds = task_kinds(&world, &task);
     let executed = kinds
         .iter()
         .find_map(|k| {
@@ -121,7 +130,9 @@ async fn t_safety_n5_12() -> Result<(), String> {
     let cards = find_cards(&kinds);
     assert_eq!(cards.len(), 1);
     let card = cards.first().ok_or("missing CardShown")?;
-    assert_git_push_card(card)
+    assert_git_push_card(card)?;
+    world.answer_shown_card(task, CardAnswer::Deny).await?;
+    finish_bg(bg).await
 }
 
 #[tokio::test]
@@ -137,19 +148,18 @@ async fn no_sandbox_card_waits_after_an_hour() -> Result<(), String> {
     };
     setup.gate.modes.yolo = true;
     setup.gate.modes.direct_mode = true;
-    let world = TurnWorld::start(&setup).await?;
+    let world = runner_test::turn::arc_world(TurnWorld::start(&setup).await?);
     world.script(one_tool_step(vec![call(
         "shell",
         "{\"command\":\"ls\"}",
         "c1",
     )]));
-    let outcome = world
-        .send(Device::Phone, "list")
-        .await
-        .map_err(|e| format!("{e:?}"))?;
-    assert_eq!(outcome.reason, TurnEndReason::PendingApproval);
+    let shared = runner_test::turn::share(&world);
+    let bg = tokio::spawn(async move { shared.send(Device::Phone, "list").await });
+    let (task, _cards) = wait_for_shown_card(&world, 1).await?;
     let _advanced = advance_clock(&world.clock, Duration::from_secs(3_600));
-    let task = task_of(&outcome);
+    sleep_real(Duration::from_millis(20)).await;
+    assert!(!bg.is_finished());
     let state = state_of(&world, &task)?;
     assert_eq!(state.0, TaskStatus::AwaitingUser);
     assert!(matches!(state.1, Some(TaskDetail::ApprovalPending { .. })));
@@ -163,5 +173,6 @@ async fn no_sandbox_card_waits_after_an_hour() -> Result<(), String> {
             .iter()
             .any(|n| n.code == "card-note-no-sandbox-private")
     );
+    bg.abort();
     Ok(())
 }

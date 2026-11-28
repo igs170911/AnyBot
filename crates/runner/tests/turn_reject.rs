@@ -14,11 +14,10 @@ use thiserror as _;
 use anybot_messages::Lang;
 use anybot_protocol::CardAnswer;
 use anybot_trust::{ActionKey, GateConfig};
+use runner_test::card_turn::send_to_card;
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
-use runner_test::turn_helpers::{
-    answer_card, chat_requests, request_body, shown_card, system_content, task_kinds, task_of,
-};
+use runner_test::turn_helpers::{chat_requests, request_body, system_content, task_kinds};
 use runner_test::turn_tool_helpers::{call, one_tool_step};
 use test_harness::model_replies_text;
 
@@ -58,23 +57,23 @@ fn last_system(world: &TurnWorld) -> Result<String, String> {
 
 #[tokio::test]
 async fn t_safety_reject_5() -> Result<(), String> {
-    let world = TurnWorld::start(&deploy_setup()).await?;
+    let world = runner_test::turn::arc_world(TurnWorld::start(&deploy_setup()).await?);
     world.script(deploy_call("make deploy", "c1"));
-    let first = world
-        .send(Device::Phone, "deploy")
-        .await
-        .map_err(|e| format!("{e:?}"))?;
-    let kinds = task_kinds(&world, &task_of(&first));
-    let digest = shown_card(&first, &kinds).ok_or("no first card")?;
-    answer_card(&world, &first, &digest, CardAnswer::Deny).await?;
+    let first = send_to_card(&world, Device::Phone, "deploy").await?;
+    world
+        .answer_shown_card(first.task, CardAnswer::Deny)
+        .await?;
+    first.finish().await?;
     world.script(deploy_call("make  deploy", "c2"));
-    let second = world
-        .send(Device::Phone, "deploy again")
-        .await
-        .map_err(|e| format!("{e:?}"))?;
-    let kinds = task_kinds(&world, &task_of(&second));
-    assert!(shown_card(&second, &kinds).is_some());
+    let second = send_to_card(&world, Device::Phone, "deploy again").await?;
+    let kinds = task_kinds(&world, &second.task);
+    assert!(
+        kinds
+            .iter()
+            .any(|k| matches!(k, anybot_protocol::KnownTaskEventKind::CardShown { .. }))
+    );
     assert!(last_system(&world)?.contains(NO_RETRY));
+    let _ended = second.answer(&world, CardAnswer::Deny).await?;
     Ok(())
 }
 

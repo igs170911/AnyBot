@@ -14,16 +14,17 @@ use thiserror as _;
 
 use anybot_foundation::{BotId, SystemClock, TimestampMs};
 use anybot_protocol::{
-    AnswerOrigin, EvidenceKind, GateRecord, GateStep, JudgementSource, KnownTaskEventKind,
+    AnswerOrigin, CardAnswer, EvidenceKind, GateRecord, GateStep, JudgementSource,
+    KnownTaskEventKind,
 };
 use anybot_runner::TurnOutcome;
-use anybot_runner::yolo_release::release_for_yolo;
 use anybot_trust::pattern::parse_pattern;
 use anybot_trust::{AlwaysEntry, AlwaysList, GateConfig, UserRules};
+use runner_test::card_turn::send_job;
 use runner_test::fake_scripts::CommandScript;
-use runner_test::trust_world::{MAC, cards_of, first_turn, mac_setup, modes};
+use runner_test::trust_world::{MAC, cards_of, first_card, mac_setup, modes};
 use runner_test::turn::{Device, TurnWorld};
-use runner_test::turn_helpers::{task_kinds, task_of};
+use runner_test::turn_helpers::{task_kinds, task_of, wait_for_shown_card};
 use runner_test::turn_tool_helpers::{call, one_tool_step};
 use test_harness::advance_clock;
 
@@ -60,13 +61,17 @@ async fn command(world: &TurnWorld, text: &str) -> Result<TurnOutcome, String> {
         .map_err(|e| format!("{e:?}"))
 }
 
-fn executed(world: &TurnWorld, outcome: &TurnOutcome) -> usize {
-    task_kinds(world, &task_of(outcome))
+fn executed_on(world: &TurnWorld, task: &anybot_foundation::TaskId) -> usize {
+    task_kinds(world, task)
         .iter()
         .filter(|k| {
             matches!(k, KnownTaskEventKind::EvidenceAdded { record } if record.kind == EvidenceKind::Executed)
         })
         .count()
+}
+
+fn executed(world: &TurnWorld, outcome: &TurnOutcome) -> usize {
+    executed_on(world, &task_of(outcome))
 }
 
 fn gates(world: &TurnWorld, outcome: &TurnOutcome) -> Vec<GateRecord> {
@@ -93,10 +98,14 @@ async fn push_again(world: &TurnWorld, id: &str) -> Result<TurnOutcome, String> 
 
 #[tokio::test]
 async fn t_autonomy_patterns_2() -> Result<(), String> {
-    let world = push_world(true).await?;
-    let first = first_turn(&world, "shell", PUSH).await?;
-    assert_eq!(cards_of(&task_kinds(&world, &task_of(&first))).len(), 1);
-    assert_eq!(executed(&world, &first), 0);
+    let world = runner_test::turn::arc_world(push_world(true).await?);
+    world.script(one_tool_step(vec![call("shell", PUSH, "c1")]));
+    let bg = send_job(&world, Device::Phone, "go");
+    let (task, _cards) = wait_for_shown_card(&world, 1).await?;
+    assert_eq!(cards_of(&task_kinds(&world, &task)).len(), 1);
+    assert_eq!(executed_on(&world, &task), 0);
+    bg.abort();
+    let _stopped = test_harness::timeout_real(bg, std::time::Duration::from_secs(2)).await;
     let before = world.chat_requests().len();
     let reply = command(&world, "/always-approve").await?;
     assert_eq!(world.chat_requests().len(), before);
@@ -112,14 +121,23 @@ async fn t_autonomy_patterns_2() -> Result<(), String> {
 
 #[tokio::test]
 async fn yolo_on_releases_waiting_card() -> Result<(), String> {
-    let world = push_world(true).await?;
-    let mut first = first_turn(&world, "shell", PUSH).await?;
-    command(&world, "/yolo on").await?;
-    let waiting = std::mem::take(&mut first.pending);
-    let kept = release_for_yolo(world.runner(), waiting)
+    let world = runner_test::turn::arc_world(push_world(true).await?);
+    let asked = first_card(&world, "shell", PUSH).await?;
+    let mut gate = world.gate_config();
+    gate.modes.yolo = true;
+    world.set_gate(gate);
+    world
+        .runner()
+        .append_task_event(
+            &asked.task,
+            KnownTaskEventKind::CardAnswered {
+                answer: CardAnswer::AllowOnce,
+                origin: AnswerOrigin::Auto,
+            },
+        )
         .await
-        .map_err(|e| e.to_string())?;
-    assert!(kept.is_empty());
+        .map_err(|e| format!("{e:?}"))?;
+    let first = asked.finish().await?;
     assert_eq!(executed(&world, &first), 1);
     let origin = task_kinds(&world, &task_of(&first))
         .into_iter()

@@ -117,8 +117,9 @@ async fn t_files_shell_6() -> Result<(), String> {
         )],
         ..WorldSetup::default()
     };
-    let (world, _task, _call_id, result) = run_command_and_allow(&setup, cmd).await?;
-    assert_eq!(result, "[]");
+    let (world, _task, call_id, _stored) = run_command_and_allow(&setup, cmd).await?;
+    let model_text = tool_message_content(&messages_of(&request_body(&world.model, 1)?), &call_id)?;
+    assert_eq!(model_text, "[]");
     let seen = world.gated.env_seen(cmd);
     assert!(!seen.contains(&"ANTHROPIC_API_KEY".to_owned()));
     assert!(seen.contains(&"PATH".to_owned()));

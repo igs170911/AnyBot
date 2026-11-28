@@ -112,8 +112,13 @@ fn check_harness_rules(
     violations
 }
 
-const HARNESS_RUNTIME_USERS: [&str; 4] =
-    ["testenv", "live-model", "runner-test", "anybot-app-test"];
+const HARNESS_RUNTIME_USERS: [&str; 5] = [
+    "testenv",
+    "live-model",
+    "runner-test",
+    "anybot-app-test",
+    "anybot-server-test",
+];
 
 const RUNNER_TEST_ALLOWED: [&str; 11] = [
     "test-harness",

@@ -13,28 +13,25 @@ use test_harness as _;
 use thiserror as _;
 
 use anybot_messages::{Lang, Params};
-use anybot_protocol::{CardAnswer, CardButton, CardKind, KnownTaskEventKind, TurnEndReason};
+use anybot_protocol::{CardAnswer, CardButton, CardKind, KnownTaskEventKind};
 use runner_test::trust_world::{
-    MAC, ask_every_time, card_reason, cards_of, first_turn, mac_setup, modes, param, render,
-    unticked,
+    MAC, ask_every_time, card_reason, cards_of, first_card, first_turn, mac_setup, modes, param,
+    render, unticked,
 };
 use runner_test::turn::TurnWorld;
-use runner_test::turn_helpers::{
-    answer_card, answer_pending, fmt_text, shown_card, task_kinds, task_of,
-};
+use runner_test::turn_helpers::{fmt_text, task_kinds, task_of, wait_for_shown_card};
 
 #[tokio::test]
 async fn switch_decline_text_is_recorded_for_the_model() -> Result<(), String> {
-    let world = TurnWorld::start(&mac_setup(MAC)).await?;
+    let world = runner_test::turn::arc_world(TurnWorld::start(&mac_setup(MAC)).await?);
     world.trust.set_use(MAC, unticked());
-    let outcome = first_turn(
+    let asked = first_card(
         &world,
         "read_file",
         "{\"path\":\"/home/alice/Documents/a.txt\"}",
     )
     .await?;
-    assert_eq!(outcome.reason, TurnEndReason::PendingApproval);
-    let task = task_of(&outcome);
+    let task = asked.task;
     let kinds = task_kinds(&world, &task);
     let cards = cards_of(&kinds);
     let Some(KnownTaskEventKind::CardShown {
@@ -60,8 +57,7 @@ async fn switch_decline_text_is_recorded_for_the_model() -> Result<(), String> {
     assert_eq!(reason.code, "card-switch");
     assert_eq!(param(reason, "bot"), Some("Bot1"));
     assert_eq!(param(reason, "computer"), Some(MAC));
-    let digest = shown_card(&outcome, &kinds).ok_or("missing digest")?;
-    answer_card(&world, &outcome, &digest, CardAnswer::Deny).await?;
+    asked.answer(&world, CardAnswer::Deny).await?;
     let expected = fmt_text(
         Lang::ZhTw,
         "gate-switch-declined-bot",
@@ -117,10 +113,10 @@ async fn t_sandbox_levels_2() -> Result<(), String> {
         ),
     ];
     for (tool, args, code, shown_prefix) in calls {
-        let world = TurnWorld::start(&mac_setup(MAC)).await?;
+        let world = runner_test::turn::arc_world(TurnWorld::start(&mac_setup(MAC)).await?);
         world.trust.set_use(MAC, ask_every_time());
-        let outcome = first_turn(&world, tool, args).await?;
-        let cards = cards_of(&task_kinds(&world, &task_of(&outcome)));
+        let asked = first_card(&world, tool, args).await?;
+        let cards = cards_of(&task_kinds(&world, &asked.task));
         assert_eq!(cards.len(), 1);
         let (reason, label, kind) = card_reason(&cards)?;
         assert_eq!(reason.code, code);
@@ -138,35 +134,34 @@ async fn t_sandbox_levels_2() -> Result<(), String> {
                 "\u{5728}\u{300c}Work Mac\u{300d}\u{8dd1} make"
             );
         }
+        asked.answer(&world, CardAnswer::Deny).await?;
     }
     Ok(())
 }
 
 #[tokio::test]
 async fn switch_then_action_card() -> Result<(), String> {
-    let world = TurnWorld::start(&mac_setup(MAC)).await?;
+    let world = runner_test::turn::arc_world(TurnWorld::start(&mac_setup(MAC)).await?);
     world.trust.set_use(MAC, unticked());
-    let outcome = first_turn(
+    let asked = first_card(
         &world,
         "edit_file",
         "{\"path\":\"a.md\",\"old_text\":\"old\",\"new_text\":\"new\"}",
     )
     .await?;
-    let task = task_of(&outcome);
-    let kinds = task_kinds(&world, &task);
-    let digest = shown_card(&outcome, &kinds).ok_or("missing digest")?;
-    answer_card(&world, &outcome, &digest, CardAnswer::AllowOnce).await?;
-    let next = world.runner().take_parked_cards();
-    assert_eq!(next.len(), 1);
-    let cards = cards_of(&task_kinds(&world, &task));
-    let first = card_reason(&cards)?;
+    let task = asked.task;
+    let first_cards = cards_of(&task_kinds(&world, &task));
+    let first = card_reason(&first_cards)?;
     assert_eq!(first.2, CardKind::Switch);
+    world.answer_shown_card(task, CardAnswer::AllowOnce).await?;
+    let _shown = wait_for_shown_card(&world, 2).await?;
+    let cards = cards_of(&task_kinds(&world, &task));
     let Some(KnownTaskEventKind::CardShown { kind, .. }) = cards.get(1) else {
         return Err("missing second card".to_owned());
     };
     assert_ne!(*kind, CardKind::Switch);
-    let second = next.first().ok_or("missing parked card")?;
-    answer_pending(&world, task, outcome.turn, second, CardAnswer::AllowOnce).await?;
+    world.answer_shown_card(task, CardAnswer::AllowOnce).await?;
+    asked.finish().await?;
     assert_eq!(
         world.tree_content("/home/alice/work/a.md"),
         Some("new".to_owned())

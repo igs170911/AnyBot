@@ -83,6 +83,7 @@ pub(crate) fn steps_of(
     stored: &[Stored],
     task: &TaskId,
     lang: Lang,
+    computer_prefix: &str,
 ) -> Result<Vec<StepRecord>, TurnError> {
     let results = results_of(stored, task, lang);
     let mut steps: Vec<StepRecord> = Vec::new();
@@ -93,7 +94,7 @@ pub(crate) fn steps_of(
                     call_id: request.call_id,
                 });
             };
-            steps.push(step_record_of(lang, &request, found)?);
+            steps.push(step_record_of(lang, &request, found, computer_prefix)?);
         }
     }
     Ok(steps)
@@ -103,6 +104,7 @@ fn step_record_of(
     lang: Lang,
     request: &ToolArgsPair,
     found: &CallResult,
+    computer_prefix: &str,
 ) -> Result<StepRecord, TurnError> {
     let (summary, value) = args_text(&request.arguments)?;
     let content = if found.outcome == StepOutcomeKind::Unknown {
@@ -114,7 +116,7 @@ fn step_record_of(
             ),
         )?
     } else {
-        found.text.clone()
+        crate::action_events::without_computer_label(&found.text, computer_prefix)
     };
     let exit_code = found.exit_code();
     let error_at = anybot_context::find_error_line(&content, exit_code);

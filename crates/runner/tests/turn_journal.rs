@@ -17,8 +17,8 @@ use anybot_protocol::{KnownTaskEventKind, TaskEventKind, TaskStatus};
 use anybot_runner::{JournalRecord, Record, RunnerParts, TurnRunner, UserMessage};
 use anybot_store_client::{Store, bot_stream};
 use anybot_tools::{
-    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH, TOOL_SHELL,
-    ToolLevel, level_of, registry,
+    TOOL_ASK_PERSON, TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH,
+    TOOL_SHELL, ToolLevel, level_of, registry,
 };
 use runner_test::fake_builder::FakeComputerBuilder;
 use runner_test::fake_scripts::CommandScript;
@@ -98,12 +98,13 @@ async fn start_journal_runner(name: &str, setup: &WorldSetup) -> Result<RunnerEn
 fn tool_registry_maps_each_tool_to_effect() {
     let table = registry();
     let names: BTreeSet<&str> = table.iter().map(|(name, _)| *name).collect();
-    assert_eq!(table.len(), 6);
-    assert_eq!(names.len(), 6);
+    assert_eq!(table.len(), 7);
+    assert_eq!(names.len(), 7);
     assert_eq!(level_of(TOOL_READ_FILE), ToolLevel::ReadOnly);
     assert_eq!(level_of(TOOL_LIST_DIR), ToolLevel::ReadOnly);
     assert_eq!(level_of(TOOL_SEARCH), ToolLevel::ReadOnly);
     assert_eq!(level_of(TOOL_READ_RESULT), ToolLevel::ReadOnly);
+    assert_eq!(level_of(TOOL_ASK_PERSON), ToolLevel::ReadOnly);
     assert_eq!(level_of(TOOL_EDIT_FILE), ToolLevel::Reversible);
     assert_eq!(level_of(TOOL_SHELL), ToolLevel::Irreversible);
     assert_eq!(level_of("unregistered_tool"), ToolLevel::Irreversible);

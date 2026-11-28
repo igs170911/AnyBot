@@ -128,7 +128,7 @@ pub fn build_router(state: AppState) -> Router {
 }
 
 fn layered_routes(state: AppState) -> Router {
-    Router::new()
+    let routed = Router::new()
         .route("/v1/health", get(health))
         .route("/v1/server/status", get(status))
         .route("/v1/account/register", post(register))
@@ -170,8 +170,12 @@ fn layered_routes(state: AppState) -> Router {
         .merge(two_step_routes())
         .merge(crate::computers_routes::routes())
         .merge(crate::mailbox_routes::routes())
-        .merge(integration_routes())
-        .with_state(state.clone())
+        .merge(integration_routes());
+    session_layers(routed.with_state(state.clone()), state)
+}
+
+fn session_layers(router: Router, state: AppState) -> Router {
+    router
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             crate::auth_csrf::csrf_layer,

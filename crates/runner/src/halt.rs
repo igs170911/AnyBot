@@ -34,50 +34,58 @@ pub(crate) fn halt_in_rows(rows: &[Stored], task: &TaskId, turn_started: u64) ->
         let TaskEventKind::Known(kind) = &event.kind else {
             continue;
         };
-        match kind {
-            KnownTaskEventKind::TaskCancelled { .. } => return Some(Halt::Cancelled),
-            KnownTaskEventKind::TaskStopped => found = Some(Halt::Stopped),
-            KnownTaskEventKind::TaskCreated { .. }
-            | KnownTaskEventKind::DoneWhenChange { .. }
-            | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
-            | KnownTaskEventKind::Wake { .. }
-            | KnownTaskEventKind::TurnStarted { .. }
-            | KnownTaskEventKind::TurnEnded { .. }
-            | KnownTaskEventKind::ContextBuilt { .. }
-            | KnownTaskEventKind::ModelAsked { .. }
-            | KnownTaskEventKind::ModelAnswer { .. }
-            | KnownTaskEventKind::ModelUsage { .. }
-            | KnownTaskEventKind::ToolNotRun { .. }
-            | KnownTaskEventKind::ModelSwapped { .. }
-            | KnownTaskEventKind::GateResult { .. }
-            | KnownTaskEventKind::ToolIntent { .. }
-            | KnownTaskEventKind::ToolStarted { .. }
-            | KnownTaskEventKind::ToolCompleted { .. }
-            | KnownTaskEventKind::ToolFailed { .. }
-            | KnownTaskEventKind::OutcomeUnknown { .. }
-            | KnownTaskEventKind::Reconciled { .. }
-            | KnownTaskEventKind::ActionVerified { .. }
-            | KnownTaskEventKind::EvidenceAdded { .. }
-            | KnownTaskEventKind::CriterionPassed { .. }
-            | KnownTaskEventKind::CriterionFailed { .. }
-            | KnownTaskEventKind::AcceptanceUnavailable
-            | KnownTaskEventKind::VerificationStarted
-            | KnownTaskEventKind::ClaimChecked { .. }
-            | KnownTaskEventKind::BudgetUsage { .. }
-            | KnownTaskEventKind::BudgetLimit { .. }
-            | KnownTaskEventKind::CardShown { .. }
-            | KnownTaskEventKind::CardAnswered { .. }
-            | KnownTaskEventKind::QuestionShown { .. }
-            | KnownTaskEventKind::QuestionAnswered { .. }
-            | KnownTaskEventKind::DeviceReport { .. }
-            | KnownTaskEventKind::DeliveryReport { .. }
-            | KnownTaskEventKind::ModelUnreachable
-            | KnownTaskEventKind::ComputerOffline
-            | KnownTaskEventKind::GoalPaused { .. }
-            | KnownTaskEventKind::Stalled { .. } => {}
+        match halt_kind(kind) {
+            Some(Halt::Cancelled) => return Some(Halt::Cancelled),
+            Some(Halt::Stopped) => found = Some(Halt::Stopped),
+            None => {}
         }
     }
     found
+}
+
+fn halt_kind(kind: &KnownTaskEventKind) -> Option<Halt> {
+    match kind {
+        KnownTaskEventKind::TaskCancelled { .. } => Some(Halt::Cancelled),
+        KnownTaskEventKind::TaskStopped => Some(Halt::Stopped),
+        KnownTaskEventKind::TaskCreated { .. }
+        | KnownTaskEventKind::DoneWhenChange { .. }
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::Wake { .. }
+        | KnownTaskEventKind::TurnStarted { .. }
+        | KnownTaskEventKind::TurnEnded { .. }
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
+        | KnownTaskEventKind::ModelSwapped { .. }
+        | KnownTaskEventKind::GateResult { .. }
+        | KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::ToolStarted { .. }
+        | KnownTaskEventKind::ToolCompleted { .. }
+        | KnownTaskEventKind::ToolFailed { .. }
+        | KnownTaskEventKind::OutcomeUnknown { .. }
+        | KnownTaskEventKind::Reconciled { .. }
+        | KnownTaskEventKind::ActionVerified { .. }
+        | KnownTaskEventKind::EvidenceAdded { .. }
+        | KnownTaskEventKind::CriterionPassed { .. }
+        | KnownTaskEventKind::CriterionFailed { .. }
+        | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
+        | KnownTaskEventKind::ClaimChecked { .. }
+        | KnownTaskEventKind::BudgetUsage { .. }
+        | KnownTaskEventKind::BudgetLimit { .. }
+        | KnownTaskEventKind::CardShown { .. }
+        | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
+        | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
+        | KnownTaskEventKind::ModelUnreachable
+        | KnownTaskEventKind::ComputerOffline
+        | KnownTaskEventKind::GoalPaused { .. }
+        | KnownTaskEventKind::Stalled { .. } => None,
+    }
 }
 
 pub(crate) async fn check_halt(

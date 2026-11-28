@@ -142,18 +142,7 @@ async fn finish_answer(
         .await?;
     record_budget_usage(runner, ctx, &result.usage).await?;
     if requests.is_empty() {
-        if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
-            let reason = finish_halt(runner, ctx, halt).await?;
-            return Ok(StepFlow::Ended(reason));
-        }
-        if let Some(over) = crate::budget_gate::current_over(runner, ctx).await? {
-            return end_over_budget(runner, ctx, over.item, over.used, over.limit).await;
-        }
-        crate::ending::maybe_record_claim_check(runner, ctx, &result.text, result.stop).await?;
-        runner
-            .append_turn_end(ctx, TurnEndReason::Answered, true)
-            .await?;
-        return Ok(StepFlow::Ended(TurnEndReason::Answered));
+        return finish_without_tools(runner, ctx, &result.text, result.stop).await;
     }
     match run_actions(runner, ctx, &requests).await? {
         ActionLoop::Halted(halt) => {
@@ -176,6 +165,26 @@ async fn finish_answer(
         return Ok(StepFlow::Ended(reason));
     }
     Ok(StepFlow::Continue)
+}
+
+async fn finish_without_tools(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    text: &str,
+    stop: anybot_models::StopKind,
+) -> Result<StepFlow, TurnError> {
+    if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
+        let reason = finish_halt(runner, ctx, halt).await?;
+        return Ok(StepFlow::Ended(reason));
+    }
+    if let Some(over) = crate::budget_gate::current_over(runner, ctx).await? {
+        return end_over_budget(runner, ctx, over.item, over.used, over.limit).await;
+    }
+    crate::ending::maybe_record_claim_check(runner, ctx, text, stop).await?;
+    runner
+        .append_turn_end(ctx, TurnEndReason::Answered, true)
+        .await?;
+    Ok(StepFlow::Ended(TurnEndReason::Answered))
 }
 
 async fn record_budget_usage(
