@@ -1,6 +1,6 @@
 use crate::action::{ActionKey, ActionSubject, GateAction};
 use crate::always_list::AlwaysList;
-use crate::gate_engine::{GateLayer, Opinion};
+use crate::gate_engine::{GateLayer, Opinion, Outcome};
 use crate::gate_flow_params::{decision_rule, floor_denied_token, gate_outcome, verdict_params};
 use crate::gate_full::{EngineInput, ModeFlags, decide};
 use crate::gate_rules::{hook_opinion, style_hits};
@@ -9,7 +9,7 @@ use crate::op_ticket::OpTicket;
 use crate::trust_floor::{FloorAction, floor_check};
 use anybot_foundation::TimestampMs;
 use anybot_protocol::{
-    ComputerCaps, ComputerOwner, GateNo, GateOutcome, GateRecord, JudgementSource, RuleLayer,
+    ComputerCaps, ComputerOwner, GateOutcome, GateRecord, GateStep, JudgementSource, RuleLayer,
 };
 
 pub use crate::gate_flow_params::rule_code;
@@ -40,6 +40,7 @@ pub struct GateConfig {
     pub user: UserRules,
     pub admin: AdminRules,
     pub anybot_dir: String,
+    pub bot_name: String,
 }
 
 impl GateConfig {
@@ -55,6 +56,7 @@ impl GateConfig {
             user: UserRules::default(),
             admin: AdminRules::default(),
             anybot_dir: String::new(),
+            bot_name: String::new(),
         }
     }
 }
@@ -63,6 +65,7 @@ impl GateConfig {
 pub struct GateVerdict {
     pub(crate) outcome: GateOutcome,
     pub(crate) layer: GateLayer,
+    pub(crate) step: GateStep,
     pub(crate) rule: String,
     pub(crate) read_only: bool,
     pub(crate) params: Vec<(String, String)>,
@@ -70,19 +73,14 @@ pub struct GateVerdict {
 
 impl GateVerdict {
     #[must_use]
-    pub(crate) fn gate_no(&self) -> GateNo {
-        GateNo(match self.layer {
-            GateLayer::Floor => 1,
-            GateLayer::Admin => 2,
-            GateLayer::User => 3,
-            GateLayer::Default => 4,
-        })
+    pub(crate) fn gate_step(&self) -> GateStep {
+        self.step
     }
 
     #[must_use]
     pub(crate) fn record(&self) -> GateRecord {
         GateRecord::new(
-            self.gate_no(),
+            self.gate_step(),
             rule_layer(self.layer),
             self.rule.clone(),
             JudgementSource::Rule,
@@ -192,14 +190,77 @@ pub(crate) fn judge(
 
     let decision = decide(&input);
     let rule = decision_rule(decision.layer, &verdict, floor_hit);
+    let step = resolve_gate_step(
+        decision.layer,
+        verdict.opinion(),
+        config,
+        &input,
+        decision.outcome,
+    );
     let bot_machine = caps.owner == ComputerOwner::Bot;
     let denied_token = floor_denied_token(action, bot_machine);
-    let params = verdict_params(decision.layer, floor_hit, &rule, action, denied_token);
+    let params = verdict_params(
+        decision.layer,
+        floor_hit,
+        &rule,
+        action,
+        denied_token,
+        &config.bot_name,
+        computer,
+    );
     GateVerdict {
         outcome: gate_outcome(decision.outcome),
         layer: decision.layer,
+        step,
         rule,
         read_only: verdict.read_only,
         params,
     }
+}
+
+fn resolve_gate_step(
+    layer: GateLayer,
+    default_opinion: Opinion,
+    config: &GateConfig,
+    input: &EngineInput,
+    outcome: Outcome,
+) -> GateStep {
+    match layer {
+        GateLayer::Floor => GateStep::Floor,
+        GateLayer::Admin => GateStep::Admin,
+        GateLayer::User => resolve_user_step(input),
+        GateLayer::Default => {
+            if default_opinion == Opinion::Ask
+                && outcome == Outcome::Allow
+                && config.modes.yolo
+                && !config.modes.ask_every_time
+            {
+                GateStep::Relax
+            } else {
+                GateStep::DefaultRule
+            }
+        }
+    }
+}
+
+fn resolve_user_step(input: &EngineInput) -> GateStep {
+    let can_ask = !input.modes.ask_every_time;
+    if input.user_hook == Opinion::Deny || (input.user_hook == Opinion::Ask && can_ask) {
+        return GateStep::UserHooks;
+    }
+    if input.styles.ask_style_hit {
+        return GateStep::AskPatterns;
+    }
+    let list_allow = input.styles.always_hit || input.styles.session_allowed;
+    let style_allow = input.styles.allow_style_hit && !input.six_class;
+    if list_allow || style_allow {
+        return GateStep::AllowLists;
+    }
+    if input.modes.direct_mode && !input.six_class {
+        return GateStep::Relax;
+    }
+    if input.user_hook == Opinion::Allow && !input.six_class {
+        return GateStep::UserHooks;
+    }
+    GateStep::AllowLists
 }

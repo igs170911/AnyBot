@@ -27,7 +27,7 @@ fn test_gate_flow_floor_denial_records_the_first_gate() {
     let action = GateAction::command("shell", "mkfs.ext4 /dev/sda1", "/workspace", Vec::new());
     let verdict = judge(&action, &bot_caps(), &GateConfig::plain(), "fake-computer");
     assert_eq!(verdict.outcome, GateOutcome::Deny);
-    assert_eq!(verdict.gate_no().value(), 1);
+    assert_eq!(verdict.gate_step().number(), 2);
     assert_eq!(verdict.record().layer, RuleLayer::Floor);
 }
 
@@ -77,6 +77,7 @@ fn config_with(user: UserRules) -> GateConfig {
         user,
         admin: AdminRules::default(),
         anybot_dir: String::new(),
+        bot_name: String::new(),
     }
 }
 

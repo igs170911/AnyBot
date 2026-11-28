@@ -38,7 +38,10 @@ async fn run_one(
     let view = view_of(runner.lang, &args).with_computer(&context.computer);
     let areq = anybot_tools::build_request(&request.tool, args, context);
     let computer = Arc::clone(&runner.gated);
-    let config = computer.gate_config();
+    let mut config = computer.gate_config();
+    if config.bot_name.is_empty() {
+        config.bot_name.clone_from(&runner.bot.name);
+    }
     let call_ctx =
         anybot_trust::CallContext::new(request.call_id, ctx.turn_id, &request.provider_call_id);
     let step =

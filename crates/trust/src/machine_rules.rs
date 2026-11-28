@@ -156,9 +156,7 @@ fn user_command_rule(line: &str) -> RuleVerdict {
         return RuleVerdict::of(MachineLevel::AskEveryTime, "safety-n5-outbound", false);
     }
     match command_level(line) {
-        CommandLevel::Direct => {
-            RuleVerdict::of(MachineLevel::Direct, "user-machine-read-only", true)
-        }
+        CommandLevel::Direct => RuleVerdict::of(MachineLevel::Direct, "read-only-command", true),
         CommandLevel::AskEveryTime => RuleVerdict::of(
             MachineLevel::AskEveryTime,
             "user-machine-ask-every-time",

@@ -20,7 +20,7 @@ pub(crate) fn evidence_fixture(short: u32) -> anybot_protocol::EvidenceRecord {
         tool: format!("t{short}"),
         classes: Vec::new(),
         gate: anybot_protocol::GateRecord::new(
-            anybot_protocol::GateNo(1),
+            anybot_protocol::GateStep::DefaultRule,
             anybot_protocol::RuleLayer::Default,
             "r".to_owned(),
             anybot_protocol::JudgementSource::Rule,

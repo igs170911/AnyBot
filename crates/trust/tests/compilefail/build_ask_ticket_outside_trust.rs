@@ -2,7 +2,7 @@ fn main() {
     let ticket = anybot_trust::AskTicket::new(
         anybot_protocol::GateOutcome::Ask,
         anybot_protocol::GateRecord::new(
-            anybot_protocol::GateNo(1),
+            anybot_protocol::GateStep::DefaultRule,
             anybot_protocol::RuleLayer::Default,
             "r".to_owned(),
             anybot_protocol::JudgementSource::Rule,

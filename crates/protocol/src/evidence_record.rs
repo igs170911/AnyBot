@@ -190,7 +190,7 @@ impl EvidenceRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::gate_record::{GateNo, RuleLayer};
+    use crate::gate_record::{GateStep, RuleLayer};
     use anybot_foundation::SystemClock;
 
     fn record(kind: EvidenceKind, outcome: ActionOutcome) -> EvidenceRecord {
@@ -205,7 +205,7 @@ mod tests {
             tool: "shell".to_owned(),
             classes: Vec::new(),
             gate: GateRecord::new(
-                GateNo(1),
+                GateStep::DefaultRule,
                 RuleLayer::Default,
                 "bot-machine-direct".to_owned(),
                 JudgementSource::Rule,
@@ -216,7 +216,7 @@ mod tests {
             outcome,
             payload: EvidencePayload::Approved {
                 gate: GateRecord::new(
-                    GateNo(1),
+                    GateStep::DefaultRule,
                     RuleLayer::Default,
                     "bot-machine-direct".to_owned(),
                     JudgementSource::Rule,

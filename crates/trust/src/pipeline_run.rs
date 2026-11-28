@@ -104,6 +104,9 @@ pub(crate) fn prepared_gate(
     source: JudgementSource,
 ) -> GateRecord {
     let mut record = gate.clone();
+    if source == JudgementSource::You {
+        record.gate = anybot_protocol::GateStep::AskYou;
+    }
     record.source = source;
     record.outcome = match answer {
         GateAnswer::Allow => GateOutcome::Allow,

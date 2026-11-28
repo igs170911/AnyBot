@@ -79,7 +79,8 @@ pub(crate) async fn record_result(
     }
     if run.summary.status.code == CODE_TURN_COMPLETED {
         let raw_id = store_output(runner, view).await?;
-        let summary = with_output(&text, &run.evidence);
+        let body = with_output(&text, &run.evidence);
+        let summary = with_computer_prefix(runner, &body);
         runner
             .append_task_event(
                 &ctx.task,
@@ -105,6 +106,19 @@ pub(crate) async fn record_result(
             )
             .await
             .map(|_| ())
+    }
+}
+
+fn with_computer_prefix(runner: &TurnRunner, text: &str) -> String {
+    if runner.gated.declared_caps().owner != anybot_protocol::ComputerOwner::User {
+        return text.to_owned();
+    }
+    let name = runner.gated.name();
+    let prefix = format!("[{name}] ");
+    if text.starts_with(&prefix) {
+        text.to_owned()
+    } else {
+        format!("{prefix}{text}")
     }
 }
 

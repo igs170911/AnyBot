@@ -11,6 +11,8 @@ pub(crate) fn verdict_params(
     rule: &str,
     action: &GateAction,
     denied_token: Option<&'static str>,
+    bot_name: &str,
+    computer: &str,
 ) -> Vec<(String, String)> {
     match (layer, floor_hit, denied_token) {
         (GateLayer::Floor, Some(FloorDeny::DeniedCommand), Some(token)) => vec![
@@ -23,7 +25,18 @@ pub(crate) fn verdict_params(
         (GateLayer::Floor, Some(FloorDeny::NoSandbox), _) => {
             vec![("capability".to_owned(), "commands".to_owned())]
         }
-        _ if rule == "bot-machine-outside" || rule == "user-machine-outside-write" => {
+        _ if rule == "bot-machine-outside" => {
+            let bot = if bot_name.is_empty() {
+                computer
+            } else {
+                bot_name
+            };
+            vec![
+                ("bot".to_owned(), bot.to_owned()),
+                ("path".to_owned(), path_label(action)),
+            ]
+        }
+        _ if rule == "user-machine-outside-write" => {
             vec![("path".to_owned(), path_label(action))]
         }
         _ => Vec::new(),

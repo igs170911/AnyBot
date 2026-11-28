@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anybot_context::StepOutcomeKind;
 use anybot_foundation::{CallId, TaskId};
-use anybot_protocol::{GateNo, KnownTaskEventKind, ReasonPayload};
+use anybot_protocol::{GateStep, KnownTaskEventKind, ReasonPayload};
 
 use crate::context_denied::{CallResult, denied_text, not_run_word};
 use crate::context_input::{known_of, row_event_id};
@@ -17,7 +17,7 @@ pub(crate) fn results_of(
     let mut map: BTreeMap<CallId, CallResult> = BTreeMap::new();
     let mut pool: BTreeMap<anybot_foundation::EvidenceId, anybot_protocol::EvidenceRecord> =
         BTreeMap::new();
-    let mut gates: Vec<(GateNo, ReasonPayload)> = Vec::new();
+    let mut gates: Vec<(GateStep, ReasonPayload)> = Vec::new();
     let mut rows: Vec<(&Stored, KnownTaskEventKind, anybot_foundation::EventId)> = Vec::new();
     for row in stored {
         let Some(kind) = known_of(row, task) else {
@@ -46,7 +46,7 @@ pub(crate) fn results_of(
 fn apply_row(
     map: &mut BTreeMap<CallId, CallResult>,
     pool: &mut BTreeMap<anybot_foundation::EvidenceId, anybot_protocol::EvidenceRecord>,
-    gates: &[(GateNo, ReasonPayload)],
+    gates: &[(GateStep, ReasonPayload)],
     kind: &KnownTaskEventKind,
     seq: u64,
     event_id: anybot_foundation::EventId,
@@ -75,7 +75,7 @@ fn result_entry(
     seq: u64,
     event_id: anybot_foundation::EventId,
     lang: anybot_messages::Lang,
-    gates: &[(GateNo, ReasonPayload)],
+    gates: &[(GateStep, ReasonPayload)],
 ) -> Result<Option<(CallId, CallResult)>, TurnError> {
     if let KnownTaskEventKind::GateResult { call_id, gate } = kind {
         if gate.outcome != anybot_protocol::GateOutcome::Deny

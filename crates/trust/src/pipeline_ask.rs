@@ -89,7 +89,7 @@ impl AskTicket {
         let text = format!(
             "{}|{}|{}|{}|{}",
             self.gate.rule,
-            self.gate.gate.value(),
+            self.gate.gate.number(),
             self.turn,
             self.call,
             self.provider

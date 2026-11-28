@@ -3,7 +3,7 @@ use crate::op_ticket::{OpKind, OpTicket};
 use crate::runner::{GatedComputer, OpRejection};
 use anybot_foundation::TimestampMs;
 use anybot_protocol::{
-    ActualResult, ComputerCaps, ComputerOwner, ComputerPlatform, GateNo, GateOutcome, GateRecord,
+    ActualResult, ComputerCaps, ComputerOwner, ComputerPlatform, GateOutcome, GateRecord, GateStep,
     JudgementSource, RuleLayer,
 };
 
@@ -15,7 +15,7 @@ fn ticket_caps() -> ComputerCaps {
 
 fn allow_record() -> GateRecord {
     GateRecord::new(
-        GateNo(1),
+        GateStep::DefaultRule,
         RuleLayer::Default,
         "bot-machine-command".to_owned(),
         JudgementSource::Rule,

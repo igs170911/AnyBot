@@ -165,7 +165,7 @@ mod tests {
     use super::*;
     use crate::action::PathView;
     use anybot_protocol::{
-        ComputerCaps, ComputerOwner, ComputerPlatform, GateNo, GateOutcome, JudgementSource,
+        ComputerCaps, ComputerOwner, ComputerPlatform, GateOutcome, GateStep, JudgementSource,
         RuleLayer,
     };
 
@@ -175,7 +175,7 @@ mod tests {
 
     fn allow_gate() -> GateRecord {
         GateRecord::new(
-            GateNo(1),
+            GateStep::DefaultRule,
             RuleLayer::Default,
             "bot-machine-command".to_owned(),
             JudgementSource::Rule,

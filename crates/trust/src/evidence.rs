@@ -166,7 +166,7 @@ mod tests {
     use crate::action::{ActionSubject, GateAction, PathView};
     use anybot_foundation::{ContentDigest, SystemClock};
     use anybot_protocol::{
-        BeforeDigest, GateNo, GateOutcome, ReadOutcome, RuleLayer, TargetKind, WriteOutcome,
+        BeforeDigest, GateOutcome, GateStep, ReadOutcome, RuleLayer, TargetKind, WriteOutcome,
     };
 
     fn context() -> ActionContext {
@@ -184,7 +184,7 @@ mod tests {
     #[test]
     fn test_evidence_from_read_result_covers_the_seen_fields() {
         let gate = GateRecord::new(
-            GateNo(4),
+            GateStep::DefaultRule,
             RuleLayer::Default,
             "bot-machine-files".to_owned(),
             JudgementSource::Rule,
@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn test_refused_and_failed_steps_have_their_own_kinds() {
         let gate = GateRecord::new(
-            GateNo(4),
+            GateStep::DefaultRule,
             RuleLayer::Default,
             "bot-machine-files".to_owned(),
             JudgementSource::Rule,
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn test_evidence_write_result_records_before_and_after_digests() {
         let gate = GateRecord::new(
-            GateNo(4),
+            GateStep::DefaultRule,
             RuleLayer::Default,
             "bot-machine-files".to_owned(),
             JudgementSource::Rule,

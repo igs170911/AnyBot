@@ -46,7 +46,9 @@ pub use evidence_record::{
     ActionOutcome, EvidenceKind, EvidencePayload, EvidenceRecord, EvidenceShortId,
     NotExecutedReason, ReasonPayload, VerificationRecord, VerificationResult,
 };
-pub use gate_record::{GateNo, GateOutcome, GateRecord, JudgementSource, RuleLayer};
+pub use gate_record::{
+    GateOutcome, GateRecord, GateStep, GateStepError, JudgementSource, RuleLayer,
+};
 pub use known_task_event_kind::KnownTaskEventKind;
 pub use mailbox_api::{ClaimReply, ClaimRequest, MailHint, RoundReply, RoundRequest};
 pub use record_actions::{RecordAction, RecordActionReply, RecordActionRequest};
