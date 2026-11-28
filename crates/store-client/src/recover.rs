@@ -66,7 +66,11 @@ pub(crate) async fn recover(
 
 async fn import_rows(store: &Store, rescued: &Rescued) -> Result<(), StoreError> {
     for row in &rescued.rows {
-        store.import_outbox_row(row).await?;
+        let keep = rescued.journal_for(row.local_id);
+        let detail = keep.and_then(|item| item.local_detail.as_deref());
+        let turn = keep.and_then(|item| item.turn);
+        let effect = keep.and_then(|item| item.effect.as_deref());
+        store.import_outbox_row(row, detail, turn, effect).await?;
     }
     Ok(())
 }

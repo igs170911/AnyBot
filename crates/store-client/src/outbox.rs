@@ -33,11 +33,18 @@ impl Store {
         Ok(())
     }
 
-    pub async fn import_outbox_row(&self, row: &OutboxRow) -> Result<(), StoreError> {
+    pub async fn import_outbox_row(
+        &self,
+        row: &OutboxRow,
+        local_detail: Option<&str>,
+        turn: Option<i64>,
+        effect: Option<&str>,
+    ) -> Result<(), StoreError> {
         let content = text_of(&row.content)?;
         let offline = flag(row.offline_at_create);
         let sent = row.offline_sent.map(flag);
         let state = row.state.as_text();
+        let mut tx = self.pool.begin().await?;
         sqlx::query!(
             "INSERT OR IGNORE INTO outbox (stream, record_id, kind, content, created_at_ms,
                 task_id, offline_at_create, attempted_at_ms, offline_sent, state, reject_code,
@@ -55,8 +62,19 @@ impl Store {
             row.reject_code,
             row.rejected_at_ms
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        sqlx::query!(
+            "UPDATE outbox SET local_detail = ?, turn = ?, effect = ? WHERE stream = ? AND record_id = ?",
+            local_detail,
+            turn,
+            effect,
+            row.stream,
+            row.record_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(())
     }
 

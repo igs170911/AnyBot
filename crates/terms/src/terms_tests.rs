@@ -151,6 +151,14 @@ fn query_terms_single_cjk_char() {
     assert_eq!(mixed.trigram_phrases, vec!["err_42", "log/app"]);
 }
 
+#[test]
+fn index_terms_keeps_symbols_without_lowercase_mapping() {
+    let circled = "\u{1F150}";
+    let squared = "\u{1F170}";
+    assert_eq!(index_terms(circled), vec![circled.to_owned()]);
+    assert_eq!(index_terms(squared), vec![squared.to_owned()]);
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
@@ -162,6 +170,6 @@ proptest! {
         prop_assert_eq!(query_terms(&text), query_terms(&text));
         let unique: BTreeSet<&String> = first.iter().collect();
         prop_assert_eq!(unique.len(), first.len());
-        prop_assert!(first.iter().all(|term| !term.is_empty() && !term.chars().any(char::is_uppercase)));
+        prop_assert!(first.iter().all(|term| !term.is_empty() && term.to_lowercase() == *term));
     }
 }

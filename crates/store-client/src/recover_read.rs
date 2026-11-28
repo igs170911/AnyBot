@@ -11,10 +11,24 @@ use crate::recover::RecoveryReason;
 
 const NOT_A_DATABASE: &str = "26";
 
+pub(crate) struct JournalSaved {
+    pub local_id: i64,
+    pub local_detail: Option<String>,
+    pub turn: Option<i64>,
+    pub effect: Option<String>,
+}
+
 pub(crate) struct Rescued {
     pub rows: Vec<OutboxRow>,
+    pub journal: Vec<JournalSaved>,
     pub unrecovered: Vec<i64>,
     pub unreadable: bool,
+}
+
+impl Rescued {
+    pub(crate) fn journal_for(&self, local_id: i64) -> Option<&JournalSaved> {
+        self.journal.iter().find(|row| row.local_id == local_id)
+    }
 }
 
 pub(crate) async fn probe(path: &Path) -> Result<Option<RecoveryReason>, StoreError> {
@@ -84,6 +98,7 @@ fn classify(err: &sqlx::Error) -> RecoveryReason {
 pub(crate) async fn rescue_outbox(data_dir: &Path, path: &Path, stamp_ms: i64) -> Rescued {
     let nothing = Rescued {
         rows: Vec::new(),
+        journal: Vec::new(),
         unrecovered: Vec::new(),
         unreadable: true,
     };
@@ -122,6 +137,7 @@ fn copy_to_scratch(data_dir: &Path, path: &Path, stamp_ms: i64) -> Result<PathBu
 
 async fn read_scratch(copy: &Path) -> Option<Rescued> {
     let pool = connect_pool(copy).await.ok()?;
+    let journal = load_journal_saved(&pool).await;
     let all = sqlx::query_as!(
         RawOutbox,
         r#"SELECT local_id AS "local_id!", stream, record_id, kind, content, created_at_ms,
@@ -134,6 +150,10 @@ async fn read_scratch(copy: &Path) -> Option<Rescued> {
         Ok(raws) => Some(collect_rows(raws)),
         Err(_) => read_by_id(&pool).await,
     };
+    let rescued = rescued.map(|mut saved| {
+        saved.journal = journal;
+        saved
+    });
     pool.close().await;
     rescued
 }
@@ -150,6 +170,7 @@ fn collect_rows(found: Vec<RawOutbox>) -> Rescued {
     }
     Rescued {
         rows,
+        journal: Vec::new(),
         unrecovered,
         unreadable: false,
     }
@@ -183,7 +204,28 @@ async fn read_by_id(pool: &sqlx::SqlitePool) -> Option<Rescued> {
     }
     Some(Rescued {
         rows,
+        journal: Vec::new(),
         unrecovered,
         unreadable: false,
     })
+}
+
+async fn load_journal_saved(pool: &sqlx::SqlitePool) -> Vec<JournalSaved> {
+    let listed = sqlx::query_as::<_, (i64, Option<String>, Option<i64>, Option<String>)>(
+        "SELECT local_id, local_detail, turn, effect FROM outbox ORDER BY local_id",
+    )
+    .fetch_all(pool)
+    .await;
+    match listed {
+        Ok(rows) => rows
+            .into_iter()
+            .map(|(local_id, local_detail, turn, effect)| JournalSaved {
+                local_id,
+                local_detail,
+                turn,
+                effect,
+            })
+            .collect(),
+        Err(_) => Vec::new(),
+    }
 }

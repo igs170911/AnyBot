@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE outbox SET local_detail = ?, turn = ?, effect = ? WHERE stream = ? AND record_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "e7a311219f2b2136c0bf58e350d739cb90416bdf63ec13d4f56a3fb07918271b"
+}
