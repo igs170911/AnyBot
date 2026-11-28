@@ -220,5 +220,9 @@ fn integration_routes() -> Router<AppState> {
             "/v1/streams/typing",
             post(crate::api_streams_typing::typing),
         )
+        .route(
+            "/v1/tasks/{task}/status",
+            get(crate::api_task_status::task_status),
+        )
         .merge(crate::push_routes::routes())
 }

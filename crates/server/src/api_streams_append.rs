@@ -216,6 +216,24 @@ async fn append_one(
     if item.kind == SETTING_KIND {
         return setting_item(work, resolved, item).await;
     }
+    if crate::thumbs_check::is_thumbs_kind(&item.kind) {
+        return thumbs_item(work, resolved, item).await;
+    }
+    insert_item(work, resolved, item).await
+}
+
+async fn thumbs_item(
+    work: &AppendWork<'_>,
+    resolved: &ResolvedStream,
+    item: &RecordItem,
+) -> Result<AppendResult, CallerDenied> {
+    let ok = crate::thumbs_check::thumbs_accepted(work.pool, resolved, item)
+        .await
+        .map_err(internal_text)?;
+    if !ok {
+        let code = crate::thumbs_check::thumbs_denial_code();
+        return Ok(AppendResult::rejected(code.as_str().to_owned()));
+    }
     insert_item(work, resolved, item).await
 }
 

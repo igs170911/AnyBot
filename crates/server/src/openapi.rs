@@ -4,6 +4,8 @@ use utoipa::openapi::RefOr;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
+use crate::openapi_examples::ExampleFiller;
+
 struct BearerAuth;
 
 impl Modify for BearerAuth {
@@ -47,6 +49,7 @@ impl Modify for BearerAuth {
         crate::api_streams_append::append,
         crate::api_streams_after::after,
         crate::api_streams_record::record,
+        crate::api_task_status::task_status,
         crate::api_streams_action::action,
         crate::api_settings::settings,
         crate::api_referee::referee,
@@ -91,6 +94,10 @@ impl Modify for BearerAuth {
         anybot_protocol::TypingRequest,
                                         anybot_protocol::StreamSelector,
         anybot_protocol::StoredRecord,
+        anybot_protocol::TaskReport,
+        anybot_protocol::TaskStatusReply,
+        anybot_protocol::TaskStatus,
+        anybot_protocol::TaskDetail,
         anybot_protocol::InviteResponse,
         anybot_protocol::LoginRequest,
         anybot_protocol::LoginSession,
@@ -128,7 +135,7 @@ impl Modify for BearerAuth {
         (url = "http://[::1]:8787", description = "loopback IPv6 development server"),
     ),
     security(("bearer" = [])),
-    modifiers(&BearerAuth),
+    modifiers(&BearerAuth, &ExampleFiller),
     tags(
         (name = "system", description = "the server itself: health, status, stop"),
         (name = "account", description = "accounts, sessions and passwords"),
