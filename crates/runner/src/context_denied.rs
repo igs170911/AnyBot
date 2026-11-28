@@ -215,3 +215,7 @@ fn normalize_params(code: &str, params: &[(String, String)]) -> Vec<(String, Str
     }
     out
 }
+
+#[cfg(test)]
+#[path = "context_denied_tests.rs"]
+mod context_denied_tests;

@@ -27,6 +27,7 @@ pub(crate) mod model_hold;
 pub mod model_https;
 pub mod model_openai;
 pub mod model_plan;
+pub(crate) mod model_request;
 pub mod model_script;
 pub mod model_tls;
 pub mod model_vllm;
