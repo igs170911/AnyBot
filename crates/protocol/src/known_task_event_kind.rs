@@ -156,7 +156,7 @@ pub enum KnownTaskEventKind {
         #[serde(default)]
         kind: CardKind,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        resume: Option<ResumeCard>,
+        resume: Option<Box<ResumeCard>>,
         buttons: Vec<CardButton>,
         reason: ReasonPayload,
         always_label: Option<ReasonPayload>,

@@ -93,14 +93,14 @@ fn check_resume_card_round_trip() {
         action: "resume".to_owned(),
         card: "c-resume".to_owned(),
         kind: CardKind::Resume,
-        resume: Some(crate::ResumeCard {
+        resume: Some(Box::new(crate::ResumeCard {
             maybe_done: vec![crate::ResumeCardStep {
                 call_id: CallId::generate(&SystemClock),
                 tool: "shell".to_owned(),
                 args_summary: "make".to_owned(),
             }],
             queued_messages: vec!["later".to_owned()],
-        }),
+        })),
         buttons: vec![CardButton::AllowOnce, CardButton::Deny],
         reason: ReasonPayload {
             code: "card-run-command".to_owned(),
