@@ -18,6 +18,7 @@ pub mod cloud_map;
 pub mod fake_clock;
 pub mod fake_model;
 pub mod fake_push;
+pub mod fake_push_tls;
 pub mod http;
 pub(crate) mod json_edit;
 pub mod launch;
@@ -73,6 +74,7 @@ pub use fake_clock::{
 };
 pub use fake_model::{FakeModel, ModelFormat, model_start, model_start_with_format};
 pub use fake_push::{FakePush, PushRecord, push_start};
+pub use fake_push_tls::{PushTls, push_client_builder, push_start_tls};
 pub use http::{
     http_get, http_get_addr, http_send_get, http_wait, plain_client, request, sse_lines, sse_post,
     sse_post_client, sse_send, sse_wait_for_line, test_delete, test_get_async, test_post, test_put,

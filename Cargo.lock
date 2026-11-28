@@ -232,7 +232,15 @@ dependencies = [
  "anybot-domain",
  "anybot-foundation",
  "anybot-protocol",
+ "base64 0.22.1",
+ "getrandom 0.4.3",
  "reqwest 0.12.28",
+ "sad-web-push",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "url",
 ]
 
 [[package]]
@@ -440,9 +448,14 @@ name = "anybot-server-test"
 version = "0.1.0"
 dependencies = [
  "anybot-app-test",
+ "anybot-channels",
  "anybot-domain",
+ "anybot-foundation",
+ "anybot-server",
+ "data-encoding",
  "serde_json",
  "sqlx",
+ "test-harness",
 ]
 
 [[package]]

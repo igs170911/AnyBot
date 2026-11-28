@@ -10,8 +10,13 @@ description = "Shared helpers for the server PostgreSQL API suites (spec/07 §3,
 workspace = true
 
 [dependencies]
+anybot-channels = { workspace = true }
 anybot-domain = { workspace = true }
+anybot-foundation = { workspace = true }
+anybot-server = { workspace = true }
+test-harness = { workspace = true }
 anybot-app-test = { workspace = true }
 serde_json = { workspace = true }
+data-encoding = { workspace = true }
 sqlx = { workspace = true, features = ["postgres", "runtime-tokio"] }
 

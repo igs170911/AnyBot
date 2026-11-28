@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) AS \"n!\" FROM push_subscriptions WHERE account = $1 AND device_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Text"]
+    },
+    "nullable": [null]
+  },
+  "hash": "d81ea5e6dd3dfdddad578bafc2658d653a24f4f5c6529a253df5b20850be7d46"
+}

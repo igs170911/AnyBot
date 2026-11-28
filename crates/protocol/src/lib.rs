@@ -10,6 +10,7 @@ pub mod gate_record;
 pub mod known_task_event_kind;
 pub mod mailbox_api;
 pub mod memory_records;
+pub mod push_api;
 pub mod question_record;
 pub mod record_actions;
 pub mod referee_api;
@@ -21,6 +22,7 @@ pub mod task_detail;
 pub mod task_events;
 pub mod turn_records;
 pub mod two_step_api;
+pub mod typing_api;
 pub mod versions;
 
 pub use account_api::{
@@ -63,6 +65,9 @@ pub use memory_records::{
     MEMORY_VOIDED_KIND, MemoryEventContent, MemoryEventKind, MemoryEvidenceRef, MemoryKind,
     MemoryOrigin, MemoryScope, MemorySource,
 };
+pub use push_api::{
+    PushMineReply, PushServerKey, PushSubscribeReply, PushSubscribeRequest, PushSubscriptionKeys,
+};
 pub use question_record::{QuestionAnswer, QuestionItem, QuestionKind};
 pub use record_actions::{RecordAction, RecordActionReply, RecordActionRequest};
 pub use referee_api::{RefereeAction, RefereeReply, RefereeRequest, WakeReason};
@@ -70,8 +75,8 @@ pub use resume_card::{ResumeCard, ResumeCardStep};
 pub use settings_api::{SETTING_KIND, SettingContent, SettingEntry, SettingsView};
 pub use sse_api::{
     HEARTBEAT_INTERVAL_SECS, NewRecordsEvent, ProgressEvent, SSE_EVENT_NEW_RECORDS,
-    SSE_EVENT_PROGRESS, SseStreamProgress, StreamProgress, sse_data_line, sse_event_line,
-    sse_heartbeat_line,
+    SSE_EVENT_PROGRESS, SSE_EVENT_TYPING, SseStreamProgress, StreamProgress, sse_data_line,
+    sse_event_line, sse_heartbeat_line,
 };
 pub use streams_api::{
     AfterPage, AfterRequest, AppendReply, AppendRequest, AppendResult, MAX_AFTER_PAGE,
@@ -90,4 +95,5 @@ pub use turn_records::{
     ToolRequest, TurnEndReason, TurnInitiator,
 };
 pub use two_step_api::{TwoStepChallenge, TwoStepCodeRequest, TwoStepLoginRequest, TwoStepSetup};
+pub use typing_api::{TypingHint, TypingRequest};
 pub use versions::{PROTOCOL_RELEASES, ProtocolRelease, accepts_protocol_version};

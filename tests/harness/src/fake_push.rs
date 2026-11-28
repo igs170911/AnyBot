@@ -76,13 +76,17 @@ pub async fn push_start() -> Result<(Arc<FakePush>, u16), String> {
         .map_err(|e| format!("set nonblocking failed: {e}"))?;
     let listener =
         TcpListener::from_std(std_listener).map_err(|e| format!("convert listener failed: {e}"))?;
-    let router = Router::new()
-        .route("/push/{id}", put(handle_push))
-        .with_state(Arc::clone(&push));
+    let router = push_router(Arc::clone(&push));
     tokio::spawn(async move {
         let _served = axum::serve(listener, router).await;
     });
     Ok((push, port))
+}
+
+pub fn push_router(push: Arc<FakePush>) -> Router {
+    Router::new()
+        .route("/push/{id}", put(handle_push).post(handle_push))
+        .with_state(push)
 }
 
 #[axum::debug_handler]

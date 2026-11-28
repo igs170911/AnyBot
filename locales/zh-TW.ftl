@@ -328,3 +328,5 @@ login-unreachable = 連不到{ $url }（15 秒沒有回應）
 login-other-origin = 請在那台伺服器的網址打開
 login-two-step-later = 這個帳號開了兩步驟驗證；這個版本還不能輸入驗證碼
 server-request-too-large = 請求太大：最多 { $limit_kb } KB
+push-endpoint-invalid = 推播位址要是 https，而且最多 2048 個字
+push-subscription-not-found = 這個帳號沒有這支推播訂閱
