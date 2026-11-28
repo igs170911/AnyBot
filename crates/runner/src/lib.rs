@@ -8,6 +8,7 @@ pub mod context;
 pub mod context_denied;
 pub mod context_input;
 pub mod context_steps;
+pub mod continue_turn;
 pub mod count;
 pub mod ending;
 pub mod error;
@@ -20,6 +21,7 @@ pub mod step;
 pub mod view;
 
 pub use approvals::PendingCard;
+pub use continue_turn::ContinueTurn;
 pub use error::TurnError;
 pub use record::{
     NewTaskEvent, RawStore, RawStoreError, Record, RecordEntry, RecordError, Stored, StoredBody,

@@ -5,8 +5,9 @@ use anybot_messages::Lang;
 use anybot_models::ToolSpec;
 use anybot_protocol::{
     ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent, TaskEventKind, TaskStatus,
+    TurnInitiator,
 };
-use anybot_runner::{RunnerParts, TurnError, TurnOutcome, TurnRunner, UserMessage};
+use anybot_runner::{ContinueTurn, RunnerParts, TurnError, TurnOutcome, TurnRunner, UserMessage};
 use test_harness::{
     FakeClock, FakeModel, ModelFormat, RecordedRequest, Step, model_start_with_format,
 };
@@ -189,6 +190,48 @@ impl TurnWorld {
             .await
             .map(|_| ())
             .map_err(|e| format!("{e:?}"))
+    }
+
+    pub async fn append_task_cancelled(&self, task: TaskId) -> Result<(), String> {
+        let kind = KnownTaskEventKind::TaskCancelled {
+            reason: "user".to_owned(),
+        };
+        self.runner
+            .append_task_event(&task, kind)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
+    }
+
+    pub async fn continue_task(
+        &self,
+        task: TaskId,
+        initiator: TurnInitiator,
+        opening: Option<&str>,
+    ) -> Result<TurnOutcome, TurnError> {
+        self.runner
+            .continue_task(ContinueTurn {
+                task,
+                initiator,
+                opening: opening.map(ToOwned::to_owned),
+            })
+            .await
+    }
+
+    pub async fn continue_from(
+        &self,
+        task: TaskId,
+        from: Device,
+        opening: Option<&str>,
+    ) -> Result<TurnOutcome, TurnError> {
+        self.continue_task(
+            task,
+            TurnInitiator::You {
+                device: self.device(from),
+            },
+            opening,
+        )
+        .await
     }
 
     pub fn set_gate(&self, gate: anybot_trust::GateConfig) {

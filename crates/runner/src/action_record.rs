@@ -46,8 +46,8 @@ pub(crate) async fn record_not_run(
     reason: NotRunReason,
 ) -> Result<(), TurnError> {
     runner
-        .append_task_event(
-            &ctx.task,
+        .append_turn_event(
+            ctx,
             KnownTaskEventKind::ToolNotRun {
                 call_id: request.call_id,
                 reason,
@@ -65,8 +65,8 @@ pub(crate) async fn record_args_rejected(
     let json = crate::action::args_json(&request.arguments)?;
     let reason = anybot_tools::args_rejection_word(&request.tool, &json);
     runner
-        .append_task_event(
-            &ctx.task,
+        .append_turn_event(
+            ctx,
             KnownTaskEventKind::ToolFailed {
                 call_id: request.call_id,
                 name: request.tool.clone(),

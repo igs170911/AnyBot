@@ -1,4 +1,4 @@
-use anybot_foundation::CallId;
+use anybot_foundation::{CallId, TaskId};
 use thiserror::Error;
 
 use crate::record::{RawStoreError, RecordError};
@@ -7,6 +7,10 @@ use crate::record::{RawStoreError, RecordError};
 pub enum TurnError {
     #[error("a turn is already running for this bot")]
     Busy,
+    #[error("task {task} was not found")]
+    TaskNotFound { task: TaskId },
+    #[error("task {task} is closed")]
+    TaskClosed { task: TaskId },
     #[error(transparent)]
     Record(#[from] RecordError),
     #[error(transparent)]

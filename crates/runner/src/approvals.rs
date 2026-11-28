@@ -40,7 +40,7 @@ pub(crate) async fn park_approval(
         kind: anybot_protocol::CardKind::Action,
         resume: None,
     };
-    runner.append_task_event(&ctx.task, kind).await?;
+    runner.append_turn_event(ctx, kind).await?;
     let card = PendingCard {
         digest: ticket.card_digest(),
         tool: request.tool.clone(),
@@ -66,8 +66,8 @@ pub(crate) async fn record_ask_summary(
 ) -> Result<(), TurnError> {
     let text = view.render(&run.model)?;
     runner
-        .append_task_event(
-            &ctx.task,
+        .append_turn_event(
+            ctx,
             KnownTaskEventKind::ToolCompleted {
                 call_id: request.call_id,
                 summary: text,
@@ -100,7 +100,7 @@ pub async fn resolve_approval(
 ) -> Result<(), TurnError> {
     let gate = gate_answer_of(answer);
     runner
-        .append_task_event(&ctx.task, KnownTaskEventKind::CardAnswered { answer })
+        .append_turn_event(ctx, KnownTaskEventKind::CardAnswered { answer })
         .await?;
     let computer = runner.gated_ref();
     let run = anybot_trust::answer_ask(&card.ticket, gate, &*computer, &card.view, &*runner.clock);
@@ -155,8 +155,8 @@ async fn record_refusal(
         ],
     ))?;
     runner
-        .append_task_event(
-            &ctx.task,
+        .append_turn_event(
+            ctx,
             KnownTaskEventKind::ToolCompleted {
                 call_id: request.call_id,
                 summary: text,

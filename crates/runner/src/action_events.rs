@@ -16,8 +16,8 @@ pub(crate) async fn record_gate(
     gate: &GateRecord,
 ) -> Result<(), TurnError> {
     runner
-        .append_task_event(
-            &ctx.task,
+        .append_turn_event(
+            ctx,
             KnownTaskEventKind::GateResult {
                 call_id,
                 gate: gate.clone(),
@@ -35,8 +35,8 @@ pub(crate) async fn record_intent_start(
 ) -> Result<(), TurnError> {
     if gate.outcome == anybot_protocol::GateOutcome::Allow {
         runner
-            .append_task_event(
-                &ctx.task,
+            .append_turn_event(
+                ctx,
                 KnownTaskEventKind::ToolIntent {
                     call_id: request.call_id,
                     name: request.tool.clone(),
@@ -47,8 +47,8 @@ pub(crate) async fn record_intent_start(
             .await?;
     }
     runner
-        .append_task_event(
-            &ctx.task,
+        .append_turn_event(
+            ctx,
             KnownTaskEventKind::ToolStarted {
                 call_id: request.call_id,
             },
@@ -81,8 +81,8 @@ pub(crate) async fn record_result(
         let raw_id = store_output(runner, view).await?;
         let summary = with_output(&text, &run.evidence);
         runner
-            .append_task_event(
-                &ctx.task,
+            .append_turn_event(
+                ctx,
                 KnownTaskEventKind::ToolCompleted {
                     call_id: request.call_id,
                     summary,
@@ -94,8 +94,8 @@ pub(crate) async fn record_result(
     } else {
         let error = with_output(&text, &run.evidence);
         runner
-            .append_task_event(
-                &ctx.task,
+            .append_turn_event(
+                ctx,
                 KnownTaskEventKind::ToolFailed {
                     call_id: request.call_id,
                     name: request.tool.clone(),
@@ -115,10 +115,7 @@ fn with_output(text: &str, evidence: &[EvidenceRecord]) -> String {
         } = &record.payload
             && !head.is_empty()
         {
-            return format!(
-                "{text}
-{head}"
-            );
+            return format!("{text}\n{head}");
         }
     }
     text.to_owned()
@@ -146,8 +143,8 @@ pub(crate) async fn record_evidence(
         record.short = anybot_protocol::EvidenceShortId(short);
         ids.push(record.id);
         runner
-            .append_task_event(
-                &ctx.task,
+            .append_turn_event(
+                ctx,
                 KnownTaskEventKind::EvidenceAdded {
                     record: Box::new(record),
                 },
@@ -166,8 +163,8 @@ pub(crate) async fn record_verified(
 ) -> Result<(), TurnError> {
     let source = verification_source(&run.evidence);
     runner
-        .append_task_event(
-            &ctx.task,
+        .append_turn_event(
+            ctx,
             KnownTaskEventKind::ActionVerified {
                 call_id,
                 source,

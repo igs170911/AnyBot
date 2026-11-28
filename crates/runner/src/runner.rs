@@ -4,7 +4,9 @@ use anybot_foundation::TurnId;
 use anybot_foundation::{BotId, Clock, DeviceId, EventId, RecordId, TaskId};
 use anybot_messages::Lang;
 use anybot_models::{Calibration, Capability, ModelRef, Session, ThinkingMode, ToolSpec};
-use anybot_protocol::{ComputerRef, KnownTaskEventKind, TaskEventKind, TaskOpener, TurnEndReason};
+use anybot_protocol::{
+    ComputerRef, KnownTaskEventKind, TaskEventKind, TaskOpener, TurnEndReason, TurnInitiator,
+};
 
 use crate::error::TurnError;
 use crate::record::{NewTaskEvent, RawStore, Record, RecordEntry, Stored, UserLine};
@@ -95,12 +97,16 @@ impl TurnRunner {
     }
 
     pub async fn on_user_message(&self, message: UserMessage) -> Result<TurnOutcome, TurnError> {
-        let Ok(guard) = Arc::clone(&self.active).try_lock_owned() else {
-            return Err(TurnError::Busy);
-        };
+        let guard = self.lock_active()?;
         let outcome = self.run_turn(message).await;
         drop(guard);
         outcome
+    }
+
+    pub(crate) fn lock_active(&self) -> Result<tokio::sync::OwnedMutexGuard<()>, TurnError> {
+        Arc::clone(&self.active)
+            .try_lock_owned()
+            .map_err(|_busy| TurnError::Busy)
     }
 
     async fn run_turn(&self, message: UserMessage) -> Result<TurnOutcome, TurnError> {
@@ -121,22 +127,33 @@ impl TurnRunner {
             .count_task_kind(&task, KindCount::TurnStarted)
             .await?
             .saturating_add(1);
-        self.append_task_event(&task, self.turn_started_kind(turn, message.device))
-            .await?;
         let ctx = TurnCtx {
             task,
             turn,
             turn_id: TurnId::generate(&*self.clock),
             evidence: tokio::sync::Mutex::new(1),
         };
+        let initiator = TurnInitiator::You {
+            device: message.device,
+        };
+        self.append_turn_event(&ctx, self.turn_started_kind(turn, initiator))
+            .await?;
         let outcome = self.run_steps(&ctx, task).await?;
-        if let Ok(mut guard) = self.last_ctx.lock() {
-            *guard = Some(ctx.clone());
-        }
+        self.save_last_ctx(&ctx);
         Ok(outcome)
     }
 
-    async fn run_steps(&self, ctx: &TurnCtx, task: TaskId) -> Result<TurnOutcome, TurnError> {
+    pub(crate) fn save_last_ctx(&self, ctx: &TurnCtx) {
+        if let Ok(mut guard) = self.last_ctx.lock() {
+            *guard = Some(ctx.clone());
+        }
+    }
+
+    pub(crate) async fn run_steps(
+        &self,
+        ctx: &TurnCtx,
+        task: TaskId,
+    ) -> Result<TurnOutcome, TurnError> {
         loop {
             match run_step(self, ctx).await? {
                 StepFlow::Continue => {}
@@ -158,10 +175,28 @@ impl TurnRunner {
         task: &TaskId,
         kind: KnownTaskEventKind,
     ) -> Result<Stored, TurnError> {
+        self.append_task_event_in_turn(task, None, kind).await
+    }
+
+    pub(crate) async fn append_turn_event(
+        &self,
+        ctx: &TurnCtx,
+        kind: KnownTaskEventKind,
+    ) -> Result<Stored, TurnError> {
+        self.append_task_event_in_turn(&ctx.task, Some(ctx.turn), kind)
+            .await
+    }
+
+    pub(crate) async fn append_task_event_in_turn(
+        &self,
+        task: &TaskId,
+        turn: Option<u32>,
+        kind: KnownTaskEventKind,
+    ) -> Result<Stored, TurnError> {
         let new = NewTaskEvent {
             bot: self.bot.id,
             task: *task,
-            turn: Some(1),
+            turn,
             event_id: EventId::generate(&*self.clock),
             at_ms: self.clock.now_ms(),
             kind: TaskEventKind::Known(kind),
@@ -172,7 +207,7 @@ impl TurnRunner {
             .map_err(TurnError::Record)
     }
 
-    async fn append_user_said(
+    pub(crate) async fn append_user_said(
         &self,
         task: &TaskId,
         message: &UserMessage,
@@ -192,6 +227,7 @@ impl TurnRunner {
             .map_err(TurnError::Record)
     }
 }
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KindCount {
     TurnStarted,
