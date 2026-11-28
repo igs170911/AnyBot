@@ -40,6 +40,21 @@ pub(crate) fn evidence_fixture(short: u32) -> anybot_protocol::EvidenceRecord {
     }
 }
 
+pub(crate) fn changed_evidence_fixture(short: u32) -> anybot_protocol::EvidenceRecord {
+    let mut rec = evidence_fixture(short);
+    rec.tool = "write_file".to_owned();
+    rec.kind = anybot_protocol::EvidenceKind::Changed;
+    rec.payload = anybot_protocol::EvidencePayload::Changed {
+        path: format!("dir/file_{short}.rs"),
+        before: anybot_protocol::BeforeDigest::Present(anybot_foundation::ContentDigest::sha256(
+            format!("before-{short}").as_bytes(),
+        )),
+        after: anybot_foundation::ContentDigest::sha256(format!("after-{short}").as_bytes()),
+        size: 42,
+    };
+    rec
+}
+
 pub(crate) fn ev(kind: KnownTaskEventKind) -> TaskEventKind {
     TaskEventKind::Known(kind)
 }
@@ -57,17 +72,22 @@ pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
             after: vec![c],
             reason: "r".to_owned(),
         })),
-        10 => Just(ev(ModelAnswer {
+        6 => Just(ev(ModelAnswer {
             text: "t".to_owned(),
             thinking: None,
             tool_requests: Vec::new(),
             finish: anybot_protocol::FinishReason::Finished,
             native: None,
         })),
-        6 => (0usize..3usize).prop_map(|i| ev(ToolIntent { call_id: CallId::generate(&SystemClock), name: format!("e{i}"), args_summary: "a".to_owned(), level: ToolEffect::ReadOnly })),
-        4 => (0u32..9u32).prop_map(|i| {
+        10 => (0usize..3usize).prop_map(|i| ev(ToolIntent { call_id: CallId::generate(&SystemClock), name: format!("e{i}"), args_summary: "a".to_owned(), level: ToolEffect::ReadOnly })),
+        3 => (0u32..9u32).prop_map(|i| {
             ev(EvidenceAdded {
                 record: Box::new(evidence_fixture(i)),
+            })
+        }),
+        3 => (0u32..9u32).prop_map(|i| {
+            ev(EvidenceAdded {
+                record: Box::new(changed_evidence_fixture(i)),
             })
         }),
         2 => Just(ev(CardShown {

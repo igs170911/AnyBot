@@ -35,7 +35,7 @@ test-group = "prop"
 slow-timeout = { period = "300s", terminate-after = 2 }
 
 [[profile.default.overrides]]
-filter = 'test(/(t_context_build_2|t_context_budget_2|t_context_manifest_1|t_context_must_1)/)'
+filter = 'test(/(t_context_build_2|t_context_budget_2|t_context_manifest_1|t_context_must_1|t_context_mask_2|t_context_state_1)/)'
 test-group = "prop"
 
 [[profile.default.overrides]]

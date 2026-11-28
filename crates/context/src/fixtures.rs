@@ -172,15 +172,28 @@ pub(crate) fn events_strategy(max_len: usize) -> BoxedStrategy<Vec<TaskEvent>> {
                     level,
                 }) = kind
                 {
-                    out.push(event_with_seq(
-                        seq.saturating_add(1_000),
+                    let follow = if idx.is_multiple_of(5) {
+                        TaskEventKind::Known(KnownTaskEventKind::ToolFailed {
+                            call_id,
+                            name,
+                            args_summary,
+                            error: "err".to_owned(),
+                        })
+                    } else if idx % 4 != 3 {
+                        TaskEventKind::Known(KnownTaskEventKind::ToolCompleted {
+                            call_id,
+                            summary: "ok".to_owned(),
+                            raw_id: None,
+                        })
+                    } else {
                         TaskEventKind::Known(KnownTaskEventKind::ToolIntent {
                             call_id,
                             name,
                             args_summary,
                             level,
-                        }),
-                    ));
+                        })
+                    };
+                    out.push(event_with_seq(seq.saturating_add(1_000), follow));
                 }
             }
             out
