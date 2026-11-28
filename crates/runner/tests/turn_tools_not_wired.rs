@@ -1,6 +1,7 @@
 use anybot_context as _;
 use anybot_domain as _;
 use anybot_runner as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use anybot_trust as _;
 use proptest as _;

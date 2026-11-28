@@ -1,6 +1,7 @@
 use anybot_foundation as _;
 
 pub mod error;
+pub mod journal;
 pub mod model;
 pub mod open;
 pub mod outbox;
@@ -14,6 +15,7 @@ pub mod settings;
 pub mod store;
 
 pub use error::StoreError;
+pub use journal::{JournalAppend, JournalEntry, JournalRow, OUTBOX_SEQ_BASE};
 pub use model::{
     ACCOUNT_STREAM, ApplyOutcome, LocalRecord, NewOutbox, OutboxRow, OutboxState, Progress,
     bot_stream, written_by_server,

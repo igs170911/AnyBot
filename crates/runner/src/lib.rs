@@ -17,6 +17,9 @@ pub mod error;
 pub mod events;
 pub mod fixed_blocks;
 pub mod halt;
+mod journal_codec;
+mod journal_mask;
+pub mod journal_record;
 pub mod record;
 pub mod report_out;
 pub mod runner;
@@ -30,6 +33,8 @@ pub use card_wait::{TaskWatch, WatchFuture};
 pub use continue_turn::ContinueTurn;
 pub use error::TurnError;
 pub use halt::CODE_TURN_REPLY_STOPPED;
+pub use journal_mask::{BasicSecretMasker, SecretMasker};
+pub use journal_record::JournalRecord;
 pub use record::{
     Appended, Halt, NewTaskEvent, RawStore, RawStoreError, Record, RecordEntry, RecordError,
     Stored, StoredBody, UserLine, task_event_of,

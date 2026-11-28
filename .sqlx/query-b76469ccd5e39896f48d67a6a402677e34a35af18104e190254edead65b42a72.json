@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE outbox SET local_detail = NULL WHERE task_id = ? AND turn = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "b76469ccd5e39896f48d67a6a402677e34a35af18104e190254edead65b42a72"
+}

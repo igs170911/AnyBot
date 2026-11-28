@@ -82,6 +82,10 @@ pub trait Record: Send + Sync {
     fn conversation(&self, bot: BotId) -> PinBoxFuture<'_, Result<Vec<Stored>, RecordError>>;
 
     fn task_events(&self, task: TaskId) -> PinBoxFuture<'_, Result<Vec<TaskEvent>, RecordError>>;
+
+    fn trim_turn(&self, _task: TaskId, _turn: u32) -> PinBoxFuture<'_, Result<(), RecordError>> {
+        Box::pin(std::future::ready(Ok(())))
+    }
 }
 
 pub trait RawStore: Send + Sync {

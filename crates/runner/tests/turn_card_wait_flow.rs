@@ -3,6 +3,7 @@ use anybot_domain as _;
 use anybot_foundation as _;
 use anybot_messages as _;
 use anybot_models as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use proptest as _;
 use serde_json as _;

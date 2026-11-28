@@ -4,6 +4,7 @@ use anybot_messages as _;
 use anybot_models as _;
 use anybot_protocol as _;
 use anybot_runner as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use anybot_trust as _;
 use proptest as _;

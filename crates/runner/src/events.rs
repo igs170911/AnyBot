@@ -28,11 +28,17 @@ impl TurnRunner {
         self.append_turn_event(
             ctx,
             KnownTaskEventKind::TurnEnded {
-                reason,
+                reason: reason.clone(),
                 reply_delivered,
             },
         )
-        .await
-        .map(|_| ())
+        .await?;
+        if reason != TurnEndReason::Interrupted {
+            self.record
+                .trim_turn(ctx.task, ctx.turn)
+                .await
+                .map_err(TurnError::Record)?;
+        }
+        Ok(())
     }
 }
