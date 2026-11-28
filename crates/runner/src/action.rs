@@ -5,34 +5,66 @@ use anybot_trust::{GateStep, OutcomeText};
 
 use crate::action_record::{record_args_rejected, record_denied, record_executed, record_not_run};
 use crate::error::TurnError;
+use crate::record::Halt;
 use crate::runner::{TurnCtx, TurnRunner};
 use crate::view::ActionView;
+
+pub(crate) enum ActionLoop {
+    Done,
+    Halted(Halt),
+}
+
+enum OneAction {
+    Done,
+    Refused,
+    Halted(Halt),
+}
 
 pub(crate) async fn run_actions(
     runner: &TurnRunner,
     ctx: &TurnCtx,
     requests: &[ToolRequest],
-) -> Result<(), TurnError> {
+) -> Result<ActionLoop, TurnError> {
     let mut refused = false;
+    let mut halted: Option<Halt> = None;
     for request in requests {
+        if halted.is_some() {
+            record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
+            continue;
+        }
         if refused {
             record_not_run(runner, ctx, request, NotRunReason::PreviousRefused).await?;
             continue;
         }
-        refused = run_one(runner, ctx, request).await?;
+        if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
+            halted = Some(halt);
+            record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
+            continue;
+        }
+        match run_one(runner, ctx, request).await? {
+            OneAction::Done => {}
+            OneAction::Refused => refused = true,
+            OneAction::Halted(halt) => halted = Some(halt),
+        }
     }
-    Ok(())
+    if halted.is_none() {
+        halted = crate::halt::check_halt(runner, ctx).await?;
+    }
+    Ok(match halted {
+        Some(halt) => ActionLoop::Halted(halt),
+        None => ActionLoop::Done,
+    })
 }
 
 async fn run_one(
     runner: &TurnRunner,
     ctx: &TurnCtx,
     request: &ToolRequest,
-) -> Result<bool, TurnError> {
+) -> Result<OneAction, TurnError> {
     let json = args_json(&request.arguments)?;
     let Ok(args) = anybot_tools::parse_call(&request.tool, &json) else {
         record_args_rejected(runner, ctx, request).await?;
-        return Ok(false);
+        return Ok(OneAction::Done);
     };
     let context = crate::action_record::action_context(runner, ctx, request)?;
     let view = view_of(runner.lang, &args).with_computer(&context.computer);
@@ -47,7 +79,7 @@ async fn run_one(
         GateStep::Denied(run) => {
             record_denied(runner, ctx, request, &run).await?;
             crate::approvals::record_ask_summary(runner, ctx, request, &run, &view).await?;
-            Ok(true)
+            Ok(OneAction::Refused)
         }
         GateStep::Ask(ticket) => {
             let run = anybot_trust::ask_declined_run(&areq, &ticket, &view, &*runner.clock);
@@ -55,11 +87,13 @@ async fn run_one(
             crate::approvals::record_ask_summary(runner, ctx, request, &run, &view).await?;
             let parked_view = ActionView::new(runner.lang).with_computer(ticket.computer_name());
             crate::approvals::park_approval(runner, ctx, request, parked_view, *ticket).await?;
-            Ok(true)
+            Ok(OneAction::Refused)
         }
         GateStep::Allow(ticket) => {
-            record_executed(runner, ctx, request, &areq, ticket, &view, &*computer).await?;
-            Ok(false)
+            match record_executed(runner, ctx, request, &areq, ticket, &view, &*computer).await? {
+                Some(halt) => Ok(OneAction::Halted(halt)),
+                None => Ok(OneAction::Done),
+            }
         }
     }
 }
@@ -76,7 +110,6 @@ fn view_of(lang: anybot_messages::Lang, args: &anybot_tools::ToolArgs) -> Action
         anybot_tools::ToolArgs::Edit(edit) => ActionView::new(lang)
             .with_edit_lines(line_count(&edit.new_text))
             .with_edit_path(&edit.path),
-
         anybot_tools::ToolArgs::Read(read) => {
             let from = read.offset.saturating_add(1);
             let to = from.saturating_add(read.limit.saturating_sub(1));

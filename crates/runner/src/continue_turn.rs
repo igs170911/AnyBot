@@ -38,14 +38,20 @@ impl TurnRunner {
         }
         let turn = next_turn_number(&existing);
         let evidence_start = next_evidence_number(&existing);
+        let started = self
+            .append_task_event_in_turn(
+                &start.task,
+                Some(turn),
+                self.turn_started_kind(turn, start.initiator),
+            )
+            .await?;
         let ctx = TurnCtx {
             task: start.task,
             turn,
             turn_id: TurnId::generate(&*self.clock),
+            turn_started: started.stream_seq,
             evidence: tokio::sync::Mutex::new(evidence_start),
         };
-        self.append_turn_event(&ctx, self.turn_started_kind(turn, start.initiator))
-            .await?;
         let outcome = self.run_steps(&ctx, start.task).await?;
         self.save_last_ctx(&ctx);
         Ok(outcome)

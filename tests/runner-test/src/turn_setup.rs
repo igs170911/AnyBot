@@ -1,16 +1,83 @@
 use std::sync::Arc;
 
-use anybot_foundation::{BotId, TrustedCerts};
+use anybot_foundation::{BotId, TaskId, TrustedCerts};
 use anybot_models::{
     Calibration, Capability, DataPolicy, ModelRef, ProviderEndpoint, ProviderKind, Session,
     ThinkingMode, gateway, resolve, resolve_endpoint,
 };
-use anybot_protocol::ComputerRef;
+use anybot_protocol::{ComputerRef, KnownTaskEventKind};
 use anybot_runner::{BotProfile, TurnModel};
 use test_harness::{FakeClock, FakeModel, ModelFormat};
 
+use crate::fake_computer::FakeComputer;
 use crate::mem_store::{MemoryRaw, MemoryRecord};
-use crate::turn::WorldSetup;
+use crate::turn::{TurnWorld, WorldSetup};
+
+pub(crate) fn apply_world_files(
+    computer: crate::fake_builder::FakeComputerBuilder,
+    setup: &WorldSetup,
+) -> crate::fake_builder::FakeComputerBuilder {
+    let mut built = computer;
+    for (path, content) in &setup.files {
+        built = built.file(path, content);
+    }
+    for (line, script) in &setup.scripts {
+        built = built.script(line, script.clone());
+    }
+    built
+}
+
+impl TurnWorld {
+    #[must_use]
+    pub fn runner_gated(&self) -> Arc<dyn anybot_trust::GatedComputer> {
+        self.runner.gated_ref()
+    }
+
+    #[must_use]
+    pub fn runner_gate_config(&self) -> anybot_trust::GateConfig {
+        self.runner.gated_ref().gate_config().clone()
+    }
+
+    #[must_use]
+    pub fn gate_config(&self) -> anybot_trust::GateConfig {
+        self.gated.gate_config().clone()
+    }
+
+    #[must_use]
+    pub fn clock(&self) -> Arc<FakeClock> {
+        Arc::clone(&self.clock)
+    }
+
+    #[must_use]
+    pub fn tree_content(&self, path: &str) -> Option<String> {
+        self.gated.file_content(path)
+    }
+
+    pub async fn append_task_stopped(&self, task: TaskId) -> Result<(), String> {
+        let kind = KnownTaskEventKind::TaskStopped;
+        self.runner
+            .append_task_event(&task, kind)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
+    }
+
+    pub async fn append_task_cancelled(&self, task: TaskId) -> Result<(), String> {
+        let kind = KnownTaskEventKind::TaskCancelled {
+            reason: "user".to_owned(),
+        };
+        self.runner
+            .append_task_event(&task, kind)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
+    }
+
+    pub fn set_gate(&self, gate: anybot_trust::GateConfig) {
+        let computer: &FakeComputer = &self.gated;
+        *FakeComputer::guard(&computer.gate) = gate;
+    }
+}
 
 pub(crate) fn make_record(setup: &WorldSetup, model: &Arc<FakeModel>) -> Arc<MemoryRecord> {
     let base = match setup.fail_on_kind {

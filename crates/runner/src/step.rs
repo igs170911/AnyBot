@@ -3,13 +3,15 @@ use anybot_domain::{ContextCollapseReason, ContextCollapsed, collapsed_kind, mem
 use anybot_models::{Audience, GatewayFail, ask_plan};
 use anybot_protocol::{KnownTaskEventKind, TurnEndReason};
 
-use crate::action::run_actions;
+use crate::action::{ActionLoop, run_actions};
 use crate::answer;
-use crate::checks::run_checks;
+use crate::checks::{Proceed, run_checks};
 use crate::context_input::build_input;
 use crate::continue_turn::next_asked_step;
 use crate::ending::end_reason;
 use crate::error::TurnError;
+use crate::halt::finish_halt;
+use crate::record::Appended;
 use crate::runner::{TurnCtx, TurnRunner};
 
 pub(crate) enum StepFlow {
@@ -18,7 +20,13 @@ pub(crate) enum StepFlow {
 }
 
 pub(crate) async fn run_step(runner: &TurnRunner, ctx: &TurnCtx) -> Result<StepFlow, TurnError> {
-    run_checks(runner, ctx);
+    match run_checks(runner, ctx).await? {
+        Proceed::Halted(halt) => {
+            let reason = finish_halt(runner, ctx, halt).await?;
+            return Ok(StepFlow::Ended(reason));
+        }
+        Proceed::Go => {}
+    }
     let input = build_input(runner, ctx).await?;
     let compiled = anybot_context::compile(&input).map_err(TurnError::Compile)?;
     match compiled {
@@ -61,12 +69,20 @@ async fn run_sent(
         .await
         .map_err(TurnError::Record)?;
     let asked = next_asked_step(&task_rows);
-    runner
-        .append_turn_event(ctx, KnownTaskEventKind::ModelAsked { step: asked })
-        .await?;
+    if let Appended::Halted(halt) = runner
+        .append_turn_unless_halted(ctx, KnownTaskEventKind::ModelAsked { step: asked })
+        .await?
+    {
+        let reason = finish_halt(runner, ctx, halt).await?;
+        return Ok(StepFlow::Ended(reason));
+    }
     let outcome = ask(runner, &turn_request).await;
     match outcome {
         Err(fail) => {
+            if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
+                let reason = finish_halt(runner, ctx, halt).await?;
+                return Ok(StepFlow::Ended(reason));
+            }
             let reason = end_reason(&fail);
             runner.append_turn_end(ctx, reason.clone(), false).await?;
             Ok(StepFlow::Ended(reason))
@@ -183,7 +199,10 @@ async fn finish_answer(
             .await?;
         return Ok(StepFlow::Ended(TurnEndReason::Answered));
     }
-    run_actions(runner, ctx, &requests).await?;
+    if let ActionLoop::Halted(halt) = run_actions(runner, ctx, &requests).await? {
+        let reason = finish_halt(runner, ctx, halt).await?;
+        return Ok(StepFlow::Ended(reason));
+    }
     if crate::approvals::has_parked(runner) {
         runner
             .append_turn_end(ctx, TurnEndReason::PendingApproval, false)

@@ -7,6 +7,7 @@ pub mod fake_computer_gate;
 pub mod fake_files;
 pub mod fake_helpers;
 pub mod fake_scripts;
+pub mod mem_raw;
 pub mod mem_store;
 pub(crate) mod ops_support;
 pub mod ops_support_exports;

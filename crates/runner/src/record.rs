@@ -46,6 +46,18 @@ pub struct Stored {
     pub body: StoredBody,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Halt {
+    Stopped,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Appended {
+    Stored(Box<Stored>),
+    Halted(Halt),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[error("record failed: {reason}")]
 pub struct RecordError {
@@ -60,6 +72,12 @@ pub struct RawStoreError {
 
 pub trait Record: Send + Sync {
     fn append(&self, entry: RecordEntry) -> PinBoxFuture<'_, Result<Stored, RecordError>>;
+
+    fn append_unless_halted(
+        &self,
+        entry: RecordEntry,
+        turn_started: u64,
+    ) -> PinBoxFuture<'_, Result<Appended, RecordError>>;
 
     fn conversation(&self, bot: BotId) -> PinBoxFuture<'_, Result<Vec<Stored>, RecordError>>;
 

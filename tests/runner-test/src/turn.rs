@@ -141,66 +141,18 @@ impl TurnWorld {
             desktop: DeviceId::generate(clock_dyn.as_ref()),
         })
     }
-}
 
-fn apply_world_files(
-    computer: crate::fake_builder::FakeComputerBuilder,
-    setup: &WorldSetup,
-) -> crate::fake_builder::FakeComputerBuilder {
-    let mut built = computer;
-    for (path, content) in &setup.files {
-        built = built.file(path, content);
-    }
-    for (line, script) in &setup.scripts {
-        built = built.script(line, script.clone());
-    }
-    built
-}
-
-impl TurnWorld {
-    #[must_use]
-    pub fn runner_gated(&self) -> Arc<dyn anybot_trust::GatedComputer> {
-        self.runner.gated_ref()
+    pub fn script(&self, steps: Vec<Step>) {
+        self.model.script_set(steps);
     }
 
-    #[must_use]
-    pub fn runner_gate_config(&self) -> anybot_trust::GateConfig {
-        self.runner.gated_ref().gate_config().clone()
-    }
-
-    #[must_use]
-    pub fn gate_config(&self) -> anybot_trust::GateConfig {
-        self.gated.gate_config().clone()
-    }
-
-    #[must_use]
-    pub fn clock(&self) -> Arc<FakeClock> {
-        Arc::clone(&self.clock)
-    }
-
-    #[must_use]
-    pub fn tree_content(&self, path: &str) -> Option<String> {
-        self.gated.file_content(path)
-    }
-
-    pub async fn append_task_stopped(&self, task: TaskId) -> Result<(), String> {
-        let kind = KnownTaskEventKind::TaskStopped;
+    pub async fn send(&self, from: Device, text: &str) -> Result<TurnOutcome, TurnError> {
         self.runner
-            .append_task_event(&task, kind)
+            .on_user_message(UserMessage {
+                device: self.device(from),
+                text: text.to_owned(),
+            })
             .await
-            .map(|_| ())
-            .map_err(|e| format!("{e:?}"))
-    }
-
-    pub async fn append_task_cancelled(&self, task: TaskId) -> Result<(), String> {
-        let kind = KnownTaskEventKind::TaskCancelled {
-            reason: "user".to_owned(),
-        };
-        self.runner
-            .append_task_event(&task, kind)
-            .await
-            .map(|_| ())
-            .map_err(|e| format!("{e:?}"))
     }
 
     pub async fn continue_task(
@@ -232,26 +184,6 @@ impl TurnWorld {
             opening,
         )
         .await
-    }
-
-    pub fn set_gate(&self, gate: anybot_trust::GateConfig) {
-        let computer: &FakeComputer = &self.gated;
-        *FakeComputer::guard(&computer.gate) = gate;
-    }
-}
-
-impl TurnWorld {
-    pub fn script(&self, steps: Vec<Step>) {
-        self.model.script_set(steps);
-    }
-
-    pub async fn send(&self, from: Device, text: &str) -> Result<TurnOutcome, TurnError> {
-        self.runner
-            .on_user_message(UserMessage {
-                device: self.device(from),
-                text: text.to_owned(),
-            })
-            .await
     }
 
     #[must_use]
@@ -319,9 +251,8 @@ pub fn arc_world(world: TurnWorld) -> Arc<TurnWorld> {
     Arc::new(world)
 }
 
-use crate::turn_setup::share_clock;
+use crate::turn_setup::{apply_world_files, make_record, share_raw};
 pub use crate::turn_setup::{
     bot_profile, build_session, capability_of, computer_of, local_endpoint, model_name_of_setup,
-    provider_kind, turn_model, wire_format,
+    provider_kind, share_clock, turn_model, wire_format,
 };
-use crate::turn_setup::{make_record, share_raw};

@@ -123,7 +123,7 @@ async fn record_approval_run(
     view: &ActionView,
 ) -> Result<(), TurnError> {
     crate::action_record::record_gate(runner, ctx, request.call_id, &run.gate).await?;
-    crate::action_record::record_intent_start(runner, ctx, request, &run.gate).await?;
+    let _halt = crate::action_record::record_intent_start(runner, ctx, request, &run.gate).await?;
     crate::action_record::record_result(runner, ctx, request, run, view).await?;
     let ids = crate::action_record::record_evidence(runner, ctx, &run.evidence).await?;
     crate::action_record::record_verified(runner, ctx, request.call_id, run, ids).await
@@ -182,6 +182,7 @@ impl TurnRunner {
             task,
             turn,
             turn_id: TurnId::generate(&*self.clock),
+            turn_started: 0,
             evidence: tokio::sync::Mutex::new(1_000),
         }
     }

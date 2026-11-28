@@ -6,6 +6,7 @@ use anybot_protocol::{
 use anybot_trust::{ActionRun, CODE_TURN_COMPLETED, CODE_TURN_REJECTED};
 
 use crate::error::TurnError;
+use crate::record::{Appended, Halt};
 use crate::runner::{TurnCtx, TurnRunner};
 use crate::view::ActionView;
 
@@ -32,10 +33,10 @@ pub(crate) async fn record_intent_start(
     ctx: &TurnCtx,
     request: &ToolRequest,
     gate: &GateRecord,
-) -> Result<(), TurnError> {
-    if gate.outcome == anybot_protocol::GateOutcome::Allow {
-        runner
-            .append_turn_event(
+) -> Result<Option<Halt>, TurnError> {
+    if gate.outcome == anybot_protocol::GateOutcome::Allow
+        && let Appended::Halted(halt) = runner
+            .append_turn_unless_halted(
                 ctx,
                 KnownTaskEventKind::ToolIntent {
                     call_id: request.call_id,
@@ -44,17 +45,22 @@ pub(crate) async fn record_intent_start(
                     level: level_of(&request.tool),
                 },
             )
-            .await?;
+            .await?
+    {
+        return Ok(Some(halt));
     }
-    runner
-        .append_turn_event(
+    if let Appended::Halted(halt) = runner
+        .append_turn_unless_halted(
             ctx,
             KnownTaskEventKind::ToolStarted {
                 call_id: request.call_id,
             },
         )
-        .await
-        .map(|_| ())
+        .await?
+    {
+        return Ok(Some(halt));
+    }
+    Ok(None)
 }
 
 fn level_of(tool: &str) -> ToolEffect {

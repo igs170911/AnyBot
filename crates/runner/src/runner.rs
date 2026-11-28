@@ -9,7 +9,7 @@ use anybot_protocol::{
 };
 
 use crate::error::TurnError;
-use crate::record::{NewTaskEvent, RawStore, Record, RecordEntry, Stored, UserLine};
+use crate::record::{Appended, NewTaskEvent, RawStore, Record, RecordEntry, Stored, UserLine};
 use crate::step::{StepFlow, run_step};
 
 pub struct BotProfile {
@@ -44,6 +44,7 @@ pub struct TurnCtx {
     pub(crate) task: TaskId,
     pub(crate) turn: u32,
     pub(crate) turn_id: TurnId,
+    pub(crate) turn_started: u64,
     pub(crate) evidence: tokio::sync::Mutex<u32>,
 }
 
@@ -127,17 +128,19 @@ impl TurnRunner {
             .count_task_kind(&task, KindCount::TurnStarted)
             .await?
             .saturating_add(1);
+        let initiator = TurnInitiator::You {
+            device: message.device,
+        };
+        let started = self
+            .append_task_event_in_turn(&task, Some(turn), self.turn_started_kind(turn, initiator))
+            .await?;
         let ctx = TurnCtx {
             task,
             turn,
             turn_id: TurnId::generate(&*self.clock),
+            turn_started: started.stream_seq,
             evidence: tokio::sync::Mutex::new(1),
         };
-        let initiator = TurnInitiator::You {
-            device: message.device,
-        };
-        self.append_turn_event(&ctx, self.turn_started_kind(turn, initiator))
-            .await?;
         let outcome = self.run_steps(&ctx, task).await?;
         self.save_last_ctx(&ctx);
         Ok(outcome)
@@ -185,6 +188,25 @@ impl TurnRunner {
     ) -> Result<Stored, TurnError> {
         self.append_task_event_in_turn(&ctx.task, Some(ctx.turn), kind)
             .await
+    }
+
+    pub(crate) async fn append_turn_unless_halted(
+        &self,
+        ctx: &TurnCtx,
+        kind: KnownTaskEventKind,
+    ) -> Result<Appended, TurnError> {
+        let new = NewTaskEvent {
+            bot: self.bot.id,
+            task: ctx.task,
+            turn: Some(ctx.turn),
+            event_id: EventId::generate(&*self.clock),
+            at_ms: self.clock.now_ms(),
+            kind: TaskEventKind::Known(kind),
+        };
+        self.record
+            .append_unless_halted(RecordEntry::Task(new), ctx.turn_started)
+            .await
+            .map_err(TurnError::Record)
     }
 
     pub(crate) async fn append_task_event_in_turn(
