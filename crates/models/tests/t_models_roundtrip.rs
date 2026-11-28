@@ -12,6 +12,7 @@ use reqwest as _;
 use serde as _;
 use serde_json as _;
 use test_harness::{ModelFormat, model_replies_text, model_thinking_block};
+use tiktoken_rs as _;
 use tokio as _;
 use url as _;
 

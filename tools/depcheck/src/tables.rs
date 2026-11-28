@@ -24,11 +24,18 @@ pub fn allowed_internal_deps() -> BTreeMap<String, BTreeSet<String>> {
     add("mcp", &["foundation", "protocol", "domain", "trust"]);
     add("blob", &["foundation"]);
     add("bus", &["foundation"]);
-    add("store-server", &CORE);
-    add("store-client", &CORE);
+    add(
+        "store-server",
+        &["foundation", "protocol", "domain", "terms"],
+    );
+    add(
+        "store-client",
+        &["foundation", "protocol", "domain", "terms"],
+    );
     add("sync", &["foundation", "protocol", "store-client"]);
     add("channels", &CORE);
     add("runner", &runner_deps());
+    add("terms", &[]);
     add(
         "external-agents",
         &["foundation", "protocol", "trust", "mcp"],
@@ -73,6 +80,7 @@ fn runner_deps() -> Vec<&'static str> {
         "bus",
         "blob",
         "channels",
+        "terms",
     ]
 }
 

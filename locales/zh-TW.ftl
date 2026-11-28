@@ -306,3 +306,9 @@ turn-yolo-status = 「一律放行」目前是{ $state ->
    *[other] 關著
 }。
 gate-smart-auto-allowed = （智慧模式：等了 { $seconds } 秒沒人回，先做了）
+turn-fixed-task-evidence = 照任務紀錄回答進度，不要憑記憶猜。收尾時每一句做過的宣稱後面都要附上證據的短編號。
+memory-empty-content = 記憶內容不能是空的。
+memory-contradiction-target-missing = 找不到要標示矛盾的那條有效記憶。
+memory-scan-injection = 已拒絕寫入：記憶內容帶有提示注入樣式。
+memory-scan-secret = 已拒絕寫入：記憶內容帶有金鑰或密碼樣式。
+memory-scan-invisible = 已拒絕寫入：記憶內容帶有隱藏或控制字元。

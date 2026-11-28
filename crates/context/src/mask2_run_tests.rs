@@ -16,12 +16,12 @@ fn short_chat(prefix: &'static str, index: usize) -> BoxedStrategy<ChatRecord> {
 }
 
 #[test]
-fn paired_calls_keep_user_text_and_space_collapse_events() {
+fn t_context_mask_2() {
     let strategy = (
-        prop::collection::vec(0usize..FIXED_LENS.len(), 16..22),
+        prop::collection::vec(0usize..FIXED_LENS.len(), 22..38),
         prop::collection::vec(short_chat("u", 0), 1..3),
         prop::collection::vec(short_chat("b", 1), 0..3),
-        4_000u64..20_000u64,
+        6_000u64..20_000u64,
     );
     let mut runner = TestRunner::deterministic();
     let mut st = Occurrences::default();

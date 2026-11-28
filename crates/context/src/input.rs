@@ -33,7 +33,7 @@ pub struct StepRecord {
     pub source_ref: String,
     pub content: String,
     pub exit_code: Option<i64>,
-    pub error_at: Vec<usize>,
+    pub error_at: Option<usize>,
 }
 
 impl StepRecord {
@@ -53,15 +53,7 @@ impl StepRecord {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MemorySource {
-    UserSaid,
-    ToolEvidence,
-    ModelInference,
-    OtherBot,
-    Import,
-}
+pub use anybot_domain::MemorySource;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryRecord {

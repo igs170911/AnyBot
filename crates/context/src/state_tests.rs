@@ -1,6 +1,7 @@
 use proptest::prelude::*;
 
 use anybot_foundation::{CallId, SystemClock};
+use anybot_protocol::{BeforeDigest, EvidencePayload, KnownTaskEventKind, TaskEventKind};
 
 use crate::compile::compile;
 use crate::compile_tests_support as sup;
@@ -8,47 +9,101 @@ use crate::fixtures::events_strategy;
 use crate::numbers::K114_7_STATE_MAX_TOKENS;
 use crate::output::{BlockKind, Compiled};
 use crate::state::build_state;
-use crate::state_render::{fit_summary, render};
+use crate::state_render::{StateSummary, fit_summary, render};
+
 #[test]
 fn state_starts_empty() {
     let b = build_state(&[]);
-    let s = render(&b, false);
-    assert!(s.items.is_empty());
+    assert!(render(&b, false).items.is_empty());
+}
+
+fn check_evidence_item(
+    summary: &StateSummary,
+    seq: u64,
+    record: &anybot_protocol::EvidenceRecord,
+) -> Result<(), TestCaseError> {
+    let has = |pred: &dyn Fn(&str) -> bool| {
+        summary
+            .items
+            .iter()
+            .any(|i| i.source_seq == seq && pred(&i.text))
+    };
+    match &record.payload {
+        EvidencePayload::Changed {
+            path,
+            before,
+            after,
+            ..
+        } => {
+            let after_hex = after.to_string();
+            let before_str = match before {
+                BeforeDigest::Absent => "absent".to_owned(),
+                BeforeDigest::Present(v) => v.to_string(),
+            };
+            let ok =
+                has(&|t| t.contains(path) && t.contains(&after_hex) && t.contains(&before_str));
+            prop_assert!(ok);
+        }
+        EvidencePayload::Seen { path, digest, .. } => {
+            let hex = digest.to_string();
+            prop_assert!(has(&|t| t.contains(path) && t.contains(&hex)));
+        }
+        EvidencePayload::Executed { command, .. } => {
+            prop_assert!(has(&|t| t.contains(command)));
+        }
+        EvidencePayload::Approved { .. }
+        | EvidencePayload::Rejected { .. }
+        | EvidencePayload::NotExecuted { .. } => {}
+    }
+    Ok(())
+}
+
+fn check_state_invariants(
+    events: &[anybot_protocol::TaskEvent],
+    a: &StateSummary,
+) -> Result<(), TestCaseError> {
+    let seqs: Vec<u64> = events.iter().map(|e| e.seq).collect();
+    for item in &a.items {
+        prop_assert!(seqs.contains(&item.source_seq));
+    }
+    for e in events {
+        if let TaskEventKind::Known(KnownTaskEventKind::EvidenceAdded { record }) = &e.kind {
+            check_evidence_item(a, e.seq, record)?;
+        }
+        if let TaskEventKind::Known(KnownTaskEventKind::TaskCreated { goal, .. }) = &e.kind {
+            prop_assert!(
+                a.items
+                    .iter()
+                    .any(|i| i.source_seq == e.seq && i.text.contains(goal))
+            );
+        }
+    }
+    Ok(())
 }
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn state_summary_is_stable_and_cites_event_seqs(events in events_strategy(24)) {
-        let a = fit_summary(&build_state(&events));
-        let b = fit_summary(&build_state(&events));
+    fn t_context_state_1(events in events_strategy(180)) {
+        let st = build_state(&events);
+        let a = fit_summary(&st);
+        let b = fit_summary(&st);
         prop_assert_eq!(&a, &b);
-        let seqs: Vec<u64> = events.iter().map(|e| e.seq).collect();
-        for item in &a.items {
-            prop_assert!(seqs.contains(&item.source_seq));
+        check_state_invariants(&events, &a)?;
+        let full = render(&st, false);
+        let compress = render(&st, true);
+        prop_assert!(compress.items.len() <= full.items.len());
+        if full.tokens() > K114_7_STATE_MAX_TOKENS {
+            prop_assert_eq!(&a, &compress);
         }
-        for e in &events {
-            if let anybot_protocol::TaskEventKind::Known(
-                anybot_protocol::KnownTaskEventKind::EvidenceAdded { record },
-            ) = &e.kind
-            {
-                let display = record.display();
-                prop_assert!(
-                    a.items.iter().any(|i| i.text.contains(&display) && i.source_seq == e.seq),
-                    "evidence item does not carry the event display verbatim",
-                );
-            }
-        }
-        let compress = render(&build_state(&events), true);
-        prop_assert!(compress.items.len() <= a.items.len());
     }
 }
 
 fn executed_fixture(exit: i32) -> anybot_protocol::EvidenceRecord {
     let mut record = crate::fixtures::evidence_fixture(9);
     record.tool = "shell".to_owned();
-    record.payload = anybot_protocol::EvidencePayload::Executed {
+    record.payload = EvidencePayload::Executed {
         command: "run".to_owned(),
         computer: "c".to_owned(),
         exit_code: Some(exit),
@@ -62,9 +117,9 @@ fn executed_fixture(exit: i32) -> anybot_protocol::EvidenceRecord {
 }
 
 fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
-    let mut events: Vec<anybot_protocol::TaskEvent> = vec![sup::known(
+    let mut events = vec![sup::known(
         1,
-        anybot_protocol::KnownTaskEventKind::TaskCreated {
+        KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
             opened_by: anybot_protocol::TaskOpener::You,
             bot: anybot_foundation::BotId::generate(&SystemClock),
@@ -75,7 +130,7 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
         let seq = i.saturating_add(2);
         events.push(sup::known(
             seq,
-            anybot_protocol::KnownTaskEventKind::ToolIntent {
+            KnownTaskEventKind::ToolIntent {
                 call_id: CallId::generate(&SystemClock),
                 name: "t".to_owned(),
                 args_summary: "a".to_owned(),
@@ -84,26 +139,25 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
         ));
         events.push(sup::known(
             seq.saturating_add(1),
-            anybot_protocol::KnownTaskEventKind::ToolCompleted {
+            KnownTaskEventKind::ToolCompleted {
                 call_id: CallId::generate(&SystemClock),
                 summary: "s".to_owned(),
                 raw_id: None,
             },
         ));
         if i < 3 {
+            let ev = crate::fixtures::evidence_fixture(u32::try_from(i).unwrap_or(0));
             events.push(sup::known(
                 seq,
-                anybot_protocol::KnownTaskEventKind::EvidenceAdded {
-                    record: Box::new(crate::fixtures::evidence_fixture(
-                        u32::try_from(i).unwrap_or(0),
-                    )),
+                KnownTaskEventKind::EvidenceAdded {
+                    record: Box::new(ev),
                 },
             ));
         }
     }
     events.push(sup::known(
         22,
-        anybot_protocol::KnownTaskEventKind::EvidenceAdded {
+        KnownTaskEventKind::EvidenceAdded {
             record: Box::new(executed_fixture(1)),
         },
     ));
@@ -114,76 +168,55 @@ fn state_2_events() -> Vec<anybot_protocol::TaskEvent> {
 fn compiled_request_has_one_state_summary() {
     let mut base = sup::base_input();
     base.events = state_2_events();
-    match compile(&base).unwrap() {
-        Compiled::Sent { request, .. } => {
-            let summaries: Vec<&crate::output::Block> = request
-                .blocks
-                .iter()
-                .filter(|b| b.kind == BlockKind::StateSummary)
-                .collect();
-            assert_eq!(summaries.len(), 1, "one state summary");
-            let text = summaries.first().expect("summary").text.clone();
-            for i in 0..3 {
-                assert!(text.contains(&format!("seen f{i}")));
-            }
-            assert!(text.contains("exit 1"));
-            assert!(
-                request
-                    .blocks
-                    .iter()
-                    .any(|b| b.kind == BlockKind::CurrentStep),
-                "current step present"
-            );
-        }
-        Compiled::Insufficient(_) => panic!("must fit"),
-    }
+    let Compiled::Sent { request, .. } = compile(&base).unwrap() else {
+        panic!("must fit");
+    };
+    let summaries: Vec<&crate::output::Block> = request
+        .blocks
+        .iter()
+        .filter(|b| b.kind == BlockKind::StateSummary)
+        .collect();
+    assert_eq!(summaries.len(), 1);
+    let text = &summaries.first().expect("summary").text;
+    assert!((0..3).all(|i| text.contains(&format!("seen f{i}"))));
+    assert!(text.contains("exit 1"));
+    assert!(
+        request
+            .blocks
+            .iter()
+            .any(|b| b.kind == BlockKind::CurrentStep)
+    );
 }
 
 #[test]
 fn model_reply_does_not_enter_state_summary() {
     let mut base = sup::base_input();
-    let mut events = base.events.clone();
-    events.push(sup::known(
-        2,
-        anybot_protocol::KnownTaskEventKind::DoneWhenChange {
-            by: anybot_protocol::Proposer::User,
-            change: anybot_protocol::DoneWhenChange::SetItems {
-                items: vec![anybot_protocol::Criterion::CommandExitZero {
-                    command: "cargo test".to_owned(),
-                }],
-            },
-            before: Vec::new(),
-            after: vec![anybot_protocol::Criterion::CommandExitZero {
-                command: "cargo test".to_owned(),
-            }],
-            reason: "r".to_owned(),
-        },
-    ));
-    base.events = events;
+    let crit = anybot_protocol::Criterion::CommandExitZero {
+        command: "cargo test".to_owned(),
+    };
+    base.events.push(sup::done_when_event(2, vec![crit]));
     base.bot_turns = vec![sup::record("b1", "all tests passed, task done")];
-    match compile(&base).unwrap() {
-        Compiled::Sent { request, .. } => {
-            let summary_items: Vec<&str> = request
-                .blocks
-                .iter()
-                .filter(|b| b.kind == BlockKind::StateSummary)
-                .map(|b| b.text.as_str())
-                .collect();
-            let summary = summary_items.join("");
-            assert!(
-                !summary.contains("all tests passed"),
-                "claims are not state"
-            );
-            assert!(summary.contains("pending"), "criterion not verified");
-        }
-        Compiled::Insufficient(_) => panic!("must fit"),
-    }
+    let Compiled::Sent { request, .. } = compile(&base).unwrap() else {
+        panic!("must fit");
+    };
+    let summary: String = request
+        .blocks
+        .iter()
+        .filter(|b| b.kind == BlockKind::StateSummary)
+        .map(|b| b.text.as_str())
+        .collect();
+    assert!(!summary.contains("all tests passed"));
+    assert!(summary.contains("pending"));
 }
 
-fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut Vec<String>) {
+fn seed_plan_events(
+    events: &mut Vec<anybot_protocol::TaskEvent>,
+    done_ids: &mut Vec<String>,
+    open_ids: &mut Vec<String>,
+) {
     events.push(sup::known(
         1,
-        anybot_protocol::KnownTaskEventKind::TaskCreated {
+        KnownTaskEventKind::TaskCreated {
             goal: "g".to_owned(),
             opened_by: anybot_protocol::TaskOpener::You,
             bot: anybot_foundation::BotId::generate(&SystemClock),
@@ -195,7 +228,7 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
         let seq = i.saturating_add(2);
         events.push(sup::known(
             seq,
-            anybot_protocol::KnownTaskEventKind::ToolIntent {
+            KnownTaskEventKind::ToolIntent {
                 call_id: call,
                 name: "t".to_owned(),
                 args_summary: "a".to_owned(),
@@ -205,12 +238,13 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
         if i < 280 {
             events.push(sup::known(
                 seq.saturating_add(1),
-                anybot_protocol::KnownTaskEventKind::ToolCompleted {
+                KnownTaskEventKind::ToolCompleted {
                     call_id: call,
                     summary: "s".to_owned(),
                     raw_id: None,
                 },
             ));
+            done_ids.push(call.as_str().clone());
         } else {
             open_ids.push(call.as_str().clone());
         }
@@ -218,7 +252,7 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
     for q in 0..20u64 {
         events.push(sup::known(
             q.saturating_add(400),
-            anybot_protocol::KnownTaskEventKind::CardShown {
+            KnownTaskEventKind::CardShown {
                 action: format!("question {q}"),
                 card: format!("card-{q}"),
                 kind: anybot_protocol::CardKind::Action,
@@ -240,31 +274,22 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
 }
 
 #[test]
-fn long_plan_summary_counts_done_steps() {
-    let mut events: Vec<anybot_protocol::TaskEvent> = Vec::new();
-    let mut open_ids: Vec<String> = Vec::new();
-    seed_plan_events(&mut events, &mut open_ids);
-    let summary = render(&build_state(&events), true);
-    let text: String = summary
-        .items
-        .iter()
-        .map(|i| i.text.clone())
-        .collect::<Vec<String>>()
-        .join("\n");
-    assert!(text.contains("completed: 280"), "done count only");
-    for id in &open_ids {
-        assert!(text.contains(id.as_str()), "all open steps listed");
-    }
-    for q in 0..20 {
-        assert!(text.contains(&format!("question {q}")));
-    }
-    assert!(
-        text.contains("step ") && text.contains(" open"),
-        "open current steps listed in summary",
-    );
-    let tokens = crate::estimate::text_tokens(&text);
-    assert!(
-        tokens <= K114_7_STATE_MAX_TOKENS,
-        "summary within token budget"
-    );
+fn t_context_state_4() {
+    let mut events = Vec::new();
+    let mut done_ids = Vec::new();
+    let mut open_ids = Vec::new();
+    seed_plan_events(&mut events, &mut done_ids, &mut open_ids);
+    assert_eq!(done_ids.len(), 280);
+    assert_eq!(open_ids.len(), 20);
+    let st = build_state(&events);
+    assert!(render(&st, false).tokens() > K114_7_STATE_MAX_TOKENS);
+    let summary = fit_summary(&st);
+    let text = summary.text();
+    assert!(text.contains("completed: 280 failed: 0"));
+    assert_eq!(text.matches(" open [seq").count(), 20);
+    assert!(done_ids.iter().all(|id| !text.contains(id.as_str())));
+    assert!(open_ids.iter().all(|id| text.contains(id.as_str())));
+    assert!((0..20).all(|q| text.contains(&format!("question {q}"))));
+    assert!(summary.tokens() <= K114_7_STATE_MAX_TOKENS);
+    assert!(crate::estimate::text_tokens(&text) <= K114_7_STATE_MAX_TOKENS);
 }

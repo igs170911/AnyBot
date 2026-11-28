@@ -16,6 +16,7 @@ use reqwest as _;
 use serde as _;
 use serde_json as _;
 use test_harness::{FakeClock, ModelFormat, model_start_with_format};
+use tiktoken_rs as _;
 use tokio as _;
 use url as _;
 
@@ -144,4 +145,63 @@ fn t_models_capabilities_9() {
         let second = formula_tokens(&input);
         assert_eq!(first, second);
     }
+}
+
+#[test]
+fn o200k_estimates_fixed_english_and_cjk() -> Result<(), String> {
+    let en = "Hello, AnyBot context budget!";
+    let zh = "\u{4eca}\u{5929}\u{4e0b}\u{5348}\u{5728}\u{516c}\u{53f8}\u{958b}\u{6703}";
+    let en_o200k = anybot_models::estimate_tokens(&anybot_models::TokenizerKind::O200k, en, None)
+        .map_err(|e| e.to_string())?;
+    let zh_o200k = anybot_models::estimate_tokens(&anybot_models::TokenizerKind::O200k, zh, None)
+        .map_err(|e| e.to_string())?;
+    assert_eq!(en_o200k, 7);
+    assert_eq!(zh_o200k, 6);
+    let en_formula =
+        anybot_models::estimate_tokens(&anybot_models::TokenizerKind::Formula, en, None)
+            .map_err(|e| e.to_string())?;
+    let zh_formula =
+        anybot_models::estimate_tokens(&anybot_models::TokenizerKind::Formula, zh, None)
+            .map_err(|e| e.to_string())?;
+    assert_eq!(en_formula, 8);
+    assert_eq!(zh_formula, 9);
+    assert_ne!(en_o200k, en_formula);
+    assert_ne!(zh_o200k, zh_formula);
+    let with_overhead = anybot_models::estimate_input_tokens(
+        &anybot_models::TokenizerKind::O200k,
+        &EstimateInput {
+            text: en,
+            messages: 2,
+            images: 1,
+        },
+        None,
+    )
+    .map_err(|e| e.to_string())?;
+    assert_eq!(with_overhead, 7 + 8 + 1_600);
+    Ok(())
+}
+
+#[test]
+fn broken_tokenizer_json_is_an_error() {
+    let kind = anybot_models::TokenizerKind::TokenizerJson;
+    assert_eq!(
+        anybot_models::estimate_tokens(&kind, "hello", None),
+        Err(anybot_models::EstimateError::MissingTokenizerJson)
+    );
+    assert_eq!(
+        anybot_models::estimate_tokens(&kind, "hello", Some(b"")),
+        Err(anybot_models::EstimateError::MissingTokenizerJson)
+    );
+    assert!(matches!(
+        anybot_models::estimate_tokens(&kind, "hello", Some(b"{not-json")),
+        Err(anybot_models::EstimateError::BrokenTokenizerJson(_))
+    ));
+    assert!(matches!(
+        anybot_models::estimate_tokens(&kind, "hello", Some(b"{}")),
+        Err(anybot_models::EstimateError::BrokenTokenizerJson(_))
+    ));
+    assert_eq!(
+        anybot_models::estimate_tokens(&kind, "hello", Some(br#"{"model":{}}"#)),
+        Err(anybot_models::EstimateError::TokenizerJsonBlocked)
+    );
 }

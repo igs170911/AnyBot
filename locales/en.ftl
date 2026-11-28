@@ -303,3 +303,9 @@ turn-yolo-status = "Always approve" is currently { $state ->
    *[other] off
 }.
 gate-smart-auto-allowed = (Smart mode: nobody answered in { $seconds } seconds, so it went ahead)
+turn-fixed-task-evidence = Answer task progress from task records, not memory. When wrapping up, cite the short evidence ID after each action claim.
+memory-empty-content = Memory content cannot be empty.
+memory-contradiction-target-missing = The referenced memory to contradict does not exist or is no longer active.
+memory-scan-injection = Rejected: the memory text looks like prompt injection.
+memory-scan-secret = Rejected: the memory text contains a secret or credential.
+memory-scan-invisible = Rejected: the memory text contains hidden or control characters.

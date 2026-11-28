@@ -7,6 +7,7 @@ use rustls as _;
 use serde as _;
 use serde_json as _;
 use test_harness::{ModelFormat, model_replies_text};
+use tiktoken_rs as _;
 use tokio as _;
 use tokio_rustls as _;
 use trybuild as _;

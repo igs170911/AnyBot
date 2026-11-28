@@ -7,8 +7,8 @@ use crate::fixtures::{
 };
 use crate::input::{BuildInput, ChatRecord, StepRecord};
 use crate::mask::render_view;
-use crate::numbers::{K114_2_DEFAULT_RESULT_CHARS, K114_3_SHORT_RESULT_CHARS};
-use crate::output::{Block, BlockKind, Compiled, CompiledRequest, Manifest};
+use crate::numbers::K114_2_DEFAULT_RESULT_CHARS;
+use crate::output::{Block, BlockForm, BlockKind, Compiled, CompiledRequest, Manifest};
 
 pub(crate) fn has_block(
     request: &CompiledRequest,
@@ -26,34 +26,40 @@ pub(crate) fn mask_2_problems(
 ) -> Vec<String> {
     let mut problems = Vec::new();
     for u in users {
-        if !has_block(request, BlockKind::UserText, |b| b.text == u.text) {
+        if !has_block(request, BlockKind::UserText, |b| {
+            b.form == BlockForm::Verbatim && b.text == u.text
+        }) {
             problems.push(format!("user text missing {}", u.record_id));
         }
     }
     for bt in bots {
-        if !has_block(request, BlockKind::BotText, |b| b.text == bt.text) {
+        if !has_block(request, BlockKind::BotText, |b| {
+            b.form == BlockForm::Verbatim && b.text == bt.text
+        }) {
             problems.push(format!("bot text missing {}", bt.record_id));
         }
     }
     for s in steps {
         let rid = format!("result-{}", s.source_ref);
         let cid = format!("call-{}", s.call_id.as_str());
+        let call_str = s.call_id.as_str();
         if s.has_output()
             && !request.blocks.iter().any(|x| {
                 (x.kind == BlockKind::ToolResultFull
                     || x.kind == BlockKind::ToolResultMasked
                     || x.kind == BlockKind::ToolResultDuplicate)
                     && x.source_ids.contains(&rid)
+                    && x.call_id.as_deref() == Some(call_str.as_str())
             })
         {
             problems.push(format!("result block missing {rid}"));
         }
         if !has_block(request, BlockKind::ToolIntent, |x| {
-            x.source_ids.contains(&cid)
+            x.source_ids.contains(&cid) && x.call_id.as_deref() == Some(call_str.as_str())
         }) {
             problems.push(format!("intent block missing {cid}"));
         }
-        let short = s.content.chars().count() <= K114_3_SHORT_RESULT_CHARS;
+        let short = s.content.chars().count() <= 600;
         if (s.keeps_full() || !s.has_output() || short)
             && has_block(request, BlockKind::ToolResultMasked, |x| {
                 x.source_ids.contains(&rid)
@@ -178,11 +184,7 @@ fn ladder_round_problems(
 fn ladder_maskable(steps: &[StepRecord]) -> usize {
     steps
         .iter()
-        .filter(|s| {
-            s.has_output()
-                && !s.unconfirmed
-                && s.content.chars().count() > K114_3_SHORT_RESULT_CHARS
-        })
+        .filter(|s| s.has_output() && !s.unconfirmed && s.content.chars().count() > 600)
         .count()
 }
 

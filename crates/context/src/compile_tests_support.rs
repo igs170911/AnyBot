@@ -9,7 +9,7 @@ use crate::input::{
 };
 use crate::output::{CollapseReason, NewEvent};
 
-fn context_built_kind() -> KnownTaskEventKind {
+pub(crate) fn context_built_kind() -> KnownTaskEventKind {
     KnownTaskEventKind::ContextBuilt {
         manifest_id: "m".to_owned(),
         model: anybot_protocol::ModelName {
@@ -96,7 +96,7 @@ pub(crate) fn step_len(idx: usize, len: usize, ref_id: &str) -> StepRecord {
             format!("{head}{}", "x".repeat(pad))
         },
         exit_code: None,
-        error_at: Vec::new(),
+        error_at: None,
     }
 }
 
@@ -138,6 +138,19 @@ pub(crate) fn memory(id: &str, relevance: u32, candidate: bool) -> MemoryRecord 
         source: MemorySource::UserSaid,
         candidate,
     }
+}
+
+pub(crate) fn done_when_event(seq: u64, crits: Vec<anybot_protocol::Criterion>) -> TaskEvent {
+    let kind = KnownTaskEventKind::DoneWhenChange {
+        by: anybot_protocol::Proposer::User,
+        change: anybot_protocol::DoneWhenChange::SetItems {
+            items: crits.clone(),
+        },
+        before: Vec::new(),
+        after: crits,
+        reason: "r".to_owned(),
+    };
+    event(seq, TaskEventKind::Known(kind))
 }
 
 pub(crate) fn push_new(events: &mut Vec<TaskEvent>, new: &[NewEvent]) {

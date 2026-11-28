@@ -1,23 +1,12 @@
 use proptest::prelude::*;
 
 use crate::compile::compile;
-use crate::fixtures::{build_input, event_with_seq, events_strategy, mixed_text};
-use crate::input::{BuildInput, PinnedSnapshot, StepRecord};
-use crate::output::{Block, BlockKind, Compiled, CompiledRequest};
-
 use crate::compile_tests_support as sup;
-
-fn context_built_kind() -> anybot_protocol::KnownTaskEventKind {
-    anybot_protocol::KnownTaskEventKind::ContextBuilt {
-        manifest_id: "m".to_owned(),
-        model: anybot_protocol::ModelName {
-            provider: "OpenAi".to_owned(),
-            base_url: "http://127.0.0.1:9/v1".to_owned(),
-            model: "m".to_owned(),
-        },
-        estimate_tokens: 1,
-    }
-}
+use crate::fixtures::{build_input, event_with_seq, events_strategy, mixed_text};
+use crate::input::{BuildInput, ChatRecord, PinnedSnapshot, StepRecord};
+use crate::numbers::{K114_5_REF_HEAD_CHARS, K114_5_USER_REF_MILLI, milli_of};
+use crate::output::{Block, BlockForm, BlockKind, Compiled, CompiledRequest, Manifest};
+use crate::state::build_state;
 
 pub(crate) fn step_at(index: usize, len: usize, ref_id: &str) -> StepRecord {
     sup::step_len(index, len, ref_id)
@@ -50,12 +39,6 @@ pub(crate) fn rebuilt(
     }
 }
 
-pub(crate) fn rebuilt_constraints(base: &BuildInput, constraints: Vec<String>) -> BuildInput {
-    let mut out = rebuilt(base, base.steps.clone(), base.events.clone(), "v1");
-    out.constraints = constraints;
-    out
-}
-
 pub(crate) fn prefix_of(request: &CompiledRequest) -> Vec<Block> {
     request
         .blocks
@@ -86,8 +69,163 @@ pub(crate) fn push_built(events: &mut Vec<anybot_protocol::TaskEvent>) {
     let seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(1);
     events.push(event_with_seq(
         seq,
-        anybot_protocol::TaskEventKind::Known(context_built_kind()),
+        anybot_protocol::TaskEventKind::Known(sup::context_built_kind()),
     ));
+}
+
+pub(crate) fn rebuilt_usable(
+    base: &BuildInput,
+    steps: Vec<StepRecord>,
+    events: Vec<anybot_protocol::TaskEvent>,
+    version: &str,
+    usable: u64,
+) -> BuildInput {
+    let mut out = rebuilt(base, steps, events, version);
+    out.model.capability.context_tokens = usable.saturating_add(out.model.reserved_output);
+    out
+}
+
+fn has(req: &CompiledRequest, kind: BlockKind, pred: impl Fn(&Block) -> bool) -> bool {
+    req.blocks.iter().any(|b| b.kind == kind && pred(b))
+}
+
+fn user_turns_must_ok(
+    req: &CompiledRequest,
+    manifest: &Manifest,
+    turns: &[ChatRecord],
+    usable: u64,
+) -> bool {
+    let threshold = milli_of(usable, K114_5_USER_REF_MILLI);
+    turns.iter().all(|u| {
+        let tokens = anybot_models::formula_tokens(&anybot_models::EstimateInput {
+            text: &u.text,
+            messages: 1,
+            images: 0,
+        });
+        if tokens <= threshold {
+            return has(req, BlockKind::UserText, |b| {
+                b.form == BlockForm::Verbatim && b.text == u.text
+            });
+        }
+        let head: String = u.text.chars().take(K114_5_REF_HEAD_CHARS).collect();
+        let char_len = u.text.chars().count();
+        has(req, BlockKind::UserRef, |b| {
+            b.form == BlockForm::Reference
+                && b.source_ids.contains(&u.record_id)
+                && b.text.contains(&u.record_id)
+                && b.text.contains(&format!("len {char_len}"))
+                && b.text.contains(&head)
+        }) && manifest.included.iter().any(|e| {
+            e.kind == BlockKind::UserRef
+                && e.form == BlockForm::Reference
+                && e.source_ids.contains(&u.record_id)
+        })
+    })
+}
+
+fn has_must_tail(
+    input: &BuildInput,
+    req: &CompiledRequest,
+    st: &crate::state::StateBuilder,
+) -> bool {
+    let step_ok = st
+        .steps
+        .iter()
+        .filter(|(_, s)| s.state == crate::state::StepStateKind::Open)
+        .max_by_key(|(_, s)| s.intent_seq)
+        .is_none_or(|(id, _)| {
+            has(req, BlockKind::CurrentStep, |b| {
+                b.form == BlockForm::Verbatim && b.source_ids.contains(id)
+            })
+        });
+    let q_ok = input.open_questions.iter().all(|q| {
+        has(req, BlockKind::OpenQuestion, |b| {
+            b.form == BlockForm::Verbatim && b.text == *q
+        })
+    }) && st.open_cards().iter().all(|(seq, action)| {
+        has(req, BlockKind::OpenQuestion, |b| {
+            b.form == BlockForm::Verbatim
+                && b.source_ids.contains(&format!("question-{seq}"))
+                && b.text.contains(action)
+        })
+    });
+    let pending_ok = st.pending.keys().chain(st.unknowns.keys()).all(|id| {
+        has(req, BlockKind::PendingAction, |b| {
+            b.form == BlockForm::Verbatim && b.source_ids.contains(id)
+        })
+    }) && input.steps.iter().filter(|s| s.keeps_full()).all(|s| {
+        has(req, BlockKind::PendingAction, |b| {
+            b.form == BlockForm::Verbatim && b.source_ids.contains(&s.call_id.as_str())
+        })
+    });
+    step_ok && q_ok && pending_ok
+}
+
+fn must_items_ok(input: &BuildInput, req: &CompiledRequest, manifest: &Manifest) -> bool {
+    let st = build_state(&input.events);
+    let prefix_ok = has(req, BlockKind::System, |b| {
+        b.form == BlockForm::Verbatim && b.text == input.system_prompt
+    }) && input.tool_specs.iter().all(|s| {
+        has(req, BlockKind::ToolDoc, |b| {
+            b.form == BlockForm::Verbatim
+                && b.text.contains(&s.name)
+                && b.text.contains(&s.description)
+        })
+    }) && input.constraints.iter().all(|c| {
+        has(req, BlockKind::Constraint, |b| {
+            b.form == BlockForm::Verbatim && b.text == *c
+        })
+    }) && st.criteria.iter().all(|c| {
+        has(req, BlockKind::Criterion, |b| {
+            b.form == BlockForm::Verbatim && b.text == c.text
+        })
+    });
+    prefix_ok
+        && has_must_tail(input, req, &st)
+        && user_turns_must_ok(req, manifest, &input.user_turns, input.model.usable())
+}
+
+fn must_strategy() -> BoxedStrategy<BuildInput> {
+    (
+        prop::collection::vec(mixed_text(30), 1..30),
+        prop::collection::vec((mixed_text(20), 0usize..20_000usize), 1..4),
+        prop::collection::vec((mixed_text(20), 0usize..20_000usize), 0..2),
+        events_strategy(6),
+        2_000u64..=200_000u64,
+        build_input(2_000, 200_000, 4),
+    )
+        .prop_map(
+            |(constraints, users, criteria, mut events, usable, mut base)| {
+                let mut seq = u64::try_from(events.len()).unwrap_or(0).saturating_add(10);
+                let crits: Vec<anybot_protocol::Criterion> = criteria
+                    .into_iter()
+                    .map(|(head, pad)| anybot_protocol::Criterion::ModelJudgement {
+                        text: format!("{head}{}", "j".repeat(pad)),
+                    })
+                    .collect();
+                if !crits.is_empty() {
+                    events.push(sup::done_when_event(seq, crits));
+                }
+                base.events = events;
+                base.constraints = constraints;
+                base.user_turns = users
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, (head, pad))| {
+                        seq = seq.saturating_add(1);
+                        ChatRecord {
+                            record_id: format!("mu-{i}"),
+                            text: format!("{head}{}", "u".repeat(pad)),
+                            seq,
+                        }
+                    })
+                    .collect();
+                base.model.capability.context_tokens =
+                    usable.saturating_add(base.model.reserved_output);
+                base
+            },
+        )
+        .boxed()
 }
 
 proptest! {
@@ -109,39 +247,10 @@ proptest! {
     }
 
     #[test]
-    fn must_items_are_verbatim_or_the_build_is_refused(
-        constraints in prop::collection::vec(mixed_text(40), 1..6),
-        events in events_strategy(8),
-        input in build_input(2_000, 200_000, 4),
-    ) {
-        let steps = vec![step_at(0, 200, "r0"), step_at(1, 300, "r1")];
-        let base = rebuilt(&input, steps, events.clone(), "v1");
-        let with_constraints = rebuilt_constraints(&base, constraints.clone());
-        match compile(&with_constraints).unwrap() {
-            Compiled::Sent { request, .. } => {
-                for c in &constraints {
-                    prop_assert!(request.blocks.iter().any(|b| b.kind == BlockKind::Constraint && b.text == *c));
-                }
-                for e in &events {
-                    if let anybot_protocol::TaskEventKind::Known(
-                        anybot_protocol::KnownTaskEventKind::DoneWhenChange { after, .. },
-                    ) = &e.kind
-                    {
-                        for item in after {
-                            let text = crate::state::criterion_text(item);
-                            prop_assert!(request.blocks.iter().any(|b| b.kind == BlockKind::Criterion && b.text == text));
-                        }
-                    }
-                }
-                for u in &base.user_turns {
-                    let ok = request.blocks.iter().any(|b| {
-                        (b.kind == BlockKind::UserText && b.text == u.text)
-                            || (b.kind == BlockKind::UserRef
-                                && b.text.starts_with(&format!("ref {} len {}", u.record_id, u.text.chars().count())))
-                    });
-                    prop_assert!(ok, "user turn present {}", u.record_id);
-                }
-                prop_assert!(request.blocks.iter().any(|b| b.kind == BlockKind::System && b.text == base.system_prompt));
+    fn t_context_must_1(input in must_strategy()) {
+        match compile(&input).unwrap() {
+            Compiled::Sent { request, manifest, .. } => {
+                prop_assert!(must_items_ok(&input, &request, &manifest));
             }
             Compiled::Insufficient(x) => {
                 prop_assert_eq!(x.message.code, crate::compile::CODE_MODEL_BUDGET);
@@ -176,16 +285,4 @@ proptest! {
             }
         }
     }
-}
-
-pub(crate) fn rebuilt_usable(
-    base: &BuildInput,
-    steps: Vec<StepRecord>,
-    events: Vec<anybot_protocol::TaskEvent>,
-    version: &str,
-    usable: u64,
-) -> BuildInput {
-    let mut out = rebuilt(base, steps, events, version);
-    out.model.capability.context_tokens = usable.saturating_add(out.model.reserved_output);
-    out
 }

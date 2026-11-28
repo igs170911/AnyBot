@@ -82,6 +82,19 @@ pub(crate) fn unique_step_refs(steps: Vec<StepRecord>) -> Vec<StepRecord> {
         .collect()
 }
 
+pub(crate) fn unique_memory_ids(
+    memories: Vec<crate::input::MemoryRecord>,
+) -> Vec<crate::input::MemoryRecord> {
+    memories
+        .into_iter()
+        .enumerate()
+        .map(|(index, mut m)| {
+            m.id = format!("m{index}");
+            m
+        })
+        .collect()
+}
+
 pub(crate) fn step_record(index: usize) -> BoxedStrategy<StepRecord> {
     (
         mixed_text(50),
@@ -98,38 +111,30 @@ pub(crate) fn step_record(index: usize) -> BoxedStrategy<StepRecord> {
         ],
         mixed_text(1_600),
         0usize..2usize,
-        0usize..4usize,
         prop::bool::ANY,
     )
-        .prop_map(
-            move |(args, outcome, level, content, exit, errors, unconfirmed)| {
-                let width = content.chars().count();
-                let divisors: [usize; 4] = [2, 3, 4, 5];
-                let error_at: Vec<usize> = divisors
-                    .iter()
-                    .take(errors)
-                    .map(|d: &usize| width.checked_div(*d).unwrap_or(0))
-                    .collect();
-                StepRecord {
-                    seq: u64::try_from(index).unwrap_or(0).saturating_add(1),
-                    call_id: CallId::generate(&SystemClock),
-                    tool: format!("tool{index}"),
-                    args_summary: args.clone(),
-                    arguments: serde_json::json!({ "path": args }),
-                    level,
-                    unconfirmed,
-                    outcome,
-                    source_ref: format!("ref{index}"),
-                    content,
-                    exit_code: if outcome == StepOutcomeKind::Failed {
-                        Some(i64::from(i32::try_from(exit).unwrap_or(0)).saturating_add(1))
-                    } else {
-                        None
-                    },
-                    error_at,
-                }
-            },
-        )
+        .prop_map(move |(args, outcome, level, content, exit, unconfirmed)| {
+            let exit_code = if outcome == StepOutcomeKind::Failed {
+                Some(i64::from(i32::try_from(exit).unwrap_or(0)).saturating_add(1))
+            } else {
+                None
+            };
+            let error_at = crate::error_line::find_error_line(&content, exit_code);
+            StepRecord {
+                seq: u64::try_from(index).unwrap_or(0).saturating_add(1),
+                call_id: CallId::generate(&SystemClock),
+                tool: format!("tool{index}"),
+                args_summary: args.clone(),
+                arguments: serde_json::json!({ "path": args }),
+                level,
+                unconfirmed,
+                outcome,
+                source_ref: format!("ref{index}"),
+                content,
+                exit_code,
+                error_at,
+            }
+        })
         .boxed()
 }
 
@@ -167,15 +172,28 @@ pub(crate) fn events_strategy(max_len: usize) -> BoxedStrategy<Vec<TaskEvent>> {
                     level,
                 }) = kind
                 {
-                    out.push(event_with_seq(
-                        seq.saturating_add(1_000),
+                    let follow = if idx.is_multiple_of(5) {
+                        TaskEventKind::Known(KnownTaskEventKind::ToolFailed {
+                            call_id,
+                            name,
+                            args_summary,
+                            error: "err".to_owned(),
+                        })
+                    } else if idx % 4 != 3 {
+                        TaskEventKind::Known(KnownTaskEventKind::ToolCompleted {
+                            call_id,
+                            summary: "ok".to_owned(),
+                            raw_id: None,
+                        })
+                    } else {
                         TaskEventKind::Known(KnownTaskEventKind::ToolIntent {
                             call_id,
                             name,
                             args_summary,
                             level,
-                        }),
-                    ));
+                        })
+                    };
+                    out.push(event_with_seq(seq.saturating_add(1_000), follow));
                 }
             }
             out
@@ -220,7 +238,7 @@ pub(crate) fn build_input(
                     events,
                     user_turns: renumbered(users),
                     bot_turns: renumbered(bots),
-                    steps,
+                    steps: unique_step_refs(steps),
                     constraints,
                     open_questions: questions,
                     tool_specs: (0..spec_count).map(tool_spec_at).collect(),
@@ -229,7 +247,7 @@ pub(crate) fn build_input(
                         version: "v1".to_owned(),
                         items: vec!["pin".to_owned()],
                     },
-                    memories,
+                    memories: unique_memory_ids(memories),
                     prior_chat: renumbered(prior),
                     model,
                     compact_requested: compact,

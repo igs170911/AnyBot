@@ -116,6 +116,8 @@ fn step_record_of(
     } else {
         found.text.clone()
     };
+    let exit_code = found.exit_code();
+    let error_at = anybot_context::find_error_line(&content, exit_code);
     Ok(StepRecord {
         seq: found.seq,
         call_id: request.call_id,
@@ -127,8 +129,8 @@ fn step_record_of(
         outcome: found.outcome,
         source_ref: found.event_id.as_str(),
         content,
-        exit_code: found.exit_code(),
-        error_at: Vec::new(),
+        exit_code,
+        error_at,
     })
 }
 

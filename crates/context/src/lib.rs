@@ -8,6 +8,7 @@ mod compile_sent;
 mod compile_tests_support;
 mod compile_trim;
 pub mod digest;
+pub mod error_line;
 pub mod estimate;
 #[cfg(test)]
 mod fixtures;
@@ -32,6 +33,7 @@ pub use chat::{bot_block, bot_blocks, prior_blocks, user_block};
 pub use collapse::{StepView, recorded_collapsed};
 pub use compile::compile;
 pub use digest::content_digest;
+pub use error_line::{ERROR_PATTERNS, find_error_line};
 pub use estimate::{blocks_raw, calibrated, text_tokens, under_watermark};
 pub use input::{
     BuildInput, ChatRecord, MemoryRecord, MemorySource, ModelPlan, PinnedSnapshot, StepOutcomeKind,
@@ -78,6 +80,9 @@ mod build_unit_tests;
 #[cfg(test)]
 #[path = "compile_tests.rs"]
 mod compile_tests;
+#[cfg(test)]
+#[path = "error_line_tests.rs"]
+mod error_line_tests;
 #[cfg(test)]
 #[path = "manifest_run_tests.rs"]
 mod manifest_run_tests;

@@ -49,6 +49,7 @@ pub fn system_prompt(
     for safety in SAFETY_CODES {
         parts.push(catalog.format(lang, &safety, &Params::new())?);
     }
+    parts.push(catalog.format(lang, &MessageCode::TurnFixedTaskEvidence, &Params::new())?);
     Ok(parts.join("\n"))
 }
 

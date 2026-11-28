@@ -9,6 +9,7 @@ pub mod evidence_record;
 pub mod gate_record;
 pub mod known_task_event_kind;
 pub mod mailbox_api;
+pub mod memory_records;
 pub mod question_record;
 pub mod record_actions;
 pub mod referee_api;
@@ -56,6 +57,12 @@ pub use gate_record::{
 };
 pub use known_task_event_kind::KnownTaskEventKind;
 pub use mailbox_api::{ClaimReply, ClaimRequest, MailHint, RoundReply, RoundRequest};
+pub use memory_records::{
+    MEMORY_ADDED_KIND, MEMORY_CONFIRMED_KIND, MEMORY_PINNED_KIND, MEMORY_RECORD_KINDS,
+    MEMORY_RESTORED_KIND, MEMORY_RETRACTED_KIND, MEMORY_SUPERSEDED_KIND, MEMORY_UNPINNED_KIND,
+    MEMORY_VOIDED_KIND, MemoryEventContent, MemoryEventKind, MemoryEvidenceRef, MemoryKind,
+    MemoryOrigin, MemoryScope, MemorySource,
+};
 pub use question_record::{QuestionAnswer, QuestionItem, QuestionKind};
 pub use record_actions::{RecordAction, RecordActionReply, RecordActionRequest};
 pub use referee_api::{RefereeAction, RefereeReply, RefereeRequest, WakeReason};
