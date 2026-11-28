@@ -1,0 +1,17 @@
+[package]
+publish = false
+name = "anybot-terms"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AnyBot shared memory tokenization module (spec/09 K107)"
+
+[dependencies]
+jieba-rs = { workspace = true }
+unicode-normalization = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true
