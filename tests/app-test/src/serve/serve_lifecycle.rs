@@ -31,12 +31,20 @@ impl Served {
         let deadline = std::time::Instant::now()
             .checked_add(std::time::Duration::from_secs(30))
             .ok_or("deadline overflow".to_owned())?;
-        for (index, task) in running.into_iter().enumerate() {
+        for (index, mut task) in running.into_iter().enumerate() {
             let left = deadline.saturating_duration_since(std::time::Instant::now());
-            let waited = tokio::time::timeout(left, task)
-                .await
-                .map_err(|_| format!("server task {index} did not finish"))?;
-            waited.map_err(|e| e.to_string())?;
+            let mut waited = tokio::time::timeout(left, &mut task).await;
+            if waited.is_err() {
+                task.abort();
+                let left = deadline.saturating_duration_since(std::time::Instant::now());
+                waited = tokio::time::timeout(left, task).await;
+            }
+            let joined = waited.map_err(|_| format!("server task {index} did not finish"))?;
+            match joined {
+                Ok(()) => {}
+                Err(e) if e.is_cancelled() => {}
+                Err(e) => return Err(e.to_string()),
+            }
         }
         Ok(())
     }
@@ -114,12 +122,20 @@ impl ServedReal {
         let deadline = std::time::Instant::now()
             .checked_add(std::time::Duration::from_secs(30))
             .ok_or("deadline overflow".to_owned())?;
-        for (index, task) in running.into_iter().enumerate() {
+        for (index, mut task) in running.into_iter().enumerate() {
             let left = deadline.saturating_duration_since(std::time::Instant::now());
-            let waited = tokio::time::timeout(left, task)
-                .await
-                .map_err(|_| format!("server task {index} did not finish"))?;
-            waited.map_err(|e| e.to_string())?;
+            let mut waited = tokio::time::timeout(left, &mut task).await;
+            if waited.is_err() {
+                task.abort();
+                let left = deadline.saturating_duration_since(std::time::Instant::now());
+                waited = tokio::time::timeout(left, task).await;
+            }
+            let joined = waited.map_err(|_| format!("server task {index} did not finish"))?;
+            match joined {
+                Ok(()) => {}
+                Err(e) if e.is_cancelled() => {}
+                Err(e) => return Err(e.to_string()),
+            }
         }
         Ok(())
     }
