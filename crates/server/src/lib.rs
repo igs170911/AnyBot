@@ -59,6 +59,7 @@ pub mod computers_remove;
 pub mod computers_routes;
 pub mod computers_service;
 pub mod config;
+pub mod conn_limit;
 pub mod device_notes;
 pub mod health;
 pub mod hex;

@@ -1,11 +1,15 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::Router;
+use axum::serve::{Listener, ListenerExt};
 use tokio::net::TcpListener;
 use tokio::sync::Notify;
 use tokio::sync::mpsc;
 
 use anybot_foundation::MessageRef;
+
+use crate::conn_limit::{ConnLimiter, LimitedListener};
 
 pub const CODE_SERVER_STOP_NORMAL: &str = "server-stop-normal";
 pub const CODE_SERVER_STOP_ERROR: &str = "server-stop-error";
@@ -19,7 +23,7 @@ fn stop_reason(result: Result<(), std::io::Error>) -> MessageRef {
 }
 
 pub async fn serve_all(listeners: Vec<TcpListener>, app: Router) -> Result<MessageRef, MessageRef> {
-    serve_all_with(listeners, app, None).await
+    serve_listeners(listeners, app, None).await
 }
 
 pub async fn serve_all_stoppable(
@@ -27,22 +31,27 @@ pub async fn serve_all_stoppable(
     app: Router,
     shutdown: Arc<Notify>,
 ) -> Result<MessageRef, MessageRef> {
-    serve_all_with(listeners, app, Some(shutdown)).await
+    serve_listeners(listeners, app, Some(shutdown)).await
 }
 
-async fn serve_all_with(
-    listeners: Vec<TcpListener>,
+pub async fn serve_listeners<L>(
+    listeners: Vec<L>,
     app: Router,
     shutdown: Option<Arc<Notify>>,
-) -> Result<MessageRef, MessageRef> {
+) -> Result<MessageRef, MessageRef>
+where
+    L: Listener<Addr = SocketAddr>,
+{
+    let limiter = ConnLimiter::new();
     let (sender, mut receiver) = mpsc::channel::<MessageRef>(16);
     let mut tasks = Vec::new();
     for listener in listeners {
         let sender = sender.clone();
         let app = app.clone();
         let stop = shutdown.clone();
+        let guarded = LimitedListener::new(listener, limiter.clone());
         tasks.push(tokio::spawn(async move {
-            let result = serve_one(listener, app, stop).await;
+            let result = serve_one(guarded, app, stop).await;
             let _result = sender.send(stop_reason(result)).await;
         }));
     }
@@ -57,12 +66,16 @@ async fn serve_all_with(
     Ok(reason)
 }
 
-async fn serve_one(
-    listener: TcpListener,
+async fn serve_one<L>(
+    listener: LimitedListener<L>,
     app: Router,
     shutdown: Option<Arc<Notify>>,
-) -> Result<(), std::io::Error> {
-    let app = app.into_make_service_with_connect_info::<std::net::SocketAddr>();
+) -> Result<(), std::io::Error>
+where
+    L: Listener<Addr = SocketAddr>,
+{
+    let app = app.into_make_service_with_connect_info::<SocketAddr>();
+    let listener = listener.tap_io(|_accepted| {});
     let Some(notify) = shutdown else {
         return axum::serve(listener, app).await;
     };
