@@ -40,6 +40,8 @@ pub fn system_prompt(
     }
     let code = computer_code(&computer.platform);
     parts.push(catalog.format(lang, &code, &Params::new())?);
+    parts.push(catalog.format(lang, &MessageCode::TurnFixedSafety, &Params::new())?);
+    parts.push(catalog.format(lang, &MessageCode::TurnFixedTaskEvidence, &Params::new())?);
     Ok(parts.join("\n"))
 }
 
