@@ -1,6 +1,6 @@
 use crate::action::{ActionKey, GateAction};
 use crate::card_data::{CardData, build_card};
-use crate::card_view::{CardView, CardViewError, card_view};
+use crate::card_view::{CardView, CardViewError, ask_origin, card_view};
 use crate::gate_engine::GateLayer;
 use crate::gate_flow::GateVerdict;
 use crate::op_ticket::OpTicket;
@@ -8,6 +8,7 @@ use crate::pipeline::{ActionRequest, GateAnswer};
 use crate::pipeline_run::{ActionRun, ModelResultView, OutcomeText, prepared_gate};
 use crate::pipeline_switch::{SwitchInfo, switch_card_view, switch_decline_text};
 use crate::runner::GatedComputer;
+use crate::smart_timeout::{SmartCase, SmartChoice, smart_choice, tool_risk};
 use anybot_foundation::{CallId, Clock, ContentDigest, TurnId};
 use anybot_protocol::{
     ComputerCaps, GateOutcome, GateRecord, GateStep, JudgementSource, RuleLayer,
@@ -61,6 +62,18 @@ impl AskTicket {
     }
 
     #[must_use]
+    pub fn smart_choice(&self, mdm_locked: bool) -> SmartChoice {
+        let origin = ask_origin(&self.verdict);
+        smart_choice(&SmartCase {
+            origin: &origin,
+            risk: tool_risk(&self.action.tool, self.caps.owner),
+            has_classes: !self.card.classes.is_empty(),
+            is_switch: self.switch.is_some(),
+            mdm_locked,
+        })
+    }
+
+    #[must_use]
     pub fn yolo_releasable(&self) -> bool {
         !matches!(self.gate.layer, RuleLayer::Floor | RuleLayer::Admin)
             && self.gate.gate != GateStep::UserHooks
@@ -107,7 +120,18 @@ impl AskTicket {
         view: &dyn ModelResultView,
         clock: &dyn Clock,
     ) -> ActionRun {
-        self.finish(answer, computer, view, clock)
+        self.finish(answer, JudgementSource::You, computer, view, clock)
+    }
+
+    pub fn answer_by(
+        self,
+        answer: GateAnswer,
+        source: JudgementSource,
+        computer: &dyn GatedComputer,
+        view: &dyn ModelResultView,
+        clock: &dyn Clock,
+    ) -> ActionRun {
+        self.finish(answer, source, computer, view, clock)
     }
 
     pub(super) fn new(
@@ -184,6 +208,7 @@ impl AskTicket {
     fn finish(
         self,
         answer: GateAnswer,
+        source: JudgementSource,
         computer: &dyn GatedComputer,
         view: &dyn ModelResultView,
         clock: &dyn Clock,
@@ -202,7 +227,7 @@ impl AskTicket {
                 clock,
             );
         }
-        let gate = prepared_gate(&self.gate, answer, JudgementSource::You);
+        let gate = prepared_gate(&self.gate, answer, source);
         match answer {
             GateAnswer::Deny => {
                 crate::pipeline_run::user_rejected_run(&self.request, gate, view, clock)
@@ -251,6 +276,19 @@ pub fn answer_ask(
     clock: &dyn Clock,
 ) -> ActionRun {
     ticket.clone_ticket().answer(answer, computer, view, clock)
+}
+
+pub fn answer_ask_by(
+    ticket: &AskTicket,
+    answer: GateAnswer,
+    source: JudgementSource,
+    computer: &dyn GatedComputer,
+    view: &dyn ModelResultView,
+    clock: &dyn Clock,
+) -> ActionRun {
+    ticket
+        .clone_ticket()
+        .answer_by(answer, source, computer, view, clock)
 }
 
 pub(crate) fn prepared_action(request: &ActionRequest, computer: &dyn GatedComputer) -> GateAction {

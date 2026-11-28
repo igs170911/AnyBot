@@ -18,6 +18,7 @@ pub struct FakeTrust {
     pub(crate) conversation_allowed: Mutex<BTreeMap<ConversationKey, Vec<ActionKey>>>,
     pub(crate) unreadable: Mutex<Option<String>>,
     pub(crate) yolo: Mutex<YoloState>,
+    pub(crate) smart_raw: Mutex<i64>,
 }
 
 impl FakeTrust {
@@ -30,6 +31,7 @@ impl FakeTrust {
             conversation_allowed: Mutex::new(BTreeMap::new()),
             unreadable: Mutex::new(None),
             yolo: Mutex::new(YoloState::Off),
+            smart_raw: Mutex::new(300),
         }
     }
 
@@ -56,6 +58,10 @@ impl FakeTrust {
             .get(computer)
             .copied()
             .unwrap_or_else(Self::default_use)
+    }
+
+    pub fn set_smart_seconds(&self, raw: i64) {
+        *FakeComputer::guard(&self.smart_raw) = raw;
     }
 
     pub fn set_unreadable(&self, rule: Option<&str>) {
@@ -163,6 +169,12 @@ impl TrustSettings for FakeTrust {
     fn set_direct_mode(&self, on: bool) -> Result<(), TrustSettingsError> {
         self.computer.gate_config().modes.direct_mode = on;
         Ok(())
+    }
+
+    fn smart_seconds(&self) -> Result<u32, TrustSettingsError> {
+        Ok(anybot_trust::smart_timeout::smart_seconds(
+            *FakeComputer::guard(&self.smart_raw),
+        ))
     }
 
     fn yolo(&self) -> Result<YoloState, TrustSettingsError> {

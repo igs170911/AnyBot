@@ -1,8 +1,9 @@
 use anybot_foundation::{BotId, CallId, DeviceId, EventId, SystemClock, TimestampMs};
 use anybot_protocol::{
-    BudgetItem, ComputerPlatform, ComputerRef, FinishReason, KnownTaskEventKind, ModelName,
-    NotRunReason, TaskDetail, TaskEvent, TaskEventKind, TaskOpener, TaskStatus, ThinkingChoice,
-    ToolArgs, ToolEffect, ToolRequest, TurnEndReason, TurnInitiator,
+    AttentionKind, BudgetItem, ComputerPlatform, ComputerRef, FinishReason, GateOutcome,
+    GateRecord, GateStep, JudgementSource, KnownTaskEventKind, ModelName, NotRunReason, RuleLayer,
+    TaskDetail, TaskEvent, TaskEventKind, TaskOpener, TaskStatus, ThinkingChoice, ToolArgs,
+    ToolEffect, ToolRequest, TurnEndReason, TurnInitiator,
 };
 
 use crate::{ReportDue, delivery_report, report_due};
@@ -80,6 +81,20 @@ impl Script {
             call_id: call.call_id,
             summary: "ok".to_owned(),
             raw_id: None,
+        });
+    }
+
+    fn gate(&mut self, call: &ToolRequest, source: JudgementSource) {
+        self.push(KnownTaskEventKind::GateResult {
+            call_id: call.call_id,
+            gate: GateRecord::new(
+                GateStep::AskYou,
+                RuleLayer::User,
+                "rule".to_owned(),
+                source,
+                GateOutcome::Allow,
+                false,
+            ),
         });
     }
 
@@ -205,4 +220,41 @@ fn over_budget_report_lists_done_and_not_done() {
 fn finished_report_has_no_progress() {
     let report = delivery_report(&edited().events, "goal", Some("done")).unwrap();
     assert_eq!(report.progress, None);
+}
+
+fn approved_by(source: JudgementSource) -> Script {
+    let mut script = Script::new();
+    let call = edit_request("a.txt");
+    script.answer("", vec![call.clone()]);
+    script.gate(&call, source);
+    script.run_call(&call);
+    script.answer("done", Vec::new());
+    script.end();
+    script
+}
+
+#[test]
+fn timeout_answer_is_listed_in_attention() {
+    let script = approved_by(JudgementSource::RuleTimeout);
+    assert_eq!(report_due(&script.events), Ok(ReportDue::Full));
+    let report = delivery_report(&script.events, "goal", None).unwrap();
+    let kinds: Vec<AttentionKind> = report.attention.iter().map(|a| a.kind).collect();
+    assert_eq!(kinds, [AttentionKind::TimeoutAuto]);
+    let item = report.attention.first().unwrap();
+    assert_eq!(item.tool, "edit_file");
+}
+
+#[test]
+fn always_approve_answer_is_listed_in_attention() {
+    let script = approved_by(JudgementSource::AlwaysApprove);
+    let report = delivery_report(&script.events, "goal", None).unwrap();
+    let kinds: Vec<AttentionKind> = report.attention.iter().map(|a| a.kind).collect();
+    assert_eq!(kinds, [AttentionKind::Yolo]);
+}
+
+#[test]
+fn hand_answer_is_not_listed_in_attention() {
+    let script = approved_by(JudgementSource::You);
+    let report = delivery_report(&script.events, "goal", None).unwrap();
+    assert!(report.attention.is_empty());
 }

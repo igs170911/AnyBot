@@ -257,7 +257,8 @@ export type MessageCode =
   "turn-fixed-draft-only" |
   "turn-yolo-on" |
   "turn-yolo-off" |
-  "turn-yolo-status";
+  "turn-yolo-status" |
+  "gate-smart-auto-allowed";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -517,4 +518,5 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "turn-yolo-on",
   "turn-yolo-off",
   "turn-yolo-status",
+  "gate-smart-auto-allowed",
 ];

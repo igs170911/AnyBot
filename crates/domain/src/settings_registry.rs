@@ -17,7 +17,7 @@ pub enum SettingCheck {
     DeviceOnly,
 }
 
-pub const SETTINGS: [SettingSpec; 11] = [
+pub const SETTINGS: [SettingSpec; 12] = [
     SettingSpec {
         name: "accent_color",
         scope: SettingScope::Synced { per_item: false },
@@ -56,6 +56,10 @@ pub const SETTINGS: [SettingSpec; 11] = [
     },
     SettingSpec {
         name: "direct_mode",
+        scope: SettingScope::Synced { per_item: false },
+    },
+    SettingSpec {
+        name: "smart_seconds",
         scope: SettingScope::Synced { per_item: false },
     },
     SettingSpec {

@@ -1,4 +1,6 @@
-use anybot_protocol::{AnswerOrigin, CardAnswer};
+use anybot_protocol::CardAnswer;
+
+use crate::answer_how::AnswerHow;
 
 use crate::approvals::{PendingCard, resolve_approval_by};
 use crate::error::TurnError;
@@ -20,7 +22,7 @@ pub async fn release_for_yolo(
             &ctx,
             &card,
             CardAnswer::AllowOnce,
-            AnswerOrigin::Auto,
+            AnswerHow::yolo(),
         )
         .await?;
     }

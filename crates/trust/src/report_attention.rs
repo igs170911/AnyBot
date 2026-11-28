@@ -1,12 +1,12 @@
 use anybot_foundation::CallId;
 use anybot_protocol::{
-    AttentionKind, EvidenceKind, EvidencePayload, KnownTaskEventKind, ReportAttention, TaskEvent,
-    TaskEventKind, ToolArgs,
+    AttentionKind, EvidenceKind, EvidencePayload, JudgementSource, KnownTaskEventKind,
+    ReportAttention, TaskEvent, TaskEventKind, ToolArgs,
 };
 
 #[derive(Default)]
 struct Seen {
-    requests: Vec<(CallId, String)>,
+    requests: Vec<(CallId, String, String)>,
     last_gated: Option<CallId>,
 }
 
@@ -17,9 +17,30 @@ impl Seen {
         };
         self.requests
             .iter()
-            .find(|(id, _)| *id == call)
-            .map(|(_, args)| args.clone())
+            .find(|(id, _, _)| *id == call)
+            .map(|(_, _, args)| args.clone())
             .unwrap_or_default()
+    }
+
+    fn tool_of(&self, call: CallId) -> String {
+        self.requests
+            .iter()
+            .find(|(id, _, _)| *id == call)
+            .map(|(_, tool, _)| tool.clone())
+            .unwrap_or_default()
+    }
+}
+
+fn automatic_kind(source: JudgementSource) -> Option<AttentionKind> {
+    match source {
+        JudgementSource::RuleTimeout => Some(AttentionKind::TimeoutAuto),
+        JudgementSource::AlwaysApprove => Some(AttentionKind::Yolo),
+        JudgementSource::You
+        | JudgementSource::Rule
+        | JudgementSource::ProgramCheck
+        | JudgementSource::ModelJudgement
+        | JudgementSource::Ungated
+        | JudgementSource::ForwardedUnverified => None,
     }
 }
 
@@ -45,11 +66,22 @@ fn raw_args(arguments: &ToolArgs) -> String {
 fn note(kind: &KnownTaskEventKind, seen: &mut Seen, out: &mut Vec<ReportAttention>) {
     if let KnownTaskEventKind::ModelAnswer { tool_requests, .. } = kind {
         for request in tool_requests {
-            seen.requests
-                .push((request.call_id, raw_args(&request.arguments)));
+            seen.requests.push((
+                request.call_id,
+                request.tool.clone(),
+                raw_args(&request.arguments),
+            ));
         }
-    } else if let KnownTaskEventKind::GateResult { call_id, .. } = kind {
+    } else if let KnownTaskEventKind::GateResult { call_id, gate } = kind {
         seen.last_gated = Some(*call_id);
+        if let Some(attention) = automatic_kind(gate.source) {
+            out.push(ReportAttention {
+                kind: attention,
+                tool: seen.tool_of(*call_id),
+                args_summary: seen.args_of_last_gated(),
+                error: String::new(),
+            });
+        }
     } else if let KnownTaskEventKind::ToolFailed {
         name,
         args_summary,

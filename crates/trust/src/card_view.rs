@@ -57,7 +57,7 @@ pub fn card_view(
     })
 }
 
-fn ask_origin(verdict: &GateVerdict) -> AskOrigin {
+pub(crate) fn ask_origin(verdict: &GateVerdict) -> AskOrigin {
     match verdict.layer {
         GateLayer::Floor => AskOrigin::AdminOrFloor {
             layer: RuleLayer::Floor,

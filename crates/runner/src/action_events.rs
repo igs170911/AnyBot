@@ -72,7 +72,22 @@ pub(crate) async fn record_result(
     run: &ActionRun,
     view: &ActionView,
 ) -> Result<(), TurnError> {
-    let text = view.render(&run.model)?;
+    record_result_noted(runner, ctx, request, run, view, None).await
+}
+
+pub(crate) async fn record_result_noted(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    run: &ActionRun,
+    view: &ActionView,
+    note: Option<String>,
+) -> Result<(), TurnError> {
+    let rendered = view.render(&run.model)?;
+    let text = match note {
+        Some(note) => format!("{note} {rendered}"),
+        None => rendered,
+    };
     let json = crate::action::args_json(&request.arguments)?;
     if run.summary.status.code == CODE_TURN_REJECTED {
         return Ok(());

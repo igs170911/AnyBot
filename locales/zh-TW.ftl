@@ -284,3 +284,4 @@ turn-yolo-status = 「一律放行」目前是{ $state ->
     [on] 開著
    *[other] 關著
 }。
+gate-smart-auto-allowed = （智慧模式：等了 { $seconds } 秒沒人回，先做了）

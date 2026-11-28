@@ -261,6 +261,7 @@ pub enum MessageCode {
     TurnYoloOn,
     TurnYoloOff,
     TurnYoloStatus,
+    GateSmartAutoAllowed,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -760,6 +761,7 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::TurnYoloOn, "turn-yolo-on"),
     (MessageCode::TurnYoloOff, "turn-yolo-off"),
     (MessageCode::TurnYoloStatus, "turn-yolo-status"),
+    (MessageCode::GateSmartAutoAllowed, "gate-smart-auto-allowed"),
 ];
 
 impl MessageCode {

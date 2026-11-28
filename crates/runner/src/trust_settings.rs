@@ -59,6 +59,8 @@ pub trait TrustSettings: Send + Sync {
 
     fn set_direct_mode(&self, on: bool) -> Result<(), TrustSettingsError>;
 
+    fn smart_seconds(&self) -> Result<u32, TrustSettingsError>;
+
     fn yolo(&self) -> Result<YoloState, TrustSettingsError>;
 
     fn set_yolo(&self, state: YoloState) -> Result<(), TrustSettingsError>;

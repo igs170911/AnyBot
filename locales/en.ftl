@@ -281,3 +281,4 @@ turn-yolo-status = "Always approve" is currently { $state ->
     [on] on
    *[other] off
 }.
+gate-smart-auto-allowed = (Smart mode: nobody answered in { $seconds } seconds, so it went ahead)

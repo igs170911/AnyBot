@@ -82,6 +82,7 @@ pub mod sandbox_deny;
 pub mod sandbox_levels;
 pub mod sandbox_peel;
 mod six_class;
+pub mod smart_timeout;
 pub mod trust_floor;
 mod wrapper_flags;
 
@@ -141,7 +142,7 @@ pub use message_codes_flow::{
 pub use message_codes_report::{CODE_REPORT_NEXT_RAISE_LIMIT, CODE_REPORT_STUCK_OVER_BUDGET};
 pub use op_ticket::{OpKind, OpTicket};
 pub use pipeline::{ActionRequest, GateAnswer, RequestedAction};
-pub use pipeline_ask::{AskTicket, CallContext, answer_ask};
+pub use pipeline_ask::{AskTicket, CallContext, answer_ask, answer_ask_by};
 pub use pipeline_denied::{
     StepDenial, rejected_just_now_denial, step_denied_run, step_four_denial, unreadable_denial,
 };

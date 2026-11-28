@@ -1,10 +1,11 @@
-use anybot_protocol::{AnswerOrigin, CardAnswer, KnownTaskEventKind, ToolRequest};
+use anybot_protocol::{CardAnswer, KnownTaskEventKind, ToolRequest};
 use anybot_trust::{ActionRun, AskTicket, GateAnswer};
 
 use std::sync::Arc;
 
 use anybot_foundation::{TaskId, TurnId};
 
+use crate::answer_how::AnswerHow;
 use crate::error::TurnError;
 use crate::runner::{TurnCtx, TurnRunner};
 use crate::view::ActionView;
@@ -14,6 +15,7 @@ pub struct PendingCard {
     pub digest: String,
     pub(crate) task: TaskId,
     pub(crate) turn: u32,
+    pub(crate) parked_at_ms: u64,
     pub tool: String,
     pub computer: String,
     pub actions: Vec<String>,
@@ -54,6 +56,7 @@ pub(crate) async fn park_approval(
         digest,
         task: ctx.task,
         turn: ctx.turn,
+        parked_at_ms: runner.clock.now_ms().millis(),
         tool: request.tool.clone(),
         computer: ticket.computer_name().to_owned(),
         actions: card_view.actions,
@@ -110,7 +113,7 @@ pub async fn resolve_approval(
     card: &PendingCard,
     answer: CardAnswer,
 ) -> Result<(), TurnError> {
-    resolve_approval_by(runner, ctx, card, answer, AnswerOrigin::Hand).await
+    resolve_approval_by(runner, ctx, card, answer, AnswerHow::hand()).await
 }
 
 pub async fn resolve_approval_by(
@@ -118,7 +121,7 @@ pub async fn resolve_approval_by(
     ctx: &TurnCtx,
     card: &PendingCard,
     answer: CardAnswer,
-    origin: AnswerOrigin,
+    how: AnswerHow,
 ) -> Result<(), TurnError> {
     crate::answer_effects::ensure_offered(card, answer)?;
     let existing = runner.record.task_events(ctx.task).await?;
@@ -127,15 +130,18 @@ pub async fn resolve_approval_by(
     runner
         .append_task_event(
             &ctx.task,
-            KnownTaskEventKind::CardAnswered { answer, origin },
+            KnownTaskEventKind::CardAnswered {
+                answer,
+                origin: how.origin,
+            },
         )
         .await?;
-    crate::reject_memory::note_answer(runner, &card.request, answer, origin)?;
+    crate::reject_memory::note_answer(runner, &card.request, answer, how.origin)?;
     crate::answer_effects::apply(runner, card, answer)?;
     let result = if card.ticket.switch_info().is_some() && answer != CardAnswer::Deny {
         crate::switch_answer::continue_after_switch(runner, ctx, card).await
     } else {
-        execute_answer(runner, ctx, card, answer).await
+        execute_answer(runner, ctx, card, answer, how).await
     };
     refresh_last_ctx(runner, ctx);
     result
@@ -146,10 +152,18 @@ async fn execute_answer(
     ctx: &TurnCtx,
     card: &PendingCard,
     answer: CardAnswer,
+    how: AnswerHow,
 ) -> Result<(), TurnError> {
     let gate = gate_answer_of(answer);
     let computer = runner.gated_ref();
-    let run = anybot_trust::answer_ask(&card.ticket, gate, &*computer, &card.view, &*runner.clock);
+    let run = anybot_trust::answer_ask_by(
+        &card.ticket,
+        gate,
+        how.source,
+        &*computer,
+        &card.view,
+        &*runner.clock,
+    );
     match answer {
         CardAnswer::Deny => {
             crate::action_record::record_denied(runner, ctx, &card.request, &run).await?;
@@ -159,7 +173,7 @@ async fn execute_answer(
         | CardAnswer::AllowConversation
         | CardAnswer::AlwaysAllow
         | CardAnswer::DirectMode => {
-            record_approval_run(runner, ctx, &card.request, &run, &card.view).await
+            record_approval_run(runner, ctx, &card.request, &run, &card.view, how).await
         }
     }
 }
@@ -178,12 +192,25 @@ async fn record_approval_run(
     request: &ToolRequest,
     run: &ActionRun,
     view: &ActionView,
+    how: AnswerHow,
 ) -> Result<(), TurnError> {
     crate::action_record::record_gate(runner, ctx, request.call_id, &run.gate).await?;
     crate::action_record::record_intent_start(runner, ctx, request, &run.gate).await?;
-    crate::action_record::record_result(runner, ctx, request, run, view).await?;
+    let note = smart_note(view, how)?;
+    crate::action_events::record_result_noted(runner, ctx, request, run, view, note).await?;
     let ids = crate::action_record::record_evidence(runner, ctx, &run.evidence).await?;
     crate::action_record::record_verified(runner, ctx, request.call_id, run, ids).await
+}
+
+fn smart_note(view: &ActionView, how: AnswerHow) -> Result<Option<String>, TurnError> {
+    let Some(seconds) = how.smart_wait_seconds else {
+        return Ok(None);
+    };
+    let text = anybot_trust::OutcomeText::of(
+        "gate-smart-auto-allowed",
+        vec![("seconds".to_owned(), seconds.to_string())],
+    );
+    view.render(&text).map(Some)
 }
 
 fn gate_answer_of(answer: CardAnswer) -> GateAnswer {

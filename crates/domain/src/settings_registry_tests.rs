@@ -31,6 +31,10 @@ fn autonomy_switches_follow_the_account_across_devices() {
         SettingCheck::Synced { per_item: false }
     );
     assert_eq!(
+        check_setting("smart_seconds"),
+        SettingCheck::Synced { per_item: false }
+    );
+    assert_eq!(
         check_setting("direct_mode"),
         SettingCheck::Synced { per_item: false }
     );
