@@ -18,8 +18,10 @@ export {
   CLIENT_VERSION_HEADER,
   CSRF_HEADER,
   CSRF_VALUE,
+  clientAt,
   createAnyBotClient,
   headerMiddleware,
+  IDEMPOTENCY_HEADER,
 } from "./client.ts";
 export {
   type ApiProblem,

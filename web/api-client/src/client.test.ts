@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createAnyBotClient } from "./client.ts";
+import { clientAt, createAnyBotClient } from "./client.ts";
 import { attempt, problemOf } from "./problem.ts";
 
 function recordingFetch(seen: Request[], reply: () => Response) {
@@ -34,8 +34,14 @@ describe("createAnyBotClient", () => {
     const get = seen[1];
     expect(post?.headers.get("AnyBot-Client-Version")).toBe("0.1.0");
     expect(post?.headers.get("AnyBot-CSRF")).toBe("1");
+    expect(post?.headers.get("Idempotency-Key")).toBe("k1");
     expect(get?.headers.get("AnyBot-Client-Version")).toBe("0.1.0");
     expect(get?.headers.get("AnyBot-CSRF")).toBeNull();
+  });
+
+  it("clientAt keeps the client version for another address", () => {
+    const client = createAnyBotClient({ clientVersion: "0.1.0", baseUrl: "http://127.0.0.1:1" });
+    expect(clientAt(client, "http://127.0.0.1:2").clientVersion).toBe("0.1.0");
   });
 
   it("errors become code and params from the problem body", async () => {
