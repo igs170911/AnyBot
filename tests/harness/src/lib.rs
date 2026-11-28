@@ -25,6 +25,7 @@ pub mod model_anthropic;
 pub mod model_extra;
 pub(crate) mod model_hold;
 pub mod model_https;
+pub mod model_named;
 pub mod model_openai;
 pub mod model_plan;
 pub mod model_script;
