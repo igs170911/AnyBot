@@ -52,6 +52,9 @@ pub mod op_ticket;
 #[cfg(test)]
 mod op_ticket_computer_tests;
 mod path_resolve;
+pub mod pattern;
+mod pattern_glob;
+mod pattern_web;
 pub mod pipeline;
 mod pipeline_ask;
 mod pipeline_denied;
@@ -189,6 +192,8 @@ mod gate_engine_tests;
 mod gate_flow_tests;
 #[cfg(test)]
 mod gate_full_tests;
+#[cfg(test)]
+mod pattern_tests;
 #[cfg(test)]
 mod report_claims_prop_tests;
 #[cfg(test)]

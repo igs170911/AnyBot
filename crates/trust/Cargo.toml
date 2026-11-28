@@ -10,6 +10,7 @@ anybot-foundation = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-domain = { workspace = true }
 thiserror = { workspace = true }
+url = { workspace = true }
 [lints]
 workspace = true
 [dev-dependencies]
