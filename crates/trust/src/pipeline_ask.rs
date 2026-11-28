@@ -9,7 +9,9 @@ use crate::pipeline_run::{ActionRun, ModelResultView, OutcomeText, prepared_gate
 use crate::pipeline_switch::{SwitchInfo, switch_card_view, switch_decline_text};
 use crate::runner::GatedComputer;
 use anybot_foundation::{CallId, Clock, ContentDigest, TurnId};
-use anybot_protocol::{ComputerCaps, GateOutcome, GateRecord, JudgementSource};
+use anybot_protocol::{
+    ComputerCaps, GateOutcome, GateRecord, GateStep, JudgementSource, RuleLayer,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallContext {
@@ -59,6 +61,12 @@ impl AskTicket {
     }
 
     #[must_use]
+    pub fn yolo_releasable(&self) -> bool {
+        !matches!(self.gate.layer, RuleLayer::Floor | RuleLayer::Admin)
+            && self.gate.gate != GateStep::UserHooks
+    }
+
+    #[must_use]
     pub fn switch_info(&self) -> Option<&SwitchInfo> {
         self.switch.as_ref()
     }
@@ -77,7 +85,7 @@ impl AskTicket {
 
     #[must_use]
     pub fn ask_rule_label(&self) -> Option<String> {
-        if self.gate.gate != anybot_protocol::GateStep::AskPatterns {
+        if self.gate.gate != GateStep::AskPatterns {
             return None;
         }
         self.verdict
@@ -117,6 +125,7 @@ impl AskTicket {
             step: gate.gate,
             rule: gate.rule.clone(),
             read_only: gate.read_only,
+            source: gate.source,
             params: Vec::new(),
         };
         let card = build_card(&action, caps);

@@ -24,6 +24,8 @@ pub mod step;
 mod switch_answer;
 pub mod trust_settings;
 pub mod view;
+pub mod yolo_command;
+pub mod yolo_release;
 
 pub use approvals::PendingCard;
 pub use error::{RunnerError, TurnError};
@@ -35,7 +37,9 @@ pub use record::{
 pub use runner::{
     BotProfile, KindCount, RunnerParts, TurnModel, TurnOutcome, TurnRunner, UserMessage,
 };
-pub use trust_settings::{ComputerUseChange, ConversationKey, TrustSettings, TrustSettingsError};
+pub use trust_settings::{
+    ComputerUseChange, ConversationKey, TrustSettings, TrustSettingsError, YoloState,
+};
 
 #[cfg(test)]
 use proptest as _;

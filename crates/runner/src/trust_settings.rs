@@ -19,6 +19,13 @@ pub enum ComputerUseChange {
     RunHereAlways,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum YoloState {
+    Off,
+    On,
+    OnOpenedDirect,
+}
+
 pub trait TrustSettings: Send + Sync {
     fn computer_use(&self, bot: &BotId, computer: &str) -> Result<ComputerUse, TrustSettingsError>;
 
@@ -51,4 +58,8 @@ pub trait TrustSettings: Send + Sync {
     ) -> Result<(), TrustSettingsError>;
 
     fn set_direct_mode(&self, on: bool) -> Result<(), TrustSettingsError>;
+
+    fn yolo(&self) -> Result<YoloState, TrustSettingsError>;
+
+    fn set_yolo(&self, state: YoloState) -> Result<(), TrustSettingsError>;
 }

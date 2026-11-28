@@ -33,6 +33,7 @@ pub(crate) struct GateDecision {
     pub outcome: Outcome,
     pub layer: GateLayer,
     pub rule: String,
+    pub relaxed: bool,
 }
 
 fn floor_ask_only(action: &FloorAction) -> bool {
@@ -100,11 +101,13 @@ pub(crate) fn decide(input: &EngineInput) -> GateDecision {
     ];
     let (layer, outcome) =
         precedence_decision(&calls).unwrap_or((GateLayer::Default, Outcome::Ask));
+    let relaxed = outcome == Outcome::Ask && relax_outcome(input, layer, outcome) == Outcome::Allow;
     let outcome = relax_outcome(input, layer, outcome);
     GateDecision {
         outcome,
         layer,
         rule: format!("{layer}"),
+        relaxed,
     }
 }
 

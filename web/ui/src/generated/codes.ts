@@ -254,7 +254,10 @@ export type MessageCode =
   "gate-reject-repeat" |
   "turn-fixed-no-retry-after-reject" |
   "turn-fixed-untrusted-not-consent" |
-  "turn-fixed-draft-only";
+  "turn-fixed-draft-only" |
+  "turn-yolo-on" |
+  "turn-yolo-off" |
+  "turn-yolo-status";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -511,4 +514,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "turn-fixed-no-retry-after-reject",
   "turn-fixed-untrusted-not-consent",
   "turn-fixed-draft-only",
+  "turn-yolo-on",
+  "turn-yolo-off",
+  "turn-yolo-status",
 ];

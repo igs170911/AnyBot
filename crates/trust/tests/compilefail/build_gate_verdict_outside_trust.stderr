@@ -14,4 +14,4 @@ error: cannot construct `GateVerdict` with struct literal syntax due to private 
 10 |         params: Vec::new(),
    |         ------------------ private field
    |
-   = note: ...and other private field `step` that was not provided
+   = note: ...and other private fields `step` and `source` that were not provided

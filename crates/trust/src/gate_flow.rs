@@ -6,6 +6,7 @@ use crate::gate_full::{EngineInput, ModeFlags, decide};
 use crate::gate_rules::{ask_style_label, hook_opinion, style_hits};
 use crate::machine_rules::default_rule_with_always;
 use crate::op_ticket::OpTicket;
+use crate::pattern::RulePattern;
 use crate::trust_floor::{FloorAction, floor_check};
 use anybot_foundation::TimestampMs;
 use anybot_protocol::{
@@ -26,6 +27,8 @@ pub struct UserRules {
     pub session: Vec<ActionKey>,
     pub ask_style: Vec<ActionKey>,
     pub allow_style: Vec<ActionKey>,
+    pub ask_patterns: Vec<RulePattern>,
+    pub allow_patterns: Vec<RulePattern>,
     pub hook: Vec<RuleEntry>,
 }
 
@@ -68,6 +71,7 @@ pub struct GateVerdict {
     pub(crate) step: GateStep,
     pub(crate) rule: String,
     pub(crate) read_only: bool,
+    pub(crate) source: JudgementSource,
     pub(crate) params: Vec<(String, String)>,
 }
 
@@ -83,7 +87,7 @@ impl GateVerdict {
             self.gate_step(),
             rule_layer(self.layer),
             self.rule.clone(),
-            JudgementSource::Rule,
+            self.source,
             self.outcome,
             self.read_only,
         )
@@ -192,7 +196,7 @@ pub(crate) fn judge(
         action: floor_action,
         modes: config.modes.clone(),
         six_class: crate::six_class::holds_a_class(action, caps.owner == ComputerOwner::Bot),
-        styles: style_hits(action, computer, &config.user),
+        styles: style_hits(action, computer, &config.user, &caps.home_dir),
         admin_hook: hook_opinion(&config.admin.hook, &action.key()),
         user_hook: hook_opinion(&config.user.hook, &action.key()),
         default_rule: verdict.opinion(),
@@ -200,13 +204,22 @@ pub(crate) fn judge(
 
     let decision = decide(&input);
     let rule = decision_rule(decision.layer, &verdict, floor_hit);
-    let step = resolve_gate_step(
-        decision.layer,
-        verdict.opinion(),
-        config,
-        &input,
-        decision.outcome,
-    );
+    let step = if decision.relaxed {
+        GateStep::Relax
+    } else {
+        resolve_gate_step(
+            decision.layer,
+            verdict.opinion(),
+            config,
+            &input,
+            decision.outcome,
+        )
+    };
+    let source = if decision.relaxed {
+        JudgementSource::AlwaysApprove
+    } else {
+        JudgementSource::Rule
+    };
     let bot_machine = caps.owner == ComputerOwner::Bot;
     let denied_token = floor_denied_token(action, bot_machine);
     let mut params = verdict_params(
@@ -219,7 +232,7 @@ pub(crate) fn judge(
         computer,
     );
     if step == GateStep::AskPatterns
-        && let Some(label) = ask_style_label(action, &config.user)
+        && let Some(label) = ask_style_label(action, &config.user, &caps.home_dir)
     {
         params.push(("rule".to_owned(), label));
     }
@@ -229,6 +242,7 @@ pub(crate) fn judge(
         step,
         rule,
         read_only: verdict.read_only,
+        source,
         params,
     }
 }

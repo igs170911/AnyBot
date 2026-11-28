@@ -94,6 +94,17 @@ fn parens_balanced(text: &str) -> bool {
 }
 
 #[must_use]
+pub fn pattern_text(pattern: &RulePattern) -> String {
+    match pattern {
+        RulePattern::Shell(glob) => format!("shell({glob})"),
+        RulePattern::File(glob) => format!("file({glob})"),
+        RulePattern::Connector(glob) => format!("connector({glob})"),
+        RulePattern::Web { domain } => format!("web({DOMAIN_PREFIX}{domain})"),
+        RulePattern::Tool(glob) => format!("tool({glob})"),
+    }
+}
+
+#[must_use]
 pub fn matches_nothing(pattern: &RulePattern) -> bool {
     matches!(pattern, RulePattern::Web { domain } if domain.is_empty())
 }

@@ -12,6 +12,8 @@ use crate::view::ActionView;
 #[derive(Debug)]
 pub struct PendingCard {
     pub digest: String,
+    pub(crate) task: TaskId,
+    pub(crate) turn: u32,
     pub tool: String,
     pub computer: String,
     pub actions: Vec<String>,
@@ -50,6 +52,8 @@ pub(crate) async fn park_approval(
     runner.append_task_event(&ctx.task, kind).await?;
     let card = PendingCard {
         digest,
+        task: ctx.task,
+        turn: ctx.turn,
         tool: request.tool.clone(),
         computer: ticket.computer_name().to_owned(),
         actions: card_view.actions,

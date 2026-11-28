@@ -126,6 +126,9 @@ impl TurnRunner {
     }
 
     async fn run_turn(&self, message: UserMessage) -> Result<TurnOutcome, TurnError> {
+        if let Some(arg) = crate::yolo_command::parse_command(&message.text) {
+            return crate::yolo_command::run(self, &message, arg).await;
+        }
         if let Some(pending) = crate::questions::take_parked(self) {
             return self.continue_with_unanswered(pending, message).await;
         }

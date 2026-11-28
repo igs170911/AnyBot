@@ -258,6 +258,9 @@ pub enum MessageCode {
     TurnFixedNoRetryAfterReject,
     TurnFixedUntrustedNotConsent,
     TurnFixedDraftOnly,
+    TurnYoloOn,
+    TurnYoloOff,
+    TurnYoloStatus,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -754,6 +757,9 @@ const TABLE: &[(MessageCode, &str)] = &[
         "turn-fixed-untrusted-not-consent",
     ),
     (MessageCode::TurnFixedDraftOnly, "turn-fixed-draft-only"),
+    (MessageCode::TurnYoloOn, "turn-yolo-on"),
+    (MessageCode::TurnYoloOff, "turn-yolo-off"),
+    (MessageCode::TurnYoloStatus, "turn-yolo-status"),
 ];
 
 impl MessageCode {

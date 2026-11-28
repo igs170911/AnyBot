@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use anybot_foundation::BotId;
-use anybot_runner::{ComputerUseChange, ConversationKey, TrustSettings, TrustSettingsError};
+use anybot_runner::{
+    ComputerUseChange, ConversationKey, TrustSettings, TrustSettingsError, YoloState,
+};
 use anybot_trust::{
     ActionKey, AlwaysEntry, ComputerUse, LocalPolicy, ModeFlags, RunHere, UserRules,
 };
@@ -15,6 +17,7 @@ pub struct FakeTrust {
     pub(crate) policies: Mutex<BTreeMap<String, LocalPolicy>>,
     pub(crate) conversation_allowed: Mutex<BTreeMap<ConversationKey, Vec<ActionKey>>>,
     pub(crate) unreadable: Mutex<Option<String>>,
+    pub(crate) yolo: Mutex<YoloState>,
 }
 
 impl FakeTrust {
@@ -26,6 +29,7 @@ impl FakeTrust {
             policies: Mutex::new(BTreeMap::new()),
             conversation_allowed: Mutex::new(BTreeMap::new()),
             unreadable: Mutex::new(None),
+            yolo: Mutex::new(YoloState::Off),
         }
     }
 
@@ -158,6 +162,16 @@ impl TrustSettings for FakeTrust {
 
     fn set_direct_mode(&self, on: bool) -> Result<(), TrustSettingsError> {
         self.computer.gate_config().modes.direct_mode = on;
+        Ok(())
+    }
+
+    fn yolo(&self) -> Result<YoloState, TrustSettingsError> {
+        Ok(*FakeComputer::guard(&self.yolo))
+    }
+
+    fn set_yolo(&self, state: YoloState) -> Result<(), TrustSettingsError> {
+        *FakeComputer::guard(&self.yolo) = state;
+        self.computer.gate_config().modes.yolo = state != YoloState::Off;
         Ok(())
     }
 }
