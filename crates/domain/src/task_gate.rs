@@ -71,6 +71,31 @@ pub fn end_turn(view: &mut TaskView, reason: &TurnEndReason, reply_delivered: bo
             let reason = code.clone();
             view.detail = Some(TaskDetail::Error { reason });
         }
+        TurnEndReason::Stopped | TurnEndReason::Cancelled => {}
+        TurnEndReason::OverBudget { item, used, limit } => {
+            view.status = TaskStatus::Stuck;
+            view.detail = Some(TaskDetail::OverBudget {
+                item: *item,
+                used: *used,
+                limit: *limit,
+            });
+        }
+        TurnEndReason::CardTimedOut => {
+            view.status = TaskStatus::AwaitingUser;
+            view.detail = Some(TaskDetail::TimedOut);
+        }
+        TurnEndReason::ModelUnreachable => {
+            view.status = TaskStatus::Stuck;
+            view.detail = Some(TaskDetail::ModelUnreachable);
+        }
+        TurnEndReason::Interrupted => {
+            if view.unresolved_unknowns.is_empty() {
+                view.set_running(TaskDetail::AutoResuming);
+            } else {
+                view.status = TaskStatus::AwaitingUser;
+                view.detail = Some(TaskDetail::ResumePending);
+            }
+        }
     }
 }
 

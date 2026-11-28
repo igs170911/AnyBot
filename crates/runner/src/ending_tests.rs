@@ -54,4 +54,13 @@ fn end_reason_from_gateway_fail() {
     for fail in [GatewayFail::Stopped, GatewayFail::MissingKey] {
         assert_eq!(end_reason(&fail), failed("turn-model-failed"));
     }
+    let exhausted = GatewayFail::Exhausted {
+        fallback: None,
+        classified: classify(&FailInput::Http {
+            status: 503,
+            message: "overloaded".to_owned(),
+        }),
+        notices: Vec::new(),
+    };
+    assert_eq!(end_reason(&exhausted), failed("model-server"));
 }

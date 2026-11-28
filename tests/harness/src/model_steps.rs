@@ -209,6 +209,19 @@ pub fn model_tool_calls_length(calls: Vec<ToolCallScript>, stream: bool) -> Step
 }
 
 #[must_use]
+pub fn model_tool_calls_with_usage(
+    calls: Vec<ToolCallScript>,
+    usage: UsageScript,
+    stream: bool,
+) -> Step {
+    Step::ToolCallsWithUsage {
+        calls,
+        usage,
+        stream,
+    }
+}
+
+#[must_use]
 pub fn model_think_then_tool(
     thinking: &str,
     signature: &str,

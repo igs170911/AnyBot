@@ -96,6 +96,8 @@ fn time_events() -> Vec<anybot_protocol::TaskEvent> {
         KnownTaskEventKind::CardShown {
             action: "a".to_owned(),
             card: "card-1".to_owned(),
+            kind: anybot_protocol::CardKind::Action,
+            resume: None,
         },
     );
     push(
@@ -113,6 +115,8 @@ fn time_events() -> Vec<anybot_protocol::TaskEvent> {
         KnownTaskEventKind::CardShown {
             action: "b".to_owned(),
             card: "card-1".to_owned(),
+            kind: anybot_protocol::CardKind::Action,
+            resume: None,
         },
     );
     push(9, 4_606_000, turns_ended());
@@ -152,6 +156,8 @@ fn t_task_budget_8() {
     let card = KnownTaskEventKind::CardShown {
         action: "shell".to_owned(),
         card: "d".to_owned(),
+        kind: anybot_protocol::CardKind::Action,
+        resume: None,
     };
     advance(&mut view, &card);
     let answer = KnownTaskEventKind::CardAnswered {

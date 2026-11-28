@@ -1,22 +1,127 @@
 use std::sync::Arc;
 
-use anybot_foundation::{BotId, TrustedCerts};
+use anybot_foundation::{BotId, TaskId, TrustedCerts};
 use anybot_models::{
     Calibration, Capability, DataPolicy, ModelRef, ProviderEndpoint, ProviderKind, Session,
-    ThinkingMode, gateway, resolve, resolve_endpoint,
+    ThinkingMode, ToolSpec, gateway, resolve, resolve_endpoint,
 };
-use anybot_protocol::ComputerRef;
+use anybot_protocol::{ComputerRef, KnownTaskEventKind};
 use anybot_runner::{BotProfile, TurnModel};
 use test_harness::{FakeClock, FakeModel, ModelFormat};
 
+use crate::fake_computer::FakeComputer;
 use crate::mem_store::{MemoryRaw, MemoryRecord};
-use crate::turn::WorldSetup;
+use crate::mem_watch::MemoryWatch;
+use crate::turn::{TurnWorld, WorldSetup};
 
-pub(crate) fn make_record(setup: &WorldSetup, model: &Arc<FakeModel>) -> Arc<MemoryRecord> {
+#[derive(Clone)]
+pub struct FallbackTarget {
+    pub format: ModelFormat,
+    pub port: u16,
+    pub model: String,
+    pub bot_context: u64,
+}
+
+#[must_use]
+pub fn read_file_spec() -> ToolSpec {
+    ToolSpec {
+        name: "read_file".to_owned(),
+        description: "Read a file".to_owned(),
+        parameters: serde_json::json!({
+            "type": "object",
+            "properties": { "path": { "type": "string" } }
+        }),
+    }
+}
+
+#[must_use]
+pub fn tool_spec(name: &str, description: &str) -> ToolSpec {
+    ToolSpec {
+        name: name.to_owned(),
+        description: description.to_owned(),
+        parameters: serde_json::json!({
+            "type": "object",
+            "properties": { "path": { "type": "string" } }
+        }),
+    }
+}
+
+pub(crate) fn apply_world_files(
+    computer: crate::fake_builder::FakeComputerBuilder,
+    setup: &WorldSetup,
+) -> crate::fake_builder::FakeComputerBuilder {
+    let mut built = computer;
+    for (path, content) in &setup.files {
+        built = built.file(path, content);
+    }
+    for (line, script) in &setup.scripts {
+        built = built.script(line, script.clone());
+    }
+    built
+}
+
+impl TurnWorld {
+    #[must_use]
+    pub fn runner_gated(&self) -> Arc<dyn anybot_trust::GatedComputer> {
+        self.runner.gated_ref()
+    }
+
+    #[must_use]
+    pub fn runner_gate_config(&self) -> anybot_trust::GateConfig {
+        self.runner.gated_ref().gate_config().clone()
+    }
+
+    #[must_use]
+    pub fn gate_config(&self) -> anybot_trust::GateConfig {
+        self.gated.gate_config().clone()
+    }
+
+    #[must_use]
+    pub fn clock(&self) -> Arc<FakeClock> {
+        Arc::clone(&self.clock)
+    }
+
+    #[must_use]
+    pub fn tree_content(&self, path: &str) -> Option<String> {
+        self.gated.file_content(path)
+    }
+
+    pub async fn append_task_stopped(&self, task: TaskId) -> Result<(), String> {
+        let kind = KnownTaskEventKind::TaskStopped;
+        self.runner
+            .append_task_event(&task, kind)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
+    }
+
+    pub async fn append_task_cancelled(&self, task: TaskId) -> Result<(), String> {
+        let kind = KnownTaskEventKind::TaskCancelled {
+            reason: "user".to_owned(),
+        };
+        self.runner
+            .append_task_event(&task, kind)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
+    }
+
+    pub fn set_gate(&self, gate: anybot_trust::GateConfig) {
+        let computer: &FakeComputer = &self.gated;
+        *FakeComputer::guard(&computer.gate) = gate;
+    }
+}
+
+pub(crate) fn make_record(
+    setup: &WorldSetup,
+    model: &Arc<FakeModel>,
+    watch: &Arc<MemoryWatch>,
+) -> Arc<MemoryRecord> {
     let base = match setup.fail_on_kind {
         Some(kind) => MemoryRecord::fail_on_kind(kind),
         None => MemoryRecord::new(),
     };
+    let base = base.with_watch(Arc::clone(watch));
     if !setup.probe_requests {
         return Arc::new(base);
     }
@@ -36,6 +141,7 @@ pub fn bot_profile(setup: &WorldSetup, bot: BotId) -> BotProfile {
         name: "Ada".to_owned(),
         instructions: setup.instructions.clone(),
         timezone: "Asia/Taipei".to_owned(),
+        budget_overrides: setup.budget_overrides.clone(),
     }
 }
 
@@ -66,13 +172,29 @@ pub fn model_name_of_setup(format: ModelFormat) -> &'static str {
 #[must_use]
 pub fn turn_model(setup: &WorldSetup, port: u16) -> TurnModel {
     let kind = provider_kind(setup.format);
-    let name = model_name_of_setup(setup.format);
-    let endpoint = local_endpoint(kind, setup.format, port, name);
+    let name = setup
+        .primary_name
+        .as_deref()
+        .unwrap_or_else(|| model_name_of_setup(setup.format));
+    let actual_port = setup.primary_port_override.unwrap_or(port);
+    let endpoint = local_endpoint(kind, setup.format, actual_port, name);
+    let fallbacks = setup
+        .fallbacks
+        .iter()
+        .map(|target| {
+            let fb_kind = provider_kind(target.format);
+            ModelRef {
+                endpoint: local_endpoint(fb_kind, target.format, target.port, &target.model),
+                bot_context: Some(target.bot_context),
+            }
+        })
+        .collect();
     TurnModel {
         primary: ModelRef {
             endpoint,
             bot_context: Some(setup.bot_context),
         },
+        fallbacks,
         thinking: ThinkingMode::Auto,
         capability: capability_of(kind, name, setup.bot_context),
         calibration: Calibration::new(),

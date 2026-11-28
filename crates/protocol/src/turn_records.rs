@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::computer_caps::ComputerPlatform;
 use crate::task_detail::{TaskDetail, TaskStatus};
-use crate::task_events::CheckSource;
+use crate::task_events::{BudgetItem, CheckSource};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
@@ -20,6 +20,14 @@ pub enum TurnInitiator {
         #[cfg_attr(feature = "schema", schema(value_type = String, format = "uuid"))]
         device: DeviceId,
     },
+    Verification,
+}
+
+impl TurnInitiator {
+    #[must_use]
+    pub fn is_unattended(&self) -> bool {
+        !matches!(self, TurnInitiator::You { .. })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -107,12 +115,34 @@ pub enum NotRunReason {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+pub struct ModelChoice {
+    pub model: ModelName,
+    pub reason: String,
+    pub fail_code: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum TurnEndReason {
     Answered,
     PendingApproval,
-    ContextBudget { deficit_tokens: Option<u64> },
-    ModelFailed { code: String },
+    ContextBudget {
+        deficit_tokens: Option<u64>,
+    },
+    ModelFailed {
+        code: String,
+    },
+    Stopped,
+    Cancelled,
+    OverBudget {
+        item: BudgetItem,
+        used: u64,
+        limit: u64,
+    },
+    CardTimedOut,
+    ModelUnreachable,
+    Interrupted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

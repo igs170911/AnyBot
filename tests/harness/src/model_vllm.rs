@@ -51,6 +51,7 @@ async fn dispatch(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bool {
         other @ (Step::ToolCalls { .. }
         | Step::StopReason { .. }
         | Step::ThinkThenTool { .. }
+        | Step::ToolCallsWithUsage { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody
@@ -91,6 +92,11 @@ async fn dispatch_rest(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bo
         } => {
             think_tools(tx, model, &thinking, &calls).await;
             true
+        }
+        Step::ToolCallsWithUsage { calls, usage, .. } => {
+            let ok = vllm_tools(tx, model, &calls, VLLM_TOOL_FINISH, false, false).await;
+            send(tx, usage_value_chunk(model, &usage)).await;
+            ok
         }
         Step::ReplyText { .. }
         | Step::ThinkThenReply { .. }

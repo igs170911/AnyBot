@@ -4,6 +4,7 @@ use anybot_foundation as _;
 use anybot_messages as _;
 use anybot_models as _;
 use anybot_runner as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use anybot_trust as _;
 use proptest as _;
@@ -13,14 +14,20 @@ use test_harness as _;
 use thiserror as _;
 use tokio as _;
 
-use anybot_protocol::{EvidenceKind, EvidencePayload, KnownTaskEventKind, TaskDetail, TaskStatus};
+use std::time::Duration;
+
+use anybot_protocol::{
+    CardAnswer, EvidenceKind, EvidencePayload, KnownTaskEventKind, TaskDetail, TaskStatus,
+    TurnEndReason,
+};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{
     delivery_of, fmt_text, kind_names, messages_of, request_body, state_of, task_kinds, task_of,
+    wait_for_shown_card,
 };
 use runner_test::turn_tool_helpers::{all_specs, edit_call, one_tool_step};
-use test_harness::{model_replies_text, model_tool_calls};
+use test_harness::{model_replies_text, model_tool_calls, timeout_real};
 
 fn result_call_id(kind: &KnownTaskEventKind) -> Option<String> {
     match kind {
@@ -52,6 +59,7 @@ fn result_call_id(kind: &KnownTaskEventKind) -> Option<String> {
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
@@ -132,13 +140,27 @@ async fn turn_ask_action_is_not_executed() -> Result<(), String> {
         tools: all_specs(),
         ..WorldSetup::default()
     };
-    let world = TurnWorld::start(&setup).await?;
+    let world = runner_test::turn::arc_world(TurnWorld::start(&setup).await?);
     world.script(one_tool_step(vec![shell_call(
         "git push origin main",
         "c1",
     )]));
-    let outcome = world.send(Device::Phone, "go").await;
-    let task = task_of(&outcome.map_err(|e| format!("{e:?}"))?);
+    let shared = runner_test::turn::share(&world);
+    let bg = tokio::spawn(async move { shared.send(Device::Phone, "go").await });
+
+    let (task, _cards) = wait_for_shown_card(&world, 1).await?;
+    if kind_names(&world, &task).contains(&"tool_started".to_owned()) {
+        return Err("git push was executed while waiting".to_owned());
+    }
+    world.answer_shown_card(task, CardAnswer::Deny).await?;
+    let outcome = timeout_real(bg, Duration::from_secs(5))
+        .await
+        .map_err(|e| format!("turn timed out: {e}"))?
+        .map_err(|e| format!("join failed: {e}"))?
+        .map_err(|e| format!("{e:?}"))?;
+    if outcome.reason != TurnEndReason::Answered {
+        return Err(format!("unexpected end reason {:?}", outcome.reason));
+    }
     let names = kind_names(&world, &task);
     if names.contains(&"tool_started".to_owned()) {
         return Err("git push was executed".to_owned());
@@ -154,12 +176,12 @@ async fn turn_ask_action_is_not_executed() -> Result<(), String> {
         let EvidencePayload::Rejected { reason } = &record.payload else {
             continue;
         };
-        if reason.code == "gate-ask-unavailable" {
+        if reason.code == "gate-user-rejected" {
             found = true;
         }
     }
     if !found {
-        return Err("no ask-unavailable rejection evidence".to_owned());
+        return Err("no user-rejected evidence".to_owned());
     }
     Ok(())
 }

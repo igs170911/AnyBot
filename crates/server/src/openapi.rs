@@ -82,6 +82,7 @@ impl Modify for BearerAuth {
         anybot_protocol::RefereeAction,
         anybot_protocol::RefereeReply,
         anybot_protocol::RefereeRequest,
+        anybot_protocol::WakeReason,
                                         anybot_protocol::StreamSelector,
         anybot_protocol::StoredRecord,
         anybot_protocol::InviteResponse,

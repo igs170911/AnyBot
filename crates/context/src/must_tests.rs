@@ -97,6 +97,8 @@ fn must_docs_and_pending_actions_are_mandatory() {
         anybot_protocol::KnownTaskEventKind::CardShown {
             action: "what colour?".to_owned(),
             card: "card-1".to_owned(),
+            kind: anybot_protocol::CardKind::Action,
+            resume: None,
         },
     )];
     match compile(&input).unwrap() {

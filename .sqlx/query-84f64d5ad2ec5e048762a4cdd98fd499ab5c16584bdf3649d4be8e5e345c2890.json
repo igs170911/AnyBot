@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO outbox (stream, record_id, kind, content, created_at_ms, task_id,\n            offline_at_create, state, local_detail, turn, effect)\n            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "84f64d5ad2ec5e048762a4cdd98fd499ab5c16584bdf3649d4be8e5e345c2890"
+}

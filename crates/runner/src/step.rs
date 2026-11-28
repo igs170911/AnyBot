@@ -1,23 +1,42 @@
 use anybot_context::{Compiled, NewEvent};
-use anybot_domain::{ContextCollapseReason, ContextCollapsed, collapsed_kind, memory_dropped_kind};
-use anybot_models::{Audience, GatewayFail, ask_plan};
-use anybot_protocol::{KnownTaskEventKind, TurnEndReason};
+use anybot_protocol::{BudgetItem, KnownTaskEventKind, TurnEndReason};
 
-use crate::action::run_actions;
+use crate::action::{ActionLoop, run_actions};
 use crate::answer;
-use crate::checks::run_checks;
-use crate::context_input::build_input;
-use crate::ending::end_reason;
+use crate::checks::{Proceed, run_checks};
+use crate::context_input::{build_input, record_new_events};
+use crate::continue_turn::next_asked_step;
 use crate::error::TurnError;
-use crate::runner::{KindCount, TurnCtx, TurnRunner};
+use crate::fallback::{FallbackResult, ask_step_with, handle_ask_fail};
+use crate::halt::finish_halt;
+use crate::record::Appended;
+use crate::runner::{TurnCtx, TurnModel, TurnRunner};
 
 pub(crate) enum StepFlow {
     Continue,
     Ended(TurnEndReason),
 }
 
+pub(crate) enum PreparedSent {
+    Ready {
+        manifest_id: String,
+        turn_request: anybot_models::TurnRequest,
+    },
+    Halted(TurnEndReason),
+}
+
 pub(crate) async fn run_step(runner: &TurnRunner, ctx: &TurnCtx) -> Result<StepFlow, TurnError> {
-    run_checks(runner, ctx);
+    match run_checks(runner, ctx).await? {
+        Proceed::Halted(halt) => {
+            let reason = finish_halt(runner, ctx, halt).await?;
+            return Ok(StepFlow::Ended(reason));
+        }
+        Proceed::OverBudget { item, used, limit } => {
+            return end_over_budget(runner, ctx, item, used, limit).await;
+        }
+        Proceed::Go => {}
+    }
+    crate::steer::consume_for_step(runner, ctx).await?;
     let input = build_input(runner, ctx).await?;
     let compiled = anybot_context::compile(&input).map_err(TurnError::Compile)?;
     match compiled {
@@ -25,9 +44,7 @@ pub(crate) async fn run_step(runner: &TurnRunner, ctx: &TurnCtx) -> Result<StepF
             let reason = TurnEndReason::ContextBudget {
                 deficit_tokens: Some(short.deficit_tokens),
             };
-            runner
-                .append_turn_end(&ctx.task, reason.clone(), false)
-                .await?;
+            runner.append_turn_end(ctx, reason.clone(), false).await?;
             Ok(StepFlow::Ended(reason))
         }
         Compiled::Sent {
@@ -45,118 +62,63 @@ async fn run_sent(
     manifest: &anybot_context::Manifest,
     events: &[NewEvent],
 ) -> Result<StepFlow, TurnError> {
+    let active = ctx.active_model(&runner.model);
+    let (manifest_id, turn_request) =
+        match prepare_sent(runner, ctx, &active, request, manifest, events).await? {
+            PreparedSent::Ready {
+                manifest_id,
+                turn_request,
+            } => (manifest_id, turn_request),
+            PreparedSent::Halted(reason) => return Ok(StepFlow::Ended(reason)),
+        };
+    match ask_step_with(runner, &active, &turn_request).await {
+        Ok(outcome) => finish_answer(runner, ctx, &outcome, &manifest_id).await,
+        Err(fail) => match handle_ask_fail(runner, ctx, &active, fail).await? {
+            FallbackResult::Answered {
+                outcome,
+                manifest_id,
+            } => finish_answer(runner, ctx, &outcome, &manifest_id).await,
+            FallbackResult::Ended(flow) => Ok(flow),
+        },
+    }
+}
+
+pub(crate) async fn prepare_sent(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    model: &TurnModel,
+    request: &anybot_context::CompiledRequest,
+    manifest: &anybot_context::Manifest,
+    events: &[NewEvent],
+) -> Result<PreparedSent, TurnError> {
     let bytes = serde_json::to_vec(manifest)?;
     let id = runner.raw.put(bytes).await.map_err(TurnError::Raw)?;
-    let manifest_id = id.hex();
-    record_new_events(runner, ctx, manifest_id, manifest, events).await?;
+    let manifest_id = id.hex().to_owned();
+    record_new_events(runner, ctx, &manifest_id, model, manifest, events).await?;
     let turn_request = request
         .to_turn_request(
             runner.tools.clone(),
-            runner.model.thinking,
+            model.thinking,
             Some(manifest.budget.reserved_output),
         )
         .map_err(TurnError::Compile)?;
-    let asked = runner
-        .count_task_kind(&ctx.task, KindCount::ModelAsked)
-        .await?
-        .saturating_add(1);
-    runner
-        .append_task_event(&ctx.task, KnownTaskEventKind::ModelAsked { step: asked })
-        .await?;
-    let outcome = ask(runner, &turn_request).await;
-    match outcome {
-        Err(fail) => {
-            let reason = end_reason(&fail);
-            runner
-                .append_turn_end(&ctx.task, reason.clone(), false)
-                .await?;
-            Ok(StepFlow::Ended(reason))
-        }
-        Ok(outcome) => finish_answer(runner, ctx, &outcome, manifest_id).await,
-    }
-}
-
-async fn ask(
-    runner: &TurnRunner,
-    request: &anybot_models::TurnRequest,
-) -> Result<anybot_models::AskOutcome, GatewayFail> {
-    let mut session = runner.session.lock().await;
-    let mut plan = ask_plan(&runner.model.primary, &[], request, Audience::Watching);
-    plan.bot = &runner.bot.name;
-    plan.stream = true;
-    session.ask(&mut plan).await
-}
-
-async fn record_new_events(
-    runner: &TurnRunner,
-    ctx: &TurnCtx,
-    manifest_id: &str,
-    manifest: &anybot_context::Manifest,
-    events: &[NewEvent],
-) -> Result<(), TurnError> {
-    for event in events {
-        let kind = match event {
-            NewEvent::Collapsed { ids, reason } => collapsed_kind(&ContextCollapsed {
-                ids: ids.clone(),
-                reason: collapse_reason(*reason),
-            }),
-            NewEvent::MemoryDropped { ids } => memory_dropped_kind(ids),
-            NewEvent::ContextBuilt => context_built_kind(manifest_id, &runner.model, manifest),
-        };
-        append_raw(runner, ctx, kind).await?;
-    }
-    Ok(())
-}
-
-fn context_built_kind(
-    manifest_id: &str,
-    model: &crate::runner::TurnModel,
-    manifest: &anybot_context::Manifest,
-) -> anybot_protocol::TaskEventKind {
-    anybot_protocol::TaskEventKind::Known(KnownTaskEventKind::ContextBuilt {
-        manifest_id: manifest_id.to_owned(),
-        model: answer::model_name_of(&model.primary.endpoint),
-        estimate_tokens: manifest.budget.estimate_calibrated,
-    })
-}
-
-async fn append_raw(
-    runner: &TurnRunner,
-    ctx: &TurnCtx,
-    kind: anybot_protocol::TaskEventKind,
-) -> Result<(), TurnError> {
-    let new = anybot_record_new(runner, ctx, kind);
-    runner
+    let task_rows = runner
         .record
-        .append(crate::record::RecordEntry::Task(new))
+        .task_events(ctx.task)
         .await
-        .map(|_| ())
-        .map_err(TurnError::Record)
-}
-
-fn anybot_record_new(
-    runner: &TurnRunner,
-    ctx: &TurnCtx,
-    kind: anybot_protocol::TaskEventKind,
-) -> crate::record::NewTaskEvent {
-    crate::record::NewTaskEvent {
-        bot: runner.bot.id,
-        task: ctx.task,
-        turn: Some(1),
-        event_id: anybot_foundation::EventId::generate(&*runner.clock),
-        at_ms: runner.clock.now_ms(),
-        kind,
+        .map_err(TurnError::Record)?;
+    let asked = next_asked_step(&task_rows);
+    if let Appended::Halted(halt) = runner
+        .append_turn_unless_halted(ctx, KnownTaskEventKind::ModelAsked { step: asked })
+        .await?
+    {
+        let reason = finish_halt(runner, ctx, halt).await?;
+        return Ok(PreparedSent::Halted(reason));
     }
-}
-
-fn collapse_reason(reason: anybot_context::CollapseReason) -> ContextCollapseReason {
-    match reason {
-        anybot_context::CollapseReason::Accumulated => ContextCollapseReason::Accumulated,
-        anybot_context::CollapseReason::Budget => ContextCollapseReason::Budget,
-        anybot_context::CollapseReason::Compact => ContextCollapseReason::Compact,
-        anybot_context::CollapseReason::ModelSwapped => ContextCollapseReason::ModelSwapped,
-        anybot_context::CollapseReason::ReplaceAll => ContextCollapseReason::ReplaceAll,
-    }
+    Ok(PreparedSent::Ready {
+        manifest_id,
+        turn_request,
+    })
 }
 
 async fn finish_answer(
@@ -167,34 +129,87 @@ async fn finish_answer(
 ) -> Result<StepFlow, TurnError> {
     for handoff in &outcome.handoffs {
         runner
-            .append_task_event(&ctx.task, answer::swapped_kind(handoff))
+            .append_turn_event(ctx, answer::swapped_kind(handoff))
             .await?;
     }
     let native = keep_attachment(runner, outcome).await?;
     let result = &outcome.result;
     let requests = answer::requests_of(&result.tool_calls, &*runner.clock);
     let answer_kind = answer::answer_kind(result, &requests, native);
-    runner.append_task_event(&ctx.task, answer_kind).await?;
+    runner.append_turn_event(ctx, answer_kind).await?;
     runner
-        .append_task_event(
-            &ctx.task,
-            answer::usage_report_kind(&result.usage, manifest_id),
-        )
+        .append_turn_event(ctx, answer::usage_report_kind(&result.usage, manifest_id))
         .await?;
+    record_budget_usage(runner, ctx, &result.usage).await?;
     if requests.is_empty() {
+        if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
+            let reason = finish_halt(runner, ctx, halt).await?;
+            return Ok(StepFlow::Ended(reason));
+        }
+        if let Some(over) = crate::budget_gate::current_over(runner, ctx).await? {
+            return end_over_budget(runner, ctx, over.item, over.used, over.limit).await;
+        }
         runner
-            .append_turn_end(&ctx.task, TurnEndReason::Answered, true)
+            .append_turn_end(ctx, TurnEndReason::Answered, true)
             .await?;
         return Ok(StepFlow::Ended(TurnEndReason::Answered));
     }
-    run_actions(runner, ctx, &requests).await?;
-    if crate::approvals::has_parked(runner) {
-        runner
-            .append_turn_end(&ctx.task, TurnEndReason::PendingApproval, false)
-            .await?;
-        return Ok(StepFlow::Ended(TurnEndReason::PendingApproval));
+    match run_actions(runner, ctx, &requests).await? {
+        ActionLoop::Halted(halt) => {
+            let reason = finish_halt(runner, ctx, halt).await?;
+            return Ok(StepFlow::Ended(reason));
+        }
+        ActionLoop::OverBudget(over) => {
+            return end_over_budget(runner, ctx, over.item, over.used, over.limit).await;
+        }
+        ActionLoop::TimedOut => {
+            let reason = TurnEndReason::CardTimedOut;
+            runner.append_turn_end(ctx, reason.clone(), false).await?;
+            return Ok(StepFlow::Ended(reason));
+        }
+        ActionLoop::Done => {}
     }
     Ok(StepFlow::Continue)
+}
+
+async fn record_budget_usage(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    usage: &anybot_models::UsageReport,
+) -> Result<(), TurnError> {
+    runner
+        .append_turn_event(
+            ctx,
+            KnownTaskEventKind::BudgetUsage {
+                item: BudgetItem::Steps,
+                delta: 1,
+            },
+        )
+        .await?;
+    if let Some(tokens) = crate::budget_gate::token_delta(usage) {
+        runner
+            .append_turn_event(
+                ctx,
+                KnownTaskEventKind::BudgetUsage {
+                    item: BudgetItem::Tokens,
+                    delta: tokens,
+                },
+            )
+            .await?;
+    }
+    Ok(())
+}
+
+async fn end_over_budget(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    item: BudgetItem,
+    used: u64,
+    limit: u64,
+) -> Result<StepFlow, TurnError> {
+    let reason = TurnEndReason::OverBudget { item, used, limit };
+    runner.append_turn_end(ctx, reason.clone(), false).await?;
+    Ok(StepFlow::Ended(reason))
 }
 
 async fn keep_attachment(

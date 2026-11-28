@@ -87,7 +87,7 @@ pub use model_script::{
     model_replies_text, model_reply_status, model_reply_status_retry, model_stall,
     model_stop_reason, model_stream_error, model_think_then_reply, model_think_then_tool,
     model_thinking_block, model_tool_calls, model_tool_calls_cut, model_tool_calls_length,
-    model_usage, random_reply,
+    model_tool_calls_with_usage, model_usage, random_reply,
 };
 pub use model_tls::{
     IssuedLeaf, MintedCert, mint_issued, mint_issued_not_yet, mint_issued_window, mint_not_yet,

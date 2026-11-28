@@ -1,6 +1,7 @@
 use anybot_context as _;
 use anybot_domain as _;
 use anybot_runner as _;
+use anybot_store_client as _;
 use anybot_tools as _;
 use anybot_trust as _;
 use proptest as _;
@@ -67,6 +68,7 @@ async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
+            "budget_usage",
             "gate_result",
             "tool_intent",
             "tool_started",
@@ -83,6 +85,7 @@ async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
+            "budget_usage",
             "turn_ended",
             "delivery_report"
         ]

@@ -1,0 +1,24 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT kind FROM outbox WHERE stream = ? AND task_id = ? AND local_id > ?\n            AND kind IN ('task_stopped', 'task_cancelled') ORDER BY local_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "kind",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "outbox",
+            "name": "kind"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [false]
+  },
+  "hash": "1563e43e25a31684b4912b663d70fdce6d9171198c29d62cfa592d7de34efb7c"
+}

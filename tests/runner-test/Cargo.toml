@@ -20,4 +20,4 @@ anybot-trust = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 test-harness = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time"] }

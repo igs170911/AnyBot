@@ -1,16 +1,28 @@
 use anybot_context::{
-    BuildInput, ChatRecord, K114_2_DEFAULT_RESULT_CHARS, ModelPlan, PinnedSnapshot,
+    BuildInput, ChatRecord, CollapseReason, K114_2_DEFAULT_RESULT_CHARS, Manifest, ModelPlan,
+    NewEvent, PinnedSnapshot,
 };
+use anybot_domain::{ContextCollapseReason, ContextCollapsed, collapsed_kind, memory_dropped_kind};
 use anybot_foundation::TaskId;
 use anybot_protocol::{KnownTaskEventKind, TaskEventKind};
 
+use crate::answer;
 use crate::error::TurnError;
-use crate::record::{Stored, StoredBody};
-use crate::runner::{TurnCtx, TurnRunner};
+use crate::record::{NewTaskEvent, RecordEntry, Stored, StoredBody};
+use crate::runner::{TurnCtx, TurnModel, TurnRunner};
 
 pub(crate) async fn build_input(
     runner: &TurnRunner,
     ctx: &TurnCtx,
+) -> Result<BuildInput, TurnError> {
+    let model = ctx.active_model(&runner.model);
+    build_input_for(runner, ctx, &model).await
+}
+
+pub(crate) async fn build_input_for(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    model: &TurnModel,
 ) -> Result<BuildInput, TurnError> {
     let events = runner
         .record
@@ -40,12 +52,12 @@ pub(crate) async fn build_input(
         },
         memories: Vec::new(),
         prior_chat: Vec::new(),
-        model: model_plan_of(&runner.model),
+        model: model_plan_of(model),
         compact_requested: false,
     })
 }
 
-pub(crate) fn model_plan_of(model: &crate::runner::TurnModel) -> ModelPlan {
+pub(crate) fn model_plan_of(model: &TurnModel) -> ModelPlan {
     ModelPlan {
         capability: model.capability.clone(),
         calibration: model.calibration.clone(),
@@ -99,5 +111,58 @@ pub(crate) fn row_event_id(row: &Stored) -> Option<anybot_foundation::EventId> {
     match &row.body {
         StoredBody::Task { event, .. } => Some(event.event_id),
         StoredBody::UserSaid(_) => None,
+    }
+}
+
+pub(crate) async fn record_new_events(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    manifest_id: &str,
+    model: &TurnModel,
+    manifest: &Manifest,
+    events: &[NewEvent],
+) -> Result<(), TurnError> {
+    for event in events {
+        let kind = match event {
+            NewEvent::Collapsed { ids, reason } => collapsed_kind(&ContextCollapsed {
+                ids: ids.clone(),
+                reason: collapse_reason(*reason),
+            }),
+            NewEvent::MemoryDropped { ids } => memory_dropped_kind(ids),
+            NewEvent::ContextBuilt => context_built_kind(manifest_id, model, manifest),
+        };
+        let new = NewTaskEvent {
+            bot: runner.bot.id,
+            task: ctx.task,
+            turn: Some(ctx.turn),
+            event_id: anybot_foundation::EventId::generate(&*runner.clock),
+            at_ms: runner.clock.now_ms(),
+            kind,
+        };
+        runner
+            .record
+            .append(RecordEntry::Task(new))
+            .await
+            .map(|_| ())
+            .map_err(TurnError::Record)?;
+    }
+    Ok(())
+}
+
+fn context_built_kind(manifest_id: &str, model: &TurnModel, manifest: &Manifest) -> TaskEventKind {
+    TaskEventKind::Known(KnownTaskEventKind::ContextBuilt {
+        manifest_id: manifest_id.to_owned(),
+        model: answer::model_name_of(&model.primary.endpoint),
+        estimate_tokens: manifest.budget.estimate_calibrated,
+    })
+}
+
+fn collapse_reason(reason: CollapseReason) -> ContextCollapseReason {
+    match reason {
+        CollapseReason::Accumulated => ContextCollapseReason::Accumulated,
+        CollapseReason::Budget => ContextCollapseReason::Budget,
+        CollapseReason::Compact => ContextCollapseReason::Compact,
+        CollapseReason::ModelSwapped => ContextCollapseReason::ModelSwapped,
+        CollapseReason::ReplaceAll => ContextCollapseReason::ReplaceAll,
     }
 }

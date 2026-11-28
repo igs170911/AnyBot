@@ -2,10 +2,10 @@ use anybot_foundation::{BotId, CallId, TaskId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BudgetItem, CardAnswer, CheckSource, ComputerRef, Criterion, DeviceReportKind, DoneWhenChange,
-    EvidenceRecord, FinishReason, GateRecord, ModelName, NativeRef, NotRunReason, Proposer,
-    ReconcileOutcome, TaskOpener, ThinkingChoice, TokenUsage, ToolEffect, ToolRequest,
-    TurnEndReason, TurnInitiator,
+    BudgetItem, CardAnswer, CardKind, CheckSource, ComputerRef, Criterion, DeviceReportKind,
+    DoneWhenChange, EvidenceRecord, FinishReason, GateRecord, ModelName, NativeRef, NotRunReason,
+    Proposer, ReconcileOutcome, ResumeCard, TaskOpener, ThinkingChoice, TokenUsage, ToolEffect,
+    ToolRequest, TurnEndReason, TurnInitiator,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -135,6 +135,7 @@ pub enum KnownTaskEventKind {
         observed: String,
     },
     AcceptanceUnavailable,
+    VerificationStarted,
     ClaimChecked {
         covers_claim: bool,
         verified: bool,
@@ -150,6 +151,10 @@ pub enum KnownTaskEventKind {
     CardShown {
         action: String,
         card: String,
+        #[serde(default)]
+        kind: CardKind,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resume: Option<ResumeCard>,
     },
     CardAnswered {
         answer: CardAnswer,

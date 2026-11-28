@@ -93,6 +93,7 @@ pub fn status_response(step: &Step) -> Option<Response> {
         | Step::StopReason { .. }
         | Step::ToolCalls { .. }
         | Step::ThinkThenTool { .. }
+        | Step::ToolCallsWithUsage { .. }
         | Step::DelayHeaders { .. }
         | Step::AcceptThenDelay { .. } => None,
     }

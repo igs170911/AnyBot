@@ -43,6 +43,7 @@ pub fn locks_completion(event: &KnownTaskEventKind) -> bool {
         KnownTaskEventKind::OutcomeUnknown { .. }
             | KnownTaskEventKind::CriterionFailed { .. }
             | KnownTaskEventKind::AcceptanceUnavailable
+            | KnownTaskEventKind::VerificationStarted
             | KnownTaskEventKind::ClaimChecked { .. }
     )
 }

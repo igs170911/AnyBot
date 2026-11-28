@@ -25,6 +25,7 @@ fn anthropic_usage_of(step: &Step) -> serde_json::Value {
         Step::UsageReply {
             usage, omit_usage, ..
         } if !omit_usage => anthropic_usage(usage),
+        Step::ToolCallsWithUsage { usage, .. } => anthropic_usage(usage),
         Step::ReplyText { .. }
         | Step::ThinkThenReply { .. }
         | Step::CallTool { .. }
@@ -78,6 +79,9 @@ fn content_blocks(step: &Step) -> (Vec<serde_json::Value>, String) {
             finish_reason,
             ..
         } => (anthropic_tool_blocks(calls), finish_reason.clone()),
+        Step::ToolCallsWithUsage { calls, .. } => {
+            (anthropic_tool_blocks(calls), "tool_use".to_owned())
+        }
         Step::ThinkThenTool {
             thinking,
             signature,

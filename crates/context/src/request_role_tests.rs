@@ -100,6 +100,8 @@ fn prefix_lives_in_system_and_tail_is_the_last_user_message() {
         anybot_protocol::KnownTaskEventKind::CardShown {
             action: "ASK-MARK".to_owned(),
             card: "card-1".to_owned(),
+            kind: anybot_protocol::CardKind::Action,
+            resume: None,
         },
     )];
     let request = sent(&input);
@@ -131,6 +133,8 @@ fn system_bytes_hold_when_only_the_tail_changes() {
         anybot_protocol::KnownTaskEventKind::CardShown {
             action: "later question".to_owned(),
             card: "card-1".to_owned(),
+            kind: anybot_protocol::CardKind::Action,
+            resume: None,
         },
     )];
     let sent_a = sent(&first);

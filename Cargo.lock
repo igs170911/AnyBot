@@ -383,6 +383,7 @@ dependencies = [
  "anybot-messages",
  "anybot-models",
  "anybot-protocol",
+ "anybot-store-client",
  "anybot-tools",
  "anybot-trust",
  "proptest",

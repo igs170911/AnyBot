@@ -57,6 +57,9 @@ fn completion_message(step: &Step) -> (serde_json::Value, String) {
             finish_reason,
             ..
         } => (vllm_tools_message(calls), finish_reason.clone()),
+        Step::ToolCallsWithUsage { calls, .. } => {
+            (vllm_tools_message(calls), VLLM_TOOL_FINISH.to_owned())
+        }
         Step::ThinkThenTool {
             thinking, calls, ..
         } => (
@@ -117,6 +120,7 @@ fn vllm_usage(step: &Step) -> serde_json::Value {
         Step::UsageReply {
             usage, omit_usage, ..
         } if !omit_usage => openai_usage(usage),
+        Step::ToolCallsWithUsage { usage, .. } => openai_usage(usage),
         Step::ReplyText { .. }
         | Step::ThinkThenReply { .. }
         | Step::CallTool { .. }

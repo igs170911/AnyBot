@@ -1,21 +1,27 @@
-use std::future::ready;
+use std::future::{Future, ready};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use anybot_foundation::{BotId, ContentDigest, TaskId};
+use anybot_foundation::{BotId, TaskId};
+use anybot_protocol::{KnownTaskEventKind, TaskEventKind};
 use anybot_runner::{
-    NewTaskEvent, RawStore, RawStoreError, Record, RecordEntry, RecordError, Stored, StoredBody,
+    Appended, Halt, NewTaskEvent, Record, RecordEntry, RecordError, Stored, StoredBody,
     task_event_of,
 };
-use std::future::Future;
+
+pub use crate::mem_raw::{MemoryRaw, share_raw};
+use crate::mem_watch::MemoryWatch;
 
 type Probe = Arc<dyn Fn() -> usize + Send + Sync>;
+pub type AfterAppend = Arc<dyn Fn(&Stored) + Send + Sync>;
 
 #[derive(Default)]
 pub struct MemoryRecord {
     rows: Mutex<Vec<(Stored, usize)>>,
     task_seq: Mutex<std::collections::BTreeMap<TaskId, u64>>,
     probe: Option<Probe>,
+    after_append: Mutex<Option<AfterAppend>>,
+    watch: Option<Arc<MemoryWatch>>,
     fail_on: Option<&'static str>,
 }
 
@@ -24,33 +30,15 @@ impl Record for MemoryRecord {
         &self,
         entry: RecordEntry,
     ) -> Pin<Box<dyn Future<Output = Result<Stored, RecordError>> + Send + '_>> {
-        let Ok(mut rows) = self.rows.lock() else {
-            return Box::pin(ready(Err(RecordError {
-                reason: "locked".to_owned(),
-            })));
-        };
-        if let RecordEntry::Task(new) = &entry
-            && self.fail_on == Some(new.kind.kind_name().as_str())
-        {
-            return Box::pin(ready(Err(RecordError {
-                reason: "fail_on_kind".to_owned(),
-            })));
-        }
-        let body = match entry {
-            RecordEntry::UserSaid(line) => StoredBody::UserSaid(line),
-            RecordEntry::Task(new) => self.stored_task(&new),
-        };
-        let probe_value = match &self.probe {
-            Some(f) => f(),
-            None => 0,
-        };
-        let stream_seq = match rows.len().checked_add(1) {
-            Some(value) => u64::try_from(value).unwrap_or(u64::MAX),
-            None => u64::MAX,
-        };
-        let stored = Stored { stream_seq, body };
-        rows.push((stored.clone(), probe_value));
-        Box::pin(ready(Ok(stored)))
+        Box::pin(ready(self.append_sync(entry)))
+    }
+
+    fn append_unless_halted(
+        &self,
+        entry: RecordEntry,
+        turn_started: u64,
+    ) -> Pin<Box<dyn Future<Output = Result<Appended, RecordError>> + Send + '_>> {
+        Box::pin(ready(self.append_unless_halted_sync(entry, turn_started)))
     }
 
     fn conversation(
@@ -91,11 +79,91 @@ impl MemoryRecord {
     }
 
     #[must_use]
+    pub fn with_watch(mut self, watch: Arc<MemoryWatch>) -> Self {
+        self.watch = Some(watch);
+        self
+    }
+
+    #[must_use]
     pub fn fail_on_kind(kind_name: &'static str) -> Self {
         Self {
             fail_on: Some(kind_name),
             ..Self::default()
         }
+    }
+
+    pub fn set_after_append(&self, hook: Option<AfterAppend>) {
+        if let Ok(mut guard) = self.after_append.lock() {
+            *guard = hook;
+        }
+    }
+
+    pub fn append_sync(&self, entry: RecordEntry) -> Result<Stored, RecordError> {
+        let stored = self.insert_locked(entry, None)?;
+        if let Appended::Stored(row) = stored {
+            return Ok(*row);
+        }
+        Err(RecordError {
+            reason: "unexpected halt".to_owned(),
+        })
+    }
+
+    pub fn append_unless_halted_sync(
+        &self,
+        entry: RecordEntry,
+        turn_started: u64,
+    ) -> Result<Appended, RecordError> {
+        self.insert_locked(entry, Some(turn_started))
+    }
+
+    fn insert_locked(
+        &self,
+        entry: RecordEntry,
+        turn_started: Option<u64>,
+    ) -> Result<Appended, RecordError> {
+        let task = entry_task(&entry);
+        let stored = {
+            let Ok(mut rows) = self.rows.lock() else {
+                return Err(RecordError {
+                    reason: "locked".to_owned(),
+                });
+            };
+            if let Some(since) = turn_started
+                && let Some(halt) = halt_in_slice(&rows, task, since)
+            {
+                return Ok(Appended::Halted(halt));
+            }
+            if let RecordEntry::Task(new) = &entry
+                && self.fail_on == Some(new.kind.kind_name().as_str())
+            {
+                return Err(RecordError {
+                    reason: "fail_on_kind".to_owned(),
+                });
+            }
+            let body = match entry {
+                RecordEntry::UserSaid(line) => StoredBody::UserSaid(line),
+                RecordEntry::Task(new) => self.stored_task(&new),
+            };
+            let probe_value = match &self.probe {
+                Some(f) => f(),
+                None => 0,
+            };
+            let stream_seq = match rows.len().checked_add(1) {
+                Some(value) => u64::try_from(value).unwrap_or(u64::MAX),
+                None => u64::MAX,
+            };
+            let stored = Stored { stream_seq, body };
+            rows.push((stored.clone(), probe_value));
+            stored
+        };
+        if let Some(watch) = &self.watch {
+            watch.notify(task);
+        }
+        let hook = self.after_append.lock().ok().and_then(|g| g.clone());
+        if let Some(f) = hook {
+            f(&stored);
+        }
+        Ok(Appended::Stored(Box::new(stored)))
     }
 
     #[must_use]
@@ -114,22 +182,14 @@ impl MemoryRecord {
     #[must_use]
     pub fn task_events_of(&self, task: TaskId) -> Vec<anybot_protocol::TaskEvent> {
         let rows = self.snapshot();
-        let kept: Vec<anybot_protocol::TaskEvent> = rows
-            .into_iter()
+        rows.into_iter()
             .filter_map(move |row| match row.body {
                 StoredBody::Task {
                     task: owner, event, ..
-                } => {
-                    if owner == task {
-                        Some(event)
-                    } else {
-                        None
-                    }
-                }
-                StoredBody::UserSaid(_) => None,
+                } if owner == task => Some(event),
+                StoredBody::Task { .. } | StoredBody::UserSaid(_) => None,
             })
-            .collect();
-        kept
+            .collect()
     }
 
     fn stored_task(&self, new: &NewTaskEvent) -> StoredBody {
@@ -151,10 +211,12 @@ impl MemoryRecord {
     }
 
     pub fn clear(&self) {
-        let Ok(mut rows) = self.rows.lock() else {
-            return;
-        };
-        rows.clear();
+        if let Ok(mut rows) = self.rows.lock() {
+            rows.clear();
+        }
+        if let Ok(mut map) = self.task_seq.lock() {
+            map.clear();
+        }
     }
 
     #[must_use]
@@ -171,73 +233,47 @@ impl MemoryRecord {
     }
 }
 
+fn entry_task(entry: &RecordEntry) -> TaskId {
+    match entry {
+        RecordEntry::UserSaid(line) => line.task,
+        RecordEntry::Task(new) => new.task,
+    }
+}
+
+fn halt_in_slice(rows: &[(Stored, usize)], task: TaskId, turn_started: u64) -> Option<Halt> {
+    let mut found: Option<Halt> = None;
+    for (row, _) in rows {
+        if row.stream_seq <= turn_started {
+            continue;
+        }
+        let StoredBody::Task {
+            task: owner, event, ..
+        } = &row.body
+        else {
+            continue;
+        };
+        if *owner != task {
+            continue;
+        }
+        let TaskEventKind::Known(kind) = &event.kind else {
+            continue;
+        };
+        if matches!(kind, KnownTaskEventKind::TaskCancelled { .. }) {
+            return Some(Halt::Cancelled);
+        }
+        if matches!(kind, KnownTaskEventKind::TaskStopped) {
+            found = Some(Halt::Stopped);
+        }
+    }
+    found
+}
+
 #[must_use]
 pub fn share_record(record: &Arc<MemoryRecord>) -> Arc<dyn Record> {
     let shared: Arc<MemoryRecord> = Arc::clone(record);
     shared
 }
 
-#[derive(Default)]
-pub struct MemoryRaw {
-    blobs: Mutex<Vec<Vec<u8>>>,
-}
-
-impl MemoryRaw {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    #[must_use]
-    pub fn snapshot(&self) -> Vec<(String, Vec<u8>)> {
-        self.items()
-            .into_iter()
-            .map(|(d, v)| (d.hex().to_owned(), v))
-            .collect()
-    }
-
-    #[must_use]
-    pub fn items(&self) -> Vec<(ContentDigest, Vec<u8>)> {
-        let Ok(blobs) = self.blobs.lock() else {
-            return Vec::new();
-        };
-        blobs
-            .iter()
-            .map(|b| (ContentDigest::sha256(b), b.clone()))
-            .collect()
-    }
-}
-
-impl RawStore for MemoryRaw {
-    fn put(
-        &self,
-        bytes: Vec<u8>,
-    ) -> Pin<Box<dyn Future<Output = Result<ContentDigest, RawStoreError>> + Send + '_>> {
-        let digest = ContentDigest::sha256(&bytes);
-        if let Ok(mut blobs) = self.blobs.lock() {
-            blobs.push(bytes);
-        }
-        Box::pin(ready(Ok(digest)))
-    }
-
-    fn get(
-        &self,
-        digest: ContentDigest,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Vec<u8>>, RawStoreError>> + Send + '_>> {
-        let Ok(blobs) = self.blobs.lock() else {
-            return Box::pin(ready(Ok(None)));
-        };
-        for blob in &*blobs {
-            if ContentDigest::sha256(blob) == digest {
-                return Box::pin(ready(Ok(Some(blob.clone()))));
-            }
-        }
-        Box::pin(ready(Ok(None)))
-    }
-}
-
-#[must_use]
-pub fn share_raw(raw: &Arc<MemoryRaw>) -> Arc<dyn RawStore> {
-    let shared: Arc<MemoryRaw> = Arc::clone(raw);
-    shared
-}
+#[cfg(test)]
+#[path = "mem_store_tests.rs"]
+mod tests;
