@@ -100,6 +100,10 @@ pub enum EvidencePayload {
         reason: NotExecutedReason,
         detail: ReasonPayload,
     },
+    Relayed {
+        from_bot: String,
+        text_head: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -176,6 +180,10 @@ impl EvidenceRecord {
             EvidencePayload::NotExecuted { reason, .. } => {
                 format!("not-executed {reason:?}").to_lowercase()
             }
+            EvidencePayload::Relayed {
+                from_bot,
+                text_head,
+            } => format!("relayed {from_bot} {text_head}"),
         };
         format!(
             "E{} {} {} {}",

@@ -119,3 +119,41 @@ fn names_and_usage_serialize_with_named_fields() {
     assert_eq!(got.get("input").unwrap(), 12);
     assert_eq!(got.get("thinking").unwrap(), 0);
 }
+
+#[test]
+fn delivery_report_claims_and_relayed_round_trip() {
+    let report = super::DeliveryReportRecord {
+        goal: "send file".to_owned(),
+        status: super::TaskStatus::Completed,
+        detail: Some(super::TaskDetail::Accepted),
+        summary: super::ReportSummary::Text("done".to_owned()),
+        attention: Vec::new(),
+        steps: Vec::new(),
+        claims: vec![super::ReportClaim {
+            sentence: "done".to_owned(),
+            level: super::ReportLevel::Inferred,
+            reasons: vec![super::ReasonPayload {
+                code: "claim-no-evidence".to_owned(),
+                params: Vec::new(),
+            }],
+            source: Some(super::JudgementSource::ForwardedUnverified),
+            cited: vec![super::EvidenceShortId(1)],
+        }],
+        level_counts: super::LevelCounts {
+            verified: 0,
+            sourced: 0,
+            inferred: 1,
+            unknown: 0,
+        },
+    };
+    let text = serde_json::to_string(&report).unwrap();
+    let back: super::DeliveryReportRecord = serde_json::from_str(&text).unwrap();
+    assert_eq!(back, report);
+    let relayed = crate::EvidencePayload::Relayed {
+        from_bot: "Bot2".to_owned(),
+        text_head: "ok".to_owned(),
+    };
+    let r_text = serde_json::to_string(&relayed).unwrap();
+    let r_back: crate::EvidencePayload = serde_json::from_str(&r_text).unwrap();
+    assert_eq!(r_back, relayed);
+}

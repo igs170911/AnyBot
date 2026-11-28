@@ -30,7 +30,7 @@ filter = 'test(netctl_)'
 test-group = "net"
 
 [[profile.default.overrides]]
-filter = 'test(/(t_turn_loop_1|t_turn_loop_9|turn_intent_record_precedes_computer_operation)/)'
+filter = 'test(/(t_turn_loop_1|t_turn_loop_9|turn_intent_record_precedes_computer_operation|t_report_delivery_11)/)'
 test-group = "prop"
 slow-timeout = { period = "300s", terminate-after = 2 }
 

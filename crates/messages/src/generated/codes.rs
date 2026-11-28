@@ -236,6 +236,12 @@ pub enum MessageCode {
     ToolAskTooMany,
     QuestionSkipped,
     QuestionUnanswered,
+    ClaimNoEvidence,
+    ClaimStepFailed,
+    ClaimKindMismatch,
+    ClaimCountMismatch,
+    ClaimRecipientMismatch,
+    ClaimNotInTask,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -689,6 +695,15 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::ToolAskTooMany, "tool-ask-too-many"),
     (MessageCode::QuestionSkipped, "question-skipped"),
     (MessageCode::QuestionUnanswered, "question-unanswered"),
+    (MessageCode::ClaimNoEvidence, "claim-no-evidence"),
+    (MessageCode::ClaimStepFailed, "claim-step-failed"),
+    (MessageCode::ClaimKindMismatch, "claim-kind-mismatch"),
+    (MessageCode::ClaimCountMismatch, "claim-count-mismatch"),
+    (
+        MessageCode::ClaimRecipientMismatch,
+        "claim-recipient-mismatch",
+    ),
+    (MessageCode::ClaimNotInTask, "claim-not-in-task"),
 ];
 
 impl MessageCode {

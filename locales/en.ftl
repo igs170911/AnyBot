@@ -231,3 +231,13 @@ claim-chat-dead-link = This link points to a location on the Bot computer that c
 tool-ask-too-many = Ask at most { $questions } questions at a time with at most { $options } options each; please split into batches.
 question-skipped = The user skipped this question card.
 question-unanswered = The user did not answer this question card and sent a message instead.
+claim-no-evidence = Not linked to any evidence.
+claim-step-failed = The cited step failed.
+claim-kind-mismatch = { $expected ->
+    [send] The cited evidence is not a send action.
+    [change] The cited evidence is not a file change.
+   *[other] The cited evidence is not a command execution.
+}
+claim-count-mismatch = Claimed { $said }, but evidence has only { $found }.
+claim-recipient-mismatch = The recipient in the evidence is { $found }.
+claim-not-in-task = The cited evidence does not belong to this task.

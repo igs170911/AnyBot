@@ -129,7 +129,8 @@ fn record_payload_item(
         EvidencePayload::Executed { command, .. } => push_unique_capped(executed, command),
         EvidencePayload::Approved { .. }
         | EvidencePayload::Rejected { .. }
-        | EvidencePayload::NotExecuted { .. } => {}
+        | EvidencePayload::NotExecuted { .. }
+        | EvidencePayload::Relayed { .. } => {}
     }
 }
 

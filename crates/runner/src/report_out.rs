@@ -48,8 +48,8 @@ pub(crate) async fn emit_report(runner: &TurnRunner, ctx: &TurnCtx) -> Result<()
     }
     let goal = goal_of(&rows);
     let reply = last_reply_of(&rows);
-    let report =
-        anybot_trust::delivery_report(&rows, &goal, reply.as_deref()).map_err(TurnError::Report)?;
+    let report = anybot_trust::delivery_report_for_task(&rows, &ctx.task, &goal, reply.as_deref())
+        .map_err(TurnError::Report)?;
     runner
         .append_task_event(
             &ctx.task,

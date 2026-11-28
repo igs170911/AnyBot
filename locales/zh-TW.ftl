@@ -234,3 +234,13 @@ claim-chat-dead-link = 這個連結指到 Bot 電腦上的位置，手機打不�
 tool-ask-too-many = 一次最多只能問 { $questions } 題、每題最多 { $options } 個選項，請分批問。
 question-skipped = 使用者略過了這張問題卡。
 question-unanswered = 使用者沒有回答這張問題卡，改傳了訊息。
+claim-no-evidence = 沒有連到證據
+claim-step-failed = 引用的那一步失敗了
+claim-kind-mismatch = { $expected ->
+    [send] 引用的不是寄出
+    [change] 引用的不是改檔
+   *[other] 引用的不是指令
+}
+claim-count-mismatch = 說 { $said } 則，證據只有 { $found } 則
+claim-recipient-mismatch = 證據裡的收件人是 { $found }
+claim-not-in-task = 引用的證據不在這個任務裡

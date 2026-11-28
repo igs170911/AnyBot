@@ -48,9 +48,15 @@ pub const CODE_CLAIM_CHAT_STEP_FAILED: &str = "claim-chat-step-failed";
 pub const CODE_CLAIM_CHAT_NO_FILE: &str = "claim-chat-no-file";
 pub const CODE_CLAIM_CHAT_COUNT: &str = "claim-chat-count";
 pub const CODE_CLAIM_CHAT_DEAD_LINK: &str = "claim-chat-dead-link";
+pub const CODE_CLAIM_NO_EVIDENCE: &str = "claim-no-evidence";
+pub const CODE_CLAIM_STEP_FAILED: &str = "claim-step-failed";
+pub const CODE_CLAIM_KIND_MISMATCH: &str = "claim-kind-mismatch";
+pub const CODE_CLAIM_COUNT_MISMATCH: &str = "claim-count-mismatch";
+pub const CODE_CLAIM_RECIPIENT_MISMATCH: &str = "claim-recipient-mismatch";
+pub const CODE_CLAIM_NOT_IN_TASK: &str = "claim-not-in-task";
 
 #[must_use]
-pub fn all_codes() -> [&'static str; 50] {
+pub fn all_codes() -> [&'static str; 56] {
     [
         CODE_GATE_COMMAND_DENIED,
         CODE_GATE_PRIVATE_FILE,
@@ -102,6 +108,12 @@ pub fn all_codes() -> [&'static str; 50] {
         CODE_CLAIM_CHAT_NO_FILE,
         CODE_CLAIM_CHAT_COUNT,
         CODE_CLAIM_CHAT_DEAD_LINK,
+        CODE_CLAIM_NO_EVIDENCE,
+        CODE_CLAIM_STEP_FAILED,
+        CODE_CLAIM_KIND_MISMATCH,
+        CODE_CLAIM_COUNT_MISMATCH,
+        CODE_CLAIM_RECIPIENT_MISMATCH,
+        CODE_CLAIM_NOT_IN_TASK,
     ]
 }
 
@@ -117,6 +129,6 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), 50);
+        assert_eq!(seen.len(), 56);
     }
 }

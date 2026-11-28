@@ -58,6 +58,10 @@ pub mod private_paths;
 #[cfg(test)]
 mod private_paths_tests;
 pub mod report;
+mod report_claim_checks;
+pub mod report_claims;
+mod report_extract;
+mod report_sentences;
 pub mod runner;
 pub mod safety_always;
 pub mod safety_lock;
@@ -98,7 +102,9 @@ pub use message_codes::{
     CODE_CARD_NOTE_EVERY_TIME, CODE_CARD_NOTE_NO_SANDBOX_PRIVATE, CODE_CARD_READ_FILE,
     CODE_CARD_READ_OUTSIDE, CODE_CARD_RUN_COMMAND, CODE_CARD_UNPARSEABLE, CODE_CARD_USER_HOOK,
     CODE_CLAIM_CHAT_COUNT, CODE_CLAIM_CHAT_DEAD_LINK, CODE_CLAIM_CHAT_NO_FILE,
-    CODE_CLAIM_CHAT_STEP_FAILED, CODE_GATE_ASK_DECLINED, CODE_GATE_ASK_PENDING,
+    CODE_CLAIM_CHAT_STEP_FAILED, CODE_CLAIM_COUNT_MISMATCH, CODE_CLAIM_KIND_MISMATCH,
+    CODE_CLAIM_NO_EVIDENCE, CODE_CLAIM_NOT_IN_TASK, CODE_CLAIM_RECIPIENT_MISMATCH,
+    CODE_CLAIM_STEP_FAILED, CODE_GATE_ASK_DECLINED, CODE_GATE_ASK_PENDING,
     CODE_GATE_BOT_MACHINE_OUTSIDE, CODE_GATE_COMMAND_DENIED, CODE_GATE_DENIED,
     CODE_GATE_DENIED_BY_RULE, CODE_GATE_NO_SANDBOX, CODE_GATE_OUTSIDE_WRITE_DENIED,
     CODE_GATE_PRIVATE_FILE, CODE_GATE_TICKET_MISMATCH, CODE_GATE_USER_REJECTED,
@@ -114,7 +120,8 @@ pub use pipeline_ask::{AskTicket, CallContext, answer_ask};
 pub use pipeline_gate::{GateStep, ask_declined_run, exec_step, gate_step, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
 pub use private_paths::is_private_path;
-pub use report::{ReportFail, delivery_report, report_summary};
+pub use report::{ReportFail, delivery_report, delivery_report_for_task, report_summary};
+pub use report_claims::{VerifiedRef, count_levels, grade_reply};
 pub use runner::{GatedComputer, OpRejection, OpRejectionKind};
 pub use safety_always::{ActionSpec, concrete_actions};
 pub use safety_lock::{LockState, PolicyKey, parse_lock_value, parse_policy};
@@ -152,6 +159,10 @@ mod gate_engine_tests;
 mod gate_flow_tests;
 #[cfg(test)]
 mod gate_full_tests;
+#[cfg(test)]
+mod report_claims_prop_tests;
+#[cfg(test)]
+mod report_claims_tests;
 #[cfg(test)]
 mod safety_always_tests;
 #[cfg(test)]

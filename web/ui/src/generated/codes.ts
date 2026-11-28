@@ -232,7 +232,13 @@ export type MessageCode =
   "claim-chat-dead-link" |
   "tool-ask-too-many" |
   "question-skipped" |
-  "question-unanswered";
+  "question-unanswered" |
+  "claim-no-evidence" |
+  "claim-step-failed" |
+  "claim-kind-mismatch" |
+  "claim-count-mismatch" |
+  "claim-recipient-mismatch" |
+  "claim-not-in-task";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -467,4 +473,10 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-ask-too-many",
   "question-skipped",
   "question-unanswered",
+  "claim-no-evidence",
+  "claim-step-failed",
+  "claim-kind-mismatch",
+  "claim-count-mismatch",
+  "claim-recipient-mismatch",
+  "claim-not-in-task",
 ];
