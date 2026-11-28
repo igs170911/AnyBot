@@ -309,3 +309,18 @@ memory-contradiction-target-missing = The referenced memory to contradict does n
 memory-scan-injection = Rejected: the memory text looks like prompt injection.
 memory-scan-secret = Rejected: the memory text contains a secret or credential.
 memory-scan-invisible = Rejected: the memory text contains hidden or control characters.
+
+login-submit = Log in
+
+login-url-label = Server address
+login-account-label = Account
+login-password-label = Password
+login-create-account = Create a new account
+login-invite-label = Invite code
+login-privacy-note = The server admin ({ $admin }) can see your conversations.
+login-privacy-ack = I understand
+login-ack-required = Tick "I understand" before creating an account
+login-not-anybot = This address is not an AnyBot server
+login-unreachable = Cannot reach { $url } (no response in 15 seconds)
+login-other-origin = Open this address in your browser to log in to that server
+login-two-step-later = Two-step verification is on for this account; entering the code is not available in this version yet

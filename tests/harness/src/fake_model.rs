@@ -9,6 +9,7 @@ use axum::routing::post;
 use tokio::net::TcpListener;
 
 use crate::fake_clock::FakeClock;
+use crate::model_named::{NamedScripts, requested_model, wants_stream};
 use crate::model_plan;
 use crate::model_request::{requested_model, wants_stream};
 use crate::model_script::{
@@ -19,6 +20,7 @@ use crate::model_script::{
 #[derive(Default)]
 struct ModelInner {
     script: Script,
+    named: NamedScripts,
     recorded: Vec<RecordedRequest>,
     format: ModelFormat,
     expected_key: Option<String>,
@@ -40,6 +42,27 @@ impl FakeModel {
         for step in steps {
             inner.script.push(step);
         }
+    }
+
+    pub fn script_set_for(&self, model: &str, steps: Vec<Step>) {
+        let Ok(mut inner) = self.inner.lock() else {
+            return;
+        };
+        inner.named.set(model, steps);
+    }
+
+    pub fn script_len_for(&self, model: &str) -> usize {
+        let Ok(inner) = self.inner.lock() else {
+            return 0;
+        };
+        inner.named.len(model)
+    }
+
+    pub fn recorded_for(&self, model: &str) -> Vec<RecordedRequest> {
+        self.recorded()
+            .into_iter()
+            .filter(|request| requested_model(&request.body) == model)
+            .collect()
     }
 
     pub fn script_clear(&self) {
@@ -134,11 +157,14 @@ impl FakeModel {
         inner.header_wait.clone()
     }
 
-    fn take_step(&self) -> Option<Step> {
+    fn take_step(&self, model: &str) -> Option<Step> {
         let Ok(mut inner) = self.inner.lock() else {
             return None;
         };
-        inner.script.take()
+        match inner.named.take(model) {
+            Some(own) => own,
+            None => inner.script.take(),
+        }
     }
 }
 
@@ -199,7 +225,7 @@ async fn handle_models(
     headers: axum::http::HeaderMap,
 ) -> Response {
     model.record("/v1/models", String::new(), &headers);
-    let Some(step) = model.take_step() else {
+    let Some(step) = model.take_step("") else {
         return empty_script_response();
     };
     let (step, delay) = peel_delay(step);
@@ -227,7 +253,7 @@ pub enum ModelFormat {
 #[must_use]
 async fn respond(model: &Arc<FakeModel>, request_body: &str, format: ModelFormat) -> Response {
     let stream = wants_stream(request_body);
-    let Some(step) = model.take_step() else {
+    let Some(step) = model.take_step(&requested_model(request_body)) else {
         return empty_script_response();
     };
     let (step, delay) = peel_delay(step);

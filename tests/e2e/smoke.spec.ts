@@ -8,6 +8,7 @@ import {
   screenShowsCode,
 } from "./src/act.ts";
 import { scenarioLang } from "./src/ftl.ts";
+import { appUrl } from "./src/world.ts";
 
 const SHELL_BRAND = "AnyBot";
 
@@ -21,7 +22,7 @@ test("smoke: shell renders, no horizontal overflow, console clean", async ({ pag
   const lang = scenarioLang(test.info().project.use.locale);
   const consoleErrors = collectConsoleErrors(page);
   const zoom = test.info().project.use.maxTextZoom;
-  await page.goto("/");
+  await page.goto(appUrl("/"));
   if (zoom !== undefined) {
     await injectMaxTextZoom(page, zoom);
   }
@@ -40,7 +41,7 @@ test("T-phonefit-width-1: max text zoom with a very wide font stays inside the p
   const lang = scenarioLang(test.info().project.use.locale);
   const consoleErrors = collectConsoleErrors(page);
   const zoom = test.info().project.use.maxTextZoom;
-  await page.goto("/");
+  await page.goto(appUrl("/"));
   if (zoom !== undefined) {
     await injectMaxTextZoom(page, zoom);
   }

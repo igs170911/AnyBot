@@ -6179,8 +6179,10 @@ dependencies = [
  "axum",
  "serde",
  "serde_json",
+ "sqlx",
  "test-harness",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

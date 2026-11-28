@@ -234,6 +234,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@anybot/api-client':
+        specifier: workspace:*
+        version: link:../../web/api-client
       '@anybot/ui':
         specifier: workspace:*
         version: link:../../web/ui
@@ -301,6 +304,9 @@ importers:
 
   web/ui:
     dependencies:
+      '@anybot/api-client':
+        specifier: workspace:*
+        version: link:../api-client
       '@fluent/bundle':
         specifier: ^0.19.1
         version: 0.19.1

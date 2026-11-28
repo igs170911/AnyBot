@@ -25,6 +25,7 @@ pub mod model_anthropic;
 pub mod model_extra;
 pub(crate) mod model_hold;
 pub mod model_https;
+pub mod model_named;
 pub mod model_openai;
 pub mod model_plan;
 pub(crate) mod model_request;
@@ -62,6 +63,8 @@ pub mod realtime;
 pub mod reap;
 pub mod running;
 pub mod scratch;
+pub mod server_client;
+pub mod static_files;
 
 pub use capture::{ArcWriter, Capture, poll_contains};
 pub use cloud_map::{NameMap, cloud_name_matches, mapped_origin};

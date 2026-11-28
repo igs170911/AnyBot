@@ -312,3 +312,18 @@ memory-contradiction-target-missing = 找不到要標示矛盾的那條有效記
 memory-scan-injection = 已拒絕寫入：記憶內容帶有提示注入樣式。
 memory-scan-secret = 已拒絕寫入：記憶內容帶有金鑰或密碼樣式。
 memory-scan-invisible = 已拒絕寫入：記憶內容帶有隱藏或控制字元。
+
+login-submit = 登入
+
+login-url-label = 伺服器網址
+login-account-label = 帳號
+login-password-label = 密碼
+login-create-account = 建立新帳號
+login-invite-label = 邀請碼
+login-privacy-note = 這台伺服器的管理者（{ $admin }）看得到你的對話。
+login-privacy-ack = 我知道了
+login-ack-required = 要勾「我知道了」才能註冊
+login-not-anybot = 這個網址不是 AnyBot 伺服器
+login-unreachable = 連不到{ $url }（15 秒沒有回應）
+login-other-origin = 請在那台伺服器的網址打開
+login-two-step-later = 這個帳號開了兩步驟驗證；這個版本還不能輸入驗證碼

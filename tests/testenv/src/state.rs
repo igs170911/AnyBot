@@ -8,6 +8,10 @@ use test_harness::fake_push::FakePush;
 
 use std::sync::Arc;
 
+use crate::locks::LockTable;
+use crate::seed::Admin;
+use test_harness::server_client::ServerApi;
+
 #[derive(Clone, Serialize)]
 pub struct EnvPorts {
     pub server_port: u16,
@@ -23,6 +27,10 @@ pub struct TestEnvState {
     pub push: Arc<FakePush>,
     pub net: Arc<NetCtl>,
     pub pg: PgInstance,
+    pub pool: anybot_server::Pool,
+    pub api: ServerApi,
+    pub admin: Admin,
+    pub locks: LockTable,
     pub ports: EnvPorts,
 }
 
