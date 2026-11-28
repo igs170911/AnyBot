@@ -16,10 +16,12 @@ pub(crate) fn executed_run(
     clock: &dyn Clock,
 ) -> ActionRun {
     let gate = ticket.gate().clone();
+    let caps = ticket.caps().clone();
     let plan = plan_of(&ticket);
     let op = perform(ticket, computer);
     match op {
-        Ok(result) => {
+        Ok(mut result) => {
+            crate::listing_prune::prune_private_entries(&mut result, &caps);
             let verification = verify(&plan, &result, computer, clock);
             let evidence = verified_evidence(&request.context, &gate, &result, verification, clock);
             let model = view.result_text(&request.context.tool, &result);
