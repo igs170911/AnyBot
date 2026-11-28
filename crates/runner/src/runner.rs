@@ -11,6 +11,7 @@ use anybot_protocol::{
 
 use crate::card_wait::TaskWatch;
 use crate::error::TurnError;
+use crate::fallback::ModelReach;
 use crate::record::{Appended, NewTaskEvent, RawStore, Record, RecordEntry, Stored, UserLine};
 use crate::steer::{ActiveSteer, ClearOnDrop, Steer, SteerQueued};
 use crate::step::{StepFlow, run_step};
@@ -27,6 +28,7 @@ pub struct BotProfile {
 
 pub struct TurnModel {
     pub primary: ModelRef,
+    pub fallbacks: Vec<ModelRef>,
     pub thinking: ThinkingMode,
     pub capability: Capability,
     pub calibration: Calibration,
@@ -45,6 +47,7 @@ pub struct RunnerParts {
     pub tools: Vec<ToolSpec>,
     pub lang: Option<Lang>,
     pub computer: ComputerRef,
+    pub model_reach: Arc<dyn ModelReach>,
 }
 
 pub struct TurnCtx {
@@ -54,6 +57,7 @@ pub struct TurnCtx {
     pub(crate) turn_started: u64,
     pub(crate) initiator: TurnInitiator,
     pub(crate) evidence: tokio::sync::Mutex<u32>,
+    pub(crate) active_model: std::sync::Mutex<Option<TurnModel>>,
 }
 
 pub struct UserMessage {
@@ -81,6 +85,7 @@ pub struct TurnRunner {
     pub(crate) tools: Vec<ToolSpec>,
     pub(crate) lang: Lang,
     pub(crate) computer: ComputerRef,
+    pub(crate) model_reach: Arc<dyn ModelReach>,
     active: Arc<tokio::sync::Mutex<()>>,
     pub(crate) parked: std::sync::Mutex<Vec<crate::approvals::PendingCard>>,
     pub(crate) last_ctx: std::sync::Mutex<Option<TurnCtx>>,
@@ -103,6 +108,7 @@ impl TurnRunner {
             tools: parts.tools,
             lang,
             computer: parts.computer,
+            model_reach: parts.model_reach,
             active: Arc::new(tokio::sync::Mutex::new(())),
             parked: std::sync::Mutex::new(Vec::new()),
             last_ctx: std::sync::Mutex::new(None),
@@ -160,6 +166,7 @@ impl TurnRunner {
             turn_started: started.stream_seq,
             initiator,
             evidence: tokio::sync::Mutex::new(1),
+            active_model: std::sync::Mutex::new(None),
         };
         crate::steer::begin_turn(self, task, turn, true);
         let reason = self.run_turn_loop(&ctx).await?;

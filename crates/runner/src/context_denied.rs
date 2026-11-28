@@ -215,3 +215,7 @@ fn normalize_params(code: &str, params: &[(String, String)]) -> Vec<(String, Str
     }
     out
 }
+
+#[cfg(test)]
+#[path = "context_input_tests.rs"]
+mod tests;

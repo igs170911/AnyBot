@@ -76,6 +76,7 @@ async fn open_continued_ctx_from(
         turn_started: started.stream_seq,
         initiator,
         evidence: tokio::sync::Mutex::new(evidence_start),
+        active_model: std::sync::Mutex::new(None),
     })
 }
 

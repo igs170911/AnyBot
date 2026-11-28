@@ -44,6 +44,7 @@ pub struct AskPlan<'a> {
 pub const REST_MS: u64 = 10 * 60 * 1_000;
 pub const MAX_FALLBACKS: usize = 8;
 
+#[derive(Debug)]
 pub struct ModelRef {
     pub endpoint: ProviderEndpoint,
     pub bot_context: Option<u64>,
@@ -238,6 +239,10 @@ impl Session {
         Err(crate::session_io::exhausted(last, skips, &self.resting))
     }
 
+    pub async fn ask_step(&mut self, plan: &mut AskPlan<'_>) -> Result<AskOutcome, GatewayFail> {
+        crate::session_ask_step::ask_single(self, plan).await
+    }
+
     pub(crate) async fn wait_or_stop(
         &self,
         fail: &mut ask::AttemptFail,
@@ -283,6 +288,6 @@ impl Session {
     }
 }
 
-fn needs_key(kind: ProviderKind) -> bool {
+pub(crate) fn needs_key(kind: ProviderKind) -> bool {
     !matches!(kind, ProviderKind::Ollama | ProviderKind::Custom)
 }

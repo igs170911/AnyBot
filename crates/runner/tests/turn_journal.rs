@@ -77,6 +77,7 @@ async fn start_journal_runner(name: &str, setup: &WorldSetup) -> Result<RunnerEn
         tools: setup.tools.clone(),
         lang: setup.lang,
         computer: computer_of(setup),
+        model_reach: Arc::new(anybot_runner::NoOnlineModelReach),
     }));
     Ok(RunnerEnv {
         runner,

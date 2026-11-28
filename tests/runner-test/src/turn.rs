@@ -34,6 +34,10 @@ pub struct WorldSetup {
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
     pub gate: anybot_trust::GateConfig,
     pub budget_overrides: Vec<(BudgetItem, u64)>,
+    pub primary_name: Option<String>,
+    pub primary_port_override: Option<u16>,
+    pub fallbacks: Vec<FallbackTarget>,
+    pub model_reach: Option<Arc<dyn anybot_runner::ModelReach>>,
 }
 
 impl Default for WorldSetup {
@@ -53,31 +57,11 @@ impl Default for WorldSetup {
             scripts: Vec::new(),
             gate: anybot_trust::GateConfig::plain(),
             budget_overrides: Vec::new(),
+            primary_name: None,
+            primary_port_override: None,
+            fallbacks: Vec::new(),
+            model_reach: None,
         }
-    }
-}
-
-#[must_use]
-pub fn read_file_spec() -> ToolSpec {
-    ToolSpec {
-        name: "read_file".to_owned(),
-        description: "Read a file".to_owned(),
-        parameters: serde_json::json!({
-            "type": "object",
-            "properties": { "path": { "type": "string" } }
-        }),
-    }
-}
-
-#[must_use]
-pub fn tool_spec(name: &str, description: &str) -> ToolSpec {
-    ToolSpec {
-        name: name.to_owned(),
-        description: description.to_owned(),
-        parameters: serde_json::json!({
-            "type": "object",
-            "properties": { "path": { "type": "string" } }
-        }),
     }
 }
 
@@ -130,6 +114,10 @@ impl TurnWorld {
         let built = Arc::new(builder.build());
         let gated = Arc::clone(&built);
         let gated_dyn: Arc<dyn anybot_trust::GatedComputer> = built;
+        let model_reach = setup
+            .model_reach
+            .clone()
+            .unwrap_or_else(|| Arc::new(anybot_runner::NoOnlineModelReach));
         let runner = Arc::new(TurnRunner::new(RunnerParts {
             gated: gated_dyn,
             record: crate::mem_store::share_record(&record),
@@ -142,6 +130,7 @@ impl TurnWorld {
             tools: setup.tools.clone(),
             lang: setup.lang,
             computer: computer_of(setup),
+            model_reach,
         }));
         Ok(Self {
             gated,
@@ -287,8 +276,9 @@ pub fn arc_world(world: TurnWorld) -> Arc<TurnWorld> {
     Arc::new(world)
 }
 
-use crate::turn_setup::{apply_world_files, make_record, share_raw};
 pub use crate::turn_setup::{
-    bot_profile, build_session, capability_of, computer_of, local_endpoint, model_name_of_setup,
-    provider_kind, share_clock, turn_model, wire_format,
+    FallbackTarget, bot_profile, build_session, capability_of, computer_of, local_endpoint,
+    model_name_of_setup, provider_kind, read_file_spec, share_clock, tool_spec, turn_model,
+    wire_format,
 };
+use crate::turn_setup::{apply_world_files, make_record, share_raw};

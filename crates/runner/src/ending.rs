@@ -6,7 +6,9 @@ pub const CODE_MODEL_FAILED: &str = "turn-model-failed";
 #[must_use]
 pub fn end_reason(fail: &GatewayFail) -> TurnEndReason {
     match fail {
-        GatewayFail::Classified { classified, .. } => classified_reason(classified),
+        GatewayFail::Classified { classified, .. } | GatewayFail::Exhausted { classified, .. } => {
+            classified_reason(classified)
+        }
         GatewayFail::MissingKey
         | GatewayFail::KeyDestination
         | GatewayFail::Status(_)

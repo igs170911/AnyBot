@@ -127,6 +127,7 @@ async fn run_and_verify(
         tools: setup.tools.clone(),
         lang: None,
         computer: computer_of(setup),
+        model_reach: Arc::new(anybot_runner::NoOnlineModelReach),
     }));
     let device = anybot_foundation::DeviceId::generate(clock_dyn.as_ref());
     let fut = runner.on_user_message(UserMessage {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anybot_foundation::{BotId, TaskId, TrustedCerts};
 use anybot_models::{
     Calibration, Capability, DataPolicy, ModelRef, ProviderEndpoint, ProviderKind, Session,
-    ThinkingMode, gateway, resolve, resolve_endpoint,
+    ThinkingMode, ToolSpec, gateway, resolve, resolve_endpoint,
 };
 use anybot_protocol::{ComputerRef, KnownTaskEventKind};
 use anybot_runner::{BotProfile, TurnModel};
@@ -13,6 +13,38 @@ use crate::fake_computer::FakeComputer;
 use crate::mem_store::{MemoryRaw, MemoryRecord};
 use crate::mem_watch::MemoryWatch;
 use crate::turn::{TurnWorld, WorldSetup};
+
+#[derive(Clone)]
+pub struct FallbackTarget {
+    pub format: ModelFormat,
+    pub port: u16,
+    pub model: String,
+    pub bot_context: u64,
+}
+
+#[must_use]
+pub fn read_file_spec() -> ToolSpec {
+    ToolSpec {
+        name: "read_file".to_owned(),
+        description: "Read a file".to_owned(),
+        parameters: serde_json::json!({
+            "type": "object",
+            "properties": { "path": { "type": "string" } }
+        }),
+    }
+}
+
+#[must_use]
+pub fn tool_spec(name: &str, description: &str) -> ToolSpec {
+    ToolSpec {
+        name: name.to_owned(),
+        description: description.to_owned(),
+        parameters: serde_json::json!({
+            "type": "object",
+            "properties": { "path": { "type": "string" } }
+        }),
+    }
+}
 
 pub(crate) fn apply_world_files(
     computer: crate::fake_builder::FakeComputerBuilder,
@@ -140,13 +172,29 @@ pub fn model_name_of_setup(format: ModelFormat) -> &'static str {
 #[must_use]
 pub fn turn_model(setup: &WorldSetup, port: u16) -> TurnModel {
     let kind = provider_kind(setup.format);
-    let name = model_name_of_setup(setup.format);
-    let endpoint = local_endpoint(kind, setup.format, port, name);
+    let name = setup
+        .primary_name
+        .as_deref()
+        .unwrap_or_else(|| model_name_of_setup(setup.format));
+    let actual_port = setup.primary_port_override.unwrap_or(port);
+    let endpoint = local_endpoint(kind, setup.format, actual_port, name);
+    let fallbacks = setup
+        .fallbacks
+        .iter()
+        .map(|target| {
+            let fb_kind = provider_kind(target.format);
+            ModelRef {
+                endpoint: local_endpoint(fb_kind, target.format, target.port, &target.model),
+                bot_context: Some(target.bot_context),
+            }
+        })
+        .collect();
     TurnModel {
         primary: ModelRef {
             endpoint,
             bot_context: Some(setup.bot_context),
         },
+        fallbacks,
         thinking: ThinkingMode::Auto,
         capability: capability_of(kind, name, setup.bot_context),
         calibration: Calibration::new(),

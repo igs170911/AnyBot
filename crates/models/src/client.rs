@@ -245,6 +245,12 @@ fn policy_blocked() -> GatewayFail {
 }
 
 #[derive(Debug)]
+pub struct ModelChoice {
+    pub model: crate::session::ModelRef,
+    pub reason_code: &'static str,
+}
+
+#[derive(Debug)]
 pub enum GatewayFail {
     MissingKey,
     KeyDestination,
@@ -252,6 +258,11 @@ pub enum GatewayFail {
     Transport(crate::transport::TransportFail),
     Stopped,
     Classified {
+        classified: crate::errors::Classified,
+        notices: Vec<crate::notice::Notice>,
+    },
+    Exhausted {
+        fallback: Option<Box<ModelChoice>>,
         classified: crate::errors::Classified,
         notices: Vec<crate::notice::Notice>,
     },
