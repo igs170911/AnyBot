@@ -1,6 +1,7 @@
 use crate::action::{ActionSubject, GateAction, PathView};
+use crate::always_list::AlwaysList;
 use crate::safety_n5::ActionClass;
-use crate::sandbox_levels::{CommandLevel, command_level};
+use crate::sandbox_levels::{CommandLevel, command_level_with_always};
 use anybot_protocol::{ComputerCaps, ComputerOwner};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,10 +40,20 @@ impl RuleVerdict {
 
 #[must_use]
 pub fn default_rule(action: &GateAction, caps: &ComputerCaps) -> RuleVerdict {
+    default_rule_with_always(action, caps, &AlwaysList::default(), "")
+}
+
+#[must_use]
+pub fn default_rule_with_always(
+    action: &GateAction,
+    caps: &ComputerCaps,
+    always: &AlwaysList,
+    computer: &str,
+) -> RuleVerdict {
     if caps.owner == ComputerOwner::Bot {
         return bot_machine_rule(action);
     }
-    user_machine_rule(action, caps)
+    user_machine_rule(action, caps, always, computer)
 }
 
 fn bot_machine_rule(action: &GateAction) -> RuleVerdict {
@@ -76,7 +87,7 @@ fn bot_command_rule(action: &GateAction, line: &str) -> RuleVerdict {
     }
     let classes = crate::safety_n5::classes_of_command(line);
     if classes.iter().copied().any(is_outbound_class) {
-        return RuleVerdict::of(MachineLevel::AskEveryTime, "bot-machine-sending", false);
+        return RuleVerdict::of(MachineLevel::Ask, "bot-machine-sending", false);
     }
     if classes.contains(&ActionClass::Delete) {
         let targets = delete_targets(action);
@@ -88,7 +99,7 @@ fn bot_command_rule(action: &GateAction, line: &str) -> RuleVerdict {
             );
         }
         if targets.iter().all(|p| inside_workdir(p, &action.workdir)) {
-            return RuleVerdict::of(MachineLevel::Direct, "bot-machine-own-folder", false);
+            return RuleVerdict::of(MachineLevel::Direct, "bot-computer-own-folder", false);
         }
         return RuleVerdict::of(
             MachineLevel::AskEveryTime,
@@ -114,7 +125,12 @@ fn delete_targets(action: &GateAction) -> Vec<&PathView> {
     action.path_views()
 }
 
-fn user_machine_rule(action: &GateAction, caps: &ComputerCaps) -> RuleVerdict {
+fn user_machine_rule(
+    action: &GateAction,
+    caps: &ComputerCaps,
+    always: &AlwaysList,
+    computer: &str,
+) -> RuleVerdict {
     if !caps.command_sandbox.yes() {
         return RuleVerdict::of(MachineLevel::AskEveryTime, "user-machine-no-sandbox", false);
     }
@@ -129,12 +145,12 @@ fn user_machine_rule(action: &GateAction, caps: &ComputerCaps) -> RuleVerdict {
         ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
             user_file_rule(action, path, false)
         }
-        ActionSubject::Command { line, .. } => user_command_rule(line),
+        ActionSubject::Command { line, .. } => user_command_rule(line, always, computer),
     }
 }
 
 fn user_file_rule(action: &GateAction, path: &PathView, read_only: bool) -> RuleVerdict {
-    if !read_only && !inside_workdir(path, &action.workdir) {
+    if !read_only && is_outside_write(path, &action.workdir) {
         return RuleVerdict::of(
             MachineLevel::AskEveryTime,
             "user-machine-outside-write",
@@ -144,18 +160,24 @@ fn user_file_rule(action: &GateAction, path: &PathView, read_only: bool) -> Rule
     RuleVerdict::of(MachineLevel::AskEveryTime, "user-machine-files", read_only)
 }
 
-fn user_command_rule(line: &str) -> RuleVerdict {
+fn user_command_rule(line: &str, always: &AlwaysList, computer: &str) -> RuleVerdict {
     if let Some(code) = crate::sandbox_peel::unreadable_reason(line) {
         return RuleVerdict::of(MachineLevel::AskEveryTime, code, false);
     }
+    let level = command_level_with_always(line, always, computer);
+    if level == CommandLevel::AskEveryTime {
+        return RuleVerdict::of(
+            MachineLevel::AskEveryTime,
+            "user-machine-ask-every-time",
+            false,
+        );
+    }
     let classes = crate::safety_n5::classes_of_command(line);
     if classes.iter().copied().any(is_outbound_class) || classes.contains(&ActionClass::Delete) {
-        return RuleVerdict::of(MachineLevel::AskEveryTime, "safety-n5-outbound", false);
+        return RuleVerdict::of(MachineLevel::Ask, "safety-n5-outbound", false);
     }
-    match command_level(line) {
-        CommandLevel::Direct => {
-            RuleVerdict::of(MachineLevel::Direct, "user-machine-read-only", true)
-        }
+    match level {
+        CommandLevel::Direct => RuleVerdict::of(MachineLevel::Direct, "read-only-command", true),
         CommandLevel::AskEveryTime => RuleVerdict::of(
             MachineLevel::AskEveryTime,
             "user-machine-ask-every-time",
@@ -173,4 +195,26 @@ pub fn inside_workdir(path: &PathView, workdir: &str) -> bool {
     let base = workdir.trim_end_matches('/');
     let target = path.effective(base);
     target == base || target.starts_with(&format!("{base}/"))
+}
+
+#[must_use]
+pub(crate) fn is_git_hook_or_config(path: &PathView, workdir: &str) -> bool {
+    if !path.is_resolvable() {
+        return false;
+    }
+    let base = workdir.trim_end_matches('/');
+    let target = path.effective(base);
+    let prefix = if base.is_empty() {
+        "/".to_owned()
+    } else {
+        format!("{base}/")
+    };
+    let rel = target.strip_prefix(&prefix).unwrap_or("");
+    let lower = rel.to_ascii_lowercase();
+    lower == ".git/config" || lower == ".git/hooks" || lower.starts_with(".git/hooks/")
+}
+
+#[must_use]
+pub(crate) fn is_outside_write(path: &PathView, workdir: &str) -> bool {
+    !inside_workdir(path, workdir) || is_git_hook_or_config(path, workdir)
 }

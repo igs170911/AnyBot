@@ -78,7 +78,22 @@ pub(crate) async fn record_result(
     run: &ActionRun,
     view: &ActionView,
 ) -> Result<(), TurnError> {
-    let text = view.render(&run.model)?;
+    record_result_noted(runner, ctx, request, run, view, None).await
+}
+
+pub(crate) async fn record_result_noted(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    run: &ActionRun,
+    view: &ActionView,
+    note: Option<String>,
+) -> Result<(), TurnError> {
+    let rendered = view.render(&run.model)?;
+    let text = match note {
+        Some(note) => format!("{note} {rendered}"),
+        None => rendered,
+    };
     let json = crate::action::args_json(&request.arguments)?;
     if run.summary.status.code == CODE_TURN_REJECTED {
         return Ok(());
@@ -94,6 +109,7 @@ pub(crate) async fn record_result(
     };
     let summary = combine_body(&run.model.code, text, shell.or_else(|| view.take_body()));
     if run.summary.status.code == CODE_TURN_COMPLETED {
+        let summary = with_computer_prefix(runner, &summary);
         runner
             .append_turn_event(
                 ctx,
@@ -118,6 +134,19 @@ pub(crate) async fn record_result(
             )
             .await
             .map(|_| ())
+    }
+}
+
+fn with_computer_prefix(runner: &TurnRunner, text: &str) -> String {
+    if runner.gated.declared_caps().owner != anybot_protocol::ComputerOwner::User {
+        return text.to_owned();
+    }
+    let name = runner.gated.name();
+    let prefix = format!("[{name}] ");
+    if text.starts_with(&prefix) {
+        text.to_owned()
+    } else {
+        format!("{prefix}{text}")
     }
 }
 

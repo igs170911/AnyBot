@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anybot_protocol::{SearchCut, SearchEngine, SearchHit, SearchOutcome, SearchRequest};
-use anybot_trust::trust_floor::is_private_path;
+use anybot_trust::is_private_path;
 use test_harness::FakeClock;
 
 use crate::fake_files::FileTree;
@@ -66,7 +66,7 @@ impl Matcher {
 
 #[must_use]
 pub fn skipped(engine: SearchEngine, path: &str) -> bool {
-    if is_private_path(path) || is_private_path(&format!("~/{}", path.trim_start_matches('/'))) {
+    if is_private_path(path, "", "") {
         return true;
     }
     for segment in path.split(['/', '\\']) {

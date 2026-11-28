@@ -223,6 +223,17 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
                 card: format!("card-{q}"),
                 kind: anybot_protocol::CardKind::Action,
                 resume: None,
+                buttons: vec![
+                    anybot_protocol::CardButton::AllowOnce,
+                    anybot_protocol::CardButton::Deny,
+                ],
+                reason: anybot_protocol::ReasonPayload {
+                    code: "card-run-command".to_owned(),
+                    params: Vec::new(),
+                },
+                always_label: None,
+                notes: Vec::new(),
+                classes: Vec::new(),
             },
         ));
     }

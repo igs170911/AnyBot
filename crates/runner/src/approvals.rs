@@ -1,25 +1,28 @@
-use anybot_protocol::{CardAnswer, KnownTaskEventKind, NotRunReason, ToolRequest, TurnInitiator};
-use anybot_trust::{ActionRun, AskTicket, GateAnswer};
+use anybot_protocol::{CardAnswer, KnownTaskEventKind, ToolRequest, TurnInitiator};
+use anybot_trust::{ActionRun, AskTicket};
 
 use std::sync::Arc;
 
 use anybot_foundation::{TaskId, TurnId};
 
-use crate::action::OneAction;
+use crate::answer_how::AnswerHow;
 use crate::error::TurnError;
-use crate::record::Halt;
 use crate::runner::{TurnCtx, TurnRunner};
 use crate::view::ActionView;
 
 #[derive(Debug)]
 pub struct PendingCard {
     pub digest: String,
+    pub(crate) task: TaskId,
+    pub(crate) turn: u32,
+    pub(crate) parked_at_ms: u64,
     pub tool: String,
     pub computer: String,
     pub actions: Vec<String>,
-    ticket: AskTicket,
-    request: ToolRequest,
-    view: ActionView,
+    pub(crate) buttons: Vec<anybot_protocol::CardButton>,
+    pub(crate) ticket: AskTicket,
+    pub(crate) request: ToolRequest,
+    pub(crate) view: ActionView,
 }
 
 impl PendingCard {
@@ -29,58 +32,48 @@ impl PendingCard {
     }
 }
 
-pub(crate) fn store_parked(
+pub(crate) fn shown_card(
     runner: &TurnRunner,
+    ctx: &TurnCtx,
     request: &ToolRequest,
     view: ActionView,
     ticket: AskTicket,
-) -> Result<(), TurnError> {
+) -> Result<(PendingCard, KnownTaskEventKind), TurnError> {
+    let card_view = ticket.card_view()?;
+    let digest = ticket.card_digest();
+    let shown = KnownTaskEventKind::CardShown {
+        action: card_view.action,
+        card: digest.clone(),
+        kind: card_view.kind,
+        resume: None,
+        buttons: card_view.buttons.clone(),
+        reason: card_view.reason,
+        always_label: card_view.always_label,
+        notes: card_view.notes,
+        classes: card_view.classes,
+    };
     let card = PendingCard {
-        digest: ticket.card_digest(),
+        digest,
+        task: ctx.task,
+        turn: ctx.turn,
+        parked_at_ms: runner.clock.now_ms().millis(),
         tool: request.tool.clone(),
         computer: ticket.computer_name().to_owned(),
-        actions: ticket.card().actions.clone(),
+        actions: card_view.actions,
+        buttons: card_view.buttons,
         ticket,
         request: request.clone(),
         view,
     };
+    Ok((card, shown))
+}
+
+pub(crate) fn store_parked(runner: &TurnRunner, card: PendingCard) -> Result<(), TurnError> {
     let Ok(mut guard) = runner.parked.lock() else {
         return Err(TurnError::ParkedBusy);
     };
     guard.push(card);
     Ok(())
-}
-
-pub(crate) async fn finish_in_turn_approval(
-    runner: &TurnRunner,
-    ctx: &TurnCtx,
-    request: &ToolRequest,
-    ticket: &AskTicket,
-    view: &ActionView,
-    answer: CardAnswer,
-) -> Result<OneAction, TurnError> {
-    if let CardAnswer::AllowOnce | CardAnswer::AllowConversation | CardAnswer::AlwaysAllow = answer
-        && let Some(halt) = crate::halt::check_halt(runner, ctx).await?
-    {
-        crate::action_record::record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
-        return Ok(OneAction::Halted(halt));
-    }
-    let computer = runner.gated_ref();
-    let gate = gate_answer_of(answer);
-    let run = anybot_trust::answer_ask(ticket, gate, &*computer, view, &*runner.clock);
-    match answer {
-        CardAnswer::Deny => {
-            crate::action_record::record_denied(runner, ctx, request, &run).await?;
-            record_refusal(runner, ctx, request, &run, view).await?;
-            Ok(OneAction::Refused)
-        }
-        CardAnswer::AllowOnce | CardAnswer::AllowConversation | CardAnswer::AlwaysAllow => {
-            match record_approval_run(runner, ctx, request, &run, view).await? {
-                Some(halt) => Ok(OneAction::Halted(halt)),
-                None => Ok(OneAction::Done),
-            }
-        }
-    }
 }
 
 pub(crate) async fn record_ask_summary(
@@ -117,109 +110,59 @@ pub async fn resolve_approval(
     card: &PendingCard,
     answer: CardAnswer,
 ) -> Result<(), TurnError> {
-    let gate = gate_answer_of(answer);
-    runner
-        .append_turn_event(ctx, KnownTaskEventKind::CardAnswered { answer })
-        .await?;
-    let computer = runner.gated_ref();
-    let run = anybot_trust::answer_ask(&card.ticket, gate, &*computer, &card.view, &*runner.clock);
-    match answer {
-        CardAnswer::Deny => {
-            crate::action_record::record_denied(runner, ctx, &card.request, &run).await?;
-            record_refusal(runner, ctx, &card.request, &run, &card.view).await
-        }
-        CardAnswer::AllowOnce | CardAnswer::AllowConversation | CardAnswer::AlwaysAllow => {
-            record_approval_run(runner, ctx, &card.request, &run, &card.view)
-                .await
-                .map(|_| ())
-        }
-    }
+    resolve_approval_by(runner, ctx, card, answer, AnswerHow::hand()).await
 }
 
-async fn record_approval_run(
+pub async fn resolve_approval_by(
     runner: &TurnRunner,
     ctx: &TurnCtx,
-    request: &ToolRequest,
-    run: &ActionRun,
-    view: &ActionView,
-) -> Result<Option<Halt>, TurnError> {
-    crate::action_record::record_gate(runner, ctx, request.call_id, &run.gate).await?;
-    if let Some(halt) =
-        crate::action_record::record_intent_start(runner, ctx, request, &run.gate).await?
-    {
-        crate::action_record::record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
-        return Ok(Some(halt));
-    }
-    if let Some(word) = crate::action::model_word(&run.summary.status) {
-        let reason = crate::action::not_run_reason_of(&word);
-        crate::action_record::record_not_run(runner, ctx, request, reason).await?;
-        return Ok(None);
-    }
-    crate::action_record::record_result(runner, ctx, request, run, view).await?;
-    let ids = crate::action_record::record_evidence(runner, ctx, &run.evidence).await?;
-    crate::action_record::record_verified(runner, ctx, request.call_id, run, ids).await?;
-    Ok(None)
-}
-
-fn gate_answer_of(answer: CardAnswer) -> GateAnswer {
-    match answer {
-        CardAnswer::AllowOnce | CardAnswer::AllowConversation | CardAnswer::AlwaysAllow => {
-            GateAnswer::Allow
-        }
-        CardAnswer::Deny => GateAnswer::Deny,
-    }
-}
-
-async fn record_refusal(
-    runner: &TurnRunner,
-    ctx: &TurnCtx,
-    request: &ToolRequest,
-    run: &ActionRun,
-    view: &ActionView,
+    card: &PendingCard,
+    answer: CardAnswer,
+    how: AnswerHow,
 ) -> Result<(), TurnError> {
-    let refusal = view.render(&anybot_trust::OutcomeText::of(
-        anybot_trust::CODE_GATE_ASK_DECLINED,
-        Vec::new(),
-    ))?;
-    let text = view.render(&anybot_trust::OutcomeText::of(
-        "gate-denied",
-        vec![
-            ("computer".to_owned(), view.computer_name().to_owned()),
-            ("rule".to_owned(), run.gate.rule.clone()),
-            ("refusal".to_owned(), refusal),
-        ],
-    ))?;
+    crate::answer_effects::ensure_offered(card, answer)?;
+    let existing = runner.record.task_events(ctx.task).await?;
+    let next = max_evidence_short(&existing).saturating_add(1);
+    ctx.advance_evidence_to(next);
     runner
         .append_turn_event(
             ctx,
-            KnownTaskEventKind::ToolCompleted {
-                call_id: request.call_id,
-                summary: text,
-                raw_id: None,
+            KnownTaskEventKind::CardAnswered {
+                answer,
+                origin: how.origin,
             },
         )
-        .await
-        .map(|_| ())
+        .await?;
+    let result = crate::approval_run::apply_answer(runner, ctx, card, answer, how).await;
+    refresh_last_ctx(runner, ctx);
+    result.map(|_| ())
 }
 
-pub(crate) fn first_action(ticket: &AskTicket) -> String {
-    ticket
-        .card()
-        .actions
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "approval".to_owned())
+fn refresh_last_ctx(runner: &TurnRunner, ctx: &TurnCtx) {
+    if let Ok(mut guard) = runner.last_ctx.lock()
+        && guard.as_ref().is_some_and(|prev| prev.task == ctx.task)
+    {
+        *guard = Some(ctx.clone());
+    }
 }
 
 impl TurnRunner {
+    pub fn take_parked_cards(&self) -> Vec<PendingCard> {
+        take_parked(self)
+    }
+
     pub fn approval_context(&self, task: TaskId, turn: u32) -> TurnCtx {
+        let next = self
+            .last_ctx()
+            .filter(|ctx| ctx.task == task)
+            .map_or(1, |ctx| ctx.peek_evidence());
         TurnCtx {
             task,
             turn,
             turn_id: TurnId::generate(&*self.clock),
             turn_started: 0,
             initiator: TurnInitiator::Verification,
-            evidence: tokio::sync::Mutex::new(1_000),
+            evidence: tokio::sync::Mutex::new(next),
             active_model: std::sync::Mutex::new(None),
             tools: Vec::new(),
         }
@@ -233,15 +176,24 @@ impl TurnRunner {
         guard.clone()
     }
 
-    pub fn bump_evidence(ctx: &TurnCtx) {
-        let Ok(mut guard) = ctx.evidence.try_lock() else {
-            return;
-        };
-        *guard = guard.saturating_add(1_000);
-    }
-
     #[must_use]
     pub fn gated_ref(&self) -> Arc<dyn anybot_trust::GatedComputer> {
         Arc::clone(&self.gated)
     }
+}
+
+fn max_evidence_short(events: &[anybot_protocol::TaskEvent]) -> u32 {
+    events
+        .iter()
+        .filter_map(|event| {
+            let anybot_protocol::TaskEventKind::Known(KnownTaskEventKind::EvidenceAdded {
+                record,
+            }) = &event.kind
+            else {
+                return None;
+            };
+            Some(record.short.number())
+        })
+        .max()
+        .unwrap_or(0)
 }

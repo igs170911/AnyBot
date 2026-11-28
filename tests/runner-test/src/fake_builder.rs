@@ -59,9 +59,14 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
-    pub fn bot_machine(self) -> Self {
-        let declared = ComputerCaps::declared(ComputerPlatform::BotMachine, ComputerOwner::Bot);
-        self.caps(declared).commands().files()
+    pub fn bot_machine(mut self) -> Self {
+        let home = self.caps.home_dir.clone();
+        let anybot_dir = self.caps.anybot_dir.clone();
+        let mut declared = ComputerCaps::declared(ComputerPlatform::BotMachine, ComputerOwner::Bot);
+        declared.home_dir = home;
+        declared.anybot_dir = anybot_dir;
+        self = self.caps(declared);
+        self.commands().files()
     }
 
     #[must_use]
@@ -80,31 +85,49 @@ impl FakeComputerBuilder {
     }
 
     #[must_use]
-    pub fn sandbox(self, on: bool) -> Self {
-        let caps = ComputerCaps {
-            command_sandbox: if on {
-                anybot_protocol::CapState::Supported
-            } else {
-                anybot_protocol::CapState::Unsupported
-            },
-            ..self.caps
+    pub fn sandbox(mut self, on: bool) -> Self {
+        self.caps.command_sandbox = if on {
+            anybot_protocol::CapState::Supported
+        } else {
+            anybot_protocol::CapState::Unsupported
         };
-        self.caps(caps)
+        self
     }
 
     #[must_use]
-    pub fn platform(self, platform: ComputerPlatform) -> Self {
-        let caps = ComputerCaps::declared(platform, self.caps.owner);
-        self.caps(caps)
+    pub fn platform(mut self, platform: ComputerPlatform) -> Self {
+        let home = self.caps.home_dir.clone();
+        let anybot_dir = self.caps.anybot_dir.clone();
+        let mut caps = ComputerCaps::declared(platform, self.caps.owner);
+        caps.home_dir = home;
+        caps.anybot_dir = anybot_dir;
+        self.caps = caps;
+        self
     }
 
     #[must_use]
-    pub fn user_machine(self) -> Self {
-        let caps = ComputerCaps {
-            owner: ComputerOwner::User,
-            ..self.caps
-        };
-        self.caps(caps)
+    pub fn home_dir(mut self, home: &str) -> Self {
+        home.clone_into(&mut self.caps.home_dir);
+        self.tree.set_home_dir(home);
+        self
+    }
+
+    #[must_use]
+    pub fn anybot_dir(mut self, dir: &str) -> Self {
+        dir.clone_into(&mut self.caps.anybot_dir);
+        self
+    }
+
+    #[must_use]
+    pub fn case_insensitive(mut self, on: bool) -> Self {
+        self.tree.set_case_insensitive(on);
+        self
+    }
+
+    #[must_use]
+    pub fn user_machine(mut self) -> Self {
+        self.caps.owner = ComputerOwner::User;
+        self
     }
 
     #[must_use]

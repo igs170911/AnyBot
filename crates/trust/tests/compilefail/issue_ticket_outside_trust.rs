@@ -1,10 +1,10 @@
-use anybot_protocol::{GateOutcome, GateNo, JudgementSource, RuleLayer};
+use anybot_protocol::{GateOutcome, GateStep, JudgementSource, RuleLayer};
 
 fn main() {
     let subject = anybot_trust::ActionSubject::Capabilities;
     let key = anybot_trust::ActionKey::capabilities("shell");
     let gate = anybot_protocol::GateRecord::new(
-        GateNo(1),
+        GateStep::DefaultRule,
         RuleLayer::Default,
         "r".to_owned(),
         JudgementSource::Rule,

@@ -45,6 +45,14 @@ fn npm_call(id: &str) -> test_harness::Step {
     )
 }
 
+fn make_test_call(id: &str) -> test_harness::Step {
+    model_tool_calls(
+        vec![call("shell", "{\"command\":\"make test\"}", id)],
+        "tool_calls",
+        false,
+    )
+}
+
 async fn join_turn(
     bg: tokio::task::JoinHandle<Result<anybot_runner::TurnOutcome, anybot_runner::TurnError>>,
 ) -> Result<anybot_runner::TurnOutcome, String> {
@@ -135,7 +143,8 @@ async fn stop_answered_card_parks_again() -> Result<(), String> {
     assert!(first_kinds.iter().any(|k| matches!(
         k,
         KnownTaskEventKind::CardAnswered {
-            answer: CardAnswer::Deny
+            answer: CardAnswer::Deny,
+            ..
         }
     )));
     assert!(first_kinds.iter().any(|k| matches!(
@@ -164,18 +173,17 @@ async fn stop_answered_card_parks_again() -> Result<(), String> {
 
 #[tokio::test]
 async fn allow_conversation_executes_next_calls() -> Result<(), String> {
-    let setup = ask_setup();
+    let setup = runner_test::trust_world::mac_setup("Work Mac");
     let world = runner_test::turn::arc_world(TurnWorld::start(&setup).await?);
     world.script(vec![
-        npm_call("c1"),
-        npm_call("c2"),
+        make_test_call("c1"),
+        make_test_call("c2"),
         model_replies_text("done", false),
     ]);
     let shared = runner_test::turn::share(&world);
     let bg = tokio::spawn(async move { shared.send(Device::Phone, "go").await });
 
     let (task, _cards) = wait_for_shown_card(&world, 1).await?;
-    allow_in_session(&world);
     world
         .answer_shown_card(task, CardAnswer::AllowConversation)
         .await?;
@@ -199,10 +207,4 @@ async fn allow_conversation_executes_next_calls() -> Result<(), String> {
     assert_eq!(shown_count, 1);
     assert_eq!(executed_count, 2);
     Ok(())
-}
-
-fn allow_in_session(world: &TurnWorld) {
-    let mut gate = GateConfig::plain();
-    gate.user.session.push(ActionKey::command("shell", NPM));
-    world.set_gate(gate);
 }

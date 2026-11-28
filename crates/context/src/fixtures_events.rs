@@ -20,7 +20,7 @@ pub(crate) fn evidence_fixture(short: u32) -> anybot_protocol::EvidenceRecord {
         tool: format!("t{short}"),
         classes: Vec::new(),
         gate: anybot_protocol::GateRecord::new(
-            anybot_protocol::GateNo(1),
+            anybot_protocol::GateStep::DefaultRule,
             anybot_protocol::RuleLayer::Default,
             "r".to_owned(),
             anybot_protocol::JudgementSource::Rule,
@@ -75,6 +75,17 @@ pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
             card: "card-q".to_owned(),
             kind: anybot_protocol::CardKind::Action,
             resume: None,
+            buttons: vec![
+                anybot_protocol::CardButton::AllowOnce,
+                anybot_protocol::CardButton::Deny,
+            ],
+            reason: anybot_protocol::ReasonPayload {
+                code: "card-run-command".to_owned(),
+                params: Vec::new(),
+            },
+            always_label: None,
+            notes: Vec::new(),
+            classes: Vec::new(),
         })),
         2 => Just(ev(OutcomeUnknown { call_id: CallId::generate(&SystemClock) })),
         1 => Just(ev(ActionVerified {

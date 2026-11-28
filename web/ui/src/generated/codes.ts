@@ -130,6 +130,7 @@ export type MessageCode =
   "tool-desc-list-dir" |
   "tool-desc-search" |
   "tool-desc-read-result" |
+  "tool-desc-ask-person" |
   "gate-ask-computer-mismatch" |
   "tool-unreadable-eval" |
   "tool-unreadable-quotes" |
@@ -225,7 +226,60 @@ export type MessageCode =
   "mailbox-reassign-delegate-off" |
   "card-not-waiting" |
   "account-action-unreachable" |
-  "turn-reply-stopped";
+  "turn-reply-stopped" |
+  "card-edit-file" |
+  "card-run-command" |
+  "card-read-outside" |
+  "card-read-file" |
+  "card-edit-outside" |
+  "card-unparseable" |
+  "card-hidden-subcommand" |
+  "card-interactive-shell" |
+  "card-ask-rule" |
+  "card-user-hook" |
+  "card-admin-rule" |
+  "card-floor-rule" |
+  "card-floor-no-sandbox" |
+  "card-note-every-time" |
+  "card-note-no-sandbox-private" |
+  "always-run-command" |
+  "always-run-command-bot-computer" |
+  "always-write-workspace" |
+  "always-read-outside" |
+  "always-read-workspace" |
+  "claim-chat-step-failed" |
+  "claim-chat-no-file" |
+  "claim-chat-count" |
+  "claim-chat-dead-link" |
+  "tool-ask-too-many" |
+  "question-skipped" |
+  "question-unanswered" |
+  "claim-no-evidence" |
+  "claim-step-failed" |
+  "claim-kind-mismatch" |
+  "claim-count-mismatch" |
+  "claim-recipient-mismatch" |
+  "claim-not-in-task" |
+  "gate-local-never" |
+  "gate-local-locked" |
+  "gate-switch-declined-bot" |
+  "gate-switch-declined-local" |
+  "card-switch" |
+  "card-switch-action" |
+  "card-switch-always-bot" |
+  "card-switch-always-local" |
+  "gate-answer-not-offered" |
+  "gate-rule-unreadable" |
+  "report-stuck-over-budget" |
+  "report-next-raise-limit" |
+  "gate-reject-repeat" |
+  "turn-fixed-no-retry-after-reject" |
+  "turn-fixed-untrusted-not-consent" |
+  "turn-fixed-draft-only" |
+  "turn-yolo-on" |
+  "turn-yolo-off" |
+  "turn-yolo-status" |
+  "gate-smart-auto-allowed";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -357,6 +411,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-desc-list-dir",
   "tool-desc-search",
   "tool-desc-read-result",
+  "tool-desc-ask-person",
   "gate-ask-computer-mismatch",
   "tool-unreadable-eval",
   "tool-unreadable-quotes",
@@ -453,4 +508,57 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "card-not-waiting",
   "account-action-unreachable",
   "turn-reply-stopped",
+  "card-edit-file",
+  "card-run-command",
+  "card-read-outside",
+  "card-read-file",
+  "card-edit-outside",
+  "card-unparseable",
+  "card-hidden-subcommand",
+  "card-interactive-shell",
+  "card-ask-rule",
+  "card-user-hook",
+  "card-admin-rule",
+  "card-floor-rule",
+  "card-floor-no-sandbox",
+  "card-note-every-time",
+  "card-note-no-sandbox-private",
+  "always-run-command",
+  "always-run-command-bot-computer",
+  "always-write-workspace",
+  "always-read-outside",
+  "always-read-workspace",
+  "claim-chat-step-failed",
+  "claim-chat-no-file",
+  "claim-chat-count",
+  "claim-chat-dead-link",
+  "tool-ask-too-many",
+  "question-skipped",
+  "question-unanswered",
+  "claim-no-evidence",
+  "claim-step-failed",
+  "claim-kind-mismatch",
+  "claim-count-mismatch",
+  "claim-recipient-mismatch",
+  "claim-not-in-task",
+  "gate-local-never",
+  "gate-local-locked",
+  "gate-switch-declined-bot",
+  "gate-switch-declined-local",
+  "card-switch",
+  "card-switch-action",
+  "card-switch-always-bot",
+  "card-switch-always-local",
+  "gate-answer-not-offered",
+  "gate-rule-unreadable",
+  "report-stuck-over-budget",
+  "report-next-raise-limit",
+  "gate-reject-repeat",
+  "turn-fixed-no-retry-after-reject",
+  "turn-fixed-untrusted-not-consent",
+  "turn-fixed-draft-only",
+  "turn-yolo-on",
+  "turn-yolo-off",
+  "turn-yolo-status",
+  "gate-smart-auto-allowed",
 ];

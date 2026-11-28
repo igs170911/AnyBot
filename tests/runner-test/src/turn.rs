@@ -3,8 +3,8 @@ use std::sync::Arc;
 use anybot_foundation::{BotId, DeviceId, TaskId};
 use anybot_messages::Lang;
 use anybot_protocol::{
-    BudgetItem, ComputerCaps, ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent,
-    TaskEventKind, TaskStatus, TurnInitiator,
+    BudgetItem, ComputerCaps, ComputerOwner, ComputerPlatform, KnownTaskEventKind, TaskDetail,
+    TaskEvent, TaskEventKind, TaskStatus, TurnInitiator,
 };
 use anybot_runner::{
     ContinueTurn, RunnerParts, Steer, SteerQueued, TurnError, TurnOutcome, TurnRunner, UserMessage,
@@ -33,6 +33,8 @@ pub struct WorldSetup {
     pub ripgrep: bool,
     pub files: Vec<(String, String)>,
     pub dirs: Vec<String>,
+    pub links: Vec<(String, String)>,
+    pub unresolvable: Vec<String>,
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
     pub inherited_env: Vec<(String, String)>,
     pub gate: anybot_trust::GateConfig,
@@ -41,6 +43,12 @@ pub struct WorldSetup {
     pub primary_port_override: Option<u16>,
     pub fallbacks: Vec<FallbackTarget>,
     pub model_reach: Option<Arc<dyn anybot_runner::ModelReach>>,
+    pub owner: Option<ComputerOwner>,
+    pub workdir: String,
+    pub home_dir: String,
+    pub anybot_dir: String,
+    pub case_insensitive: bool,
+    pub bot_name: String,
 }
 
 impl Default for WorldSetup {
@@ -60,6 +68,8 @@ impl Default for WorldSetup {
             ripgrep: true,
             files: Vec::new(),
             dirs: Vec::new(),
+            links: Vec::new(),
+            unresolvable: Vec::new(),
             scripts: Vec::new(),
             inherited_env: Vec::new(),
             gate: anybot_trust::GateConfig::plain(),
@@ -68,6 +78,12 @@ impl Default for WorldSetup {
             primary_port_override: None,
             fallbacks: Vec::new(),
             model_reach: None,
+            owner: None,
+            workdir: "/workspace".to_owned(),
+            home_dir: String::new(),
+            anybot_dir: String::new(),
+            case_insensitive: false,
+            bot_name: "Ada".to_owned(),
         }
     }
 }
@@ -80,6 +96,7 @@ pub enum Device {
 
 pub struct TurnWorld {
     pub gated: Arc<FakeComputer>,
+    pub trust: Arc<crate::fake_trust::FakeTrust>,
     pub runner: Arc<TurnRunner>,
     pub model: Arc<FakeModel>,
     pub port: u16,
@@ -103,15 +120,10 @@ impl TurnWorld {
         let session = build_session(&clock)?;
         let clock_dyn = share_clock(&clock);
         let bot = BotId::generate(clock_dyn.as_ref());
-        let builder = crate::fake_builder::FakeComputerBuilder::default()
-            .named(&setup.computer_name)
-            .caps(setup_caps(setup))
-            .gate(setup.gate.clone())
-            .ripgrep(setup.ripgrep)
-            .clock(Arc::clone(&clock));
-        let builder = apply_world_files(builder, setup);
+        let builder = crate::turn_setup::build_world_computer(setup, &clock);
         let built = Arc::new(builder.build());
         let gated = Arc::clone(&built);
+        let trust = Arc::new(crate::fake_trust::FakeTrust::new(Arc::clone(&gated)));
         let gated_dyn: Arc<dyn anybot_trust::GatedComputer> = built;
         let model_reach = setup
             .model_reach
@@ -129,9 +141,11 @@ impl TurnWorld {
             lang: setup.lang,
             computer: computer_of(setup),
             model_reach,
+            trust: Arc::clone(&trust) as Arc<dyn anybot_runner::TrustSettings>,
         }));
         Ok(Self {
             gated,
+            trust,
             runner,
             model,
             port,
@@ -145,7 +159,9 @@ impl TurnWorld {
             desktop: DeviceId::generate(clock_dyn.as_ref()),
         })
     }
+}
 
+impl TurnWorld {
     pub fn script(&self, steps: Vec<Step>) {
         self.model.script_set(steps);
     }
@@ -246,18 +262,6 @@ impl TurnWorld {
         &self.runner
     }
 
-    pub async fn answer_shown_card(
-        &self,
-        task: TaskId,
-        answer: anybot_protocol::CardAnswer,
-    ) -> Result<(), String> {
-        self.runner
-            .append_task_event(&task, KnownTaskEventKind::CardAnswered { answer })
-            .await
-            .map(|_| ())
-            .map_err(|e| format!("{e:?}"))
-    }
-
     #[must_use]
     pub fn task_of(outcome: &TurnOutcome) -> TaskId {
         outcome.task
@@ -278,4 +282,4 @@ pub use crate::turn_setup::{
     FallbackTarget, bot_profile, build_session, capability_of, computer_of, local_endpoint,
     model_name_of_setup, provider_kind, share_clock, turn_model, wire_format,
 };
-use crate::turn_setup::{apply_world_files, make_record, setup_caps, share_raw};
+use crate::turn_setup::{make_record, share_raw};

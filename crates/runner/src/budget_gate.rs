@@ -103,7 +103,7 @@ mod tests {
     };
     use anybot_protocol::{
         ActionOutcome, BudgetItem, CheckSource, ComputerPlatform, ComputerRef, EvidenceKind,
-        EvidencePayload, EvidenceRecord, EvidenceShortId, GateNo, GateOutcome, GateRecord,
+        EvidencePayload, EvidenceRecord, EvidenceShortId, GateOutcome, GateRecord, GateStep,
         JudgementSource, KnownTaskEventKind, ModelName, RuleLayer, TaskEvent, TaskEventKind,
         TaskOpener, ThinkingChoice, TurnInitiator,
     };
@@ -187,7 +187,7 @@ mod tests {
 
     fn verification_gate() -> GateRecord {
         GateRecord::new(
-            GateNo(1),
+            GateStep::AllowLists,
             RuleLayer::User,
             "allow-read".to_owned(),
             JudgementSource::Rule,

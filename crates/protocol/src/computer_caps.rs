@@ -71,6 +71,16 @@ pub struct ComputerCaps {
     pub inject_secrets: CapState,
     pub open_for_user: CapState,
     pub receive_files: CapState,
+    #[serde(default)]
+    pub home_dir: String,
+    #[serde(default)]
+    pub anybot_dir: String,
+    #[serde(default)]
+    pub vault_paths: Vec<String>,
+    #[serde(default)]
+    pub keychain_dirs: Vec<String>,
+    #[serde(default)]
+    pub onepassword_dirs: Vec<String>,
 }
 
 impl ComputerCaps {
@@ -95,7 +105,21 @@ impl ComputerCaps {
             inject_secrets: CapState::Unsupported,
             open_for_user: CapState::Unsupported,
             receive_files: CapState::Unsupported,
+            home_dir: String::new(),
+            anybot_dir: String::new(),
+            vault_paths: vec!["vault.bin".to_owned(), "vault.key".to_owned()],
+            keychain_dirs: platform_keychain_dirs(platform),
+            onepassword_dirs: platform_onepassword_dirs(platform),
         }
+    }
+
+    #[must_use]
+    pub fn declared_private_paths(&self) -> Vec<String> {
+        let mut all = Vec::new();
+        all.extend(self.vault_paths.iter().cloned());
+        all.extend(self.keychain_dirs.iter().cloned());
+        all.extend(self.onepassword_dirs.iter().cloned());
+        all
     }
 
     #[must_use]
@@ -118,6 +142,48 @@ impl ComputerCaps {
         self.owner == ComputerOwner::Bot
             && self.read_files == CapState::Supported
             && self.write_files == CapState::Supported
+    }
+}
+
+fn platform_keychain_dirs(platform: ComputerPlatform) -> Vec<String> {
+    match platform {
+        ComputerPlatform::Mac => vec![
+            "Library/Keychains".to_owned(),
+            "/Library/Keychains".to_owned(),
+            "/System/Library/Keychains".to_owned(),
+        ],
+        ComputerPlatform::Linux => vec![".local/share/keyrings".to_owned()],
+        ComputerPlatform::Windows => vec![
+            "AppData/Local/Microsoft/Credentials".to_owned(),
+            "AppData/Roaming/Microsoft/Credentials".to_owned(),
+            "AppData/Local/Microsoft/Vault".to_owned(),
+        ],
+        ComputerPlatform::BotMachine | ComputerPlatform::Ssh | ComputerPlatform::Unknown => vec![
+            "Library/Keychains".to_owned(),
+            ".local/share/keyrings".to_owned(),
+        ],
+    }
+}
+
+fn platform_onepassword_dirs(platform: ComputerPlatform) -> Vec<String> {
+    match platform {
+        ComputerPlatform::Mac => vec![
+            "Library/Group Containers/2BUA8C4S2C.com.1password".to_owned(),
+            "Library/Application Support/1Password".to_owned(),
+            ".1password".to_owned(),
+        ],
+        ComputerPlatform::Linux => vec![".config/1Password".to_owned(), ".1password".to_owned()],
+        ComputerPlatform::Windows => {
+            vec![
+                "AppData/Local/1Password".to_owned(),
+                ".1password".to_owned(),
+            ]
+        }
+        ComputerPlatform::BotMachine | ComputerPlatform::Ssh | ComputerPlatform::Unknown => vec![
+            ".config/1Password".to_owned(),
+            ".1password".to_owned(),
+            "Library/Group Containers/2BUA8C4S2C.com.1password".to_owned(),
+        ],
     }
 }
 

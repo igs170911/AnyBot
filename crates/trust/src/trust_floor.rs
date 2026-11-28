@@ -1,5 +1,7 @@
 use std::fmt;
 
+use anybot_protocol::ComputerCaps;
+
 use crate::gate_engine::GateLayer;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,7 +37,11 @@ pub enum FloorAction {
     },
     FilePath {
         path: String,
+        caps: ComputerCaps,
+        anybot_dir: String,
     },
+    UnresolvedPath,
+    Capabilities,
     ClickTarget {
         app: String,
         label: String,
@@ -46,28 +52,11 @@ pub enum FloorAction {
     },
 }
 
-const PRIVATE_PATH_PREFIXES: [&str; 8] = [
-    "~/.ssh",
-    "~/.aws",
-    "~/.gnupg",
-    "/etc/shadow",
-    "/etc/sudoers",
-    "/Library/Keychains",
-    "/.securebookmarkswrite",
-    "cookies",
-];
-
 const CLOUD_METADATA_HOSTS: [&str; 2] = ["169.254.169.254", "metadata.google.internal"];
 
 #[must_use]
 pub fn is_denied_command(line: &str, bot_machine: bool) -> bool {
     crate::sandbox_deny::deny_token(line, bot_machine).is_some()
-}
-
-#[must_use]
-pub fn is_private_path(path: &str) -> bool {
-    let text = path.to_lowercase();
-    PRIVATE_PATH_PREFIXES.iter().any(|p| text.contains(p))
 }
 
 #[must_use]
@@ -90,13 +79,19 @@ pub fn floor_check(action: &FloorAction) -> Option<FloorDeny> {
             bot_machine,
             has_sandbox,
         } => floor_command_check(line, *bot_machine, *has_sandbox),
-        FloorAction::FilePath { path } => {
-            if is_private_path(path) {
+        FloorAction::FilePath {
+            path,
+            caps,
+            anybot_dir,
+        } => {
+            if crate::private_paths::is_private_with_caps(path, caps, anybot_dir) {
                 Some(FloorDeny::PrivateFile)
             } else {
                 None
             }
         }
+        FloorAction::UnresolvedPath => Some(FloorDeny::PrivateFile),
+        FloorAction::Capabilities => None,
         FloorAction::ClickTarget { app, label: _ } => {
             if is_anybot_window(app) {
                 Some(FloorDeny::AnyBotWindow)

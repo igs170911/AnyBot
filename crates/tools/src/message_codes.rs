@@ -31,9 +31,13 @@ pub const CODE_TOOL_DESC_SHELL: &str = "tool-desc-shell";
 pub const CODE_TOOL_DESC_LIST_DIR: &str = "tool-desc-list-dir";
 pub const CODE_TOOL_DESC_SEARCH: &str = "tool-desc-search";
 pub const CODE_TOOL_DESC_READ_RESULT: &str = "tool-desc-read-result";
+pub const CODE_TOOL_DESC_ASK_PERSON: &str = "tool-desc-ask-person";
+pub const CODE_TOOL_ASK_TOO_MANY: &str = "tool-ask-too-many";
+pub const CODE_QUESTION_SKIPPED: &str = "question-skipped";
+pub const CODE_QUESTION_UNANSWERED: &str = "question-unanswered";
 
 #[must_use]
-pub fn all_tool_codes() -> [&'static str; 33] {
+pub fn all_tool_codes() -> [&'static str; 37] {
     [
         CODE_TOOL_EDIT_CREATED,
         CODE_TOOL_EDIT_OVERWRITTEN,
@@ -68,6 +72,10 @@ pub fn all_tool_codes() -> [&'static str; 33] {
         CODE_TOOL_DESC_LIST_DIR,
         CODE_TOOL_DESC_SEARCH,
         CODE_TOOL_DESC_READ_RESULT,
+        CODE_TOOL_DESC_ASK_PERSON,
+        CODE_TOOL_ASK_TOO_MANY,
+        CODE_QUESTION_SKIPPED,
+        CODE_QUESTION_UNANSWERED,
     ]
 }
 

@@ -149,6 +149,7 @@ async fn finish_answer(
         if let Some(over) = crate::budget_gate::current_over(runner, ctx).await? {
             return end_over_budget(runner, ctx, over.item, over.used, over.limit).await;
         }
+        crate::ending::maybe_record_claim_check(runner, ctx, &result.text, result.stop).await?;
         runner
             .append_turn_end(ctx, TurnEndReason::Answered, true)
             .await?;
@@ -168,6 +169,11 @@ async fn finish_answer(
             return Ok(StepFlow::Ended(reason));
         }
         ActionLoop::Done => {}
+    }
+    if crate::questions::has_parked(runner) {
+        let reason = TurnEndReason::PendingApproval;
+        runner.append_turn_end(ctx, reason.clone(), false).await?;
+        return Ok(StepFlow::Ended(reason));
     }
     Ok(StepFlow::Continue)
 }

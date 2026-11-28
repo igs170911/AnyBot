@@ -67,6 +67,8 @@ pub(crate) fn halt_in_rows(rows: &[Stored], task: &TaskId, turn_started: u64) ->
             | KnownTaskEventKind::BudgetLimit { .. }
             | KnownTaskEventKind::CardShown { .. }
             | KnownTaskEventKind::CardAnswered { .. }
+            | KnownTaskEventKind::QuestionShown { .. }
+            | KnownTaskEventKind::QuestionAnswered { .. }
             | KnownTaskEventKind::DeviceReport { .. }
             | KnownTaskEventKind::DeliveryReport { .. }
             | KnownTaskEventKind::ModelUnreachable

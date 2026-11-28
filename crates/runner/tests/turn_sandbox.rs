@@ -64,7 +64,8 @@ impl EvidencePayloadExt for EvidencePayload {
             | EvidencePayload::Changed { .. }
             | EvidencePayload::Seen { .. }
             | EvidencePayload::Executed { .. }
-            | EvidencePayload::NotExecuted { .. } => String::new(),
+            | EvidencePayload::NotExecuted { .. }
+            | EvidencePayload::Relayed { .. } => String::new(),
         }
     }
 }

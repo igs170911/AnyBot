@@ -61,6 +61,8 @@ fn push_ids(kind: &KnownTaskEventKind, intents: &mut Vec<String>, results: &mut 
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. } => {}
     }
@@ -154,6 +156,8 @@ fn order_call_id(kind: &KnownTaskEventKind) -> Option<String> {
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. } => None,
     }

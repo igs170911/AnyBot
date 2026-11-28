@@ -29,6 +29,10 @@ pub enum TurnError {
     Replay(anybot_domain::ReplayGap),
     #[error(transparent)]
     Report(#[from] anybot_trust::ReportFail),
+    #[error(transparent)]
+    Card(#[from] anybot_trust::CardViewError),
+    #[error(transparent)]
+    TrustSettings(#[from] crate::trust_settings::TrustSettingsError),
     #[error("the parked approval list is busy")]
     ParkedBusy,
     #[error("no parked card matches digest {digest}")]
@@ -37,4 +41,10 @@ pub enum TurnError {
     ApprovalForeign { digest: String },
     #[error("no user-initiated turn is running")]
     NoOwnTurn,
+    #[error("the card of digest {digest} does not offer that answer")]
+    AnswerNotOffered { digest: String },
+    #[error("no pending question matches card {card}")]
+    QuestionNotFound { card: String },
 }
+
+pub type RunnerError = TurnError;

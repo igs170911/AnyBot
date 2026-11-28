@@ -16,6 +16,7 @@ fn test_arguments_reject_a_tool_that_is_not_in_this_turn() {
             "list_dir".to_owned(),
             "search".to_owned(),
             "read_result".to_owned(),
+            "ask_person".to_owned(),
         ]
     );
 }

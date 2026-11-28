@@ -2,6 +2,8 @@ use anybot_foundation::{CallId, DeviceId};
 use serde::{Deserialize, Serialize};
 
 use crate::computer_caps::ComputerPlatform;
+use crate::evidence_record::{EvidenceShortId, ReasonPayload};
+use crate::gate_record::JudgementSource;
 use crate::task_detail::{TaskDetail, TaskStatus};
 use crate::task_events::{BudgetItem, CheckSource};
 
@@ -161,9 +163,30 @@ pub enum ReportSummary {
     Missing { code: String },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum AttentionKind {
+    Failed,
+    Rejected,
+    Yolo,
+    TimeoutAuto,
+    Reassigned,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+pub struct ProgressReport {
+    pub done: Vec<String>,
+    pub not_done: Vec<String>,
+    pub stuck: ReasonPayload,
+    pub next: ReasonPayload,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct ReportAttention {
+    pub kind: AttentionKind,
     pub tool: String,
     pub args_summary: String,
     pub error: String,
@@ -180,6 +203,35 @@ pub struct ReportStep {
     pub verify_source: Option<CheckSource>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ReportLevel {
+    Verified,
+    Sourced,
+    Inferred,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+pub struct ReportClaim {
+    pub sentence: String,
+    pub level: ReportLevel,
+    pub reasons: Vec<ReasonPayload>,
+    pub source: Option<JudgementSource>,
+    pub cited: Vec<EvidenceShortId>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+pub struct LevelCounts {
+    pub verified: u32,
+    pub sourced: u32,
+    pub inferred: u32,
+    pub unknown: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct DeliveryReportRecord {
@@ -189,6 +241,9 @@ pub struct DeliveryReportRecord {
     pub summary: ReportSummary,
     pub attention: Vec<ReportAttention>,
     pub steps: Vec<ReportStep>,
+    pub claims: Vec<ReportClaim>,
+    pub level_counts: LevelCounts,
+    pub progress: Option<ProgressReport>,
 }
 
 #[cfg(test)]

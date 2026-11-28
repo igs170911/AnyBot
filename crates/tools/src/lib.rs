@@ -1,4 +1,5 @@
 pub mod arguments;
+pub mod ask_person;
 pub mod calls;
 pub mod edit;
 pub mod list;
@@ -15,11 +16,18 @@ pub use arguments::{
     ArgsRejection, EditArgs, ListArgs, ReadArgs, ReadResultArgs, SearchArgs, ShellArgs, ToolArgs,
     args_rejection_word, check_offered, parse_call, rejection_word,
 };
+pub use ask_person::{
+    AskPersonArgs, MAX_OPTION_CHARS, MAX_OPTIONS, MAX_PREFILL_CHARS, MAX_QUESTIONS,
+    MAX_TITLE_CHARS, parse_ask_person, truncate_chars,
+};
 pub use calls::{
     DEFAULT_SHELL_TIMEOUT_MS, MAX_SHELL_TIMEOUT_MS, build_request, clamp_timeout, subject_of,
 };
 pub use list::{ListingText, MAX_LIST_ENTRIES, render_listing};
-pub use message_codes::{CODE_TOOL_NOT_IN_TURN, CODE_TOOL_OTHER_COMPUTER};
+pub use message_codes::{
+    CODE_QUESTION_SKIPPED, CODE_QUESTION_UNANSWERED, CODE_TOOL_ASK_TOO_MANY, CODE_TOOL_NOT_IN_TURN,
+    CODE_TOOL_OTHER_COMPUTER,
+};
 pub use offer::{COMPUTER_PARAM, ToolDef, offered_tools};
 pub use read_result::{
     FIND_CONTEXT_CHARS, FIND_MAX_HITS, FindHit, RAW_MAX_BYTES, READ_RESULT_MAX_CHARS,
@@ -27,8 +35,8 @@ pub use read_result::{
     read_result_missing_code, read_result_not_found_code, read_result_window_code,
 };
 pub use registry::{
-    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH, TOOL_SHELL,
-    ToolLevel, is_known_tool, level_of, registry, tool_list,
+    TOOL_ASK_PERSON, TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH,
+    TOOL_SHELL, ToolLevel, is_known_tool, level_of, registry, tool_list,
 };
 pub use result_id::result_id;
 pub use search::{

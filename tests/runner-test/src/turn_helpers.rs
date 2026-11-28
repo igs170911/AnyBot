@@ -246,3 +246,16 @@ pub async fn wait_for_shown_card(
         "timed out waiting for {expected_count} shown cards"
     ))
 }
+
+pub async fn answer_pending(
+    world: &TurnWorld,
+    task: TaskId,
+    turn: u32,
+    card: &anybot_runner::PendingCard,
+    answer: anybot_protocol::CardAnswer,
+) -> Result<(), String> {
+    let ctx = world.runner().approval_context(task, turn);
+    anybot_runner::approvals::resolve_approval(world.runner(), &ctx, card, answer)
+        .await
+        .map_err(|e| format!("approval answer failed: {e}"))
+}

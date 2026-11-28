@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anybot_protocol::SearchEngine;
-use anybot_trust::trust_floor::is_private_path;
+use anybot_trust::is_private_path;
 
 pub const SEARCH_MAX_MS: u64 = 25_000;
 pub const SEARCH_MAX_LINES: usize = 10_000;
@@ -38,7 +38,7 @@ const PLAIN_ONLY_SKIP_SEGMENTS: [&str; 2] = ["node_modules", "target"];
 
 #[must_use]
 pub fn skipped(engine: SearchEngine, path: &str) -> bool {
-    if is_private_path(path) || is_private_path(&format!("~/{}", path.trim_start_matches('/'))) {
+    if is_private_path(path, "", "") {
         return true;
     }
     for segment in path.split(['/', '\\']) {

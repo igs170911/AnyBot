@@ -46,6 +46,8 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
@@ -59,16 +61,26 @@ pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKi
             if !matches!(view.status, TaskStatus::Cancelled | TaskStatus::Stopped) {
                 view.status = TaskStatus::AwaitingUser;
                 view.detail = Some(match kind {
-                    CardKind::Action => TaskDetail::ApprovalPending {
-                        action: action.clone(),
-                    },
+                    CardKind::Action | CardKind::EveryTime | CardKind::Switch => {
+                        TaskDetail::ApprovalPending {
+                            action: action.clone(),
+                        }
+                    }
                     CardKind::Resume => TaskDetail::ResumePending,
                 });
             }
             true
         }
-        KnownTaskEventKind::CardAnswered { answer } => {
+        KnownTaskEventKind::CardAnswered { answer, .. } => {
             crate::task_lifecycle_ops::answer_card(view, *answer);
+            true
+        }
+        KnownTaskEventKind::QuestionShown { questions, .. } => {
+            show_question(view, questions);
+            true
+        }
+        KnownTaskEventKind::QuestionAnswered { .. } => {
+            answer_question(view);
             true
         }
         KnownTaskEventKind::DeviceReport { kind, .. } => {
@@ -111,6 +123,19 @@ pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKi
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
     }
+}
+
+fn show_question(view: &mut TaskView, questions: &[anybot_protocol::QuestionItem]) {
+    view.status = TaskStatus::AwaitingUser;
+    let question = questions
+        .first()
+        .map_or_else(String::new, |item| item.title.clone());
+    view.detail = Some(TaskDetail::QuestionPending { question });
+}
+
+fn answer_question(view: &mut TaskView) {
+    let step = view.goal.clone();
+    view.set_running(TaskDetail::CurrentStep { step });
 }
 
 pub(crate) fn advance_done_when(view: &mut TaskView, event: &KnownTaskEventKind) {
@@ -161,6 +186,8 @@ pub(crate) fn advance_done_when(view: &mut TaskView, event: &KnownTaskEventKind)
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. } => {}
     }

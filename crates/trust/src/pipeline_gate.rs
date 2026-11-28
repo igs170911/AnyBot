@@ -2,7 +2,8 @@ use crate::evidence::rejected_evidence;
 use crate::gate_flow::{GateConfig, judge};
 use crate::op_ticket::OpTicket;
 use crate::pipeline::ActionRequest;
-use crate::pipeline_ask::{AskTicket, CallContext, prepared_action};
+use crate::pipeline_ask::AskTicket;
+use crate::pipeline_call::{CallContext, prepared_action};
 use crate::pipeline_exec::executed_run;
 use crate::pipeline_run::{ActionRun, ModelResultView, RunStep, denied_run};
 use crate::runner::GatedComputer;
@@ -31,15 +32,18 @@ pub fn gate_step(
     let gate = verdict.record();
     match verdict.outcome {
         GateOutcome::Deny => GateStep::Denied(denied_run(request, &verdict, &gate, view, clock)),
-        GateOutcome::Ask => GateStep::Ask(Box::new(AskTicket::new(
-            GateOutcome::Ask,
-            gate.clone(),
-            action,
-            &caps,
-            request,
-            computer.name(),
-            ctx,
-        ))),
+        GateOutcome::Ask => GateStep::Ask(Box::new(
+            AskTicket::new(
+                GateOutcome::Ask,
+                gate.clone(),
+                action,
+                &caps,
+                request,
+                computer.name(),
+                ctx,
+            )
+            .with_verdict(verdict),
+        )),
         GateOutcome::Allow => {
             let fresh = prepared_action(request, computer);
             if fresh.subject != action.subject {

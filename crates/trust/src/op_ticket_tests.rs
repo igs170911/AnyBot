@@ -2,7 +2,7 @@ use crate::action::{ActionKey, ActionSubject, PathView};
 use crate::op_ticket::{OpKind, OpTicket};
 use anybot_foundation::TimestampMs;
 use anybot_protocol::{
-    ComputerCaps, ComputerOwner, ComputerPlatform, GateNo, GateOutcome, GateRecord,
+    ComputerCaps, ComputerOwner, ComputerPlatform, GateOutcome, GateRecord, GateStep,
     JudgementSource, RuleLayer,
 };
 
@@ -12,7 +12,7 @@ fn issued_caps() -> ComputerCaps {
 
 fn allow_gate() -> GateRecord {
     GateRecord::new(
-        GateNo(1),
+        GateStep::DefaultRule,
         RuleLayer::Default,
         "bot-machine-command".to_owned(),
         JudgementSource::Rule,

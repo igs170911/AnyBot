@@ -1,15 +1,6 @@
 use anybot_foundation::CallId;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum CardKind {
-    #[default]
-    Action,
-    Resume,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct ResumeCardStep {

@@ -78,9 +78,26 @@ fn card_goal_events() -> BoxedStrategy<KnownTaskEventKind> {
             card: a,
             kind: anybot_protocol::CardKind::Action,
             resume: None,
+            buttons: vec![
+                anybot_protocol::CardButton::AllowOnce,
+                anybot_protocol::CardButton::Deny,
+            ],
+            reason: anybot_protocol::ReasonPayload {
+                code: "card-run-command".to_owned(),
+                params: Vec::new(),
+            },
+            always_label: None,
+            notes: Vec::new(),
+            classes: Vec::new(),
         }),
-        Just(CardAnswer::AllowOnce).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),
-        Just(CardAnswer::Deny).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),
+        Just(CardAnswer::AllowOnce).prop_map(|a| KnownTaskEventKind::CardAnswered {
+            answer: a,
+            origin: anybot_protocol::AnswerOrigin::Hand,
+        }),
+        Just(CardAnswer::Deny).prop_map(|a| KnownTaskEventKind::CardAnswered {
+            answer: a,
+            origin: anybot_protocol::AnswerOrigin::Hand,
+        }),
         (0usize..4usize, criterion_strategy()).prop_map(|(index, item)| {
             KnownTaskEventKind::DoneWhenChange {
                 by: Proposer::Bot,
@@ -108,6 +125,7 @@ fn card_goal_events() -> BoxedStrategy<KnownTaskEventKind> {
         (0usize..2usize, 0usize..2usize).prop_map(|(c, v)| KnownTaskEventKind::ClaimChecked {
             covers_claim: c == 1,
             verified: v == 1,
+            reasons: Vec::new(),
         }),
     ]
     .boxed()

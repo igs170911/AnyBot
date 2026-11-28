@@ -2,7 +2,7 @@ use anybot_context::{StepOutcomeKind, StepRecord};
 use anybot_foundation::{CallId, EventId, TaskId};
 use anybot_messages::Lang;
 use anybot_protocol::{
-    EvidenceKind, EvidencePayload, EvidenceRecord, GateNo, GateRecord, KnownTaskEventKind,
+    EvidenceKind, EvidencePayload, EvidenceRecord, GateRecord, GateStep, KnownTaskEventKind,
     NotRunReason, ReasonPayload, ToolArgs, ToolEffect,
 };
 
@@ -147,7 +147,7 @@ fn args_text(args: &ToolArgs) -> Result<(String, serde_json::Value), TurnError> 
     }
 }
 
-pub(crate) fn collect_gate(gates: &mut Vec<(GateNo, ReasonPayload)>, kind: &KnownTaskEventKind) {
+pub(crate) fn collect_gate(gates: &mut Vec<(GateStep, ReasonPayload)>, kind: &KnownTaskEventKind) {
     let KnownTaskEventKind::EvidenceAdded { record } = kind else {
         return;
     };
@@ -172,7 +172,7 @@ fn denied_fallback(lang: Lang, gate: &GateRecord) -> Result<String, TurnError> {
 pub(crate) fn denied_text(
     lang: Lang,
     gate: &GateRecord,
-    gates: &[(GateNo, ReasonPayload)],
+    gates: &[(GateStep, ReasonPayload)],
 ) -> Result<String, TurnError> {
     let Some((_, reason)) = gates.iter().find(|(no, _)| *no == gate.gate) else {
         return denied_fallback(lang, gate);

@@ -66,6 +66,7 @@ async fn start_journal_runner(name: &str, setup: &WorldSetup) -> Result<RunnerEn
         builder = builder.script(line, script.clone());
     }
     let built = Arc::new(builder.build());
+    let trust = Arc::new(runner_test::fake_trust::FakeTrust::new(Arc::clone(&built)));
     let gated_dyn: Arc<dyn anybot_trust::GatedComputer> =
         Arc::clone(&built) as Arc<dyn anybot_trust::GatedComputer>;
     let runner = Arc::new(TurnRunner::new(RunnerParts {
@@ -80,6 +81,7 @@ async fn start_journal_runner(name: &str, setup: &WorldSetup) -> Result<RunnerEn
         lang: setup.lang,
         computer: computer_of(setup),
         model_reach: Arc::new(anybot_runner::NoOnlineModelReach),
+        trust,
     }));
     Ok(RunnerEnv {
         runner,

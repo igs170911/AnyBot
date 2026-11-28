@@ -1,8 +1,9 @@
 use serde_json::Value;
 
+use crate::ask_person::{AskPersonArgs, parse_ask_person};
 use crate::registry::{
-    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH, TOOL_SHELL,
-    is_known_tool,
+    TOOL_ASK_PERSON, TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH,
+    TOOL_SHELL, is_known_tool,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,6 +54,7 @@ pub enum ToolArgs {
     Search(SearchArgs),
     ReadResult(ReadResultArgs),
     Shell(ShellArgs),
+    AskPerson(AskPersonArgs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,6 +74,9 @@ pub enum ArgsRejection {
     MissingField {
         field: String,
         tool: String,
+    },
+    TooMany {
+        code: &'static str,
     },
 }
 
@@ -106,6 +111,7 @@ pub fn rejection_word(rejection: &ArgsRejection) -> String {
         ArgsRejection::OtherComputer => "other-computer".to_owned(),
         ArgsRejection::Malformed { reason } => format!("malformed-{reason}"),
         ArgsRejection::MissingField { field, tool } => format!("missing-field-{field}-{tool}"),
+        ArgsRejection::TooMany { code } => (*code).to_owned(),
     }
 }
 
@@ -132,6 +138,7 @@ pub fn parse_call(tool: &str, json: &str) -> Result<ToolArgs, ArgsRejection> {
         TOOL_SEARCH => parse_search(object),
         TOOL_READ_RESULT => parse_read_result(object),
         TOOL_SHELL => parse_shell(object),
+        TOOL_ASK_PERSON => parse_ask_person(object).map(ToolArgs::AskPerson),
         _ => Err(ArgsRejection::Malformed {
             reason: "unknown tool".to_owned(),
         }),

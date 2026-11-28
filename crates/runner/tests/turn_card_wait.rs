@@ -159,7 +159,8 @@ async fn stop_while_card_waiting_writes_deny_and_skips_action() -> Result<(), St
     assert!(kinds.iter().any(|k| matches!(
         k,
         KnownTaskEventKind::CardAnswered {
-            answer: CardAnswer::Deny
+            answer: CardAnswer::Deny,
+            ..
         }
     )));
     assert!(kinds.iter().any(|k| matches!(

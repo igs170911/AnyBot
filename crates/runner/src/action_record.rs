@@ -102,7 +102,8 @@ fn rejection_message(runner: &TurnRunner, rejection: &ArgsRejection) -> Result<S
         }
         ArgsRejection::UnknownTool { .. }
         | ArgsRejection::Malformed { .. }
-        | ArgsRejection::MissingField { .. } => Ok(anybot_tools::rejection_word(rejection)),
+        | ArgsRejection::MissingField { .. }
+        | ArgsRejection::TooMany { .. } => Ok(anybot_tools::rejection_word(rejection)),
     }
 }
 

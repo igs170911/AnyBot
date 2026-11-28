@@ -2,12 +2,13 @@ use anybot_protocol::ComputerCaps;
 use serde_json::{Value, json};
 
 use crate::message_codes::{
-    CODE_TOOL_DESC_EDIT_FILE, CODE_TOOL_DESC_LIST_DIR, CODE_TOOL_DESC_READ_FILE,
-    CODE_TOOL_DESC_READ_RESULT, CODE_TOOL_DESC_SEARCH, CODE_TOOL_DESC_SHELL,
+    CODE_TOOL_DESC_ASK_PERSON, CODE_TOOL_DESC_EDIT_FILE, CODE_TOOL_DESC_LIST_DIR,
+    CODE_TOOL_DESC_READ_FILE, CODE_TOOL_DESC_READ_RESULT, CODE_TOOL_DESC_SEARCH,
+    CODE_TOOL_DESC_SHELL,
 };
 use crate::registry::{
-    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH, TOOL_SHELL,
-    registry,
+    TOOL_ASK_PERSON, TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH,
+    TOOL_SHELL, registry,
 };
 
 pub const COMPUTER_PARAM: &str = "computer";
@@ -38,6 +39,7 @@ fn tool_if_offered(name: &str, caps: &ComputerCaps) -> Option<ToolDef> {
         TOOL_LIST_DIR if caps.read_files.yes() => Some(list_def()),
         TOOL_SEARCH if caps.read_files.yes() => Some(search_def()),
         TOOL_READ_RESULT => Some(read_result_def()),
+        TOOL_ASK_PERSON => Some(ask_person_def()),
         _ => None,
     }
 }
@@ -136,6 +138,32 @@ fn read_result_def() -> ToolDef {
     }
 }
 
+fn ask_person_def() -> ToolDef {
+    ToolDef {
+        name: TOOL_ASK_PERSON,
+        description_code: CODE_TOOL_DESC_ASK_PERSON,
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": { "type": "string" },
+                            "options": { "type": "array", "items": { "type": "string" } },
+                            "multiple": { "type": "boolean" },
+                            "default": { "type": "string" }
+                        },
+                        "required": ["question"]
+                    }
+                }
+            },
+            "required": ["questions"]
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -148,7 +176,10 @@ mod tests {
     #[test]
     fn offered_tools_follow_each_capability() {
         let base = ComputerCaps::declared(ComputerPlatform::Linux, ComputerOwner::User);
-        assert_eq!(names_of(&offered_tools(&base)), vec![TOOL_READ_RESULT]);
+        assert_eq!(
+            names_of(&offered_tools(&base)),
+            vec![TOOL_READ_RESULT, TOOL_ASK_PERSON]
+        );
 
         let only_read = ComputerCaps {
             read_files: CapState::Supported,
@@ -156,7 +187,13 @@ mod tests {
         };
         assert_eq!(
             names_of(&offered_tools(&only_read)),
-            vec![TOOL_READ_FILE, TOOL_LIST_DIR, TOOL_SEARCH, TOOL_READ_RESULT]
+            vec![
+                TOOL_READ_FILE,
+                TOOL_LIST_DIR,
+                TOOL_SEARCH,
+                TOOL_READ_RESULT,
+                TOOL_ASK_PERSON
+            ]
         );
 
         let only_write = ComputerCaps {
@@ -165,7 +202,7 @@ mod tests {
         };
         assert_eq!(
             names_of(&offered_tools(&only_write)),
-            vec![TOOL_EDIT_FILE, TOOL_READ_RESULT]
+            vec![TOOL_EDIT_FILE, TOOL_READ_RESULT, TOOL_ASK_PERSON]
         );
 
         let only_shell = ComputerCaps {
@@ -174,7 +211,7 @@ mod tests {
         };
         assert_eq!(
             names_of(&offered_tools(&only_shell)),
-            vec![TOOL_SHELL, TOOL_READ_RESULT]
+            vec![TOOL_SHELL, TOOL_READ_RESULT, TOOL_ASK_PERSON]
         );
     }
 }

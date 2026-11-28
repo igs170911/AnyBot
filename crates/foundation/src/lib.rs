@@ -20,6 +20,9 @@ pub mod master_key;
 pub mod release;
 pub mod secret;
 pub mod secret_bytes;
+pub mod secret_mask;
+#[cfg(test)]
+mod secret_mask_tests;
 pub mod startup;
 #[cfg(test)]
 mod startup_tests;
@@ -50,6 +53,7 @@ pub use release::{
 };
 pub use secret::Secret;
 pub use secret_bytes::SecretBytes;
+pub use secret_mask::mask_secrets;
 pub use startup::{
     ClientLaunch, ClientLaunchArgs, ServerCommand, ServerLaunchArgs, default_data_dir,
 };

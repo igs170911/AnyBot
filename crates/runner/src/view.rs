@@ -182,7 +182,8 @@ impl ModelResultView for ActionView {
 fn floor_params(code: &str) -> Vec<&'static str> {
     match code {
         "gate-command-denied" => vec!["command"],
-        "gate-private-file" | "gate-bot-machine-outside" => vec!["path"],
+        "gate-private-file" => vec!["path"],
+        "gate-bot-machine-outside" => vec!["bot", "path"],
         _ => Vec::new(),
     }
 }

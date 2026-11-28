@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use anybot_domain::task_view::BudgetOver;
-use anybot_protocol::{CardAnswer, CardKind, KnownTaskEventKind, NotRunReason, ToolRequest};
-use anybot_trust::{AskTicket, GateStep, OutcomeText};
+use anybot_protocol::{NotRunReason, ToolRequest};
+use anybot_trust::{GateStep, OutcomeText};
 
 use crate::action_record::{record_args_rejected, record_denied, record_executed, record_not_run};
-use crate::card_wait::CardWaitOutcome;
 use crate::error::TurnError;
-use crate::record::{Appended, Halt};
+use crate::record::Halt;
 use crate::runner::{TurnCtx, TurnRunner};
 use crate::view::ActionView;
 
@@ -114,78 +113,73 @@ async fn run_one(
             return Ok(OneAction::Done);
         }
     };
-    if let anybot_tools::ToolArgs::ReadResult(read) = args {
-        crate::read_result_run::run_read_result(runner, ctx, request, &read).await?;
-        return Ok(OneAction::Done);
+    match args {
+        anybot_tools::ToolArgs::ReadResult(read) => {
+            crate::read_result_run::run_read_result(runner, ctx, request, &read).await?;
+            Ok(OneAction::Done)
+        }
+        anybot_tools::ToolArgs::AskPerson(ask_args) => {
+            crate::questions::park_question(runner, ctx, request, ask_args).await?;
+            Ok(OneAction::Refused)
+        }
+        other => run_gated(runner, ctx, request, other).await,
     }
-    let context = crate::action_record::action_context(runner, ctx, request)?;
-    let view = view_of(runner.lang, &args).with_computer(&context.computer);
-    let areq = anybot_tools::build_request(&request.tool, args, context);
-    let computer = Arc::clone(&runner.gated);
-    let config = computer.gate_config();
+}
+
+async fn run_gated(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    args: anybot_tools::ToolArgs,
+) -> Result<OneAction, TurnError> {
+    let (areq, view) = build_areq(runner, ctx, request, args)?;
+    if let Some(denial) = crate::reject_memory::repeat_denial(runner, request)? {
+        let run = anybot_trust::step_denied_run(&areq, &denial, &*runner.clock);
+        return apply_step(runner, ctx, request, &areq, view, GateStep::Denied(run)).await;
+    }
     let call_ctx =
         anybot_trust::CallContext::new(request.call_id, ctx.turn_id, &request.provider_call_id);
-    let step =
-        anybot_trust::gate_step(&areq, &call_ctx, &*computer, &config, &view, &*runner.clock);
+    let step = crate::gate_run::decide(runner, &areq, &call_ctx, &view, true)?;
+    apply_step(runner, ctx, request, &areq, view, step).await
+}
+
+pub(crate) fn build_areq(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    args: anybot_tools::ToolArgs,
+) -> Result<(anybot_trust::ActionRequest, ActionView), TurnError> {
+    let context = crate::action_record::action_context(runner, ctx, request)?;
+    let view = view_of(runner.lang, &args).with_computer(&context.computer);
+    Ok((
+        anybot_tools::build_request(&request.tool, args, context),
+        view,
+    ))
+}
+
+pub(crate) async fn apply_step(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    areq: &anybot_trust::ActionRequest,
+    view: ActionView,
+    step: GateStep,
+) -> Result<OneAction, TurnError> {
     match step {
         GateStep::Denied(run) => {
             record_denied(runner, ctx, request, &run).await?;
             crate::approvals::record_ask_summary(runner, ctx, request, &run, &view).await?;
             Ok(OneAction::Refused)
         }
-        GateStep::Ask(ticket) => handle_ask(runner, ctx, request, view, *ticket).await,
+        GateStep::Ask(ticket) => {
+            crate::card_ask::handle_ask(runner, ctx, request, view, *ticket).await
+        }
         GateStep::Allow(ticket) => {
-            match record_executed(runner, ctx, request, &areq, ticket, &view, &*computer).await? {
+            let computer = Arc::clone(&runner.gated);
+            match record_executed(runner, ctx, request, areq, ticket, &view, &*computer).await? {
                 Some(halt) => Ok(OneAction::Halted(halt)),
                 None => Ok(OneAction::Done),
             }
-        }
-    }
-}
-
-async fn handle_ask(
-    runner: &TurnRunner,
-    ctx: &TurnCtx,
-    request: &ToolRequest,
-    view: ActionView,
-    ticket: AskTicket,
-) -> Result<OneAction, TurnError> {
-    let shown = KnownTaskEventKind::CardShown {
-        action: crate::approvals::first_action(&ticket),
-        card: ticket.card_digest(),
-        kind: CardKind::Action,
-        resume: None,
-    };
-    let stored = match runner.append_turn_unless_halted(ctx, shown).await? {
-        Appended::Halted(halt) => {
-            record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
-            return Ok(OneAction::Halted(halt));
-        }
-        Appended::Stored(row) => row,
-    };
-    let shown_seq = crate::card_wait::task_seq_of(&stored);
-    match crate::card_wait::wait_for_card(runner, ctx, shown_seq).await? {
-        CardWaitOutcome::Answered(answer) => {
-            crate::approvals::finish_in_turn_approval(runner, ctx, request, &ticket, &view, answer)
-                .await
-        }
-        CardWaitOutcome::Halted(halt) => {
-            if halt == Halt::Stopped {
-                runner
-                    .append_turn_event(
-                        ctx,
-                        KnownTaskEventKind::CardAnswered {
-                            answer: CardAnswer::Deny,
-                        },
-                    )
-                    .await?;
-            }
-            record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
-            Ok(OneAction::Halted(halt))
-        }
-        CardWaitOutcome::TimedOut => {
-            crate::approvals::store_parked(runner, request, view, ticket)?;
-            Ok(OneAction::TimedOut)
         }
     }
 }
@@ -210,7 +204,8 @@ fn view_of(lang: anybot_messages::Lang, args: &anybot_tools::ToolArgs) -> Action
         }
         anybot_tools::ToolArgs::List(_)
         | anybot_tools::ToolArgs::ReadResult(_)
-        | anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
+        | anybot_tools::ToolArgs::Shell(_)
+        | anybot_tools::ToolArgs::AskPerson(_) => ActionView::new(lang),
     }
 }
 

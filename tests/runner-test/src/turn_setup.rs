@@ -11,6 +11,7 @@ use anybot_protocol::{
 use anybot_runner::{BotProfile, TurnModel};
 use test_harness::{FakeClock, FakeModel, ModelFormat};
 
+use crate::fake_builder::FakeComputerBuilder;
 use crate::fake_computer::FakeComputer;
 use crate::mem_store::{MemoryRaw, MemoryRecord};
 use crate::mem_watch::MemoryWatch;
@@ -24,13 +25,16 @@ pub struct FallbackTarget {
     pub bot_context: u64,
 }
 
-pub(crate) fn apply_world_files(
-    computer: crate::fake_builder::FakeComputerBuilder,
-    setup: &WorldSetup,
-) -> crate::fake_builder::FakeComputerBuilder {
+fn apply_world_files(computer: FakeComputerBuilder, setup: &WorldSetup) -> FakeComputerBuilder {
     let mut built = computer;
     for dir in &setup.dirs {
         built = built.directory(dir);
+    }
+    for (path, target) in &setup.links {
+        built = built.link(path, target);
+    }
+    for path in &setup.unresolvable {
+        built = built.unresolvable(path);
     }
     for (path, content) in &setup.files {
         built = built.file(path, content);
@@ -46,15 +50,17 @@ pub(crate) fn apply_world_files(
     built.inherited_env(&env_refs)
 }
 
-pub(crate) fn setup_caps(setup: &WorldSetup) -> ComputerCaps {
+fn setup_caps(setup: &WorldSetup) -> ComputerCaps {
     if let Some(caps) = &setup.caps {
         return caps.clone();
     }
-    let owner = if setup.platform == ComputerPlatform::BotMachine {
-        ComputerOwner::Bot
-    } else {
-        ComputerOwner::User
-    };
+    let owner = setup
+        .owner
+        .unwrap_or(if setup.platform == ComputerPlatform::BotMachine {
+            ComputerOwner::Bot
+        } else {
+            ComputerOwner::User
+        });
     let sandbox = setup.sandbox && setup.platform != ComputerPlatform::Windows;
     ComputerCaps {
         run_commands: CapState::Supported,
@@ -112,10 +118,49 @@ impl TurnWorld {
             .map_err(|e| format!("{e:?}"))
     }
 
+    pub async fn answer_shown_card(
+        &self,
+        task: TaskId,
+        answer: anybot_protocol::CardAnswer,
+    ) -> Result<(), String> {
+        self.runner
+            .append_task_event(
+                &task,
+                KnownTaskEventKind::CardAnswered {
+                    answer,
+                    origin: anybot_protocol::AnswerOrigin::Hand,
+                },
+            )
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
+    }
+
     pub fn set_gate(&self, gate: anybot_trust::GateConfig) {
         let computer: &FakeComputer = &self.gated;
         *FakeComputer::guard(&computer.gate) = gate;
     }
+}
+
+pub(crate) fn build_world_computer(
+    setup: &WorldSetup,
+    clock: &Arc<FakeClock>,
+) -> FakeComputerBuilder {
+    let mut builder = FakeComputerBuilder::default()
+        .named(&setup.computer_name)
+        .caps(setup_caps(setup))
+        .workdir(&setup.workdir)
+        .case_insensitive(setup.case_insensitive)
+        .gate(setup.gate.clone())
+        .ripgrep(setup.ripgrep)
+        .clock(Arc::clone(clock));
+    if !setup.home_dir.is_empty() {
+        builder = builder.home_dir(&setup.home_dir);
+    }
+    if !setup.anybot_dir.is_empty() {
+        builder = builder.anybot_dir(&setup.anybot_dir);
+    }
+    apply_world_files(builder, setup)
 }
 
 pub(crate) fn make_record(
@@ -144,7 +189,7 @@ pub(crate) fn share_raw(raw: &Arc<MemoryRaw>) -> Arc<dyn anybot_runner::RawStore
 pub fn bot_profile(setup: &WorldSetup, bot: BotId) -> BotProfile {
     BotProfile {
         id: bot,
-        name: "Ada".to_owned(),
+        name: setup.bot_name.clone(),
         instructions: setup.instructions.clone(),
         timezone: "Asia/Taipei".to_owned(),
         budget_overrides: setup.budget_overrides.clone(),

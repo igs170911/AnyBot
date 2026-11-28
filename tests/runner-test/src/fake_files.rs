@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use anybot_foundation::ContentDigest;
-use anybot_protocol::{DirEntry, TargetKind};
 
 pub const WORKDIR: &str = "/workspace";
 
@@ -9,10 +8,12 @@ const MAX_LINK_HOPS: usize = 8;
 
 #[derive(Debug, Clone)]
 pub struct FileTree {
-    files: BTreeMap<String, String>,
+    pub(crate) files: BTreeMap<String, String>,
     links: BTreeMap<String, String>,
-    dirs: BTreeSet<String>,
-    workdir: String,
+    pub(crate) dirs: BTreeSet<String>,
+    pub(crate) workdir: String,
+    home_dir: String,
+    case_insensitive: bool,
 }
 
 impl Default for FileTree {
@@ -31,6 +32,8 @@ impl FileTree {
             links: BTreeMap::new(),
             dirs,
             workdir: WORKDIR.to_owned(),
+            home_dir: "/home/user".to_owned(),
+            case_insensitive: false,
         }
     }
 
@@ -40,13 +43,23 @@ impl FileTree {
         self.workdir = normalized;
     }
 
-    #[must_use]
-    pub fn canonical(&self, path: &str) -> String {
-        let joined = self.join_workdir(path);
-        self.follow_links(&joined)
+    pub fn set_home_dir(&mut self, home_dir: &str) {
+        self.home_dir = normalize_path(home_dir);
     }
 
-    fn join_workdir(&self, path: &str) -> String {
+    pub fn set_case_insensitive(&mut self, on: bool) {
+        self.case_insensitive = on;
+    }
+
+    #[must_use]
+    pub fn join_and_normalize(&self, path: &str) -> String {
+        if path == "~" {
+            return self.home_dir.clone();
+        }
+        if let Some(rest) = path.strip_prefix("~/") {
+            let base = self.home_dir.trim_end_matches('/');
+            return normalize_path(&format!("{base}/{rest}"));
+        }
         if path.starts_with('/') {
             return normalize_path(path);
         }
@@ -54,26 +67,86 @@ impl FileTree {
         normalize_path(&format!("{base}/{path}"))
     }
 
+    #[must_use]
+    pub fn canonical(&self, path: &str) -> String {
+        let joined = self.join_and_normalize(path);
+        let followed = self.follow_links(&joined);
+        self.resolve_disk_case(&followed)
+    }
+
+    fn resolve_disk_case(&self, path: &str) -> String {
+        if !self.case_insensitive {
+            return path.to_owned();
+        }
+        let lower = path.to_lowercase();
+        if let Some(key) = self.files.keys().find(|k| k.to_lowercase() == lower) {
+            return key.clone();
+        }
+        if let Some(key) = self.dirs.iter().find(|k| k.to_lowercase() == lower) {
+            return key.clone();
+        }
+        path.to_owned()
+    }
+
     fn follow_links(&self, joined: &str) -> String {
         let mut current = joined.to_owned();
         for _ in 0..MAX_LINK_HOPS {
-            let Some(target) = self.links.get(&current) else {
-                return current;
-            };
-            current = self.join_workdir(target);
+            if let Some(target) = self.lookup_link(&current) {
+                current = self.join_and_normalize(target);
+                continue;
+            }
+            if let Some(rewritten) = self.follow_prefix_link(&current) {
+                current = rewritten;
+                continue;
+            }
+            return current;
         }
         current
+    }
+
+    fn follow_prefix_link(&self, current: &str) -> Option<String> {
+        let mut pos = current.len();
+        while let Some(slash) = current.get(..pos).and_then(|s| s.rfind('/')) {
+            if slash == 0 {
+                break;
+            }
+            let prefix = current.get(..slash)?;
+            let suffix = current.get(slash.saturating_add(1)..)?;
+            if let Some(target) = self.lookup_link(prefix) {
+                let target_base = self.join_and_normalize(target);
+                let base = target_base.trim_end_matches('/');
+                return Some(normalize_path(&format!("{base}/{suffix}")));
+            }
+            pos = slash;
+        }
+        None
+    }
+
+    fn lookup_link(&self, path: &str) -> Option<&str> {
+        if !self.case_insensitive {
+            return self.links.get(path).map(String::as_str);
+        }
+        let lower = path.to_lowercase();
+        self.links
+            .iter()
+            .find(|(k, _)| k.to_lowercase() == lower)
+            .map(|(_, v)| v.as_str())
     }
 
     #[must_use]
     pub fn exists(&self, path: &str) -> bool {
         let canonical = self.canonical(path);
-        self.files.contains_key(&canonical) || self.dirs.contains(&canonical)
+        self.read(&canonical).is_some() || self.is_directory(&canonical)
     }
 
     #[must_use]
     pub fn is_directory(&self, path: &str) -> bool {
-        self.dirs.contains(&self.canonical(path))
+        let canonical = self.canonical(path);
+        if !self.case_insensitive {
+            return self.dirs.contains(&canonical);
+        }
+        let lower = canonical.to_lowercase();
+        self.dirs.iter().any(|d| d.to_lowercase() == lower)
     }
 
     pub fn write(&mut self, path: &str, content: &str) {
@@ -90,7 +163,15 @@ impl FileTree {
 
     #[must_use]
     pub fn read(&self, path: &str) -> Option<String> {
-        self.files.get(&self.canonical(path)).cloned()
+        let canonical = self.canonical(path);
+        if !self.case_insensitive {
+            return self.files.get(&canonical).cloned();
+        }
+        let lower = canonical.to_lowercase();
+        self.files
+            .iter()
+            .find(|(k, _)| k.to_lowercase() == lower)
+            .map(|(_, v)| v.clone())
     }
 
     #[must_use]
@@ -110,68 +191,6 @@ impl FileTree {
         self.dirs.insert(canonical);
     }
 
-    pub fn list_entries(&self, path: &str) -> Result<Vec<DirEntry>, String> {
-        let canonical = self.canonical(path);
-        if self.files.contains_key(&canonical) {
-            return Err(format!("{canonical} is a file"));
-        }
-        if !self.dirs.contains(&canonical) {
-            return Err(format!("{canonical} is not a directory"));
-        }
-        let prefix = if canonical == "/" {
-            "/".to_owned()
-        } else {
-            format!("{canonical}/")
-        };
-        let mut out: BTreeMap<String, DirEntry> = BTreeMap::new();
-        for dir_path in &self.dirs {
-            if let Some(name) = immediate_child(dir_path, &prefix) {
-                out.insert(
-                    name.to_owned(),
-                    DirEntry {
-                        name: name.to_owned(),
-                        kind: TargetKind::Directory,
-                        size: 0,
-                    },
-                );
-            }
-        }
-        for (file_path, content) in &self.files {
-            if let Some(name) = immediate_child(file_path, &prefix) {
-                out.insert(
-                    name.to_owned(),
-                    DirEntry {
-                        name: name.to_owned(),
-                        kind: TargetKind::File,
-                        size: content.len() as u64,
-                    },
-                );
-            }
-        }
-        Ok(out.into_values().collect())
-    }
-
-    pub fn search_files(&self, path: &str) -> Result<Vec<(String, String)>, String> {
-        let canonical = self.canonical(path);
-        if let Some(content) = self.files.get(&canonical) {
-            let display = display_rel_path(&self.workdir, "/", &canonical);
-            return Ok(vec![(display, content.clone())]);
-        }
-        if !self.dirs.contains(&canonical) {
-            return Err(format!("{canonical} is not a directory"));
-        }
-        let dir_prefix = dir_prefix(&canonical);
-        let workdir_prefix = dir_prefix_for(&self.workdir);
-        let mut out = Vec::new();
-        for (file_path, content) in &self.files {
-            if file_path.starts_with(&dir_prefix) {
-                let display = display_rel_path(&workdir_prefix, &dir_prefix, file_path);
-                out.push((display, content.clone()));
-            }
-        }
-        Ok(out)
-    }
-
     fn register_parents(&mut self, canonical: &str) {
         let mut rest = canonical;
         while let Some((parent, _)) = rest.rsplit_once('/') {
@@ -185,39 +204,7 @@ impl FileTree {
     }
 }
 
-fn immediate_child<'a>(path: &'a str, prefix: &str) -> Option<&'a str> {
-    let rest = path.strip_prefix(prefix)?;
-    if rest.is_empty() || rest.contains('/') {
-        return None;
-    }
-    Some(rest)
-}
-
-fn dir_prefix(canonical: &str) -> String {
-    if canonical == "/" {
-        "/".to_owned()
-    } else {
-        format!("{canonical}/")
-    }
-}
-
-fn dir_prefix_for(workdir: &str) -> String {
-    dir_prefix(&normalize_path(workdir))
-}
-
-fn display_rel_path(workdir_prefix: &str, dir_prefix: &str, file_path: &str) -> String {
-    if let Some(rel) = file_path.strip_prefix(workdir_prefix) {
-        return rel.to_owned();
-    }
-    if let Some(rel) = file_path.strip_prefix(dir_prefix) {
-        return rel.to_owned();
-    }
-    file_path
-        .rsplit_once('/')
-        .map_or_else(|| file_path.to_owned(), |(_, name)| name.to_owned())
-}
-
-fn normalize_path(path: &str) -> String {
+pub(crate) fn normalize_path(path: &str) -> String {
     let absolute = path.starts_with('/');
     let mut parts: Vec<&str> = Vec::new();
     for segment in path.split('/') {
@@ -227,12 +214,9 @@ fn normalize_path(path: &str) -> String {
         if segment == ".." {
             if parts.last().is_some_and(|last| *last != "..") {
                 parts.pop();
-                continue;
+            } else if !absolute {
+                parts.push("..");
             }
-            if absolute {
-                continue;
-            }
-            parts.push("..");
             continue;
         }
         parts.push(segment);
@@ -253,30 +237,5 @@ pub fn digest_text(content: &str) -> ContentDigest {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_file_tree_resolves_links_and_relative_paths_to_canonical_paths() {
-        let mut tree = FileTree::new();
-        tree.write("/elsewhere/data.txt", "abc");
-        tree.link("link/data.txt", "/elsewhere/data.txt");
-        tree.add_dir(WORKDIR);
-        assert_eq!(tree.canonical("link/data.txt"), "/elsewhere/data.txt");
-        assert_eq!(tree.canonical("notes.md"), "/workspace/notes.md");
-        assert!(tree.exists("link/data.txt"));
-        assert_eq!(tree.read("link/data.txt").as_deref(), Some("abc"));
-    }
-
-    #[test]
-    fn test_file_tree_link_cycles_stop_at_the_hop_limit() {
-        let mut tree = FileTree::new();
-        tree.link("/a", "/b");
-        tree.link("/b", "/a");
-        let canonical = tree.canonical("/a");
-        assert!(
-            canonical == "/a" || canonical == "/b",
-            "canonical {canonical}"
-        );
-    }
-}
+#[path = "fake_files_tests.rs"]
+mod tests;

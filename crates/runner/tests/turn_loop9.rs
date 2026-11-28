@@ -163,7 +163,8 @@ fn payload_in_log(payload: &EvidencePayload, log: &[String]) -> bool {
         }
         EvidencePayload::Approved { .. }
         | EvidencePayload::Rejected { .. }
-        | EvidencePayload::NotExecuted { .. } => true,
+        | EvidencePayload::NotExecuted { .. }
+        | EvidencePayload::Relayed { .. } => true,
     }
 }
 
@@ -234,7 +235,8 @@ fn check_record_visible(
         }
         EvidencePayload::Approved { .. }
         | EvidencePayload::Rejected { .. }
-        | EvidencePayload::NotExecuted { .. } => {}
+        | EvidencePayload::NotExecuted { .. }
+        | EvidencePayload::Relayed { .. } => {}
     }
     Ok(())
 }

@@ -102,6 +102,17 @@ fn prefix_lives_in_system_and_tail_is_the_last_user_message() {
             card: "card-1".to_owned(),
             kind: anybot_protocol::CardKind::Action,
             resume: None,
+            buttons: vec![
+                anybot_protocol::CardButton::AllowOnce,
+                anybot_protocol::CardButton::Deny,
+            ],
+            reason: anybot_protocol::ReasonPayload {
+                code: "card-run-command".to_owned(),
+                params: Vec::new(),
+            },
+            always_label: None,
+            notes: Vec::new(),
+            classes: Vec::new(),
         },
     )];
     let request = sent(&input);
@@ -135,6 +146,17 @@ fn system_bytes_hold_when_only_the_tail_changes() {
             card: "card-1".to_owned(),
             kind: anybot_protocol::CardKind::Action,
             resume: None,
+            buttons: vec![
+                anybot_protocol::CardButton::AllowOnce,
+                anybot_protocol::CardButton::Deny,
+            ],
+            reason: anybot_protocol::ReasonPayload {
+                code: "card-run-command".to_owned(),
+                params: Vec::new(),
+            },
+            always_label: None,
+            notes: Vec::new(),
+            classes: Vec::new(),
         },
     )];
     let sent_a = sent(&first);

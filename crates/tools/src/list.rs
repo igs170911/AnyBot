@@ -113,9 +113,7 @@ pub fn format_size(bytes: u64) -> String {
 #[must_use]
 pub fn is_private_entry(name: &str) -> bool {
     let trimmed = name.trim_end_matches('/');
-    if anybot_trust::trust_floor::is_private_path(trimmed)
-        || anybot_trust::trust_floor::is_private_path(&format!("~/{trimmed}"))
-    {
+    if anybot_trust::is_private_path(trimmed, "", "") {
         return true;
     }
     let lower = trimmed.to_lowercase();

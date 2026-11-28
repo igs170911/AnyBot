@@ -1,8 +1,10 @@
-use anybot_foundation::ContentDigest;
+use anybot_foundation::{ContentDigest, mask_secrets};
 use anybot_protocol::{
     ActualResult, CommandOutcome, EvidenceKind, EvidencePayload, ListOutcome, PathOutcome,
     ReadOutcome, SearchOutcome, WriteOutcome,
 };
+
+const OUTPUT_EDGE_CHARS: usize = 6_000;
 
 #[must_use]
 pub fn payload_kind(result: &ActualResult) -> EvidenceKind {
@@ -32,16 +34,31 @@ pub fn payload_of(result: &ActualResult) -> EvidencePayload {
 
 #[must_use]
 pub fn command_payload(outcome: &CommandOutcome) -> EvidencePayload {
+    let (output_head, output_tail, output_omitted) = trim_evidence_output(&outcome.output);
     EvidencePayload::Executed {
-        command: outcome.command.clone(),
+        command: mask_secrets(&outcome.command),
         computer: outcome.computer.clone(),
         exit_code: outcome.exit_code,
-        output_head: outcome.output.clone(),
-        output_tail: outcome.output.clone(),
-        output_omitted: 0,
+        output_head,
+        output_tail,
+        output_omitted,
         full_digest: ContentDigest::sha256(outcome.output.as_bytes()),
         elapsed_ms: outcome.elapsed_ms,
     }
+}
+
+fn trim_evidence_output(output: &str) -> (String, String, u64) {
+    let char_count = output.chars().count();
+    let double_edge = OUTPUT_EDGE_CHARS.saturating_mul(2);
+    if char_count <= double_edge {
+        let masked = mask_secrets(output);
+        return (masked.clone(), masked, 0);
+    }
+    let head_raw: String = output.chars().take(OUTPUT_EDGE_CHARS).collect();
+    let tail_rev: Vec<char> = output.chars().rev().take(OUTPUT_EDGE_CHARS).collect();
+    let tail_raw: String = tail_rev.into_iter().rev().collect();
+    let omitted = u64::try_from(char_count.saturating_sub(double_edge)).unwrap_or(u64::MAX);
+    (mask_secrets(&head_raw), mask_secrets(&tail_raw), omitted)
 }
 
 #[must_use]
