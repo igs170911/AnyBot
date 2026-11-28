@@ -1,0 +1,7 @@
+# Historical findings on dev that are fake test fixtures (TOTP doc seed, PEM mask-test sample). History is not rewritten.
+1e18da22d63c6600de921cb77ebbd6709ec23fd4:crates/foundation/src/secret_mask_tests.rs:private-key:48
+9540fde8c3e91749451ebc7873857c2db49e8126:api/openapi.yaml:generic-api-key:873
+9540fde8c3e91749451ebc7873857c2db49e8126:web/api-client/src/generated/schema.ts:generic-api-key:2189
+40030b432713fc44bc9ef057a8d62dfc22411f76:crates/server/src/api_two_step_setup.rs:generic-api-key:30
+6bc42dcaf26110f707e6ddd0669f2496b07f4f15:api/docs/index.html:generic-api-key:510
+9540fde8c3e91749451ebc7873857c2db49e8126:api/docs/index.html:generic-api-key:510
