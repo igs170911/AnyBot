@@ -64,6 +64,8 @@ fn push_ids(kind: &KnownTaskEventKind, intents: &mut Vec<String>, results: &mut 
         | KnownTaskEventKind::QuestionShown { .. }
         | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. }
         | KnownTaskEventKind::DeliveryReport { .. } => {}
     }
 }
@@ -159,6 +161,8 @@ fn order_call_id(kind: &KnownTaskEventKind) -> Option<String> {
         | KnownTaskEventKind::QuestionShown { .. }
         | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. }
         | KnownTaskEventKind::DeliveryReport { .. } => None,
     }
 }

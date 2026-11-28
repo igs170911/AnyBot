@@ -84,6 +84,8 @@ fn halt_kind(kind: &KnownTaskEventKind) -> Option<Halt> {
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::GoalPaused { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. }
         | KnownTaskEventKind::Stalled { .. } => None,
     }
 }

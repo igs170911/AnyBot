@@ -161,7 +161,9 @@ fn apply_criteria(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::GoalPaused { .. }
-        | KnownTaskEventKind::Stalled { .. } => {}
+        | KnownTaskEventKind::Stalled { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => {}
     }
 }
 
@@ -221,7 +223,9 @@ fn apply_steps(b: &mut StateBuilder, seq: u64, known: &KnownTaskEventKind) {
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::GoalPaused { .. }
-        | KnownTaskEventKind::Stalled { .. } => {}
+        | KnownTaskEventKind::Stalled { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => {}
     }
 }
 

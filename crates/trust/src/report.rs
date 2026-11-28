@@ -248,7 +248,9 @@ fn note_step(kind: &KnownTaskEventKind, steps: &mut BTreeMap<String, PendingStep
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
-        | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => {}
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => {}
     }
 }
 

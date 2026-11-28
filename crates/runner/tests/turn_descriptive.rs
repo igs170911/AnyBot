@@ -68,6 +68,8 @@ fn result_call_id(kind: &KnownTaskEventKind) -> Option<String> {
         | KnownTaskEventKind::QuestionShown { .. }
         | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
         | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => None,

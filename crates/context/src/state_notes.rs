@@ -59,6 +59,8 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::GoalPaused { .. }
-        | KnownTaskEventKind::Stalled { .. } => {}
+        | KnownTaskEventKind::Stalled { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => {}
     }
 }
