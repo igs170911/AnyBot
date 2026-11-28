@@ -101,3 +101,51 @@ export async function withLock<T>(
     });
   }
 }
+
+export async function readInvite(request: APIRequestContext): Promise<string> {
+  const reply = await request.get(controlUrl("/control/invite"), {
+    timeout: CONTROL_REQUEST_TIMEOUT_MS,
+  });
+  expect(reply.status(), `invite not readable: ${await reply.text()}`).toBe(200);
+  return ((await reply.json()) as { invite: string }).invite;
+}
+
+export async function deleteAccount(request: APIRequestContext, account: string): Promise<void> {
+  const reply = await request.post(controlUrl("/control/account/delete"), {
+    data: { account },
+    timeout: CONTROL_REQUEST_TIMEOUT_MS,
+  });
+  expect([204, 404], `delete account ${account} failed`).toContain(reply.status());
+}
+
+export async function disableAccount(request: APIRequestContext, account: string): Promise<void> {
+  const reply = await request.post(controlUrl("/control/account/disable"), {
+    data: { account },
+    timeout: CONTROL_REQUEST_TIMEOUT_MS,
+  });
+  expect(reply.status(), `disable account ${account} failed`).toBe(204);
+}
+
+export async function advanceClock(request: APIRequestContext, ms: number): Promise<void> {
+  const reply = await request.post(controlUrl("/control/clock/advance"), {
+    data: { ms },
+    timeout: CONTROL_REQUEST_TIMEOUT_MS,
+  });
+  expect(reply.status(), "clock advance failed").toBe(200);
+}
+
+export async function accountSignsIn(
+  request: APIRequestContext,
+  account: string,
+  password: string,
+): Promise<number> {
+  const reply = await request.post(`${serverOrigin()}/v1/account/login`, {
+    headers: {
+      "AnyBot-Client-Version": CLIENT_VERSION,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { account, password, label: "playwright", credential: "bearer" },
+    timeout: CONTROL_REQUEST_TIMEOUT_MS,
+  });
+  return reply.status();
+}

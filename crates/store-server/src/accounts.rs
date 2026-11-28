@@ -82,11 +82,10 @@ pub async fn set_disabled(pool: &Pool, account: &str, disabled: bool) -> Result<
 }
 
 pub async fn first_admin_account(pool: &Pool) -> Result<Option<String>, sqlx::Error> {
-    let row = sqlx::query!(
-        "SELECT account FROM accounts WHERE admin ORDER BY created_at_ms LIMIT 1",
-    )
-    .fetch_optional(pool)
-    .await?;
+    let row =
+        sqlx::query!("SELECT account FROM accounts WHERE admin ORDER BY created_at_ms LIMIT 1",)
+            .fetch_optional(pool)
+            .await?;
     Ok(row.map(|found| found.account))
 }
 

@@ -10,7 +10,7 @@ use test_harness::model_script::{RecordedRequest, Step};
 
 use crate::account_delete::delete_account;
 use crate::locks::{LOCK_WAIT, LockTable};
-use crate::seed::{SeedReply, SeedRequest, disable_account, seed_world};
+use crate::seed::{SeedReply, SeedRequest, disable_account, read_invite, seed_world};
 use crate::state::TestEnvState;
 
 type Shared = Arc<TestEnvState>;
@@ -81,6 +81,13 @@ async fn disable(
         .map_err(failed)
 }
 
+async fn invite(State(state): State<Shared>) -> Result<Json<serde_json::Value>, Failure> {
+    read_invite(&state.api, &state.admin)
+        .await
+        .map(|code| Json(serde_json::json!({ "invite": code })))
+        .map_err(failed)
+}
+
 async fn remove_account(
     State(state): State<Shared>,
     Json(body): Json<AccountBody>,
@@ -123,6 +130,7 @@ pub fn routes() -> Router<Shared> {
         .route("/control/model/requests", get(list_requests))
         .route("/control/seed", post(seed))
         .route("/control/account/disable", post(disable))
+        .route("/control/invite", get(invite))
         .route("/control/account/delete", post(remove_account))
         .route("/control/lock", post(take_lock))
         .route("/control/lock/{name}", delete(drop_lock))
