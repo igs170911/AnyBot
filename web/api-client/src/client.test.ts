@@ -17,7 +17,7 @@ function jsonReply(status: number, body: unknown): Response {
   });
 }
 
-describe("createAnyBotClient", () => {
+describe("createAnyBotClient headers", () => {
   it("client adds version and csrf headers", async () => {
     const seen: Request[] = [];
     const client = createAnyBotClient({
@@ -43,7 +43,9 @@ describe("createAnyBotClient", () => {
     const client = createAnyBotClient({ clientVersion: "0.1.0", baseUrl: "http://127.0.0.1:1" });
     expect(clientAt(client, "http://127.0.0.1:2").clientVersion).toBe("0.1.0");
   });
+});
 
+describe("createAnyBotClient errors", () => {
   it("errors become code and params from the problem body", async () => {
     const problem = {
       code: "account-login-credentials",
