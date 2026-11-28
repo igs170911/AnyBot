@@ -10,6 +10,7 @@ use tokio::net::TcpListener;
 
 use crate::fake_clock::FakeClock;
 use crate::model_plan;
+use crate::model_request::{requested_model, wants_stream};
 use crate::model_script::{
     CODE_MODEL_SCRIPT_EMPTY, RecordedRequest, Script, Step, classify_key, presented_key,
     record_headers,
@@ -27,6 +28,7 @@ struct ModelInner {
 #[derive(Default)]
 pub struct FakeModel {
     inner: Mutex<ModelInner>,
+    arrived: tokio::sync::watch::Sender<usize>,
 }
 
 impl FakeModel {
@@ -90,6 +92,14 @@ impl FakeModel {
         inner.recorded.clone()
     }
 
+    pub async fn wait_recorded(&self, count: usize) -> Result<(), String> {
+        let mut seen = self.arrived.subscribe();
+        seen.wait_for(|total| *total >= count)
+            .await
+            .map(|_total| ())
+            .map_err(|_e| "fake model stopped recording requests".to_owned())
+    }
+
     fn record(&self, path: &str, body: String, headers: &axum::http::HeaderMap) {
         let pairs: Vec<(String, String)> = headers
             .iter()
@@ -114,6 +124,7 @@ impl FakeModel {
             headers: recorded,
             key_match,
         });
+        self.arrived.send_replace(inner.recorded.len());
     }
 
     fn header_wait(&self) -> Option<Arc<FakeClock>> {
@@ -259,26 +270,6 @@ fn peel_delay(step: Step) -> (Step, Option<u64>) {
         | Step::ToolCalls { .. }
         | Step::ThinkThenTool { .. }) => (other, None),
     }
-}
-
-fn wants_stream(body: &str) -> bool {
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(body) else {
-        return false;
-    };
-    value
-        .get("stream")
-        .is_some_and(|s| s.as_bool().unwrap_or(false))
-}
-
-fn requested_model(body: &str) -> String {
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(body) else {
-        return String::new();
-    };
-    value
-        .get("model")
-        .and_then(|m| m.as_str())
-        .unwrap_or_default()
-        .to_owned()
 }
 
 fn empty_script_response() -> Response {
