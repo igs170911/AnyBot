@@ -18,7 +18,11 @@ use test_harness::realtime::timeout_real;
 use test_harness::scratch::test_dir;
 
 use crate::control::control_router;
+use crate::locks::LockTable;
+use crate::seed::bootstrap_admin;
 use crate::state::{EnvPorts, TestEnvState};
+use crate::web_files::serve_web;
+use test_harness::server_client::ServerApi;
 
 const START_BUDGET: std::time::Duration = std::time::Duration::from_secs(60);
 
@@ -28,9 +32,14 @@ fn start_server(app: AppState, std_listener: std::net::TcpListener) -> Result<u1
         .set_nonblocking(true)
         .map_err(|e| e.to_string())?;
     let listener = TcpListener::from_std(std_listener).map_err(|e| e.to_string())?;
-    let app = build_router(app);
+    let app = build_router(app).fallback(serve_web);
     tokio::spawn(async move {
-        match axum::serve(listener, app).await {
+        match axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        {
             Ok(()) => {}
             Err(err) => {
                 let mut stderr = std::io::stderr();
@@ -60,6 +69,7 @@ async fn start_database(
     let config = ServerConfig {
         listen_addresses: vec!["127.0.0.1".to_owned()],
         listen_port: serve_port,
+        trust_proxy: Some(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)),
         ..ServerConfig::default()
     };
     let master = anybot_foundation::MasterKey::generate().map_err(|e| e.to_string())?;
@@ -76,7 +86,10 @@ pub async fn testenv_start() -> Result<(Arc<TestEnvState>, Router, TcpListener),
     let clock = FakeClock::new(1_700_000_000_000);
     let (serve_std, serve_port) = bind_v4()?;
     let (app, pg) = start_database(Arc::clone(&clock), serve_port).await?;
+    let pool = app.pool().ok_or("testenv server has no database pool")?;
     let bound_port = start_server(app, serve_std)?;
+    let api = ServerApi::new(bound_port)?;
+    let admin = timeout_real(bootstrap_admin(&api, &pool), START_BUDGET).await??;
     let (control_std, control_port) = bind_v4()?;
     control_std
         .set_nonblocking(true)
@@ -88,6 +101,9 @@ pub async fn testenv_start() -> Result<(Arc<TestEnvState>, Router, TcpListener),
         push,
         net,
         pg,
+        api,
+        admin,
+        locks: LockTable::default(),
         ports: EnvPorts {
             server_port: bound_port,
             model_port,

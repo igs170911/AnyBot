@@ -62,6 +62,8 @@ pub mod realtime;
 pub mod reap;
 pub mod running;
 pub mod scratch;
+pub mod server_client;
+pub mod static_files;
 
 pub use capture::{ArcWriter, Capture, poll_contains};
 pub use cloud_map::{NameMap, cloud_name_matches, mapped_origin};

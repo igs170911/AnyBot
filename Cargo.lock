@@ -6014,6 +6014,7 @@ dependencies = [
  "serde_json",
  "test-harness",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
