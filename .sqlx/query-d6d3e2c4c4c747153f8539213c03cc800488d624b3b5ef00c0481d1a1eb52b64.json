@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT kind, task_id, purged FROM records WHERE stream_id = $1 AND seq = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "task_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "purged",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "records",
+            "name": "purged"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": ["Text", "Int8"]
+    },
+    "nullable": [false, true, false]
+  },
+  "hash": "d6d3e2c4c4c747153f8539213c03cc800488d624b3b5ef00c0481d1a1eb52b64"
+}

@@ -67,3 +67,4 @@ pub fn placeholder_missing_bootstrap() -> FoundationError {
 
 pub mod push_key;
 pub mod push_subscriptions;
+pub mod streams_task;
