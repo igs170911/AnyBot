@@ -104,13 +104,16 @@ pub async fn resolve_approval(
     card: &PendingCard,
     answer: CardAnswer,
 ) -> Result<(), TurnError> {
+    let existing = runner.record.task_events(ctx.task).await?;
+    let next = max_evidence_short(&existing).saturating_add(1);
+    ctx.advance_evidence_to(next);
     let gate = gate_answer_of(answer);
     runner
         .append_task_event(&ctx.task, KnownTaskEventKind::CardAnswered { answer })
         .await?;
     let computer = runner.gated_ref();
     let run = anybot_trust::answer_ask(&card.ticket, gate, &*computer, &card.view, &*runner.clock);
-    match answer {
+    let result = match answer {
         CardAnswer::Deny => {
             crate::action_record::record_denied(runner, ctx, &card.request, &run).await?;
             record_refusal(runner, ctx, &card.request, &run, &card.view).await
@@ -118,7 +121,13 @@ pub async fn resolve_approval(
         CardAnswer::AllowOnce | CardAnswer::AllowConversation | CardAnswer::AlwaysAllow => {
             record_approval_run(runner, ctx, &card.request, &run, &card.view).await
         }
+    };
+    if let Ok(mut guard) = runner.last_ctx.lock()
+        && guard.as_ref().is_some_and(|prev| prev.task == ctx.task)
+    {
+        *guard = Some(ctx.clone());
     }
+    result
 }
 
 async fn record_approval_run(
@@ -175,11 +184,15 @@ async fn record_refusal(
 
 impl TurnRunner {
     pub fn approval_context(&self, task: TaskId, turn: u32) -> TurnCtx {
+        let next = self
+            .last_ctx()
+            .filter(|ctx| ctx.task == task)
+            .map_or(1, |ctx| ctx.peek_evidence());
         TurnCtx {
             task,
             turn,
             turn_id: TurnId::generate(&*self.clock),
-            evidence: tokio::sync::Mutex::new(1_000),
+            evidence: tokio::sync::Mutex::new(next),
         }
     }
 
@@ -191,15 +204,24 @@ impl TurnRunner {
         guard.clone()
     }
 
-    pub fn bump_evidence(ctx: &TurnCtx) {
-        let Ok(mut guard) = ctx.evidence.try_lock() else {
-            return;
-        };
-        *guard = guard.saturating_add(1_000);
-    }
-
     #[must_use]
     pub fn gated_ref(&self) -> Arc<dyn anybot_trust::GatedComputer> {
         Arc::clone(&self.gated)
     }
+}
+
+fn max_evidence_short(events: &[anybot_protocol::TaskEvent]) -> u32 {
+    events
+        .iter()
+        .filter_map(|event| {
+            let anybot_protocol::TaskEventKind::Known(KnownTaskEventKind::EvidenceAdded {
+                record,
+            }) = &event.kind
+            else {
+                return None;
+            };
+            Some(record.short.number())
+        })
+        .max()
+        .unwrap_or(0)
 }

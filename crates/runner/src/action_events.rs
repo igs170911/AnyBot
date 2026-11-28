@@ -77,9 +77,9 @@ pub(crate) async fn record_result(
     if run.summary.status.code == CODE_TURN_REJECTED {
         return Ok(());
     }
+    let (raw_id, raw_output) = store_output(runner, view).await?;
+    let body = with_output(&text, raw_output.as_deref());
     if run.summary.status.code == CODE_TURN_COMPLETED {
-        let raw_id = store_output(runner, view).await?;
-        let body = with_output(&text, &run.evidence);
         let summary = with_computer_prefix(runner, &body);
         runner
             .append_task_event(
@@ -93,7 +93,6 @@ pub(crate) async fn record_result(
             .await
             .map(|_| ())
     } else {
-        let error = with_output(&text, &run.evidence);
         runner
             .append_task_event(
                 &ctx.task,
@@ -101,7 +100,7 @@ pub(crate) async fn record_result(
                     call_id: request.call_id,
                     name: request.tool.clone(),
                     args_summary: json,
-                    error,
+                    error: body,
                 },
             )
             .await
@@ -122,30 +121,26 @@ fn with_computer_prefix(runner: &TurnRunner, text: &str) -> String {
     }
 }
 
-fn with_output(text: &str, evidence: &[EvidenceRecord]) -> String {
-    for record in evidence {
-        if let anybot_protocol::EvidencePayload::Executed {
-            output_head: head, ..
-        } = &record.payload
-            && !head.is_empty()
-        {
-            return format!(
-                "{text}
-{head}"
-            );
-        }
+fn with_output(text: &str, raw_output: Option<&str>) -> String {
+    if let Some(output) = raw_output
+        && !output.is_empty()
+    {
+        return format!("{text}\n{output}");
     }
     text.to_owned()
 }
 
-async fn store_output(runner: &TurnRunner, view: &ActionView) -> Result<Option<String>, TurnError> {
+async fn store_output(
+    runner: &TurnRunner,
+    view: &ActionView,
+) -> Result<(Option<String>, Option<String>), TurnError> {
     let Some(output) = view.take_output() else {
-        return Ok(None);
+        return Ok((None, None));
     };
-    let bytes = output.into_bytes();
+    let bytes = output.as_bytes().to_vec();
     let digest = anybot_foundation::ContentDigest::sha256(&bytes);
     runner.raw.put(bytes).await.map_err(TurnError::Raw)?;
-    Ok(Some(digest.hex().to_owned()))
+    Ok((Some(digest.hex().to_owned()), Some(output)))
 }
 
 pub(crate) async fn record_evidence(

@@ -17,6 +17,15 @@ impl TurnCtx {
         *guard = value.saturating_add(1);
         value
     }
+
+    pub(crate) fn advance_evidence_to(&self, min_next: u32) {
+        let Ok(mut guard) = self.evidence.try_lock() else {
+            return;
+        };
+        if *guard < min_next {
+            *guard = min_next;
+        }
+    }
 }
 
 impl Clone for TurnCtx {

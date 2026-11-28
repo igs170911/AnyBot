@@ -35,6 +35,9 @@ pub mod task_journal;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
+pub mod turn_summary;
+#[cfg(test)]
+mod turn_summary_tests;
 pub mod two_step;
 pub mod version_release;
 #[cfg(test)]
@@ -89,6 +92,7 @@ pub use task_replay::{
 };
 pub use task_stall::{RunningSpan, is_stalled};
 pub use task_view::{TaskView, initial_view};
+pub use turn_summary::{SummaryError, TurnSummary, turn_summary};
 
 #[must_use]
 pub fn needs_attention(status: TaskStatus) -> bool {
