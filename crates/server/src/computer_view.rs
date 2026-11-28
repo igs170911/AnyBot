@@ -1,4 +1,6 @@
-use anybot_domain::computer_presence::{OfflineReason, Presence, PresenceInput, presence_of};
+use anybot_domain::computer_presence::{
+    ONLINE_WINDOW_MS, OfflineReason, Presence, PresenceInput, presence_of,
+};
 use anybot_protocol::ComputerView;
 use anybot_store_server::computers::ComputerRow;
 
@@ -13,11 +15,21 @@ pub(crate) fn signed(value: u64) -> Result<i64, CallerDenied> {
     i64::try_from(value).map_err(internal_text)
 }
 
+fn signaled_recently(state: &AppState, device_id: &str, now_ms: u64) -> bool {
+    match state.presence.last_request(device_id) {
+        Some(seen) => now_ms.saturating_sub(seen) <= ONLINE_WINDOW_MS,
+        None => false,
+    }
+}
+
 pub(crate) fn presence_now(
     state: &AppState,
     row: &ComputerRow,
     now_ms: u64,
 ) -> Result<Presence, CallerDenied> {
+    if signaled_recently(state, &row.device_id, now_ms) {
+        return Ok(Presence::Online);
+    }
     if !row.online {
         let at = row
             .offline_at_ms

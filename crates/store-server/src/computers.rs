@@ -179,7 +179,9 @@ pub async fn set_delegate(
 
 pub async fn touch_seen(pool: &Pool, device_id: &str, seen_ms: i64) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        "UPDATE computers SET last_seen_ms = $2 WHERE device_id = $1 AND last_seen_ms < $2",
+        "UPDATE computers SET last_seen_ms = $2, online = TRUE, offline_at_ms = NULL, \
+         offline_reason = NULL WHERE device_id = $1 AND removed_at_ms IS NULL \
+         AND last_seen_ms < $2",
         device_id,
         seen_ms,
     )
