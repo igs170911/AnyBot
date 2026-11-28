@@ -53,7 +53,14 @@ async fn t_computer_platforms_1() -> Result<(), String> {
     let names = offered_names(tools)?;
     assert_eq!(
         names,
-        vec!["edit_file", "read_file", "shell", "list_dir", "search"]
+        vec![
+            "edit_file",
+            "read_file",
+            "shell",
+            "list_dir",
+            "search",
+            "read_result"
+        ]
     );
     assert!(!names.iter().any(|n| n == "browser" || n == "computer"));
     let sys = system_content(&body)?;
@@ -198,7 +205,7 @@ async fn unknown_tool_lists_this_turn() -> Result<(), String> {
         "tool-not-in-turn",
         &Params::new()
             .with_text("tool", "edit_file")
-            .with_text("available", "read_file, list_dir, search"),
+            .with_text("available", "read_file, list_dir, search, read_result"),
     )?;
     assert_eq!(got, wanted);
     let changed = task_kinds(&world, &task).iter().any(|k| {
@@ -214,7 +221,7 @@ async fn unknown_tool_lists_this_turn() -> Result<(), String> {
 }
 
 #[tokio::test]
-async fn empty_caps_still_asks_model_with_no_tools() -> Result<(), String> {
+async fn empty_caps_offers_only_read_result() -> Result<(), String> {
     let caps = ComputerCaps::declared(ComputerPlatform::Linux, ComputerOwner::User);
     let setup = WorldSetup {
         caps: Some(caps),
@@ -225,6 +232,10 @@ async fn empty_caps_still_asks_model_with_no_tools() -> Result<(), String> {
     let outcome = world.send(Device::Phone, "hello").await;
     drop(outcome.map_err(|e| format!("{e:?}"))?);
     let body = request_body(&world.model, 0)?;
-    assert!(body.get("tools").is_none());
+    let tools = body
+        .get("tools")
+        .and_then(|v| v.as_array())
+        .ok_or("missing tools array".to_owned())?;
+    assert_eq!(offered_names(tools)?, vec!["read_result"]);
     Ok(())
 }

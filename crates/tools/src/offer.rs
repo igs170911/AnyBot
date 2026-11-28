@@ -3,10 +3,11 @@ use serde_json::{Value, json};
 
 use crate::message_codes::{
     CODE_TOOL_DESC_EDIT_FILE, CODE_TOOL_DESC_LIST_DIR, CODE_TOOL_DESC_READ_FILE,
-    CODE_TOOL_DESC_SEARCH, CODE_TOOL_DESC_SHELL,
+    CODE_TOOL_DESC_READ_RESULT, CODE_TOOL_DESC_SEARCH, CODE_TOOL_DESC_SHELL,
 };
 use crate::registry::{
-    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SEARCH, TOOL_SHELL, registry,
+    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH, TOOL_SHELL,
+    registry,
 };
 
 pub const COMPUTER_PARAM: &str = "computer";
@@ -36,6 +37,7 @@ fn tool_if_offered(name: &str, caps: &ComputerCaps) -> Option<ToolDef> {
         TOOL_SHELL if caps.run_commands.yes() => Some(shell_def()),
         TOOL_LIST_DIR if caps.read_files.yes() => Some(list_def()),
         TOOL_SEARCH if caps.read_files.yes() => Some(search_def()),
+        TOOL_READ_RESULT => Some(read_result_def()),
         _ => None,
     }
 }
@@ -117,6 +119,23 @@ fn search_def() -> ToolDef {
     }
 }
 
+fn read_result_def() -> ToolDef {
+    ToolDef {
+        name: TOOL_READ_RESULT,
+        description_code: CODE_TOOL_DESC_READ_RESULT,
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "from": { "type": "integer", "minimum": 0 },
+                "chars": { "type": "integer", "minimum": 1 },
+                "find": { "type": "string" }
+            },
+            "required": ["id"]
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,7 +148,7 @@ mod tests {
     #[test]
     fn offered_tools_follow_each_capability() {
         let base = ComputerCaps::declared(ComputerPlatform::Linux, ComputerOwner::User);
-        assert!(offered_tools(&base).is_empty());
+        assert_eq!(names_of(&offered_tools(&base)), vec![TOOL_READ_RESULT]);
 
         let only_read = ComputerCaps {
             read_files: CapState::Supported,
@@ -137,19 +156,25 @@ mod tests {
         };
         assert_eq!(
             names_of(&offered_tools(&only_read)),
-            vec![TOOL_READ_FILE, TOOL_LIST_DIR, TOOL_SEARCH]
+            vec![TOOL_READ_FILE, TOOL_LIST_DIR, TOOL_SEARCH, TOOL_READ_RESULT]
         );
 
         let only_write = ComputerCaps {
             write_files: CapState::Supported,
             ..base.clone()
         };
-        assert_eq!(names_of(&offered_tools(&only_write)), vec![TOOL_EDIT_FILE]);
+        assert_eq!(
+            names_of(&offered_tools(&only_write)),
+            vec![TOOL_EDIT_FILE, TOOL_READ_RESULT]
+        );
 
         let only_shell = ComputerCaps {
             run_commands: CapState::Supported,
             ..base
         };
-        assert_eq!(names_of(&offered_tools(&only_shell)), vec![TOOL_SHELL]);
+        assert_eq!(
+            names_of(&offered_tools(&only_shell)),
+            vec![TOOL_SHELL, TOOL_READ_RESULT]
+        );
     }
 }

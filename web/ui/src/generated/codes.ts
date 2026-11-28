@@ -113,6 +113,11 @@ export type MessageCode =
   "tool-search-cut" |
   "tool-search-empty" |
   "tool-search-timed-out" |
+  "tool-read-result-window" |
+  "tool-read-result-hit" |
+  "tool-read-result-not-found" |
+  "tool-read-result-missing" |
+  "tool-read-result-cut" |
   "tool-shell-no-output" |
   "tool-shell-failed" |
   "tool-shell-trimmed" |
@@ -124,6 +129,7 @@ export type MessageCode =
   "tool-desc-shell" |
   "tool-desc-list-dir" |
   "tool-desc-search" |
+  "tool-desc-read-result" |
   "gate-ask-computer-mismatch" |
   "tool-unreadable-eval" |
   "tool-unreadable-quotes" |
@@ -333,6 +339,11 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-search-cut",
   "tool-search-empty",
   "tool-search-timed-out",
+  "tool-read-result-window",
+  "tool-read-result-hit",
+  "tool-read-result-not-found",
+  "tool-read-result-missing",
+  "tool-read-result-cut",
   "tool-shell-no-output",
   "tool-shell-failed",
   "tool-shell-trimmed",
@@ -344,6 +355,7 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-desc-shell",
   "tool-desc-list-dir",
   "tool-desc-search",
+  "tool-desc-read-result",
   "gate-ask-computer-mismatch",
   "tool-unreadable-eval",
   "tool-unreadable-quotes",

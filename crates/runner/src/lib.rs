@@ -13,6 +13,7 @@ pub mod ending;
 pub mod error;
 pub mod events;
 pub mod fixed_blocks;
+pub mod read_result_run;
 pub mod record;
 pub mod report_out;
 pub mod runner;
@@ -24,8 +25,8 @@ mod view_text;
 pub use approvals::PendingCard;
 pub use error::TurnError;
 pub use record::{
-    NewTaskEvent, RawStore, RawStoreError, Record, RecordEntry, RecordError, Stored, StoredBody,
-    UserLine, task_event_of,
+    NewTaskEvent, RawBlob, RawStore, RawStoreError, Record, RecordEntry, RecordError, Stored,
+    StoredBody, UserLine, clamp_raw_bytes, task_event_of,
 };
 pub use runner::{
     BotProfile, KindCount, RunnerParts, TurnModel, TurnOutcome, TurnRunner, UserMessage,

@@ -42,6 +42,10 @@ async fn run_one(
             return Ok(false);
         }
     };
+    if let anybot_tools::ToolArgs::ReadResult(read) = args {
+        crate::read_result_run::run_read_result(runner, ctx, request, &read).await?;
+        return Ok(false);
+    }
     let context = crate::action_record::action_context(runner, ctx, request)?;
     let view = view_of(runner.lang, &args).with_computer(&context.computer);
     let areq = anybot_tools::build_request(&request.tool, args, context);
@@ -91,7 +95,9 @@ fn view_of(lang: anybot_messages::Lang, args: &anybot_tools::ToolArgs) -> Action
         anybot_tools::ToolArgs::Search(search) => {
             ActionView::new(lang).with_search_files_only(search.files_only)
         }
-        anybot_tools::ToolArgs::List(_) | anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
+        anybot_tools::ToolArgs::List(_)
+        | anybot_tools::ToolArgs::ReadResult(_)
+        | anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
     }
 }
 

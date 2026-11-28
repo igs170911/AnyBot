@@ -111,6 +111,11 @@ tool-list-empty = （空資料夾）
 tool-search-cut = ……只列前 { $shown } 行（共找到 { $found } 行）
 tool-search-empty = 沒有找到。
 tool-search-timed-out = 搜尋超過 25 秒上限，以上為已找到的內容。
+tool-read-result-window = 第 { $from }–{ $to } 個字，共 { $total } 個字
+tool-read-result-hit = 第 { $at } 個字：{ $context }
+tool-read-result-not-found = 沒有找到
+tool-read-result-missing = 找不到這份結果：可能超過 30 天被清掉了
+tool-read-result-cut = 只存了前 { $mb } MB
 tool-shell-no-output = 完成，沒有輸出。
 tool-shell-failed = 結束代碼 { $code }。
 tool-shell-trimmed = …（中間省略 { $omitted } 個字；完整內容用 read_result 讀：id={ $id }）…
@@ -122,6 +127,7 @@ tool-desc-read-file = 讀取文字檔並附上行號（path、offset、limit）�
 tool-desc-shell = 在工作資料夾執行指令（command、timeout_ms）。
 tool-desc-list-dir = 列出資料夾裡的檔案與子資料夾（path）。
 tool-desc-search = 在資料夾裡搜尋符合的文字或正規表示式（pattern、path、files_only）。
+tool-desc-read-result = 分段讀取或搜尋過長的工具輸出內容（id、from、chars、find）。
 
 gate-ask-computer-mismatch = 這張核准是在 { $asked_for } 上問的，不能在 { $answered_on } 上回答。
 

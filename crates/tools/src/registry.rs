@@ -10,15 +10,17 @@ pub const TOOL_READ_FILE: &str = "read_file";
 pub const TOOL_SHELL: &str = "shell";
 pub const TOOL_LIST_DIR: &str = "list_dir";
 pub const TOOL_SEARCH: &str = "search";
+pub const TOOL_READ_RESULT: &str = "read_result";
 
 #[must_use]
-pub fn tool_list() -> [&'static str; 5] {
+pub fn tool_list() -> [&'static str; 6] {
     [
         TOOL_EDIT_FILE,
         TOOL_READ_FILE,
         TOOL_SHELL,
         TOOL_LIST_DIR,
         TOOL_SEARCH,
+        TOOL_READ_RESULT,
     ]
 }
 
@@ -28,20 +30,21 @@ pub fn level_of(tool: &str) -> ToolLevel {
         return ToolLevel::Irreversible;
     }
     match tool {
-        TOOL_READ_FILE | TOOL_LIST_DIR | TOOL_SEARCH => ToolLevel::ReadOnly,
+        TOOL_READ_FILE | TOOL_LIST_DIR | TOOL_SEARCH | TOOL_READ_RESULT => ToolLevel::ReadOnly,
         TOOL_EDIT_FILE => ToolLevel::Reversible,
         _ => ToolLevel::Irreversible,
     }
 }
 
 #[must_use]
-pub fn registry() -> [(&'static str, ToolLevel); 5] {
+pub fn registry() -> [(&'static str, ToolLevel); 6] {
     [
         (TOOL_EDIT_FILE, level_of(TOOL_EDIT_FILE)),
         (TOOL_READ_FILE, level_of(TOOL_READ_FILE)),
         (TOOL_SHELL, level_of(TOOL_SHELL)),
         (TOOL_LIST_DIR, level_of(TOOL_LIST_DIR)),
         (TOOL_SEARCH, level_of(TOOL_SEARCH)),
+        (TOOL_READ_RESULT, level_of(TOOL_READ_RESULT)),
     ]
 }
 
@@ -57,10 +60,11 @@ mod tests {
     #[test]
     fn test_registry_lists_each_tool_with_exactly_one_level() {
         let table = registry();
-        assert_eq!(table.len(), 5);
+        assert_eq!(table.len(), 6);
         assert_eq!(level_of(TOOL_READ_FILE), ToolLevel::ReadOnly);
         assert_eq!(level_of(TOOL_LIST_DIR), ToolLevel::ReadOnly);
         assert_eq!(level_of(TOOL_SEARCH), ToolLevel::ReadOnly);
+        assert_eq!(level_of(TOOL_READ_RESULT), ToolLevel::ReadOnly);
         assert_eq!(level_of(TOOL_EDIT_FILE), ToolLevel::Reversible);
         assert_eq!(level_of(TOOL_SHELL), ToolLevel::Irreversible);
     }
@@ -72,5 +76,6 @@ mod tests {
         assert!(is_known_tool(TOOL_SHELL));
         assert!(is_known_tool(TOOL_LIST_DIR));
         assert!(is_known_tool(TOOL_SEARCH));
+        assert!(is_known_tool(TOOL_READ_RESULT));
     }
 }

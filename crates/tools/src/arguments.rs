@@ -1,7 +1,8 @@
 use serde_json::Value;
 
 use crate::registry::{
-    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SEARCH, TOOL_SHELL, is_known_tool,
+    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH, TOOL_SHELL,
+    is_known_tool,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,6 +32,14 @@ pub struct SearchArgs {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadResultArgs {
+    pub id: String,
+    pub from: usize,
+    pub chars: usize,
+    pub find: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellArgs {
     pub line: String,
     pub timeout_ms: Option<u64>,
@@ -42,6 +51,7 @@ pub enum ToolArgs {
     Read(ReadArgs),
     List(ListArgs),
     Search(SearchArgs),
+    ReadResult(ReadResultArgs),
     Shell(ShellArgs),
 }
 
@@ -120,6 +130,7 @@ pub fn parse_call(tool: &str, json: &str) -> Result<ToolArgs, ArgsRejection> {
         TOOL_READ_FILE => parse_read(object),
         TOOL_LIST_DIR => parse_list(object),
         TOOL_SEARCH => parse_search(object),
+        TOOL_READ_RESULT => parse_read_result(object),
         TOOL_SHELL => parse_shell(object),
         _ => Err(ArgsRejection::Malformed {
             reason: "unknown tool".to_owned(),
@@ -168,6 +179,21 @@ fn parse_search(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, Arg
         pattern,
         path,
         files_only,
+    }))
+}
+
+fn parse_read_result(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
+    let id = text_field(object, "id", TOOL_READ_RESULT)?;
+    let from = small_field(object, "from")?.unwrap_or(0);
+    let chars = small_field(object, "chars")?
+        .unwrap_or(crate::read_result::READ_RESULT_MAX_CHARS)
+        .min(crate::read_result::READ_RESULT_MAX_CHARS);
+    let find = optional_text_field(object, "find")?;
+    Ok(ToolArgs::ReadResult(ReadResultArgs {
+        id,
+        from,
+        chars,
+        find,
     }))
 }
 
