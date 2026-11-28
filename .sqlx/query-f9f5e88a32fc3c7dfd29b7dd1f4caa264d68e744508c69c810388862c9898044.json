@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE computers SET online = FALSE, offline_at_ms = $2, offline_reason = $3, last_seen_ms = GREATEST(last_seen_ms, $2) WHERE device_id = $1 AND online = TRUE AND removed_at_ms IS NULL AND last_seen_ms <= $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": ["Text", "Int8", "Text"]
+    },
+    "nullable": []
+  },
+  "hash": "f9f5e88a32fc3c7dfd29b7dd1f4caa264d68e744508c69c810388862c9898044"
+}

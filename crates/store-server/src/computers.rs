@@ -210,7 +210,8 @@ pub async fn mark_offline(
     let done = sqlx::query!(
         "UPDATE computers SET online = FALSE, offline_at_ms = $2, offline_reason = $3, \
          last_seen_ms = GREATEST(last_seen_ms, $2) \
-         WHERE device_id = $1 AND online = TRUE AND removed_at_ms IS NULL",
+         WHERE device_id = $1 AND online = TRUE AND removed_at_ms IS NULL \
+         AND last_seen_ms <= $2",
         device_id,
         at_ms,
         reason,
