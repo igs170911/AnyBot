@@ -185,6 +185,7 @@ e2e:
 	$(call locked,$(MAKE) --no-print-directory _e2e-body)
 
 _e2e-body: ts-install
+	$(PNPM) --filter=@anybot/web build
 	$(CARGO) build -p testenv
 	$(PNPM) --filter=@anybot/e2e exec playwright test
 

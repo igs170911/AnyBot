@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { EDGE_OFFENDERS_JS, installWideFont } from "./src/act.ts";
+import { appUrl } from "./src/world.ts";
 
 const CALIB_ENV = "ANYBOT_CALIB_OVERFLOW";
 const CALIB_CSS =
@@ -11,7 +12,7 @@ test("calib: strengthened edge check catches clipped overflow", async ({ page })
   test.skip(page.viewportSize() === null, "needs a known viewport");
   const size = page.viewportSize();
   test.skip(size !== null && size.width < 500, "calibration targets wide projects");
-  await page.goto("/");
+  await page.goto(appUrl("/"));
   await installWideFont(page);
   await page.addStyleTag({ content: CALIB_CSS });
   await page.evaluate(() => {
