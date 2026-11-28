@@ -22,7 +22,7 @@ use runner_test::turn_tool_helpers::{call, edit_call, one_tool_step};
 const NPM: &str = "npm install";
 
 fn npm_args() -> String {
-    format!("{{\"line\":\"{NPM}\"}}")
+    format!("{{\"command\":\"{NPM}\"}}")
 }
 
 fn world_setup(script: CommandScript) -> WorldSetup {
@@ -46,7 +46,7 @@ async fn rejected_action_listed_in_attention() -> Result<(), String> {
             "{\"path\":\"a.txt\",\"old_text\":\"\",\"new_text\":\"1\"}",
             "c1",
         ),
-        call("shell", "{\"line\":\"sudo rm -rf /\"}", "c2"),
+        call("shell", "{\"command\":\"sudo rm -rf /\"}", "c2"),
     ]));
     let outcome = world
         .send(Device::Phone, "work")

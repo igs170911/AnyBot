@@ -94,8 +94,8 @@ fn assert_git_push_card(card: &KnownTaskEventKind) -> Result<(), String> {
 async fn t_safety_n5_12() -> Result<(), String> {
     let world = TurnWorld::start(&bot_computer_setup()).await?;
     world.script(one_tool_step(vec![
-        call("shell", "{\"line\":\"rm a.txt\"}", "c1"),
-        call("shell", "{\"line\":\"git push\"}", "c2"),
+        call("shell", "{\"command\":\"rm a.txt\"}", "c1"),
+        call("shell", "{\"command\":\"git push\"}", "c2"),
     ]));
     let outcome = world
         .send(Device::Phone, "clean and push")
@@ -140,7 +140,7 @@ async fn no_sandbox_card_waits_after_an_hour() -> Result<(), String> {
     let world = TurnWorld::start(&setup).await?;
     world.script(one_tool_step(vec![call(
         "shell",
-        "{\"line\":\"ls\"}",
+        "{\"command\":\"ls\"}",
         "c1",
     )]));
     let outcome = world

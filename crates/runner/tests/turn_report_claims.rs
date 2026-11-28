@@ -33,7 +33,7 @@ async fn t_report_delivery_4() -> Result<(), String> {
     let world = TurnWorld::start(&setup).await?;
     world.script(vec![
         model_tool_calls(
-            vec![call("shell", "{\"line\":\"echo hi\"}", "c1")],
+            vec![call("shell", "{\"command\":\"echo hi\"}", "c1")],
             "tool_calls",
             false,
         ),
@@ -135,7 +135,7 @@ async fn run_first_task(world: &TurnWorld) -> Result<anybot_foundation::TaskId, 
         model_tool_calls(
             vec![
                 call("read_file", "{\"path\":\"a.txt\"}", "c1"),
-                call("shell", "{\"line\":\"echo hi\"}", "c2"),
+                call("shell", "{\"command\":\"echo hi\"}", "c2"),
                 edit_call(
                     "{\"path\":\"a.txt\",\"old_text\":\"hello\",\"new_text\":\"v2\"}",
                     "c3",

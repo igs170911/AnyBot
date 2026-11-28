@@ -12,32 +12,41 @@ use sha2 as _;
 use test_harness as _;
 use thiserror as _;
 
+use std::sync::Arc;
+use std::time::Duration;
+
+use anybot_foundation::TaskId;
 use anybot_protocol::{CardAnswer, CardButton, EvidenceKind, KnownTaskEventKind};
 use anybot_runner::TurnOutcome;
 use anybot_trust::{ActionKey, GateConfig, Opinion, RuleEntry};
+use runner_test::card_turn::{AskedTurn, send_to_card};
 use runner_test::second_bot::second_bot_runner;
 use runner_test::trust_world::{
-    MAC, cards_of, first_turn, mac_setup, param, rejected_reason, unticked,
+    MAC, cards_of, first_card, first_turn, mac_setup, param, rejected_reason, unticked,
 };
-use runner_test::turn::{Device, TurnWorld, WorldSetup};
-use runner_test::turn_helpers::{answer_card, shown_card, task_kinds, task_of};
+use runner_test::turn::{Device, TurnWorld, WorldSetup, arc_world};
+use runner_test::turn_helpers::{task_kinds, task_of};
 use runner_test::turn_tool_helpers::{call, one_tool_step};
-use test_harness::advance_clock;
+use test_harness::{advance_clock, sleep_real};
 
-const MAKE: &str = "{\"line\":\"make test\"}";
+const MAKE: &str = "{\"command\":\"make test\"}";
 
-fn ran(world: &TurnWorld, outcome: &TurnOutcome) -> bool {
-    task_kinds(world, &task_of(outcome)).iter().any(|k| {
+fn ran_in(world: &TurnWorld, task: &TaskId) -> bool {
+    task_kinds(world, task).iter().any(|k| {
         matches!(k, KnownTaskEventKind::EvidenceAdded { record } if record.kind == EvidenceKind::Executed)
     })
 }
 
-fn shown(world: &TurnWorld, outcome: &TurnOutcome) -> usize {
-    cards_of(&task_kinds(world, &task_of(outcome))).len()
+fn ran(world: &TurnWorld, outcome: &TurnOutcome) -> bool {
+    ran_in(world, &task_of(outcome))
+}
+
+fn shown(world: &TurnWorld, task: &TaskId) -> usize {
+    cards_of(&task_kinds(world, task)).len()
 }
 
 async fn again(world: &TurnWorld, tool: &str, args: &str, id: &str) -> Result<TurnOutcome, String> {
-    let _advanced = advance_clock(&world.clock, std::time::Duration::from_millis(100));
+    let _advanced = advance_clock(&world.clock, Duration::from_millis(100));
     world.script(one_tool_step(vec![call(tool, args, id)]));
     world
         .send(Device::Phone, "again")
@@ -45,38 +54,44 @@ async fn again(world: &TurnWorld, tool: &str, args: &str, id: &str) -> Result<Tu
         .map_err(|e| format!("{e:?}"))
 }
 
-async fn answer_first(
-    world: &TurnWorld,
-    outcome: &TurnOutcome,
-    answer: CardAnswer,
-) -> Result<(), String> {
-    let kinds = task_kinds(world, &task_of(outcome));
-    let digest = shown_card(outcome, &kinds).ok_or("missing digest")?;
-    answer_card(world, outcome, &digest, answer).await
+async fn again_card(
+    world: &Arc<TurnWorld>,
+    tool: &str,
+    args: &str,
+    id: &str,
+) -> Result<AskedTurn, String> {
+    let _advanced = advance_clock(&world.clock, Duration::from_millis(100));
+    world.script(one_tool_step(vec![call(tool, args, id)]));
+    send_to_card(world, Device::Phone, "again").await
+}
+
+async fn mac_world(setup: &WorldSetup) -> Result<Arc<TurnWorld>, String> {
+    Ok(arc_world(TurnWorld::start(setup).await?))
 }
 
 #[tokio::test]
 async fn allow_conversation_lasts_until_new_conversation() -> Result<(), String> {
-    let world = TurnWorld::start(&mac_setup(MAC)).await?;
-    let first = first_turn(&world, "shell", MAKE).await?;
-    answer_first(&world, &first, CardAnswer::AllowConversation).await?;
+    let world = mac_world(&mac_setup(MAC)).await?;
+    let first = first_card(&world, "shell", MAKE).await?;
+    first.answer(&world, CardAnswer::AllowConversation).await?;
     for id in ["c2", "c3"] {
         let next = again(&world, "shell", MAKE, id).await?;
-        assert_eq!(shown(&world, &next), 0);
+        assert_eq!(shown(&world, &task_of(&next)), 0);
         assert!(ran(&world, &next));
     }
     assert!(world.trust.always_entries().is_empty());
     world.runner().start_new_conversation();
-    let fresh = again(&world, "shell", MAKE, "c4").await?;
-    assert_eq!(shown(&world, &fresh), 1);
+    let fresh = again_card(&world, "shell", MAKE, "c4").await?;
+    assert_eq!(shown(&world, &fresh.task), 1);
+    fresh.answer(&world, CardAnswer::Deny).await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn always_allow_covers_other_bot() -> Result<(), String> {
-    let world = TurnWorld::start(&mac_setup(MAC)).await?;
-    let first = first_turn(&world, "shell", MAKE).await?;
-    answer_first(&world, &first, CardAnswer::AlwaysAllow).await?;
+    let world = mac_world(&mac_setup(MAC)).await?;
+    let first = first_card(&world, "shell", MAKE).await?;
+    first.answer(&world, CardAnswer::AlwaysAllow).await?;
     let entries = world.trust.always_entries();
     assert_eq!(entries.len(), 1);
     let bot1 = entries.first().ok_or("missing entry")?;
@@ -90,7 +105,7 @@ async fn always_allow_covers_other_bot() -> Result<(), String> {
         })
         .await
         .map_err(|e| format!("{e:?}"))?;
-    assert_eq!(shown(&world, &outcome), 0);
+    assert_eq!(shown(&world, &task_of(&outcome)), 0);
     assert!(ran(&world, &outcome));
     assert_eq!(world.trust.always_entries().len(), 1);
     Ok(())
@@ -104,13 +119,13 @@ async fn ask_rule_always_allow_cancels_rule() -> Result<(), String> {
         .ask_style
         .push(ActionKey::command("shell", "make test"));
     setup.gate = gate;
-    let world = TurnWorld::start(&setup).await?;
-    let first = first_turn(&world, "shell", MAKE).await?;
-    answer_first(&world, &first, CardAnswer::AlwaysAllow).await?;
+    let world = mac_world(&setup).await?;
+    let first = first_card(&world, "shell", MAKE).await?;
+    first.answer(&world, CardAnswer::AlwaysAllow).await?;
     assert_eq!(world.trust.ask_rule_count(), 0);
     assert_eq!(world.trust.always_entries().len(), 1);
     let next = again(&world, "shell", MAKE, "c2").await?;
-    assert_eq!(shown(&world, &next), 0);
+    assert_eq!(shown(&world, &task_of(&next)), 0);
     assert!(ran(&world, &next));
     Ok(())
 }
@@ -124,50 +139,50 @@ async fn admin_card_refuses_always_answer() -> Result<(), String> {
         opinion: Opinion::Ask,
     });
     setup.gate = gate;
-    let world = TurnWorld::start(&setup).await?;
-    let first = first_turn(&world, "shell", MAKE).await?;
-    let kinds = task_kinds(&world, &task_of(&first));
+    let world = mac_world(&setup).await?;
+    let first = first_card(&world, "shell", MAKE).await?;
+    let kinds = task_kinds(&world, &first.task);
     let Some(KnownTaskEventKind::CardShown { buttons, .. }) = cards_of(&kinds).first().cloned()
     else {
         return Err("missing card".to_owned());
     };
     assert_eq!(buttons, vec![CardButton::AllowOnce, CardButton::Deny]);
-    let refused = answer_first(&world, &first, CardAnswer::AlwaysAllow).await;
-    assert!(refused.is_err_and(|e| e.contains("does not offer")));
+    world
+        .answer_shown_card(first.task, CardAnswer::AlwaysAllow)
+        .await?;
+    sleep_real(Duration::from_millis(200)).await;
+    assert!(first.is_running());
     assert!(world.trust.always_entries().is_empty());
-    let answered_before = task_kinds(&world, &task_of(&first))
-        .iter()
-        .filter(|k| matches!(k, KnownTaskEventKind::CardAnswered { .. }))
-        .count();
-    assert_eq!(answered_before, 0);
-    answer_first(&world, &first, CardAnswer::AllowOnce).await?;
-    assert!(ran(&world, &first));
+    assert!(!ran_in(&world, &first.task));
+    let outcome = first.answer(&world, CardAnswer::AllowOnce).await?;
+    assert!(ran(&world, &outcome));
+    assert!(world.trust.always_entries().is_empty());
     Ok(())
 }
 
 #[tokio::test]
 async fn switch_card_always_allow_ticks_computer() -> Result<(), String> {
-    let world = TurnWorld::start(&mac_setup(MAC)).await?;
+    let world = mac_world(&mac_setup(MAC)).await?;
     world.trust.set_use(MAC, unticked());
-    let args = "{\"line\":\"ls\"}";
-    let first = first_turn(&world, "shell", args).await?;
-    answer_first(&world, &first, CardAnswer::AlwaysAllow).await?;
+    let args = "{\"command\":\"ls\"}";
+    let first = first_card(&world, "shell", args).await?;
+    first.answer(&world, CardAnswer::AlwaysAllow).await?;
     assert!(world.trust.use_of(MAC).usable_by_bot);
     let next = again(&world, "shell", args, "c2").await?;
-    assert_eq!(shown(&world, &next), 0);
+    assert_eq!(shown(&world, &task_of(&next)), 0);
     assert!(next.pending.is_empty());
     Ok(())
 }
 
 #[tokio::test]
 async fn switch_card_direct_mode_turns_on_direct() -> Result<(), String> {
-    let world = TurnWorld::start(&mac_setup(MAC)).await?;
+    let world = mac_world(&mac_setup(MAC)).await?;
     world.trust.set_use(MAC, unticked());
     let args = "{\"path\":\"/home/alice/work/a.md\"}";
-    let first = first_turn(&world, "read_file", args).await?;
-    answer_first(&world, &first, CardAnswer::DirectMode).await?;
+    let first = first_card(&world, "read_file", args).await?;
+    let outcome = first.answer(&world, CardAnswer::DirectMode).await?;
     assert!(world.gate_config().modes.direct_mode);
-    let done = task_kinds(&world, &task_of(&first))
+    let done = task_kinds(&world, &task_of(&outcome))
         .iter()
         .any(|k| matches!(k, KnownTaskEventKind::ToolCompleted { summary, .. } if summary.contains("a.md")));
     assert!(done);
@@ -189,16 +204,17 @@ async fn unreadable_always_entry_denies_step() -> Result<(), String> {
 
 #[tokio::test]
 async fn removed_always_entry_asks_next_step() -> Result<(), String> {
-    let world = TurnWorld::start(&mac_setup(MAC)).await?;
-    let first = first_turn(&world, "shell", MAKE).await?;
-    answer_first(&world, &first, CardAnswer::AlwaysAllow).await?;
+    let world = mac_world(&mac_setup(MAC)).await?;
+    let first = first_card(&world, "shell", MAKE).await?;
+    first.answer(&world, CardAnswer::AlwaysAllow).await?;
     let covered = again(&world, "shell", MAKE, "c2").await?;
-    assert_eq!(shown(&world, &covered), 0);
+    assert_eq!(shown(&world, &task_of(&covered)), 0);
     let entries = world.trust.always_entries();
     for entry in &entries {
         world.trust.remove_always(&entry.action);
     }
-    let asked = again(&world, "shell", MAKE, "c3").await?;
-    assert_eq!(shown(&world, &asked), 1);
+    let asked = again_card(&world, "shell", MAKE, "c3").await?;
+    assert_eq!(shown(&world, &asked.task), 1);
+    asked.answer(&world, CardAnswer::Deny).await?;
     Ok(())
 }

@@ -70,7 +70,7 @@ async fn t_safety_gates_7() -> Result<(), String> {
     let world = TurnWorld::start(&user_mac_setup()).await?;
     world.script(one_tool_step(vec![call(
         "shell",
-        "{\"line\":\"git status\"}",
+        "{\"command\":\"git status\"}",
         "c1",
     )]));
     let outcome = world.send(Device::Phone, "status").await;
@@ -170,7 +170,7 @@ async fn bot_machine_result_has_no_computer_prefix() -> Result<(), String> {
     let world = TurnWorld::start(&setup).await?;
     world.script(one_tool_step(vec![call(
         "shell",
-        "{\"line\":\"ls\"}",
+        "{\"command\":\"ls\"}",
         "c1",
     )]));
     let outcome = world.send(Device::Phone, "ls").await;
@@ -189,7 +189,7 @@ async fn floor_deny_records_step_two() -> Result<(), String> {
     let world = TurnWorld::start(&user_mac_setup()).await?;
     world.script(one_tool_step(vec![call(
         "shell",
-        "{\"line\":\"sudo rm -rf /\"}",
+        "{\"command\":\"sudo rm -rf /\"}",
         "c1",
     )]));
     let outcome = world.send(Device::Phone, "wipe").await;

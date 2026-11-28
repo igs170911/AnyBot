@@ -66,7 +66,7 @@ async fn t_claims_check_5() -> Result<(), String> {
     let world = TurnWorld::start(&setup).await?;
     world.script(vec![
         model_tool_calls(
-            vec![call("shell", "{\"line\":\"grep x a.txt\"}", "c1")],
+            vec![call("shell", "{\"command\":\"grep x a.txt\"}", "c1")],
             "tool_calls",
             false,
         ),
@@ -93,7 +93,7 @@ async fn t_claims_check_7() -> Result<(), String> {
     let world = Arc::new(TurnWorld::start(&setup).await?);
     world.script(vec![
         model_tool_calls(
-            vec![call("shell", "{\"line\":\"build-step\"}", "c1")],
+            vec![call("shell", "{\"command\":\"build-step\"}", "c1")],
             "tool_calls",
             false,
         ),
@@ -172,7 +172,7 @@ async fn claim_check_sends_no_model_request() -> Result<(), String> {
     let world = TurnWorld::start(&setup).await?;
     world.script(vec![
         model_tool_calls(
-            vec![call("shell", "{\"line\":\"build-step\"}", "c1")],
+            vec![call("shell", "{\"command\":\"build-step\"}", "c1")],
             "tool_calls",
             false,
         ),

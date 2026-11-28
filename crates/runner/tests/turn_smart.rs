@@ -23,8 +23,8 @@ use runner_test::turn_helpers::{fmt_text, task_kinds, task_of};
 use std::time::Duration;
 use test_harness::advance_clock;
 
-const MAKE: &str = "{\"line\":\"make test\"}";
-const REDIRECT: &str = "{\"line\":\"ls > out.txt\"}";
+const MAKE: &str = "{\"command\":\"make test\"}";
+const REDIRECT: &str = "{\"command\":\"ls > out.txt\"}";
 
 fn executed(world: &TurnWorld, outcome: &TurnOutcome) -> usize {
     task_kinds(world, &task_of(outcome))

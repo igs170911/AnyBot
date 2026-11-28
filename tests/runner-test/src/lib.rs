@@ -1,5 +1,6 @@
 extern crate self as runner_test;
 
+pub mod card_turn;
 pub mod fake_builder;
 pub mod fake_computer;
 #[path = "fake_computer_gate.rs"]

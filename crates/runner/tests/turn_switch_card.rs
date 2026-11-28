@@ -105,7 +105,7 @@ async fn t_sandbox_levels_2() -> Result<(), String> {
         ),
         (
             "shell",
-            "{\"line\":\"make test\"}",
+            "{\"command\":\"make test\"}",
             "card-run-command",
             "\u{57f7}\u{884c}\u{6307}\u{4ee4}\u{ff1a}make test",
         ),

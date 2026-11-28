@@ -44,7 +44,11 @@ fn deploy_setup() -> WorldSetup {
 }
 
 fn deploy_call(line: &str, id: &str) -> Vec<test_harness::Step> {
-    one_tool_step(vec![call("shell", &format!("{{\"line\":\"{line}\"}}"), id)])
+    one_tool_step(vec![call(
+        "shell",
+        &format!("{{\"command\":\"{line}\"}}"),
+        id,
+    )])
 }
 
 fn last_system(world: &TurnWorld) -> Result<String, String> {

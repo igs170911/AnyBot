@@ -27,7 +27,7 @@ use runner_test::turn_helpers::{task_kinds, task_of};
 use runner_test::turn_tool_helpers::{call, one_tool_step};
 use test_harness::advance_clock;
 
-const PUSH: &str = "{\"line\":\"git push\"}";
+const PUSH: &str = "{\"command\":\"git push\"}";
 
 async fn push_world(direct: bool) -> Result<TurnWorld, String> {
     let mut setup = mac_setup(MAC);

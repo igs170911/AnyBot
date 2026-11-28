@@ -5,6 +5,7 @@ use anybot_protocol::{
 };
 use anybot_trust::{ComputerUse, GateConfig, ModeFlags, RunHere};
 
+use crate::card_turn::{AskedTurn, script_to_card};
 use crate::fake_scripts::CommandScript;
 use crate::turn::{Device, TurnWorld, WorldSetup};
 use crate::turn_helpers::fmt_text;
@@ -108,6 +109,14 @@ pub async fn first_turn(
         .send(Device::Phone, "go")
         .await
         .map_err(|e| format!("{e:?}"))
+}
+
+pub async fn first_card(
+    world: &std::sync::Arc<TurnWorld>,
+    tool: &str,
+    args: &str,
+) -> Result<AskedTurn, String> {
+    script_to_card(world, one_tool_step(vec![call(tool, args, "c1")])).await
 }
 
 #[must_use]

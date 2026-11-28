@@ -28,7 +28,7 @@ async fn t_safety_lock_5() -> Result<(), String> {
     };
     let world = TurnWorld::start(&mac_setup(MAC)).await?;
     world.trust.set_policy(MAC, locked);
-    let outcome = first_turn(&world, "shell", "{\"line\":\"ls\"}").await?;
+    let outcome = first_turn(&world, "shell", "{\"command\":\"ls\"}").await?;
     let kinds = task_kinds(&world, &task_of(&outcome));
     let reason = rejected_reason(&kinds).ok_or("missing Rejected")?;
     assert_eq!(reason.code, "gate-local-locked");
@@ -45,7 +45,7 @@ async fn t_safety_lock_5() -> Result<(), String> {
             this_machine: false,
         },
     );
-    let second = first_turn(&other, "shell", "{\"line\":\"ls\"}").await?;
+    let second = first_turn(&other, "shell", "{\"command\":\"ls\"}").await?;
     let cards = cards_of(&task_kinds(&other, &task_of(&second)));
     let Some(KnownTaskEventKind::CardShown { kind, buttons, .. }) = cards.first() else {
         return Err("missing switch card".to_owned());
@@ -76,7 +76,7 @@ async fn t_autonomy_direct_3() -> Result<(), String> {
     setup.gate = modes(false, true);
     let world = TurnWorld::start(&setup).await?;
     world.trust.set_use(MAC, never());
-    let outcome = first_turn(&world, "shell", "{\"line\":\"ls\"}").await?;
+    let outcome = first_turn(&world, "shell", "{\"command\":\"ls\"}").await?;
     let reason =
         rejected_reason(&task_kinds(&world, &task_of(&outcome))).ok_or("missing Rejected")?;
     assert_eq!(reason.code, "gate-local-never");

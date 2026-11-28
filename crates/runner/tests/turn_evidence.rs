@@ -47,7 +47,7 @@ async fn t_activity_evidence_2() -> Result<(), String> {
     let world = TurnWorld::start(&setup).await?;
     world.script(one_tool_step(vec![call(
         "shell",
-        "{\"line\":\"emit-20k\"}",
+        "{\"command\":\"emit-20k\"}",
         "c1",
     )]));
     let outcome = world
@@ -106,7 +106,7 @@ async fn t_activity_evidence_4() -> Result<(), String> {
     }
     calls.push(read_call("missing1.txt", "m1"));
     calls.push(read_call("missing2.txt", "m2"));
-    calls.push(call("shell", "{\"line\":\"echo done\"}", "s1"));
+    calls.push(call("shell", "{\"command\":\"echo done\"}", "s1"));
     let scripted_ms = 450;
     let setup = WorldSetup {
         files,
@@ -163,7 +163,7 @@ async fn t_activity_evidence_5() -> Result<(), String> {
         ..WorldSetup::default()
     };
     let world = TurnWorld::start(&setup).await?;
-    let args = serde_json::json!({ "line": cmd }).to_string();
+    let args = serde_json::json!({ "command": cmd }).to_string();
     world.script(one_tool_step(vec![call("shell", &args, "c1")]));
     let outcome = world
         .send(Device::Phone, "fetch")
@@ -206,7 +206,7 @@ async fn approval_keeps_short_ids_continuous() -> Result<(), String> {
     let world = TurnWorld::start(&setup).await?;
     world.script(one_tool_step(vec![
         read_call("a.txt", "r1"),
-        call("shell", "{\"line\":\"npm install\"}", "c1"),
+        call("shell", "{\"command\":\"npm install\"}", "c1"),
     ]));
     let outcome = world
         .send(Device::Phone, "install")
