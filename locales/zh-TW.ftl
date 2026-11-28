@@ -330,3 +330,5 @@ login-two-step-later = 這個帳號開了兩步驟驗證；這個版本還不能
 server-request-too-large = 請求太大：最多 { $limit_kb } KB
 push-endpoint-invalid = 推播位址要是 https，而且最多 2048 個字
 push-subscription-not-found = 這個帳號沒有這支推播訂閱
+task-not-found = 這件任務在這一條流沒有紀錄
+thumbs-target-invalid = 👍 的紀錄要指向這件任務的一則 Bot 回答

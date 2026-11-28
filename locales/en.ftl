@@ -327,3 +327,5 @@ login-two-step-later = Two-step verification is on for this account; entering th
 server-request-too-large = The request is too large: at most { $limit_kb } KB
 push-endpoint-invalid = The push address must be https and at most 2048 characters
 push-subscription-not-found = There is no such push subscription for this account
+task-not-found = This task has no records in this stream
+thumbs-target-invalid = A thumbs record must point at an answer of this task

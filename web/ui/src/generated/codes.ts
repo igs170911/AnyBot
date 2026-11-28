@@ -301,7 +301,9 @@ export type MessageCode =
   "login-two-step-later" |
   "server-request-too-large" |
   "push-endpoint-invalid" |
-  "push-subscription-not-found";
+  "push-subscription-not-found" |
+  "task-not-found" |
+  "thumbs-target-invalid";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -605,4 +607,6 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-request-too-large",
   "push-endpoint-invalid",
   "push-subscription-not-found",
+  "task-not-found",
+  "thumbs-target-invalid",
 ];

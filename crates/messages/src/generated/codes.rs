@@ -305,6 +305,8 @@ pub enum MessageCode {
     ServerRequestTooLarge,
     PushEndpointInvalid,
     PushSubscriptionNotFound,
+    TaskNotFound,
+    ThumbsTargetInvalid,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -866,6 +868,8 @@ const TABLE: &[(MessageCode, &str)] = &[
         MessageCode::PushSubscriptionNotFound,
         "push-subscription-not-found",
     ),
+    (MessageCode::TaskNotFound, "task-not-found"),
+    (MessageCode::ThumbsTargetInvalid, "thumbs-target-invalid"),
 ];
 
 impl MessageCode {

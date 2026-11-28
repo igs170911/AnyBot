@@ -767,6 +767,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tasks/{task}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read-only status of one task
+         * @description Folds the records of the bot stream that belong to this task and answers the current status, detail and report. The bot must belong to the caller; a deleted bot stays readable. No idempotency key: this endpoint writes nothing.
+         */
+        get: operations["get_task_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -805,6 +825,11 @@ export interface components {
              */
             seq?: number | null;
         };
+        /**
+         * @example steps
+         * @enum {string}
+         */
+        BudgetItem: "steps" | "tool_calls" | "turns" | "elapsed" | "tokens" | "cost" | "retries";
         ClaimReply: {
             content: Record<string, never>;
             /** @example round */
@@ -1124,6 +1149,329 @@ export interface components {
                 id: string;
             };
         };
+        TaskDetail: {
+            /**
+             * @example current_step
+             * @enum {string}
+             */
+            detail: "current_step";
+            params: {
+                /** @example sample */
+                step: string;
+            };
+        } | {
+            /**
+             * @example queued
+             * @enum {string}
+             */
+            detail: "queued";
+        } | {
+            /**
+             * @example follow_up
+             * @enum {string}
+             */
+            detail: "follow_up";
+            params: {
+                /**
+                 * Format: int64
+                 * @example 0
+                 */
+                next_at: number;
+                /**
+                 * Format: int32
+                 * @example 0
+                 */
+                number: number;
+            };
+        } | {
+            /**
+             * @example verifying
+             * @enum {string}
+             */
+            detail: "verifying";
+        } | {
+            /**
+             * @example planning
+             * @enum {string}
+             */
+            detail: "planning";
+        } | {
+            /**
+             * @example plan_progress
+             * @enum {string}
+             */
+            detail: "plan_progress";
+            params: {
+                /**
+                 * Format: int32
+                 * @example 0
+                 */
+                step: number;
+                /**
+                 * Format: int32
+                 * @example 0
+                 */
+                total: number;
+            };
+        } | {
+            /**
+             * @example auto_resuming
+             * @enum {string}
+             */
+            detail: "auto_resuming";
+        } | {
+            /**
+             * @example approval_pending
+             * @enum {string}
+             */
+            detail: "approval_pending";
+            params: {
+                /** @example sample */
+                action: string;
+            };
+        } | {
+            /**
+             * @example question_pending
+             * @enum {string}
+             */
+            detail: "question_pending";
+            params: {
+                /** @example sample */
+                question: string;
+            };
+        } | {
+            /**
+             * @example plan_approval_pending
+             * @enum {string}
+             */
+            detail: "plan_approval_pending";
+        } | {
+            /**
+             * @example confirmation_pending
+             * @enum {string}
+             */
+            detail: "confirmation_pending";
+            params: {
+                /** @example sample */
+                step: string;
+            };
+        } | {
+            /**
+             * @example timed_out
+             * @enum {string}
+             */
+            detail: "timed_out";
+        } | {
+            /**
+             * @example resume_pending
+             * @enum {string}
+             */
+            detail: "resume_pending";
+        } | {
+            /**
+             * @example computer_offline
+             * @enum {string}
+             */
+            detail: "computer_offline";
+        } | {
+            /**
+             * @example goal_paused
+             * @enum {string}
+             */
+            detail: "goal_paused";
+            params: {
+                /** @example sample */
+                reason: string;
+            };
+        } | {
+            /**
+             * @example acceptance_decision_pending
+             * @enum {string}
+             */
+            detail: "acceptance_decision_pending";
+        } | {
+            /**
+             * @example no_activity
+             * @enum {string}
+             */
+            detail: "no_activity";
+            params: {
+                /**
+                 * Format: int32
+                 * @example 0
+                 */
+                minutes: number;
+            };
+        } | {
+            /**
+             * @example over_budget
+             * @enum {string}
+             */
+            detail: "over_budget";
+            params: {
+                item: components["schemas"]["BudgetItem"];
+                /**
+                 * Format: int64
+                 * @example 0
+                 */
+                limit: number;
+                /**
+                 * Format: int64
+                 * @example 0
+                 */
+                used: number;
+            };
+        } | {
+            /**
+             * @example goal_stuck
+             * @enum {string}
+             */
+            detail: "goal_stuck";
+            params: {
+                /** @example sample */
+                reason: string;
+            };
+        } | {
+            /**
+             * @example plan_stale
+             * @enum {string}
+             */
+            detail: "plan_stale";
+        } | {
+            /**
+             * @example replied
+             * @enum {string}
+             */
+            detail: "replied";
+        } | {
+            /**
+             * @example accepted
+             * @enum {string}
+             */
+            detail: "accepted";
+        } | {
+            /**
+             * @example delivered
+             * @enum {string}
+             */
+            detail: "delivered";
+        } | {
+            /**
+             * @example user_confirmed
+             * @enum {string}
+             */
+            detail: "user_confirmed";
+        } | {
+            /**
+             * @example acceptance_failed
+             * @enum {string}
+             */
+            detail: "acceptance_failed";
+        } | {
+            /**
+             * @example unverified_actions
+             * @enum {string}
+             */
+            detail: "unverified_actions";
+        } | {
+            /**
+             * @example step_rejected
+             * @enum {string}
+             */
+            detail: "step_rejected";
+        } | {
+            /**
+             * @example no_visible_result
+             * @enum {string}
+             */
+            detail: "no_visible_result";
+        } | {
+            /**
+             * @example error
+             * @enum {string}
+             */
+            detail: "error";
+            params: {
+                /** @example sample */
+                reason: string;
+            };
+        } | {
+            /**
+             * @example goal_impossible
+             * @enum {string}
+             */
+            detail: "goal_impossible";
+        } | {
+            /**
+             * @example model_unreachable
+             * @enum {string}
+             */
+            detail: "model_unreachable";
+        } | {
+            /**
+             * @example context_budget_insufficient
+             * @enum {string}
+             */
+            detail: "context_budget_insufficient";
+        } | {
+            /**
+             * @example sent_target
+             * @enum {string}
+             */
+            detail: "sent_target";
+            params: {
+                /**
+                 * Format: int32
+                 * @example 0
+                 */
+                sent: number;
+                /**
+                 * Format: int32
+                 * @example 0
+                 */
+                total: number;
+            };
+        } | {
+            /**
+             * @example cancelled_reason
+             * @enum {string}
+             */
+            detail: "cancelled_reason";
+            params: {
+                /** @example sample */
+                reason: string;
+            };
+        } | {
+            /**
+             * @example you_stopped
+             * @enum {string}
+             */
+            detail: "you_stopped";
+        };
+        TaskReport: {
+            /** @example true */
+            userConfirmed: boolean;
+            /**
+             * Format: int64
+             * @example 1700000000200
+             */
+            userConfirmedAtMs?: number | null;
+        };
+        /**
+         * @example running
+         * @enum {string}
+         */
+        TaskStatus: "running" | "awaiting_user" | "stuck" | "completed" | "unaccepted" | "failed" | "cancelled" | "stopped";
+        TaskStatusReply: {
+            detail?: components["schemas"]["TaskDetail"] | null;
+            /**
+             * Format: int64
+             * @example 9
+             */
+            lastSeq: number;
+            report: components["schemas"]["TaskReport"];
+            status: components["schemas"]["TaskStatus"];
+        };
         TwoStepChallenge: {
             /** @example alice */
             account: string;
@@ -1162,7 +1510,10 @@ export interface components {
             /** @example  */
             thinking: string;
         };
-        /** @enum {string} */
+        /**
+         * @example resume
+         * @enum {string}
+         */
         WakeReason: "resume" | "verification";
     };
     responses: never;
@@ -5490,6 +5841,117 @@ export interface operations {
                      *       "status": 413,
                      *       "title": "The request body is too large.",
                      *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-internal",
+                     *       "params": {},
+                     *       "status": 500,
+                     *       "title": "The server hit an internal error.",
+                     *       "type": "https://anybot.test/problems/internal"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+        };
+    };
+    get_task_status: {
+        parameters: {
+            query: {
+                /** @description Bot stream key, for example bot/<id> */
+                bot: string;
+            };
+            header?: never;
+            path: {
+                /** @description Task id of the task to read */
+                task: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The folded task status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "detail": "user_confirmed"
+                     *       },
+                     *       "lastSeq": 9,
+                     *       "report": {
+                     *         "userConfirmed": true,
+                     *         "userConfirmedAtMs": 1700000000200
+                     *       },
+                     *       "status": "completed"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["TaskStatusReply"];
+                };
+            };
+            /** @description Bad bot stream key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "problem-bad-request",
+                     *       "params": {},
+                     *       "status": 400,
+                     *       "title": "The request was malformed.",
+                     *       "type": "https://anybot.test/problems/bad-request"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description The bot belongs to another account */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "record-no-permission",
+                     *       "params": {},
+                     *       "status": 403,
+                     *       "title": "You cannot write this stream.",
+                     *       "type": "https://anybot.test/problems/record_no_permission"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemJson"];
+                };
+            };
+            /** @description No task with this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "task-not-found",
+                     *       "params": {},
+                     *       "status": 404,
+                     *       "title": "This task has no records in this stream.",
+                     *       "type": "https://anybot.test/problems/task_not_found"
                      *     }
                      */
                     "application/problem+json": components["schemas"]["ProblemJson"];
