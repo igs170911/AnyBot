@@ -20,7 +20,7 @@ use anybot_trust::{ActionKey, GateConfig};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{request_body, state_of, task_kinds, wait_for_shown_card};
-use runner_test::turn_tool_helpers::{all_specs, call};
+use runner_test::turn_tool_helpers::call;
 use test_harness::{model_replies_text, model_tool_calls, timeout_real};
 
 const NPM: &str = "npm install";
@@ -31,7 +31,6 @@ fn ask_setup() -> WorldSetup {
     let mut gate = GateConfig::plain();
     gate.user.ask_style.push(ActionKey::command("shell", NPM));
     WorldSetup {
-        tools: all_specs(),
         scripts: vec![("npm install".to_owned(), CommandScript::ok("installed"))],
         gate,
         ..WorldSetup::default()
@@ -40,7 +39,7 @@ fn ask_setup() -> WorldSetup {
 
 fn npm_call(id: &str) -> test_harness::Step {
     model_tool_calls(
-        vec![call("shell", &format!("{{\"line\":\"{NPM}\"}}"), id)],
+        vec![call("shell", &format!("{{\"command\":\"{NPM}\"}}"), id)],
         "tool_calls",
         false,
     )

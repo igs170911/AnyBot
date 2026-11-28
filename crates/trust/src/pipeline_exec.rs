@@ -122,6 +122,8 @@ pub(crate) fn action_label(subject: &crate::pipeline::RequestedAction) -> String
     match subject {
         crate::pipeline::RequestedAction::Command { line, .. } => line.clone(),
         crate::pipeline::RequestedAction::ReadFile { path }
+        | crate::pipeline::RequestedAction::ListDir { path }
+        | crate::pipeline::RequestedAction::Search { path, .. }
         | crate::pipeline::RequestedAction::WriteFile { path, .. }
         | crate::pipeline::RequestedAction::EditFile { path, .. }
         | crate::pipeline::RequestedAction::PathCheck { path } => path.clone(),

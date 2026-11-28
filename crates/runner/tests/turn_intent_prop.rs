@@ -16,7 +16,6 @@ use proptest::prelude::*;
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::task_of;
-use runner_test::turn_tool_helpers::all_specs;
 use test_harness::{Step, ToolCallScript, model_replies_text, model_tool_calls};
 
 const NAMES: [&str; 3] = ["read_file", "shell", "edit_file"];
@@ -30,7 +29,7 @@ fn name_of(index: usize) -> &'static str {
 
 fn args_of(name: &str, id: &str) -> ToolCallScript {
     let arguments = match name {
-        "shell" => "{\"line\":\"ls\"}".to_owned(),
+        "shell" => "{\"command\":\"ls\"}".to_owned(),
         "edit_file" => "{\"path\":\"a.txt\",\"old_text\":\"\",\"new_text\":\"z\"}".to_owned(),
         _ => "{\"path\":\"a.txt\"}".to_owned(),
     };
@@ -87,7 +86,6 @@ fn run_case(middles: &[Vec<usize>]) -> Result<(), String> {
 
 fn intent_setup() -> WorldSetup {
     WorldSetup {
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "x".to_owned())],
         scripts: vec![("ls".to_owned(), CommandScript::ok("listed"))],
         ..WorldSetup::default()

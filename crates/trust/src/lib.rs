@@ -35,6 +35,8 @@ pub mod message_codes;
 pub mod op_ticket;
 #[cfg(test)]
 mod op_ticket_computer_tests;
+#[cfg(test)]
+mod op_ticket_tests;
 mod path_resolve;
 pub mod pipeline;
 mod pipeline_ask;
@@ -48,6 +50,7 @@ pub mod safety_always;
 pub mod safety_lock;
 pub mod safety_n5;
 pub mod sandbox_deny;
+pub mod sandbox_env;
 pub mod sandbox_levels;
 pub mod sandbox_peel;
 mod six_class;
@@ -92,6 +95,10 @@ pub use safety_n5::{
     ActionClass, classes_of_click_label, classes_of_command, classes_of_connector_tool, word_hit,
 };
 pub use sandbox_deny::{DENIED_COMMAND_KINDS, deny_token, normalize_command, split_segments};
+pub use sandbox_env::{
+    ACCOUNT_KEYS, COMMAND_ONLY, MODEL_KEYS, RISKY_EXACT, RISKY_PREFIX, apply_env_plan,
+    command_env_plan,
+};
 pub use sandbox_levels::{CommandLevel, READ_ONLY_COMMANDS, command_level};
 pub use sandbox_peel::{
     PEEL_WRAPPERS, PRIVILEGE_WRAPPERS, bare_name, peel_segment, unreadable_reason, visible_segments,

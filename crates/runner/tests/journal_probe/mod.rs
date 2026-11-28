@@ -73,6 +73,16 @@ impl GatedComputer for CrashProbe {
         self.inner.edit_file(t)
     }
 
+    fn list_dir(&self, t: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.check_intent();
+        self.inner.list_dir(t)
+    }
+
+    fn search(&self, t: OpTicket) -> Result<ActualResult, OpRejection> {
+        self.check_intent();
+        self.inner.search(t)
+    }
+
     fn path_info(&self, t: OpTicket) -> Result<ActualResult, OpRejection> {
         self.inner.path_info(t)
     }

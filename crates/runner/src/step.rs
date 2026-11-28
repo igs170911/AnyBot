@@ -97,7 +97,7 @@ pub(crate) async fn prepare_sent(
     record_new_events(runner, ctx, &manifest_id, model, manifest, events).await?;
     let turn_request = request
         .to_turn_request(
-            runner.tools.clone(),
+            ctx.tools.clone(),
             model.thinking,
             Some(manifest.budget.reserved_output),
         )

@@ -74,7 +74,6 @@ async fn start_journal_runner(name: &str, setup: &WorldSetup) -> Result<RunnerEn
         clock: Arc::clone(&clock_dyn),
         bot: bot_profile(setup, bot),
         model: turn_model(setup, port),
-        tools: setup.tools.clone(),
         lang: setup.lang,
         computer: computer_of(setup),
         model_reach: Arc::new(anybot_runner::NoOnlineModelReach),
@@ -105,7 +104,6 @@ fn tool_registry_maps_each_tool_to_effect() {
 #[tokio::test]
 async fn journal_row_is_outbox_row_in_runner() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: runner_test::turn_tool_helpers::all_specs(),
         files: vec![("a.txt".to_owned(), "hello".to_owned())],
         ..WorldSetup::default()
     };
@@ -166,7 +164,6 @@ async fn journal_secret_stays_local() -> Result<(), String> {
     let auth_header = format!("Bearer {secret_part}");
     let command_line = format!("curl -H '{auth_header}' https://example.test");
     let setup = WorldSetup {
-        tools: runner_test::turn_tool_helpers::all_specs(),
         scripts: vec![(command_line.clone(), CommandScript::ok("sent"))],
         ..WorldSetup::default()
     };

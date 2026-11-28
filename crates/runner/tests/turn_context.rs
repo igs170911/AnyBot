@@ -16,19 +16,18 @@ use anybot_protocol::{KnownTaskEventKind, TaskEvent, TaskEventKind};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{request_body, task_of};
-use runner_test::turn_tool_helpers::{all_specs, call, edit_call};
+use runner_test::turn_tool_helpers::{call, edit_call};
 use test_harness::{Step, ToolCallScript, model_replies_text, model_tool_calls};
 
 const EDIT_SLOTS: [usize; 3] = [1, 3, 5];
 const TOTAL_STEPS: usize = 20;
 
 fn ls_call(index: usize) -> ToolCallScript {
-    call("shell", "{\"line\":\"ls\"}", &format!("x{index}"))
+    call("shell", "{\"command\":\"ls\"}", &format!("x{index}"))
 }
 
 fn build_setup() -> WorldSetup {
     WorldSetup {
-        tools: all_specs(),
         files: vec![
             ("a.txt".to_owned(), "one".to_owned()),
             ("b.txt".to_owned(), "two".to_owned()),
@@ -67,7 +66,7 @@ fn script_state() -> Vec<Step> {
 
 fn calls_of(step: usize) -> Vec<ToolCallScript> {
     if step == 7 {
-        return vec![call("shell", "{\"line\":\"boom\"}", "s7")];
+        return vec![call("shell", "{\"command\":\"boom\"}", "s7")];
     }
     if let Some(found) = edit_slot(step) {
         let wanted = ["a.txt", "b.txt", "c.txt"];

@@ -53,14 +53,13 @@ fn bot_machine_rule(action: &GateAction) -> RuleVerdict {
         ActionSubject::PathCheck { .. } => {
             RuleVerdict::of(MachineLevel::Direct, "bot-machine-files", true)
         }
-        ActionSubject::ReadFile { path } => outside_check(path, action, true),
+        ActionSubject::ReadFile { path }
+        | ActionSubject::ListDir { path }
+        | ActionSubject::Search { path, .. } => outside_check(path, action, true),
         ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
             outside_check(path, action, false)
         }
-        ActionSubject::Command {
-            line,
-            timeout_ms: _,
-        } => bot_command_rule(action, line),
+        ActionSubject::Command { line, .. } => bot_command_rule(action, line),
     }
 }
 
@@ -123,16 +122,14 @@ fn user_machine_rule(action: &GateAction, caps: &ComputerCaps) -> RuleVerdict {
         ActionSubject::Capabilities => {
             RuleVerdict::of(MachineLevel::Direct, "user-machine-caps", true)
         }
-        ActionSubject::PathCheck { path } | ActionSubject::ReadFile { path } => {
-            user_file_rule(action, path, true)
-        }
+        ActionSubject::PathCheck { path }
+        | ActionSubject::ReadFile { path }
+        | ActionSubject::ListDir { path }
+        | ActionSubject::Search { path, .. } => user_file_rule(action, path, true),
         ActionSubject::WriteFile { path, content: _ } | ActionSubject::EditFile { path, .. } => {
             user_file_rule(action, path, false)
         }
-        ActionSubject::Command {
-            line,
-            timeout_ms: _,
-        } => user_command_rule(line),
+        ActionSubject::Command { line, .. } => user_command_rule(line),
     }
 }
 

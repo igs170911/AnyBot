@@ -1,18 +1,30 @@
-use anybot_messages::{Catalog, Lang, MessageCode, Params};
+use anybot_messages::Lang;
 use anybot_protocol::{ActualResult, GateRecord};
+use anybot_tools::read::DEFAULT_READ_LIMIT;
 use anybot_trust::{ModelResultView, OpRejection, OutcomeText};
 
 use crate::error::TurnError;
+pub(crate) use crate::view_text::render_text;
+use crate::view_text::{command_text, list_text, read_text, search_text, write_text};
+
+#[derive(Debug, Clone)]
+pub(crate) struct CapturedShell {
+    pub(crate) output: String,
+    pub(crate) exit_code: Option<i32>,
+}
 
 #[derive(Debug)]
 pub(crate) struct ActionView {
     lang: Lang,
     edit_lines: u32,
-    read_from: u32,
-    read_to: u32,
+    read_offset: usize,
+    read_limit: usize,
+    read_path: String,
+    search_files_only: bool,
     computer: String,
     edit_path: String,
-    output: std::sync::Mutex<Option<String>>,
+    output: std::sync::Mutex<Option<CapturedShell>>,
+    body: std::sync::Mutex<Option<String>>,
 }
 
 impl ActionView {
@@ -21,11 +33,14 @@ impl ActionView {
         ActionView {
             lang,
             edit_lines: 0,
-            read_from: 1,
-            read_to: 0,
+            read_offset: 0,
+            read_limit: DEFAULT_READ_LIMIT,
+            read_path: String::new(),
+            search_files_only: false,
             computer: String::new(),
             edit_path: String::new(),
             output: std::sync::Mutex::new(None),
+            body: std::sync::Mutex::new(None),
         }
     }
 
@@ -51,9 +66,22 @@ impl ActionView {
         &self.computer
     }
 
-    pub(crate) fn with_read_range(mut self, from: u32, to: u32) -> Self {
-        self.read_from = from;
-        self.read_to = to;
+    #[must_use]
+    pub(crate) fn with_read_window(mut self, offset: usize, limit: usize) -> Self {
+        self.read_offset = offset;
+        self.read_limit = limit;
+        self
+    }
+
+    #[must_use]
+    pub(crate) fn with_read_path(mut self, path: &str) -> Self {
+        path.clone_into(&mut self.read_path);
+        self
+    }
+
+    #[must_use]
+    pub(crate) fn with_search_files_only(mut self, files_only: bool) -> Self {
+        self.search_files_only = files_only;
         self
     }
 
@@ -66,18 +94,37 @@ impl ModelResultView for ActionView {
     fn result_text(&self, _tool: &str, result: &ActualResult) -> OutcomeText {
         match result {
             ActualResult::Command(outcome) => {
-                self.capture(&outcome.output);
-                command_text(outcome.exit_code)
+                self.capture(&outcome.output, outcome.exit_code);
+                command_text(outcome.exit_code, !outcome.output.is_empty())
             }
             ActualResult::Write(outcome) => write_text(outcome, self.edit_lines, &self.edit_path),
-            ActualResult::Read(outcome) => OutcomeText::of(
-                "tool-read-lines",
-                vec![
-                    ("path".to_owned(), outcome.path.clone()),
-                    ("from".to_owned(), self.read_from.to_string()),
-                    ("to".to_owned(), self.read_to.to_string()),
-                ],
-            ),
+            ActualResult::Read(outcome) => {
+                let (header, body) = read_text(
+                    self.lang,
+                    outcome,
+                    self.read_offset,
+                    self.read_limit,
+                    &self.read_path,
+                );
+                if let Some(text) = body {
+                    self.capture_body(&text);
+                }
+                header
+            }
+            ActualResult::List(outcome) => {
+                let (header, body) = list_text(self.lang, outcome);
+                if let Some(text) = body {
+                    self.capture_body(&text);
+                }
+                header
+            }
+            ActualResult::Search(outcome) => {
+                let (header, body) = search_text(self.lang, outcome, self.search_files_only);
+                if let Some(text) = body {
+                    self.capture_body(&text);
+                }
+                header
+            }
             ActualResult::Path(_) | ActualResult::Caps(_) => {
                 OutcomeText::of("tool-empty", Vec::new())
             }
@@ -150,89 +197,53 @@ fn floor_rule_code(rule: &str) -> Option<&'static str> {
 }
 
 impl ActionView {
-    fn capture(&self, output: &str) {
+    fn capture(&self, output: &str, exit_code: Option<i32>) {
         if let Ok(mut guard) = self.output.lock() {
-            *guard = Some(output.to_owned());
+            *guard = Some(CapturedShell {
+                output: output.to_owned(),
+                exit_code,
+            });
+        }
+    }
+
+    fn capture_body(&self, body: &str) {
+        if let Ok(mut guard) = self.body.lock() {
+            *guard = Some(body.to_owned());
         }
     }
 
     #[must_use]
-    pub(crate) fn take_output(&self) -> Option<String> {
+    pub(crate) fn take_output(&self) -> Option<CapturedShell> {
         let Ok(mut guard) = self.output.lock() else {
+            return None;
+        };
+        guard.take()
+    }
+
+    #[must_use]
+    pub(crate) fn take_body(&self) -> Option<String> {
+        let Ok(mut guard) = self.body.lock() else {
             return None;
         };
         guard.take()
     }
 }
 
-fn command_text(exit_code: Option<i32>) -> OutcomeText {
-    match exit_code {
-        Some(0) | None => OutcomeText::of("tool-shell-no-output", Vec::new()),
-        Some(code) => OutcomeText::of(
-            "tool-shell-failed",
-            vec![("code".to_owned(), code.to_string())],
-        ),
-    }
-}
-
-fn write_text(outcome: &anybot_protocol::WriteOutcome, lines: u32, requested: &str) -> OutcomeText {
-    let shown = short_path(&outcome.path, requested);
-    match outcome.before {
-        anybot_protocol::BeforeDigest::Absent => OutcomeText::of(
-            "tool-edit-created",
-            vec![
-                ("path".to_owned(), shown.clone()),
-                ("lines".to_owned(), lines.to_string()),
-            ],
-        ),
-        anybot_protocol::BeforeDigest::Present(_) => {
-            OutcomeText::of("tool-edit-modified", vec![("path".to_owned(), shown)])
-        }
-    }
-}
-
-fn short_path(canonical: &str, requested: &str) -> String {
-    if requested.is_empty() {
-        return canonical.to_owned();
-    }
-    canonical
-        .rsplit_once('/')
-        .map_or(canonical.to_owned(), |(_, tail)| {
-            if tail == requested.rsplit_once('/').map_or(requested, |(_, t)| t) {
-                requested.to_owned()
-            } else {
-                canonical.to_owned()
-            }
-        })
-}
-
-pub(crate) fn render_text(lang: Lang, text: &OutcomeText) -> Result<String, TurnError> {
-    let Some(code) = MessageCode::from_code(&text.code) else {
-        return Err(TurnError::UnknownMessageCode {
-            code: text.code.clone(),
-        });
-    };
-    let mut params = Params::new();
-    for (key, value) in &text.params {
-        params = params.with_text(key, value);
-    }
-    let mut catalog = Catalog::new();
-    catalog
-        .format(lang, &code, &params)
-        .map_err(TurnError::Messages)
-}
-
 impl Clone for ActionView {
     fn clone(&self) -> Self {
         let output = self.output.lock().map_or(None, |guard| guard.clone());
+        let body = self.body.lock().map_or(None, |guard| guard.clone());
         ActionView {
             lang: self.lang,
             edit_lines: self.edit_lines,
-            read_from: self.read_from,
-            read_to: self.read_to,
+            read_offset: self.read_offset,
+            read_limit: self.read_limit,
+            read_path: self.read_path.clone(),
+            search_files_only: self.search_files_only,
             computer: self.computer.clone(),
             edit_path: self.edit_path.clone(),
             output: std::sync::Mutex::new(output),
+            body: std::sync::Mutex::new(body),
         }
     }
 }

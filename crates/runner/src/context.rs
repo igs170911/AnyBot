@@ -51,6 +51,7 @@ impl Clone for TurnCtx {
             initiator: self.initiator,
             evidence: tokio::sync::Mutex::new(start),
             active_model: std::sync::Mutex::new(active),
+            tools: self.tools.clone(),
         }
     }
 }

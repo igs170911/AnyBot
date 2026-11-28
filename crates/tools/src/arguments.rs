@@ -1,6 +1,9 @@
 use serde_json::Value;
 
-use crate::registry::{TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL, is_known_tool};
+use crate::registry::{
+    TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_READ_RESULT, TOOL_SEARCH, TOOL_SHELL,
+    is_known_tool,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EditArgs {
@@ -17,6 +20,26 @@ pub struct ReadArgs {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListArgs {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchArgs {
+    pub pattern: String,
+    pub path: String,
+    pub files_only: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadResultArgs {
+    pub id: String,
+    pub from: usize,
+    pub chars: usize,
+    pub find: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellArgs {
     pub line: String,
     pub timeout_ms: Option<u64>,
@@ -26,6 +49,9 @@ pub struct ShellArgs {
 pub enum ToolArgs {
     Edit(EditArgs),
     Read(ReadArgs),
+    List(ListArgs),
+    Search(SearchArgs),
+    ReadResult(ReadResultArgs),
     Shell(ShellArgs),
 }
 
@@ -35,6 +61,11 @@ pub enum ArgsRejection {
         tool: String,
         available: Vec<String>,
     },
+    NotInTurn {
+        tool: String,
+        available: Vec<String>,
+    },
+    OtherComputer,
     Malformed {
         reason: String,
     },
@@ -44,13 +75,37 @@ pub enum ArgsRejection {
     },
 }
 
+pub fn check_offered(tool: &str, json: &str, offered: &[&str]) -> Result<(), ArgsRejection> {
+    if !offered.contains(&tool) {
+        return Err(ArgsRejection::NotInTurn {
+            tool: tool.to_owned(),
+            available: offered.iter().map(|name| (*name).to_owned()).collect(),
+        });
+    }
+    if let Ok(Value::Object(object)) = serde_json::from_str::<Value>(json)
+        && object.contains_key(crate::offer::COMPUTER_PARAM)
+    {
+        return Err(ArgsRejection::OtherComputer);
+    }
+    Ok(())
+}
+
 #[must_use]
 pub fn args_rejection_word(tool: &str, json: &str) -> String {
     match parse_call(tool, json) {
         Ok(_) => "arguments-ok".to_owned(),
-        Err(ArgsRejection::UnknownTool { tool, .. }) => format!("unknown-tool-{tool}"),
-        Err(ArgsRejection::Malformed { reason }) => format!("malformed-{reason}"),
-        Err(ArgsRejection::MissingField { field, tool }) => format!("missing-field-{field}-{tool}"),
+        Err(ref rejection) => rejection_word(rejection),
+    }
+}
+
+#[must_use]
+pub fn rejection_word(rejection: &ArgsRejection) -> String {
+    match rejection {
+        ArgsRejection::UnknownTool { tool, .. } => format!("unknown-tool-{tool}"),
+        ArgsRejection::NotInTurn { tool, .. } => format!("not-in-turn-{tool}"),
+        ArgsRejection::OtherComputer => "other-computer".to_owned(),
+        ArgsRejection::Malformed { reason } => format!("malformed-{reason}"),
+        ArgsRejection::MissingField { field, tool } => format!("missing-field-{field}-{tool}"),
     }
 }
 
@@ -73,6 +128,9 @@ pub fn parse_call(tool: &str, json: &str) -> Result<ToolArgs, ArgsRejection> {
     match tool {
         TOOL_EDIT_FILE => parse_edit(object),
         TOOL_READ_FILE => parse_read(object),
+        TOOL_LIST_DIR => parse_list(object),
+        TOOL_SEARCH => parse_search(object),
+        TOOL_READ_RESULT => parse_read_result(object),
         TOOL_SHELL => parse_shell(object),
         _ => Err(ArgsRejection::Malformed {
             reason: "unknown tool".to_owned(),
@@ -94,7 +152,7 @@ fn parse_edit(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsR
 fn parse_read(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
     let path = text_field(object, "path", TOOL_READ_FILE)?;
     let offset = small_field(object, "offset")?.unwrap_or(0);
-    let limit = small_field(object, "limit")?.unwrap_or(2000);
+    let limit = small_field(object, "limit")?.unwrap_or(crate::read::DEFAULT_READ_LIMIT);
     Ok(ToolArgs::Read(ReadArgs {
         path,
         offset,
@@ -103,9 +161,40 @@ fn parse_read(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsR
 }
 
 fn parse_shell(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
-    let line = text_field(object, "line", TOOL_SHELL)?;
+    let line = text_field(object, "command", TOOL_SHELL)?;
     let timeout_ms = number_field(object, "timeout_ms");
     Ok(ToolArgs::Shell(ShellArgs { line, timeout_ms }))
+}
+
+fn parse_list(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
+    let path = text_field(object, "path", TOOL_LIST_DIR)?;
+    Ok(ToolArgs::List(ListArgs { path }))
+}
+
+fn parse_search(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
+    let pattern = text_field(object, "pattern", TOOL_SEARCH)?;
+    let path = optional_text_field(object, "path")?.unwrap_or_else(|| ".".to_owned());
+    let files_only = bool_field(object, "files_only")?.unwrap_or(false);
+    Ok(ToolArgs::Search(SearchArgs {
+        pattern,
+        path,
+        files_only,
+    }))
+}
+
+fn parse_read_result(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
+    let id = text_field(object, "id", TOOL_READ_RESULT)?;
+    let from = small_field(object, "from")?.unwrap_or(0);
+    let chars = small_field(object, "chars")?
+        .unwrap_or(crate::read_result::READ_RESULT_MAX_CHARS)
+        .min(crate::read_result::READ_RESULT_MAX_CHARS);
+    let find = optional_text_field(object, "find")?;
+    Ok(ToolArgs::ReadResult(ReadResultArgs {
+        id,
+        from,
+        chars,
+        find,
+    }))
 }
 
 fn text_field(
@@ -122,6 +211,32 @@ fn text_field(
             field: name.to_owned(),
             tool: tool.to_owned(),
         }),
+    }
+}
+
+fn optional_text_field(
+    object: &serde_json::Map<String, Value>,
+    name: &str,
+) -> Result<Option<String>, ArgsRejection> {
+    match object.get(name) {
+        Some(Value::String(text)) => Ok(Some(text.clone())),
+        Some(_) => Err(ArgsRejection::Malformed {
+            reason: format!("{name} is not a string"),
+        }),
+        None => Ok(None),
+    }
+}
+
+fn bool_field(
+    object: &serde_json::Map<String, Value>,
+    name: &str,
+) -> Result<Option<bool>, ArgsRejection> {
+    match object.get(name) {
+        Some(Value::Bool(flag)) => Ok(Some(*flag)),
+        Some(_) => Err(ArgsRejection::Malformed {
+            reason: format!("{name} is not a boolean"),
+        }),
+        None => Ok(None),
     }
 }
 
@@ -144,49 +259,5 @@ fn small_field(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_arguments_reject_a_tool_that_is_not_in_this_turn() {
-        let parsed = parse_call("list_dir", "{}");
-        let Err(ArgsRejection::UnknownTool { tool, available }) = parsed else {
-            panic!("unknown tool not rejected: {parsed:?}");
-        };
-        assert_eq!(tool, "list_dir");
-        assert_eq!(
-            available,
-            vec![
-                "edit_file".to_owned(),
-                "read_file".to_owned(),
-                "shell".to_owned()
-            ]
-        );
-    }
-
-    #[test]
-    fn test_arguments_reject_text_that_is_not_json() {
-        let parsed = parse_call(TOOL_SHELL, "not json");
-        assert!(matches!(parsed, Err(ArgsRejection::Malformed { .. })));
-    }
-
-    #[test]
-    fn test_arguments_require_every_field_of_a_call() {
-        let parsed = parse_call(TOOL_EDIT_FILE, r#"{"path":"a.txt","old_text":"x"}"#);
-        let Err(ArgsRejection::MissingField { field, tool }) = parsed else {
-            panic!("missing field not rejected: {parsed:?}");
-        };
-        assert_eq!(field, "new_text");
-        assert_eq!(tool, "edit_file");
-    }
-
-    #[test]
-    fn test_arguments_read_optional_numbers_with_defaults() {
-        let parsed = parse_call(TOOL_READ_FILE, r#"{"path":"a.txt"}"#);
-        let Ok(ToolArgs::Read(args)) = parsed else {
-            panic!("read args missing: {parsed:?}");
-        };
-        assert_eq!(args.offset, 0);
-        assert_eq!(args.limit, 2000);
-    }
-}
+#[path = "arguments_tests.rs"]
+mod tests;

@@ -88,10 +88,21 @@ pub trait Record: Send + Sync {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawBlob {
+    pub bytes: Vec<u8>,
+    pub original_len: u64,
+}
+
+#[must_use]
+pub fn clamp_raw_bytes(bytes: Vec<u8>) -> (Vec<u8>, u64) {
+    anybot_tools::clamp_raw_bytes(bytes, anybot_tools::RAW_MAX_BYTES)
+}
+
 pub trait RawStore: Send + Sync {
     fn put(&self, bytes: Vec<u8>) -> PinBoxFuture<'_, Result<ContentDigest, RawStoreError>>;
 
-    fn get(&self, id: ContentDigest) -> PinBoxFuture<'_, Result<Option<Vec<u8>>, RawStoreError>>;
+    fn get(&self, id: ContentDigest) -> PinBoxFuture<'_, Result<Option<RawBlob>, RawStoreError>>;
 }
 
 #[must_use]

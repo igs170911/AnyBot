@@ -24,7 +24,6 @@ use runner_test::mem_raw::MemoryRaw;
 use runner_test::mem_watch::{MemoryWatch, share_watch};
 use runner_test::turn::WorldSetup;
 use runner_test::turn_setup::{bot_profile, build_session, computer_of, share_clock, turn_model};
-use runner_test::turn_tool_helpers::all_specs;
 use test_harness::{
     FakeClock, FakeModel, Step, ToolCallScript, model_replies_text, model_start_with_format,
     model_tool_calls,
@@ -76,7 +75,7 @@ fn script_of(steps_spec: &[Vec<usize>]) -> Vec<Step> {
                     "edit_file",
                     "{\"path\":\"a.txt\",\"old_text\":\"\",\"new_text\":\"z\"}",
                 ),
-                _ => ("shell", "{\"line\":\"ls\"}"),
+                _ => ("shell", "{\"command\":\"ls\"}"),
             };
             calls.push(ToolCallScript {
                 name: name.to_owned(),
@@ -124,7 +123,6 @@ async fn run_and_verify(
         clock: Arc::clone(&clock_dyn),
         bot: bot_profile(setup, bot),
         model: turn_model(setup, port),
-        tools: setup.tools.clone(),
         lang: None,
         computer: computer_of(setup),
         model_reach: Arc::new(anybot_runner::NoOnlineModelReach),
@@ -186,7 +184,6 @@ fn run_crash_case(steps_spec: &[Vec<usize>], drop_poll: usize) -> Result<(), Str
     let h = shared_harness()?;
     let dir = test_harness::test_dir("turn_journal_prop_case")?;
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "x".to_owned())],
         scripts: vec![("ls".to_owned(), CommandScript::ok("listed"))],
         ..WorldSetup::default()

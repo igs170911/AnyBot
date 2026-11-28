@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use anybot_foundation::{BotId, DeviceId, TaskId};
 use anybot_messages::Lang;
-use anybot_models::ToolSpec;
 use anybot_protocol::{
-    BudgetItem, ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent, TaskEventKind,
-    TaskStatus, TurnInitiator,
+    BudgetItem, ComputerCaps, ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent,
+    TaskEventKind, TaskStatus, TurnInitiator,
 };
 use anybot_runner::{
     ContinueTurn, RunnerParts, Steer, SteerQueued, TurnError, TurnOutcome, TurnRunner, UserMessage,
@@ -26,12 +25,16 @@ pub struct WorldSetup {
     pub reserved_output: u64,
     pub instructions: String,
     pub platform: ComputerPlatform,
-    pub tools: Vec<ToolSpec>,
+    pub computer_name: String,
+    pub caps: Option<ComputerCaps>,
     pub probe_requests: bool,
     pub fail_on_kind: Option<&'static str>,
     pub sandbox: bool,
+    pub ripgrep: bool,
     pub files: Vec<(String, String)>,
+    pub dirs: Vec<String>,
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
+    pub inherited_env: Vec<(String, String)>,
     pub gate: anybot_trust::GateConfig,
     pub budget_overrides: Vec<(BudgetItem, u64)>,
     pub primary_name: Option<String>,
@@ -49,12 +52,16 @@ impl Default for WorldSetup {
             reserved_output: 1_024,
             instructions: "Be brief.".to_owned(),
             platform: ComputerPlatform::BotMachine,
-            tools: vec![read_file_spec()],
+            computer_name: "bot-computer".to_owned(),
+            caps: None,
             probe_requests: false,
             fail_on_kind: None,
             sandbox: true,
+            ripgrep: true,
             files: Vec::new(),
+            dirs: Vec::new(),
             scripts: Vec::new(),
+            inherited_env: Vec::new(),
             gate: anybot_trust::GateConfig::plain(),
             budget_overrides: Vec::new(),
             primary_name: None,
@@ -97,19 +104,11 @@ impl TurnWorld {
         let clock_dyn = share_clock(&clock);
         let bot = BotId::generate(clock_dyn.as_ref());
         let builder = crate::fake_builder::FakeComputerBuilder::default()
-            .named("bot-computer")
-            .sandbox(setup.sandbox)
+            .named(&setup.computer_name)
+            .caps(setup_caps(setup))
             .gate(setup.gate.clone())
+            .ripgrep(setup.ripgrep)
             .clock(Arc::clone(&clock));
-        let builder = if setup.platform == ComputerPlatform::BotMachine {
-            builder.bot_machine()
-        } else {
-            builder
-                .platform(setup.platform)
-                .user_machine()
-                .commands()
-                .files()
-        };
         let builder = apply_world_files(builder, setup);
         let built = Arc::new(builder.build());
         let gated = Arc::clone(&built);
@@ -127,7 +126,6 @@ impl TurnWorld {
             clock: share_clock(&clock),
             bot: bot_profile(setup, bot),
             model: turn_model(setup, port),
-            tools: setup.tools.clone(),
             lang: setup.lang,
             computer: computer_of(setup),
             model_reach,
@@ -278,7 +276,6 @@ pub fn arc_world(world: TurnWorld) -> Arc<TurnWorld> {
 
 pub use crate::turn_setup::{
     FallbackTarget, bot_profile, build_session, capability_of, computer_of, local_endpoint,
-    model_name_of_setup, provider_kind, read_file_spec, share_clock, tool_spec, turn_model,
-    wire_format,
+    model_name_of_setup, provider_kind, share_clock, turn_model, wire_format,
 };
-use crate::turn_setup::{apply_world_files, make_record, share_raw};
+use crate::turn_setup::{apply_world_files, make_record, setup_caps, share_raw};

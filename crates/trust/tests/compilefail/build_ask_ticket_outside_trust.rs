@@ -27,6 +27,7 @@ fn main() {
             subject: anybot_trust::RequestedAction::Command {
                 line: "ls".to_owned(),
                 timeout_ms: 1000,
+                env: anybot_trust::command_env_plan(),
             },
         },
         "c",

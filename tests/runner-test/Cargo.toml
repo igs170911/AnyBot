@@ -17,6 +17,7 @@ anybot-models = { workspace = true }
 anybot-protocol = { workspace = true }
 anybot-runner = { workspace = true }
 anybot-trust = { workspace = true }
+regex = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 test-harness = { workspace = true }

@@ -221,6 +221,7 @@ impl TurnRunner {
             initiator: TurnInitiator::Verification,
             evidence: tokio::sync::Mutex::new(1_000),
             active_model: std::sync::Mutex::new(None),
+            tools: Vec::new(),
         }
     }
 

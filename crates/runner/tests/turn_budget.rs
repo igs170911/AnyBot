@@ -17,7 +17,7 @@ use anybot_protocol::{
 };
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{chat_requests, state_of, task_kinds, task_of};
-use runner_test::turn_tool_helpers::{all_specs, call, edit_call, one_tool_step};
+use runner_test::turn_tool_helpers::{call, edit_call, one_tool_step};
 use test_harness::{
     Step, UsageScript, model_replies_text, model_tool_calls, model_tool_calls_with_usage,
 };
@@ -29,7 +29,6 @@ fn read_call(path: &str, id: &str) -> test_harness::ToolCallScript {
 #[tokio::test]
 async fn t_turn_loop_6() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![
             ("a.txt".to_owned(), "alpha".to_owned()),
             ("b.txt".to_owned(), "beta".to_owned()),
@@ -121,7 +120,6 @@ fn check_two_completed_third_over_budget(kinds: &[KnownTaskEventKind]) -> Result
 #[tokio::test]
 async fn t_turn_loop_7() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![
             ("a.txt".to_owned(), "alpha".to_owned()),
             ("b.txt".to_owned(), "beta".to_owned()),
@@ -152,7 +150,6 @@ async fn t_turn_loop_7() -> Result<(), String> {
 #[tokio::test]
 async fn t_turn_loop_8() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         budget_overrides: vec![(BudgetItem::Tokens, 1_000)],
         ..WorldSetup::default()
     };
@@ -224,7 +221,6 @@ fn check_answer_kept_and_edit_not_run(kinds: &[KnownTaskEventKind]) -> Result<()
 #[tokio::test]
 async fn default_steps_stop_before_301st_request() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "alpha".to_owned())],
         ..WorldSetup::default()
     };

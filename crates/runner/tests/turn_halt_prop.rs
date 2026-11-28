@@ -21,7 +21,6 @@ use proptest::prelude::*;
 use proptest::test_runner::{Config as PropConfig, TestRunner};
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::task_of;
-use runner_test::turn_tool_helpers::all_specs;
 use test_harness::{Step, ToolCallScript, advance_clock, model_replies_text, model_tool_calls};
 
 fn stop_event(world: &TurnWorld, task: TaskId) -> RecordEntry {
@@ -76,7 +75,6 @@ fn t_chat_stop_9() -> Result<(), String> {
         .build()
         .map_err(|e| format!("runtime: {e}"))?;
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "hello".to_owned())],
         ..WorldSetup::default()
     };

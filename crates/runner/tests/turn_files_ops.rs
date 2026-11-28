@@ -17,7 +17,7 @@ use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{fmt_text, messages_of, request_body, sha256_hex, task_of};
 use runner_test::turn_tool_helpers::{
-    all_specs, call, edit_call, evidence_record, exit_evidence, intent_call_ids, one_tool_step,
+    call, edit_call, evidence_record, exit_evidence, intent_call_ids, one_tool_step,
     tool_message_content, world_with,
 };
 
@@ -47,7 +47,6 @@ async fn t_computer_ops_2() -> Result<(), String> {
 #[tokio::test]
 async fn t_files_shell_4() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         scripts: vec![(
             "echo oops; exit 2".to_owned(),
             CommandScript::failing("oops\n", 2),
@@ -57,7 +56,7 @@ async fn t_files_shell_4() -> Result<(), String> {
     let world = TurnWorld::start(&setup).await?;
     world.script(one_tool_step(vec![call(
         "shell",
-        "{\"line\":\"echo oops; exit 2\"}",
+        "{\"command\":\"echo oops; exit 2\"}",
         "c1",
     )]));
     let outcome = world.send(Device::Phone, "go").await;

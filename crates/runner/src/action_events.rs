@@ -83,9 +83,17 @@ pub(crate) async fn record_result(
     if run.summary.status.code == CODE_TURN_REJECTED {
         return Ok(());
     }
+    let captured = view.take_output();
+    let digest = store_output(runner, captured.as_ref()).await?;
+    let raw_id = digest.as_ref().map(|d| d.hex().to_owned());
+    let shell = match &captured {
+        Some(cap) => {
+            crate::view_text::shell_body(runner.lang, &cap.output, cap.exit_code, digest.as_ref())?
+        }
+        None => None,
+    };
+    let summary = combine_body(&run.model.code, text, shell.or_else(|| view.take_body()));
     if run.summary.status.code == CODE_TURN_COMPLETED {
-        let raw_id = store_output(runner, view).await?;
-        let summary = with_output(&text, &run.evidence);
         runner
             .append_turn_event(
                 ctx,
@@ -98,7 +106,6 @@ pub(crate) async fn record_result(
             .await
             .map(|_| ())
     } else {
-        let error = with_output(&text, &run.evidence);
         runner
             .append_turn_event(
                 ctx,
@@ -106,7 +113,7 @@ pub(crate) async fn record_result(
                     call_id: request.call_id,
                     name: request.tool.clone(),
                     args_summary: json,
-                    error,
+                    error: summary,
                 },
             )
             .await
@@ -114,27 +121,24 @@ pub(crate) async fn record_result(
     }
 }
 
-fn with_output(text: &str, evidence: &[EvidenceRecord]) -> String {
-    for record in evidence {
-        if let anybot_protocol::EvidencePayload::Executed {
-            output_head: head, ..
-        } = &record.payload
-            && !head.is_empty()
-        {
-            return format!("{text}\n{head}");
-        }
+fn combine_body(code: &str, text: String, body: Option<String>) -> String {
+    match body {
+        Some(content) if !content.is_empty() && code == anybot_trust::CODE_TOOL_EMPTY => content,
+        Some(content) if !content.is_empty() => format!("{text}\n{content}"),
+        _ => text,
     }
-    text.to_owned()
 }
 
-async fn store_output(runner: &TurnRunner, view: &ActionView) -> Result<Option<String>, TurnError> {
-    let Some(output) = view.take_output() else {
+async fn store_output(
+    runner: &TurnRunner,
+    captured: Option<&crate::view::CapturedShell>,
+) -> Result<Option<anybot_foundation::ContentDigest>, TurnError> {
+    let Some(cap) = captured else {
         return Ok(None);
     };
-    let bytes = output.into_bytes();
-    let digest = anybot_foundation::ContentDigest::sha256(&bytes);
-    runner.raw.put(bytes).await.map_err(TurnError::Raw)?;
-    Ok(Some(digest.hex().to_owned()))
+    let bytes = cap.output.as_bytes().to_vec();
+    let digest = runner.raw.put(bytes).await.map_err(TurnError::Raw)?;
+    Ok(Some(digest))
 }
 
 pub(crate) async fn record_evidence(

@@ -68,6 +68,8 @@ async fn open_continued_ctx_from(
     let started = runner
         .append_task_event_in_turn(&task, Some(turn), runner.turn_started_kind(turn, initiator))
         .await?;
+    let caps = runner.gated.declared_caps();
+    let tools = crate::tool_specs::turn_tools(runner.lang, &caps)?;
     crate::steer::begin_turn(runner, task, turn, !initiator.is_unattended());
     Ok(TurnCtx {
         task,
@@ -77,6 +79,7 @@ async fn open_continued_ctx_from(
         initiator,
         evidence: tokio::sync::Mutex::new(evidence_start),
         active_model: std::sync::Mutex::new(None),
+        tools,
     })
 }
 

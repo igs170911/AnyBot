@@ -21,12 +21,15 @@ pub mod halt;
 mod journal_codec;
 mod journal_mask;
 pub mod journal_record;
+pub mod read_result_run;
 pub mod record;
 pub mod report_out;
 pub mod runner;
 pub mod steer;
 pub mod step;
+mod tool_specs;
 pub mod view;
+mod view_text;
 
 pub use approvals::PendingCard;
 pub use budget_gate::TURN_STEP_CAP;
@@ -38,8 +41,8 @@ pub use halt::CODE_TURN_REPLY_STOPPED;
 pub use journal_mask::{BasicSecretMasker, SecretMasker};
 pub use journal_record::JournalRecord;
 pub use record::{
-    Appended, Halt, NewTaskEvent, RawStore, RawStoreError, Record, RecordEntry, RecordError,
-    Stored, StoredBody, UserLine, task_event_of,
+    Appended, Halt, NewTaskEvent, RawBlob, RawStore, RawStoreError, Record, RecordEntry,
+    RecordError, Stored, StoredBody, UserLine, clamp_raw_bytes, task_event_of,
 };
 pub use runner::{
     BotProfile, BudgetLimitValue, KindCount, RunnerParts, TurnModel, TurnOutcome, TurnRunner,

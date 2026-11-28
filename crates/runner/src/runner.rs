@@ -44,7 +44,6 @@ pub struct RunnerParts {
     pub clock: Arc<dyn Clock>,
     pub bot: BotProfile,
     pub model: TurnModel,
-    pub tools: Vec<ToolSpec>,
     pub lang: Option<Lang>,
     pub computer: ComputerRef,
     pub model_reach: Arc<dyn ModelReach>,
@@ -58,6 +57,7 @@ pub struct TurnCtx {
     pub(crate) initiator: TurnInitiator,
     pub(crate) evidence: tokio::sync::Mutex<u32>,
     pub(crate) active_model: std::sync::Mutex<Option<TurnModel>>,
+    pub(crate) tools: Vec<ToolSpec>,
 }
 
 pub struct UserMessage {
@@ -82,7 +82,6 @@ pub struct TurnRunner {
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) bot: BotProfile,
     pub(crate) model: TurnModel,
-    pub(crate) tools: Vec<ToolSpec>,
     pub(crate) lang: Lang,
     pub(crate) computer: ComputerRef,
     pub(crate) model_reach: Arc<dyn ModelReach>,
@@ -105,7 +104,6 @@ impl TurnRunner {
             clock: parts.clock,
             bot: parts.bot,
             model: parts.model,
-            tools: parts.tools,
             lang,
             computer: parts.computer,
             model_reach: parts.model_reach,
@@ -159,6 +157,8 @@ impl TurnRunner {
         let started = self
             .append_task_event_in_turn(&task, Some(turn), self.turn_started_kind(turn, initiator))
             .await?;
+        let caps = self.gated.declared_caps();
+        let tools = crate::tool_specs::turn_tools(self.lang, &caps)?;
         let ctx = TurnCtx {
             task,
             turn,
@@ -167,6 +167,7 @@ impl TurnRunner {
             initiator,
             evidence: tokio::sync::Mutex::new(1),
             active_model: std::sync::Mutex::new(None),
+            tools,
         };
         crate::steer::begin_turn(self, task, turn, true);
         let reason = self.run_turn_loop(&ctx).await?;

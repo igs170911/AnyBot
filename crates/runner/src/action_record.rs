@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
+use anybot_messages::{Catalog, MessageCode, Params};
 use anybot_protocol::{KnownTaskEventKind, NotRunReason, ToolRequest};
+use anybot_tools::ArgsRejection;
 use anybot_trust::{ActionContext, ActionRequest, ActionRun, OpTicket};
 
 use crate::action::not_run_reason_of;
@@ -62,9 +64,10 @@ pub(crate) async fn record_args_rejected(
     runner: &TurnRunner,
     ctx: &TurnCtx,
     request: &ToolRequest,
+    rejection: &ArgsRejection,
 ) -> Result<(), TurnError> {
     let json = crate::action::args_json(&request.arguments)?;
-    let reason = anybot_tools::args_rejection_word(&request.tool, &json);
+    let error = rejection_message(runner, rejection)?;
     runner
         .append_turn_event(
             ctx,
@@ -72,11 +75,35 @@ pub(crate) async fn record_args_rejected(
                 call_id: request.call_id,
                 name: request.tool.clone(),
                 args_summary: json,
-                error: reason,
+                error,
             },
         )
         .await
         .map(|_| ())
+}
+
+fn rejection_message(runner: &TurnRunner, rejection: &ArgsRejection) -> Result<String, TurnError> {
+    let mut catalog = Catalog::new();
+    match rejection {
+        ArgsRejection::NotInTurn { tool, available } => {
+            let joined = available.join(", ");
+            let params = Params::new()
+                .with_text("tool", tool)
+                .with_text("available", &joined);
+            catalog
+                .format(runner.lang, &MessageCode::ToolNotInTurn, &params)
+                .map_err(TurnError::Messages)
+        }
+        ArgsRejection::OtherComputer => {
+            let params = Params::new().with_text("computer", runner.gated.name());
+            catalog
+                .format(runner.lang, &MessageCode::ToolOtherComputer, &params)
+                .map_err(TurnError::Messages)
+        }
+        ArgsRejection::UnknownTool { .. }
+        | ArgsRejection::Malformed { .. }
+        | ArgsRejection::MissingField { .. } => Ok(anybot_tools::rejection_word(rejection)),
+    }
 }
 
 pub(crate) async fn record_denied(

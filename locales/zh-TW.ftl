@@ -101,14 +101,33 @@ tool-edit-modified = 已修改 { $path }。
 tool-edit-not-found = 在 { $path } 找不到要取代的文字。檔案沒有動。
 tool-edit-multiple = 要取代的文字在 { $path } 出現 { $count } 次。檔案沒有動。
 tool-edit-file-missing = { $path } 不存在，找不到要取代的文字。
-tool-read-too-big = { $path } 超過讀取上限（{ $size } 位元組）。
+tool-read-too-big = { $path } 太大了，最多讀 8 MB。
 tool-read-not-text = { $path } 不是文字檔。
-tool-read-directory = { $path } 是資料夾，不是檔案。
+tool-read-directory = { $path } 是資料夾，請用 list_dir。
 tool-read-lines = { $path } 的第 { $from } 到 { $to } 行。
+tool-read-more = ……還有 { $remaining } 行（用 offset={ $next_offset } 繼續讀）。
+tool-list-more = ……還有 { $count } 項
+tool-list-empty = （空資料夾）
+tool-search-cut = ……只列前 { $shown } 行（共找到 { $found } 行）
+tool-search-empty = 沒有找到。
+tool-search-timed-out = 搜尋超過 25 秒上限，以上為已找到的內容。
+tool-read-result-window = 第 { $from }–{ $to } 個字，共 { $total } 個字
+tool-read-result-hit = 第 { $at } 個字：{ $context }
+tool-read-result-not-found = 沒有找到
+tool-read-result-missing = 找不到這份結果：可能超過 30 天被清掉了
+tool-read-result-cut = 只存了前 { $mb } MB
 tool-shell-no-output = 完成，沒有輸出。
 tool-shell-failed = 結束代碼 { $code }。
-tool-shell-trimmed = 輸出很長：省略了 { $omitted } 個字，原文的編號是 { $digest }。
+tool-shell-trimmed = …（中間省略 { $omitted } 個字；完整內容用 read_result 讀：id={ $id }）…
 tool-shell-timed-out = 指令時間到了：操作本身失敗。
+tool-not-in-turn = 這一輪沒有「{ $tool }」這個工具。這一輪有的工具：{ $available }。
+tool-other-computer = 這一輪的工具都在「{ $computer }」做，不能指定別台；要用別台，請交辦一個任務過去。
+tool-desc-edit-file = 建立、覆寫或修改檔案（path、old_text、new_text）。
+tool-desc-read-file = 讀取文字檔並附上行號（path、offset、limit）。
+tool-desc-shell = 在工作資料夾執行指令（command、timeout_ms）。
+tool-desc-list-dir = 列出資料夾裡的檔案與子資料夾（path）。
+tool-desc-search = 在資料夾裡搜尋符合的文字或正規表示式（pattern、path、files_only）。
+tool-desc-read-result = 分段讀取或搜尋過長的工具輸出內容（id、from、chars、find）。
 
 gate-ask-computer-mismatch = 這張核准是在 { $asked_for } 上問的，不能在 { $answered_on } 上回答。
 
@@ -143,7 +162,7 @@ server-config-invalid = 伺服器啟動失敗，因為儲存的設定值 {$reaso
 turn-program-note = 程式整理的，不是使用者說的。
 turn-fixed-identity = 你是 { $name }，AnyBot 裡的一個 Bot。使用者的時區是 { $timezone }。
 turn-fixed-instructions = 使用者給這個 Bot 的指示：{ $instructions }
-turn-fixed-computer-bot-machine = 你在 Bot 的電腦上做事。自己資料夾裡的指令和改檔直接做；會離開這台電腦的（發佈、寄給別人、分享、付款）先問。檔案工具只碰得到你的工作資料夾。
+turn-fixed-computer-bot-machine = 你在 Bot 的電腦上做事。自己資料夾裡的指令和改檔不用問直接做；會離開這台電腦的（發佈、寄給別人、分享、付款）先問。檔案工具只碰得到你的工作資料夾。
 turn-fixed-computer-mac = 你在使用者的 Mac 上做事。唯讀的指令直接做；改檔、讀工作資料夾以外的檔先問；有些指令一律不允許。
 turn-fixed-computer-linux = 你在使用者的 Linux 電腦上做事。唯讀的指令直接做；改檔、讀工作資料夾以外的檔先問；有些指令一律不允許。
 turn-fixed-computer-windows = 你在使用者的 Windows 電腦上做事。這台沒有指令沙盒，每個指令都先問。這台不支援螢幕操作和瀏覽器；網頁的事可以交辦給 Bot 的電腦。

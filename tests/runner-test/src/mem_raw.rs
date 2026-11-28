@@ -3,11 +3,11 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use anybot_foundation::ContentDigest;
-use anybot_runner::{RawStore, RawStoreError};
+use anybot_runner::{RawBlob, RawStore, RawStoreError, clamp_raw_bytes};
 
 #[derive(Default)]
 pub struct MemoryRaw {
-    blobs: Mutex<Vec<Vec<u8>>>,
+    blobs: Mutex<Vec<(ContentDigest, RawBlob)>>,
 }
 
 impl MemoryRaw {
@@ -31,7 +31,7 @@ impl MemoryRaw {
         };
         blobs
             .iter()
-            .map(|b| (ContentDigest::sha256(b), b.clone()))
+            .map(|(d, blob)| (d.clone(), blob.bytes.clone()))
             .collect()
     }
 }
@@ -41,9 +41,18 @@ impl RawStore for MemoryRaw {
         &self,
         bytes: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<ContentDigest, RawStoreError>> + Send + '_>> {
-        let digest = ContentDigest::sha256(&bytes);
-        if let Ok(mut blobs) = self.blobs.lock() {
-            blobs.push(bytes);
+        let (kept, original_len) = clamp_raw_bytes(bytes);
+        let digest = ContentDigest::sha256(&kept);
+        if let Ok(mut blobs) = self.blobs.lock()
+            && !blobs.iter().any(|(d, _)| d == &digest)
+        {
+            blobs.push((
+                digest.clone(),
+                RawBlob {
+                    bytes: kept,
+                    original_len,
+                },
+            ));
         }
         Box::pin(ready(Ok(digest)))
     }
@@ -51,12 +60,12 @@ impl RawStore for MemoryRaw {
     fn get(
         &self,
         digest: ContentDigest,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Vec<u8>>, RawStoreError>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<RawBlob>, RawStoreError>> + Send + '_>> {
         let Ok(blobs) = self.blobs.lock() else {
             return Box::pin(ready(Ok(None)));
         };
-        for blob in &*blobs {
-            if ContentDigest::sha256(blob) == digest {
+        for (stored, blob) in &*blobs {
+            if stored == &digest {
                 return Box::pin(ready(Ok(Some(blob.clone()))));
             }
         }

@@ -19,7 +19,7 @@ use anybot_protocol::{KnownTaskEventKind, NotRunReason, TaskEventKind, TaskStatu
 use anybot_runner::{CODE_TURN_REPLY_STOPPED, NewTaskEvent, RecordEntry, StoredBody};
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{state_of, task_kinds, task_of};
-use runner_test::turn_tool_helpers::{all_specs, call};
+use runner_test::turn_tool_helpers::call;
 use test_harness::{advance_clock, model_replies_text, model_tool_calls};
 
 fn stop_event(world: &TurnWorld, task: TaskId) -> RecordEntry {
@@ -49,7 +49,6 @@ fn cancel_event(world: &TurnWorld, task: TaskId) -> RecordEntry {
 #[tokio::test]
 async fn stop_after_first_action_marks_rest_not_run() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "x".to_owned())],
         ..WorldSetup::default()
     };
@@ -112,7 +111,6 @@ fn install_stop_on_verified(world: &Arc<TurnWorld>) {
 #[tokio::test]
 async fn cancel_ends_turn_cancelled() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "x".to_owned())],
         ..WorldSetup::default()
     };
@@ -165,7 +163,6 @@ fn install_cancel_on_verified(world: &Arc<TurnWorld>) {
 #[tokio::test]
 async fn stop_without_text_writes_stopped_reply() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "x".to_owned())],
         ..WorldSetup::default()
     };

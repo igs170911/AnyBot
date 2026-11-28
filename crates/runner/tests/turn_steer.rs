@@ -20,7 +20,7 @@ use anybot_runner::{NewTaskEvent, RecordEntry, StoredBody, TurnError};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup, arc_world, share};
 use runner_test::turn_helpers::{messages_of, request_body, task_kinds, task_of};
-use runner_test::turn_tool_helpers::{all_specs, call};
+use runner_test::turn_tool_helpers::call;
 use test_harness::{
     advance_clock, arm_model_hold, model_hold_then_finish, model_replies_text, model_tool_calls,
     sleep_real, timeout_real,
@@ -95,14 +95,13 @@ fn user_messages_of(model: &test_harness::FakeModel, index: usize) -> Result<Vec
 #[tokio::test]
 async fn steer_reaches_next_step() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         scripts: vec![("ls".to_owned(), CommandScript::ok("listed"))],
         ..WorldSetup::default()
     };
     let world = arc_world(TurnWorld::start(&setup).await?);
     world.script(vec![
         model_tool_calls(
-            vec![call("shell", "{\"line\":\"ls\"}", "c1")],
+            vec![call("shell", "{\"command\":\"ls\"}", "c1")],
             "tool_calls",
             false,
         ),
@@ -194,7 +193,6 @@ async fn steer_during_verification_round_refused() -> Result<(), String> {
 #[tokio::test]
 async fn stop_returns_unread_steers() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "x".to_owned())],
         ..WorldSetup::default()
     };

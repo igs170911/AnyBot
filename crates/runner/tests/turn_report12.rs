@@ -14,12 +14,10 @@ use anybot_protocol::{DeliveryReportRecord, KnownTaskEventKind, TaskEvent};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{task_kinds, task_of};
-use runner_test::turn_tool_helpers::all_specs;
 use test_harness::{Step, ToolCallScript, model_replies_text, model_tool_calls};
 
 fn report_setup() -> WorldSetup {
     WorldSetup {
-        tools: all_specs(),
         scripts: vec![
             ("cat a.txt".to_owned(), CommandScript::ok("hi")),
             ("ls".to_owned(), CommandScript::ok("listed")),
@@ -73,7 +71,7 @@ fn picks_script(picks: &[usize]) -> Vec<Step> {
         let args = [
             "{\"path\":\"a.txt\",\"old_text\":\"x\",\"new_text\":\"y\"}",
             "{\"path\":\"a.txt\"}",
-            "{\"line\":\"ls\"}",
+            "{\"command\":\"ls\"}",
         ];
         calls.push(ToolCallScript {
             name: name.to_owned(),

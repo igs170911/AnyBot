@@ -90,6 +90,8 @@ pub(crate) fn verify(
         )),
         crate::op_ticket::OpKind::Run => Some(exit_code_verification(result)),
         crate::op_ticket::OpKind::Read
+        | crate::op_ticket::OpKind::ListDir
+        | crate::op_ticket::OpKind::Search
         | crate::op_ticket::OpKind::Path
         | crate::op_ticket::OpKind::Caps => None,
     }
@@ -177,6 +179,8 @@ fn exit_code_verification(result: &ActualResult) -> VerificationRecord {
         },
         ActualResult::Write(_)
         | ActualResult::Read(_)
+        | ActualResult::List(_)
+        | ActualResult::Search(_)
         | ActualResult::Path(_)
         | ActualResult::Caps(_) => VerificationRecord {
             result: VerificationResult::NothingToCheck,
@@ -200,6 +204,8 @@ pub(crate) fn perform(
     match ticket.kind() {
         crate::op_ticket::OpKind::Run => computer.run_command(ticket),
         crate::op_ticket::OpKind::Read => computer.read_file(ticket),
+        crate::op_ticket::OpKind::ListDir => computer.list_dir(ticket),
+        crate::op_ticket::OpKind::Search => computer.search(ticket),
         crate::op_ticket::OpKind::Write => computer.write_file(ticket),
         crate::op_ticket::OpKind::Edit => computer.edit_file(ticket),
         crate::op_ticket::OpKind::Path => computer.path_info(ticket),

@@ -3,9 +3,11 @@ use std::sync::Arc;
 use anybot_foundation::{BotId, TaskId, TrustedCerts};
 use anybot_models::{
     Calibration, Capability, DataPolicy, ModelRef, ProviderEndpoint, ProviderKind, Session,
-    ThinkingMode, ToolSpec, gateway, resolve, resolve_endpoint,
+    ThinkingMode, gateway, resolve, resolve_endpoint,
 };
-use anybot_protocol::{ComputerRef, KnownTaskEventKind};
+use anybot_protocol::{
+    CapState, ComputerCaps, ComputerOwner, ComputerPlatform, ComputerRef, KnownTaskEventKind,
+};
 use anybot_runner::{BotProfile, TurnModel};
 use test_harness::{FakeClock, FakeModel, ModelFormat};
 
@@ -22,42 +24,46 @@ pub struct FallbackTarget {
     pub bot_context: u64,
 }
 
-#[must_use]
-pub fn read_file_spec() -> ToolSpec {
-    ToolSpec {
-        name: "read_file".to_owned(),
-        description: "Read a file".to_owned(),
-        parameters: serde_json::json!({
-            "type": "object",
-            "properties": { "path": { "type": "string" } }
-        }),
-    }
-}
-
-#[must_use]
-pub fn tool_spec(name: &str, description: &str) -> ToolSpec {
-    ToolSpec {
-        name: name.to_owned(),
-        description: description.to_owned(),
-        parameters: serde_json::json!({
-            "type": "object",
-            "properties": { "path": { "type": "string" } }
-        }),
-    }
-}
-
 pub(crate) fn apply_world_files(
     computer: crate::fake_builder::FakeComputerBuilder,
     setup: &WorldSetup,
 ) -> crate::fake_builder::FakeComputerBuilder {
     let mut built = computer;
+    for dir in &setup.dirs {
+        built = built.directory(dir);
+    }
     for (path, content) in &setup.files {
         built = built.file(path, content);
     }
     for (line, script) in &setup.scripts {
         built = built.script(line, script.clone());
     }
-    built
+    let env_refs: Vec<(&str, &str)> = setup
+        .inherited_env
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+    built.inherited_env(&env_refs)
+}
+
+pub(crate) fn setup_caps(setup: &WorldSetup) -> ComputerCaps {
+    if let Some(caps) = &setup.caps {
+        return caps.clone();
+    }
+    let owner = if setup.platform == ComputerPlatform::BotMachine {
+        ComputerOwner::Bot
+    } else {
+        ComputerOwner::User
+    };
+    let sandbox = setup.sandbox && setup.platform != ComputerPlatform::Windows;
+    ComputerCaps {
+        run_commands: CapState::Supported,
+        read_files: CapState::Supported,
+        write_files: CapState::Supported,
+        check_path: CapState::Supported,
+        command_sandbox: CapState::of(sandbox),
+        ..ComputerCaps::declared(setup.platform, owner)
+    }
 }
 
 impl TurnWorld {
@@ -148,8 +154,8 @@ pub fn bot_profile(setup: &WorldSetup, bot: BotId) -> BotProfile {
 #[must_use]
 pub fn computer_of(setup: &WorldSetup) -> ComputerRef {
     ComputerRef {
-        name: "bot-computer".to_owned(),
-        platform: setup.platform,
+        name: setup.computer_name.clone(),
+        platform: setup.caps.as_ref().map_or(setup.platform, |c| c.platform),
     }
 }
 

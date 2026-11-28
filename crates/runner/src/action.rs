@@ -102,10 +102,22 @@ async fn run_one(
     request: &ToolRequest,
 ) -> Result<OneAction, TurnError> {
     let json = args_json(&request.arguments)?;
-    let Ok(args) = anybot_tools::parse_call(&request.tool, &json) else {
-        record_args_rejected(runner, ctx, request).await?;
+    let offered: Vec<&str> = ctx.tools.iter().map(|spec| spec.name.as_str()).collect();
+    if let Err(rejection) = anybot_tools::check_offered(&request.tool, &json, &offered) {
+        record_args_rejected(runner, ctx, request, &rejection).await?;
         return Ok(OneAction::Done);
+    }
+    let args = match anybot_tools::parse_call(&request.tool, &json) {
+        Ok(args) => args,
+        Err(rejection) => {
+            record_args_rejected(runner, ctx, request, &rejection).await?;
+            return Ok(OneAction::Done);
+        }
     };
+    if let anybot_tools::ToolArgs::ReadResult(read) = args {
+        crate::read_result_run::run_read_result(runner, ctx, request, &read).await?;
+        return Ok(OneAction::Done);
+    }
     let context = crate::action_record::action_context(runner, ctx, request)?;
     let view = view_of(runner.lang, &args).with_computer(&context.computer);
     let areq = anybot_tools::build_request(&request.tool, args, context);
@@ -190,12 +202,15 @@ fn view_of(lang: anybot_messages::Lang, args: &anybot_tools::ToolArgs) -> Action
         anybot_tools::ToolArgs::Edit(edit) => ActionView::new(lang)
             .with_edit_lines(line_count(&edit.new_text))
             .with_edit_path(&edit.path),
-        anybot_tools::ToolArgs::Read(read) => {
-            let from = read.offset.saturating_add(1);
-            let to = from.saturating_add(read.limit.saturating_sub(1));
-            ActionView::new(lang).with_read_range(u32_of(from), u32_of(to))
+        anybot_tools::ToolArgs::Read(read) => ActionView::new(lang)
+            .with_read_window(read.offset, read.limit)
+            .with_read_path(&read.path),
+        anybot_tools::ToolArgs::Search(search) => {
+            ActionView::new(lang).with_search_files_only(search.files_only)
         }
-        anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
+        anybot_tools::ToolArgs::List(_)
+        | anybot_tools::ToolArgs::ReadResult(_)
+        | anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
     }
 }
 
@@ -210,10 +225,6 @@ fn line_count(text: &str) -> u32 {
         return 0;
     }
     lines
-}
-
-fn u32_of(value: usize) -> u32 {
-    u32::try_from(value).unwrap_or(u32::MAX)
 }
 
 pub(crate) fn model_word(text: &OutcomeText) -> Option<String> {

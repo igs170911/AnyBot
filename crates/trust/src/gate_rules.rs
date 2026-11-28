@@ -41,6 +41,8 @@ fn always_keys(action: &GateAction, computer: &str) -> Vec<String> {
             vec![format!("write workspace file on {computer}")]
         }
         ActionSubject::ReadFile { path }
+        | ActionSubject::ListDir { path }
+        | ActionSubject::Search { path, .. }
         | ActionSubject::WriteFile { path, .. }
         | ActionSubject::EditFile { path, .. }
         | ActionSubject::PathCheck { path } => {

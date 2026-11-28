@@ -16,7 +16,7 @@ use anybot_protocol::{KnownTaskEventKind, TaskDetail, TaskStatus, TurnEndReason,
 use anybot_runner::{StoredBody, TurnError};
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{state_of, task_kinds, task_of};
-use runner_test::turn_tool_helpers::{all_specs, edit_call};
+use runner_test::turn_tool_helpers::edit_call;
 use test_harness::{
     arm_model_hold, model_hold_then_finish, model_replies_text, model_tool_calls, sleep_real,
     timeout_real,
@@ -25,7 +25,6 @@ use test_harness::{
 #[tokio::test]
 async fn continue_task_reuses_task_and_numbers() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         ..WorldSetup::default()
     };
     let world = TurnWorld::start(&setup).await?;

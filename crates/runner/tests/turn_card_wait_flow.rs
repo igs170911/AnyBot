@@ -22,7 +22,7 @@ use anybot_trust::{ActionKey, AlwaysEntry, GateConfig};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{request_body, task_kinds, wait_for_shown_card};
-use runner_test::turn_tool_helpers::{all_specs, call, edit_call};
+use runner_test::turn_tool_helpers::{call, edit_call};
 use test_harness::{model_replies_text, model_tool_calls, timeout_real};
 
 const MAKE: &str = "make";
@@ -47,7 +47,6 @@ fn refused_middle_setup() -> WorldSetup {
         .push(ActionKey::file("edit_file", "edit", "b.txt"));
     WorldSetup {
         platform: ComputerPlatform::Linux,
-        tools: all_specs(),
         files: vec![
             ("a.txt".to_owned(), "hello".to_owned()),
             ("b.txt".to_owned(), "world".to_owned()),
@@ -65,7 +64,7 @@ async fn refused_middle_card_skips_remaining_actions_in_same_turn() -> Result<()
         model_tool_calls(
             vec![
                 call("read_file", "{\"path\":\"a.txt\"}", "c1"),
-                call("shell", "{\"line\":\"make\"}", "c2"),
+                call("shell", "{\"command\":\"make\"}", "c2"),
                 edit_call(
                     "{\"path\":\"b.txt\",\"old_text\":\"world\",\"new_text\":\"next\"}",
                     "c3",
@@ -122,7 +121,6 @@ async fn always_allow_added_mid_step_allows_next_action_without_card() -> Result
         .push(ActionKey::file("read_file", "read", "a.txt"));
     let setup = WorldSetup {
         platform: ComputerPlatform::Linux,
-        tools: all_specs(),
         files: vec![("a.txt".to_owned(), "data".to_owned())],
         scripts: vec![(MAKE.to_owned(), CommandScript::ok("built"))],
         gate,
@@ -134,7 +132,7 @@ async fn always_allow_added_mid_step_allows_next_action_without_card() -> Result
         model_tool_calls(
             vec![
                 call("read_file", "{\"path\":\"a.txt\"}", "c1"),
-                call("shell", "{\"line\":\"make\"}", "c2"),
+                call("shell", "{\"command\":\"make\"}", "c2"),
             ],
             "tool_calls",
             false,

@@ -84,6 +84,7 @@ pub fn command_request(line: &str, clock: &Arc<FakeClock>) -> ActionRequest {
         RequestedAction::Command {
             line: line.to_owned(),
             timeout_ms: 30_000,
+            env: anybot_trust::command_env_plan(),
         },
         clock,
     )
