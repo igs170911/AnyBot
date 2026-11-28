@@ -180,6 +180,12 @@ pub enum KnownTaskEventKind {
         kind: DeviceReportKind,
         file: String,
     },
+    ThumbsUp {
+        answer_seq: u64,
+    },
+    ThumbsUpRemoved {
+        answer_seq: u64,
+    },
     DeliveryReport {
         report: Box<crate::turn_records::DeliveryReportRecord>,
     },

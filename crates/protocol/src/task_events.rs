@@ -66,8 +66,6 @@ pub enum ReconcileOutcome {
 #[serde(rename_all = "snake_case")]
 pub enum DeviceReportKind {
     Shown,
-    ThumbsUp,
-    ThumbsDown,
     Opened,
 }
 
@@ -207,6 +205,8 @@ impl KnownTaskEventKind {
             KnownTaskEventKind::QuestionAnswered { .. } => "question_answered",
             KnownTaskEventKind::DeviceReport { .. } => "device_report",
             KnownTaskEventKind::DeliveryReport { .. } => "delivery_report",
+            KnownTaskEventKind::ThumbsUp { .. } => "thumbs_up",
+            KnownTaskEventKind::ThumbsUpRemoved { .. } => "thumbs_up_removed",
             KnownTaskEventKind::ModelUnreachable => "model_unreachable",
             KnownTaskEventKind::ComputerOffline => "computer_offline",
             KnownTaskEventKind::GoalPaused { .. } => "goal_paused",

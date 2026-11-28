@@ -20,6 +20,7 @@ pub mod sse_api;
 pub mod streams_api;
 pub mod task_detail;
 pub mod task_events;
+pub mod task_status_api;
 pub mod turn_records;
 pub mod two_step_api;
 pub mod typing_api;
@@ -88,6 +89,7 @@ pub use task_events::{
     Proposer, RawTaskEventKind, ReconcileOutcome, TaskEvent, TaskEventKind, ToolEffect,
     effect_level,
 };
+pub use task_status_api::{StatusRecord, TaskReport, TaskStatusReply, task_event_from_records};
 pub use turn_records::{
     AttentionKind, ComputerRef, DeliveryReportRecord, FinishReason, LevelCounts, ModelChoice,
     ModelName, NativeRef, NotRunReason, ProgressReport, ReportAttention, ReportClaim, ReportLevel,
