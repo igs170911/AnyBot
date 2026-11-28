@@ -15,6 +15,7 @@ use serde_json as _;
 use test_harness::{
     FakeClock, ModelFormat, model_replies_text, model_reply_status, sleep_real, timeout_real,
 };
+use tiktoken_rs as _;
 use tokio as _;
 use url as _;
 

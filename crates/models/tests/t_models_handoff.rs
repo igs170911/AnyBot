@@ -16,6 +16,7 @@ use test_harness::{
     ModelFormat, arm_model_hold, model_hold_then_finish, model_replies_text, model_thinking_block,
     timeout_real,
 };
+use tiktoken_rs as _;
 use tokio as _;
 use url as _;
 

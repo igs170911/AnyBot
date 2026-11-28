@@ -15,6 +15,7 @@ use futures_util as _;
 use reqwest as _;
 use serde_json as _;
 use test_harness::{ModelFormat, model_no_response, model_stall, sleep_real, timeout_real};
+use tiktoken_rs as _;
 use tokio as _;
 use url as _;
 

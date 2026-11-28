@@ -111,6 +111,7 @@ rcgen = "0.14"
 tokio-rustls = "0.26"
 ring = "0.17"
 data-encoding = "2"
+tiktoken-rs = "0.12"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

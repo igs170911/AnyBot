@@ -19,6 +19,7 @@ use test_harness::{
     FakeClock, ModelFormat, model_accept_then_delay, model_list, model_list_silent,
     model_start_with_format,
 };
+use tiktoken_rs as _;
 use tokio as _;
 use url as _;
 

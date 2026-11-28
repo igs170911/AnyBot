@@ -107,3 +107,87 @@ pub fn apply_calibration(raw: u64, calibration: &Calibration) -> u64 {
 pub fn fits(estimated_with_margin: u64, usable: u64) -> bool {
     estimated_with_margin <= usable
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EstimateError {
+    O200kInit(String),
+    MissingTokenizerJson,
+    BrokenTokenizerJson(String),
+    TokenizerJsonBlocked,
+}
+
+impl std::fmt::Display for EstimateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::O200kInit(detail) => write!(f, "failed to initialize o200k tokenizer: {detail}"),
+            Self::MissingTokenizerJson => f.write_str("tokenizer.json bytes are required"),
+            Self::BrokenTokenizerJson(detail) => write!(f, "invalid tokenizer.json: {detail}"),
+            Self::TokenizerJsonBlocked => {
+                f.write_str("tokenizer.json runtime is blocked by cargo-deny advisory policy")
+            }
+        }
+    }
+}
+
+impl std::error::Error for EstimateError {}
+
+fn o200k_bpe() -> Result<&'static tiktoken_rs::CoreBPE, EstimateError> {
+    static O200K: std::sync::LazyLock<Result<tiktoken_rs::CoreBPE, String>> =
+        std::sync::LazyLock::new(|| tiktoken_rs::o200k_base().map_err(|e| e.to_string()));
+    O200K
+        .as_ref()
+        .map_err(|err| EstimateError::O200kInit(err.clone()))
+}
+
+fn validate_tokenizer_json(raw: Option<&[u8]>) -> Result<(), EstimateError> {
+    let Some(bytes) = raw.filter(|slice| !slice.is_empty()) else {
+        return Err(EstimateError::MissingTokenizerJson);
+    };
+    let parsed: serde_json::Value = serde_json::from_slice(bytes)
+        .map_err(|err| EstimateError::BrokenTokenizerJson(err.to_string()))?;
+    let Some(obj) = parsed.as_object() else {
+        return Err(EstimateError::BrokenTokenizerJson(
+            "root value must be a JSON object".to_owned(),
+        ));
+    };
+    if !obj.get("model").is_some_and(serde_json::Value::is_object) {
+        return Err(EstimateError::BrokenTokenizerJson(
+            "missing model object".to_owned(),
+        ));
+    }
+    Err(EstimateError::TokenizerJsonBlocked)
+}
+
+pub fn estimate_tokens(
+    kind: &crate::capabilities::TokenizerKind,
+    text: &str,
+    tokenizer_json: Option<&[u8]>,
+) -> Result<u64, EstimateError> {
+    match kind {
+        crate::capabilities::TokenizerKind::Formula => Ok(formula_tokens(&EstimateInput {
+            text,
+            messages: 0,
+            images: 0,
+        })),
+        crate::capabilities::TokenizerKind::O200k => {
+            let bpe = o200k_bpe()?;
+            let count = bpe.encode_ordinary(text).len();
+            u64::try_from(count).map_err(|err| EstimateError::O200kInit(err.to_string()))
+        }
+        crate::capabilities::TokenizerKind::TokenizerJson => {
+            validate_tokenizer_json(tokenizer_json)?;
+            Err(EstimateError::TokenizerJsonBlocked)
+        }
+    }
+}
+
+pub fn estimate_input_tokens(
+    kind: &crate::capabilities::TokenizerKind,
+    input: &EstimateInput<'_>,
+    tokenizer_json: Option<&[u8]>,
+) -> Result<u64, EstimateError> {
+    let text_tokens = estimate_tokens(kind, input.text, tokenizer_json)?;
+    Ok(text_tokens
+        .saturating_add(input.messages.saturating_mul(MESSAGE_OVERHEAD))
+        .saturating_add(input.images.saturating_mul(IMAGE_TOKENS)))
+}

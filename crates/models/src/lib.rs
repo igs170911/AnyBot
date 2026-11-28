@@ -60,7 +60,8 @@ pub use egress::{
 pub use errors::{Classified, FailInput, FailKind, FallbackPlan, RetryPlan, classify};
 pub use errors_text::{clip_detail, context_limit, provider_label, redact};
 pub use estimate::{
-    Calibration, EstimateInput, apply_calibration, fits, formula_tokens, margin_milli,
+    Calibration, EstimateError, EstimateInput, apply_calibration, estimate_input_tokens,
+    estimate_tokens, fits, formula_tokens, margin_milli,
 };
 pub use failure_log::{FailureLog, failure_log};
 pub use handoff::{HandoffRecord, SwitchReason, handoff_code, record};
