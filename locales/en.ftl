@@ -324,3 +324,4 @@ login-not-anybot = This address is not an AnyBot server
 login-unreachable = Cannot reach { $url } (no response in 15 seconds)
 login-other-origin = Open this address in your browser to log in to that server
 login-two-step-later = Two-step verification is on for this account; entering the code is not available in this version yet
+server-request-too-large = The request is too large: at most { $limit_kb } KB
