@@ -53,15 +53,7 @@ impl StepRecord {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MemorySource {
-    UserSaid,
-    ToolEvidence,
-    ModelInference,
-    OtherBot,
-    Import,
-}
+pub use anybot_domain::MemorySource;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryRecord {

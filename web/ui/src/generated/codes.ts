@@ -207,7 +207,12 @@ export type MessageCode =
   "card-not-waiting" |
   "account-action-unreachable" |
   "turn-fixed-safety" |
-  "turn-fixed-task-evidence";
+  "turn-fixed-task-evidence" |
+  "memory-empty-content" |
+  "memory-contradiction-target-missing" |
+  "memory-scan-injection" |
+  "memory-scan-secret" |
+  "memory-scan-invisible";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -417,4 +422,9 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "account-action-unreachable",
   "turn-fixed-safety",
   "turn-fixed-task-evidence",
+  "memory-empty-content",
+  "memory-contradiction-target-missing",
+  "memory-scan-injection",
+  "memory-scan-secret",
+  "memory-scan-invisible",
 ];

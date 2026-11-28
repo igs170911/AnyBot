@@ -211,6 +211,11 @@ pub enum MessageCode {
     AccountActionUnreachable,
     TurnFixedSafety,
     TurnFixedTaskEvidence,
+    MemoryEmptyContent,
+    MemoryContradictionTargetMissing,
+    MemoryScanInjection,
+    MemoryScanSecret,
+    MemoryScanInvisible,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -636,6 +641,14 @@ const TABLE: &[(MessageCode, &str)] = &[
         MessageCode::TurnFixedTaskEvidence,
         "turn-fixed-task-evidence",
     ),
+    (MessageCode::MemoryEmptyContent, "memory-empty-content"),
+    (
+        MessageCode::MemoryContradictionTargetMissing,
+        "memory-contradiction-target-missing",
+    ),
+    (MessageCode::MemoryScanInjection, "memory-scan-injection"),
+    (MessageCode::MemoryScanSecret, "memory-scan-secret"),
+    (MessageCode::MemoryScanInvisible, "memory-scan-invisible"),
 ];
 
 impl MessageCode {
