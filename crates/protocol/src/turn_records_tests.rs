@@ -127,7 +127,12 @@ fn delivery_report_claims_and_relayed_round_trip() {
         status: super::TaskStatus::Completed,
         detail: Some(super::TaskDetail::Accepted),
         summary: super::ReportSummary::Text("done".to_owned()),
-        attention: Vec::new(),
+        attention: vec![super::ReportAttention {
+            kind: super::AttentionKind::Rejected,
+            tool: "shell".to_owned(),
+            args_summary: "ls".to_owned(),
+            error: "gate-denied".to_owned(),
+        }],
         steps: Vec::new(),
         claims: vec![super::ReportClaim {
             sentence: "done".to_owned(),
@@ -145,6 +150,18 @@ fn delivery_report_claims_and_relayed_round_trip() {
             inferred: 1,
             unknown: 0,
         },
+        progress: Some(super::ProgressReport {
+            done: vec!["a.txt".to_owned()],
+            not_done: vec!["b.txt".to_owned()],
+            stuck: super::ReasonPayload {
+                code: "report-stuck-over-budget".to_owned(),
+                params: Vec::new(),
+            },
+            next: super::ReasonPayload {
+                code: "report-next-raise-limit".to_owned(),
+                params: Vec::new(),
+            },
+        }),
     };
     let text = serde_json::to_string(&report).unwrap();
     let back: super::DeliveryReportRecord = serde_json::from_str(&text).unwrap();

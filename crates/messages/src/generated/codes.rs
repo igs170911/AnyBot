@@ -252,6 +252,8 @@ pub enum MessageCode {
     CardSwitchAlwaysLocal,
     GateAnswerNotOffered,
     GateRuleUnreadable,
+    ReportStuckOverBudget,
+    ReportNextRaiseLimit,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -733,6 +735,11 @@ const TABLE: &[(MessageCode, &str)] = &[
     ),
     (MessageCode::GateAnswerNotOffered, "gate-answer-not-offered"),
     (MessageCode::GateRuleUnreadable, "gate-rule-unreadable"),
+    (
+        MessageCode::ReportStuckOverBudget,
+        "report-stuck-over-budget",
+    ),
+    (MessageCode::ReportNextRaiseLimit, "report-next-raise-limit"),
 ];
 
 impl MessageCode {

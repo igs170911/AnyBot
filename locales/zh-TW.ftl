@@ -83,7 +83,7 @@ gate-ask-pending = 正在等你核准。
 gate-ask-declined = 使用者拒絕了這個操作。請不要再試同樣的操作。
 gate-ask-unavailable = 這一版還不能請你核准，所以這個動作被拒絕。
 turn-answer-empty = （沒有回覆內容）
-report-summary-missing = 模型的最後回覆沒有文字。
+report-summary-missing = （摘要沒有產生：這一輪沒有完整的回覆）
 gate-ticket-mismatch = { $computer } 拒絕這張不是給它、不是這筆操作的單據。
 turn-completed = 動作完成了。
 turn-failed = 動作失敗。
@@ -254,3 +254,23 @@ card-switch-always-bot = 會打開：{ $bot } 可以用「{ $computer }」
 card-switch-always-local = 會把「{ $computer }」的在這台電腦上執行設成一律允許
 gate-answer-not-offered = 這張卡沒有這個回答。
 gate-rule-unreadable = 核准規則有一條讀不懂（{ $rule }），這一步先不做。請告訴使用者。
+report-stuck-over-budget = 卡在這裡：超過預算，{ $kind ->
+    [steps] 步數
+    [tool_calls] 工具呼叫
+    [turns] 輪數
+    [elapsed] 時間
+    [tokens] token
+    [cost] 花費
+    [retries] 重試
+   *[other] { $kind }
+} { $used }／{ $limit }
+report-next-raise-limit = 要接著做：把「{ $kind ->
+    [steps] 步數
+    [tool_calls] 工具呼叫
+    [turns] 輪數
+    [elapsed] 時間
+    [tokens] token
+    [cost] 花費
+    [retries] 重試
+   *[other] { $kind }
+}」的上限調高。

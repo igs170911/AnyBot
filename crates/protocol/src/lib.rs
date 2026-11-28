@@ -73,10 +73,10 @@ pub use task_events::{
     RawTaskEventKind, ReconcileOutcome, TaskEvent, TaskEventKind, ToolEffect, effect_level,
 };
 pub use turn_records::{
-    ComputerRef, DeliveryReportRecord, FinishReason, LevelCounts, ModelName, NativeRef,
-    NotRunReason, ReportAttention, ReportClaim, ReportLevel, ReportOutcome, ReportStep,
-    ReportSummary, TaskOpener, ThinkingChoice, TokenUsage, ToolArgs, ToolRequest, TurnEndReason,
-    TurnInitiator,
+    AttentionKind, ComputerRef, DeliveryReportRecord, FinishReason, LevelCounts, ModelName,
+    NativeRef, NotRunReason, ProgressReport, ReportAttention, ReportClaim, ReportLevel,
+    ReportOutcome, ReportStep, ReportSummary, TaskOpener, ThinkingChoice, TokenUsage, ToolArgs,
+    ToolRequest, TurnEndReason, TurnInitiator,
 };
 pub use two_step_api::{TwoStepChallenge, TwoStepCodeRequest, TwoStepLoginRequest, TwoStepSetup};
 pub use versions::{PROTOCOL_RELEASES, ProtocolRelease, accepts_protocol_version};

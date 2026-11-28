@@ -122,6 +122,7 @@ pub fn all_codes() -> Vec<&'static str> {
     let mut all: Vec<&'static str> = base_codes().to_vec();
     all.extend(crate::message_codes_flow::flow_codes());
     all.extend(crate::message_codes_answers::answer_codes());
+    all.extend(crate::message_codes_report::report_codes());
     all
 }
 
@@ -130,6 +131,7 @@ mod tests {
     use super::*;
     use crate::message_codes_answers::answer_codes;
     use crate::message_codes_flow::flow_codes;
+    use crate::message_codes_report::report_codes;
 
     #[test]
     fn test_message_codes_are_unique_and_dash_separated() {
@@ -141,7 +143,7 @@ mod tests {
         }
         assert_eq!(
             seen.len(),
-            base_codes().len() + flow_codes().len() + answer_codes().len()
+            base_codes().len() + flow_codes().len() + answer_codes().len() + report_codes().len()
         );
     }
 }

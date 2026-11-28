@@ -47,6 +47,7 @@ mod machine_rules_tests;
 pub mod message_codes;
 pub mod message_codes_answers;
 pub mod message_codes_flow;
+pub mod message_codes_report;
 pub mod op_ticket;
 #[cfg(test)]
 mod op_ticket_computer_tests;
@@ -63,9 +64,12 @@ pub mod private_paths;
 #[cfg(test)]
 mod private_paths_tests;
 pub mod report;
+mod report_attention;
 mod report_claim_checks;
 pub mod report_claims;
+mod report_due;
 mod report_extract;
+mod report_progress;
 mod report_sentences;
 pub mod runner;
 pub mod safety_always;
@@ -129,6 +133,7 @@ pub use message_codes_flow::{
     CODE_CARD_SWITCH_ALWAYS_LOCAL, CODE_GATE_LOCAL_LOCKED, CODE_GATE_LOCAL_NEVER,
     CODE_GATE_SWITCH_DECLINED_BOT, CODE_GATE_SWITCH_DECLINED_LOCAL,
 };
+pub use message_codes_report::{CODE_REPORT_NEXT_RAISE_LIMIT, CODE_REPORT_STUCK_OVER_BUDGET};
 pub use op_ticket::{OpKind, OpTicket};
 pub use pipeline::{ActionRequest, GateAnswer, RequestedAction};
 pub use pipeline_ask::{AskTicket, CallContext, answer_ask};
@@ -139,6 +144,8 @@ pub use pipeline_switch::{SWITCH_RULE, SwitchInfo, switch_ticket};
 pub use private_paths::is_private_path;
 pub use report::{ReportFail, delivery_report, delivery_report_for_task, report_summary};
 pub use report_claims::{VerifiedRef, count_levels, grade_reply};
+pub use report_due::{ReportDue, report_due};
+pub use report_progress::{budget_item_name, progress_of};
 pub use runner::{GatedComputer, OpRejection, OpRejectionKind};
 pub use safety_always::{ActionSpec, concrete_actions};
 pub use safety_lock::{LockState, PolicyKey, parse_lock_value, parse_policy};
@@ -182,6 +189,8 @@ mod gate_full_tests;
 mod report_claims_prop_tests;
 #[cfg(test)]
 mod report_claims_tests;
+#[cfg(test)]
+mod report_due_tests;
 #[cfg(test)]
 mod safety_always_tests;
 #[cfg(test)]

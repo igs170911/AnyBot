@@ -133,9 +133,30 @@ pub enum ReportSummary {
     Missing { code: String },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum AttentionKind {
+    Failed,
+    Rejected,
+    Yolo,
+    TimeoutAuto,
+    Reassigned,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+pub struct ProgressReport {
+    pub done: Vec<String>,
+    pub not_done: Vec<String>,
+    pub stuck: ReasonPayload,
+    pub next: ReasonPayload,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct ReportAttention {
+    pub kind: AttentionKind,
     pub tool: String,
     pub args_summary: String,
     pub error: String,
@@ -192,6 +213,7 @@ pub struct DeliveryReportRecord {
     pub steps: Vec<ReportStep>,
     pub claims: Vec<ReportClaim>,
     pub level_counts: LevelCounts,
+    pub progress: Option<ProgressReport>,
 }
 
 #[cfg(test)]

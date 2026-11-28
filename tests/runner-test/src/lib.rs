@@ -15,6 +15,7 @@ pub mod second_bot;
 pub mod trust_world;
 pub mod turn;
 pub mod turn_helpers;
+pub mod turn_interrupt;
 pub mod turn_loop1_checks;
 pub mod turn_setup;
 pub mod turn_tool_helpers;

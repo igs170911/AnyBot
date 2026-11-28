@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use anybot_foundation::{CallId, EvidenceId, TaskId};
 use anybot_protocol::{
     CheckSource, DeliveryReportRecord, EvidenceKind, EvidenceRecord, JudgementSource,
-    KnownTaskEventKind, ReportAttention, ReportOutcome, ReportStep, ReportSummary, TaskEvent,
-    TaskEventKind, VerificationResult,
+    KnownTaskEventKind, ReportOutcome, ReportStep, ReportSummary, TaskEvent, TaskEventKind,
+    VerificationResult,
 };
 
 use crate::message_codes::CODE_REPORT_SUMMARY_MISSING;
@@ -59,13 +59,12 @@ fn build_delivery_report(
 ) -> Result<DeliveryReportRecord, ReportFail> {
     let view = anybot_domain::replay(events).map_err(|gap| ReportFail { gap })?;
     let mut steps: BTreeMap<String, PendingStep> = BTreeMap::new();
-    let mut attention: Vec<ReportAttention> = Vec::new();
     let mut evidence: Vec<EvidenceRecord> = Vec::new();
     for event in events {
         let TaskEventKind::Known(kind) = &event.kind else {
             continue;
         };
-        note_kind(kind, &mut steps, &mut attention, &mut evidence);
+        note_kind(kind, &mut steps, &mut evidence);
     }
     let verified = collect_verified(events, &evidence);
     let effective_task = task
@@ -83,10 +82,11 @@ fn build_delivery_report(
         status: view.status,
         detail: view.detail.clone(),
         summary: report_summary(reply),
-        attention,
+        attention: crate::report_attention::collect_attention(events),
         steps: finish_steps(steps),
         claims,
         level_counts,
+        progress: crate::report_progress::progress_of(events, view.detail.as_ref()),
     })
 }
 
@@ -184,30 +184,12 @@ fn pending_step(name: &str, args_summary: &str) -> PendingStep {
 fn note_kind(
     kind: &KnownTaskEventKind,
     steps: &mut BTreeMap<String, PendingStep>,
-    attention: &mut Vec<ReportAttention>,
     evidence: &mut Vec<EvidenceRecord>,
 ) {
     if let KnownTaskEventKind::EvidenceAdded { record } = kind {
         evidence.push((**record).clone());
     }
-    note_attention(kind, attention);
     note_step(kind, steps);
-}
-
-fn note_attention(kind: &KnownTaskEventKind, attention: &mut Vec<ReportAttention>) {
-    if let KnownTaskEventKind::ToolFailed {
-        name,
-        args_summary,
-        error,
-        ..
-    } = kind
-    {
-        attention.push(ReportAttention {
-            tool: name.clone(),
-            args_summary: args_summary.clone(),
-            error: error.clone(),
-        });
-    }
 }
 
 fn note_step(kind: &KnownTaskEventKind, steps: &mut BTreeMap<String, PendingStep>) {

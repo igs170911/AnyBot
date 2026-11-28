@@ -82,7 +82,7 @@ gate-ask-pending = Waiting for your approval.
 gate-ask-declined = The user refused this operation. Do not try the same operation again.
 gate-ask-unavailable = This version cannot ask you for approval yet, so the action was denied.
 turn-answer-empty = (no reply text)
-report-summary-missing = The model's final reply had no text.
+report-summary-missing = (Summary not produced: this turn has no complete reply.)
 gate-ticket-mismatch = { $computer } refused an operation ticket that is not for this computer and this operation.
 turn-completed = The action finished.
 turn-failed = The action failed.
@@ -251,3 +251,23 @@ card-switch-always-bot = Will turn on: { $bot } can use "{ $computer }"
 card-switch-always-local = Will set run-on-this-computer for "{ $computer }" to always allow
 gate-answer-not-offered = This card does not offer that answer.
 gate-rule-unreadable = One approval rule could not be read ({ $rule }), so this step is not done. Tell the user.
+report-stuck-over-budget = Stuck here: over budget, { $kind ->
+    [steps] steps
+    [tool_calls] tool calls
+    [turns] turns
+    [elapsed] time
+    [tokens] tokens
+    [cost] cost
+    [retries] retries
+   *[other] { $kind }
+} { $used } of { $limit }.
+report-next-raise-limit = To continue: raise the limit for { $kind ->
+    [steps] steps
+    [tool_calls] tool calls
+    [turns] turns
+    [elapsed] time
+    [tokens] tokens
+    [cost] cost
+    [retries] retries
+   *[other] { $kind }
+}.
