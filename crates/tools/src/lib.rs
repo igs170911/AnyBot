@@ -2,16 +2,20 @@ pub mod arguments;
 pub mod calls;
 pub mod edit;
 pub mod message_codes;
+pub mod offer;
 pub mod read;
 pub mod registry;
 pub mod shell;
 
 pub use arguments::{
-    ArgsRejection, EditArgs, ReadArgs, ShellArgs, ToolArgs, args_rejection_word, parse_call,
+    ArgsRejection, EditArgs, ReadArgs, ShellArgs, ToolArgs, args_rejection_word, check_offered,
+    parse_call, rejection_word,
 };
 pub use calls::{
     DEFAULT_SHELL_TIMEOUT_MS, MAX_SHELL_TIMEOUT_MS, build_request, clamp_timeout, subject_of,
 };
+pub use message_codes::{CODE_TOOL_NOT_IN_TURN, CODE_TOOL_OTHER_COMPUTER};
+pub use offer::{COMPUTER_PARAM, ToolDef, offered_tools};
 pub use registry::{
     TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL, ToolLevel, is_known_tool, level_of, registry,
     tool_list,

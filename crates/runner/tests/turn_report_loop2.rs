@@ -16,7 +16,7 @@ use anybot_protocol::{
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{delivery_of, task_kinds, task_of};
-use runner_test::turn_tool_helpers::{all_specs, call, edit_call, evidence_record};
+use runner_test::turn_tool_helpers::{call, edit_call, evidence_record};
 use test_harness::{Step, model_replies_text, model_tool_calls};
 
 #[tokio::test]
@@ -41,7 +41,6 @@ async fn t_turn_loop_2() -> Result<(), String> {
 
 fn report_setup() -> WorldSetup {
     WorldSetup {
-        tools: all_specs(),
         scripts: vec![
             ("cat a.txt".to_owned(), CommandScript::ok("hi")),
             ("ls".to_owned(), CommandScript::ok("listed")),
@@ -61,7 +60,7 @@ fn loop2_script() -> Vec<Step> {
             false,
         ),
         model_tool_calls(
-            vec![call("shell", "{\"line\":\"cat a.txt\"}", "c2")],
+            vec![call("shell", "{\"command\":\"cat a.txt\"}", "c2")],
             "tool_calls",
             false,
         ),

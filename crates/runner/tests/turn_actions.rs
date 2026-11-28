@@ -11,7 +11,7 @@ use sha2 as _;
 use thiserror as _;
 
 use anybot_protocol::{EvidencePayload, KnownTaskEventKind, ReasonPayload};
-use runner_test::turn::{Device, TurnWorld, WorldSetup, tool_spec};
+use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{kind_names, task_kinds, task_of};
 use test_harness::{ToolCallScript, model_replies_text, model_tool_calls};
 
@@ -26,13 +26,7 @@ fn call(name: &str, args: &str, id: &str) -> ToolCallScript {
 
 #[tokio::test]
 async fn t_turn_loop_3() -> Result<(), String> {
-    let setup = WorldSetup {
-        tools: vec![
-            tool_spec("edit_file", "Edit a file"),
-            tool_spec("shell", "Run a shell command"),
-        ],
-        ..WorldSetup::default()
-    };
+    let setup = WorldSetup::default();
     let world = TurnWorld::start(&setup).await?;
     world.script(vec![
         model_tool_calls(
@@ -42,7 +36,7 @@ async fn t_turn_loop_3() -> Result<(), String> {
                     "{\"path\":\"a.txt\",\"old_text\":\"\",\"new_text\":\"x\"}",
                     "c1",
                 ),
-                call("shell", "{\"line\":\"sudo rm -rf /\"}", "c2"),
+                call("shell", "{\"command\":\"sudo rm -rf /\"}", "c2"),
             ],
             "tool_calls",
             false,

@@ -30,9 +30,17 @@ async fn run_one(
     request: &ToolRequest,
 ) -> Result<bool, TurnError> {
     let json = args_json(&request.arguments)?;
-    let Ok(args) = anybot_tools::parse_call(&request.tool, &json) else {
-        record_args_rejected(runner, ctx, request).await?;
+    let offered: Vec<&str> = ctx.tools.iter().map(|spec| spec.name.as_str()).collect();
+    if let Err(rejection) = anybot_tools::check_offered(&request.tool, &json, &offered) {
+        record_args_rejected(runner, ctx, request, &rejection).await?;
         return Ok(false);
+    }
+    let args = match anybot_tools::parse_call(&request.tool, &json) {
+        Ok(args) => args,
+        Err(rejection) => {
+            record_args_rejected(runner, ctx, request, &rejection).await?;
+            return Ok(false);
+        }
     };
     let context = crate::action_record::action_context(runner, ctx, request)?;
     let view = view_of(runner.lang, &args).with_computer(&context.computer);

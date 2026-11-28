@@ -19,7 +19,7 @@ use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{
     delivery_of, fmt_text, kind_names, messages_of, request_body, state_of, task_kinds, task_of,
 };
-use runner_test::turn_tool_helpers::{all_specs, edit_call, one_tool_step};
+use runner_test::turn_tool_helpers::{edit_call, one_tool_step};
 use test_harness::{model_replies_text, model_tool_calls};
 
 fn result_call_id(kind: &KnownTaskEventKind) -> Option<String> {
@@ -65,13 +65,12 @@ fn result_call_id(kind: &KnownTaskEventKind) -> Option<String> {
 }
 
 fn shell_call(line: &str, id: &str) -> test_harness::ToolCallScript {
-    runner_test::turn_tool_helpers::call("shell", &format!("{{\"line\":\"{line}\"}}"), id)
+    runner_test::turn_tool_helpers::call("shell", &format!("{{\"command\":\"{line}\"}}"), id)
 }
 
 #[tokio::test]
 async fn turn_middle_denied_blocks_next_call() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         scripts: vec![("ls".to_owned(), CommandScript::ok("listed"))],
         ..WorldSetup::default()
     };
@@ -128,10 +127,7 @@ async fn turn_middle_denied_blocks_next_call() -> Result<(), String> {
 
 #[tokio::test]
 async fn turn_ask_action_is_not_executed() -> Result<(), String> {
-    let setup = WorldSetup {
-        tools: all_specs(),
-        ..WorldSetup::default()
-    };
+    let setup = WorldSetup::default();
     let world = TurnWorld::start(&setup).await?;
     world.script(one_tool_step(vec![shell_call(
         "git push origin main",
@@ -167,7 +163,6 @@ async fn turn_ask_action_is_not_executed() -> Result<(), String> {
 #[tokio::test]
 async fn turn_last_write_failure_leaves_unaccepted() -> Result<(), String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         scripts: vec![("make".to_owned(), CommandScript::failing("build log", 2))],
         files: vec![("a.txt".to_owned(), "x".to_owned())],
         ..WorldSetup::default()
@@ -210,10 +205,7 @@ async fn turn_last_write_failure_leaves_unaccepted() -> Result<(), String> {
 
 #[tokio::test]
 async fn turn_reread_digest_mismatch_leaves_unaccepted() -> Result<(), String> {
-    let setup = WorldSetup {
-        tools: all_specs(),
-        ..WorldSetup::default()
-    };
+    let setup = WorldSetup::default();
     let world = TurnWorld::start(&setup).await?;
     world.gated.set_mutate_after_write(true);
     world.script(one_tool_step(vec![edit_call(

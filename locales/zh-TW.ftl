@@ -109,6 +109,11 @@ tool-shell-no-output = 完成，沒有輸出。
 tool-shell-failed = 結束代碼 { $code }。
 tool-shell-trimmed = 輸出很長：省略了 { $omitted } 個字，原文的編號是 { $digest }。
 tool-shell-timed-out = 指令時間到了：操作本身失敗。
+tool-not-in-turn = 這一輪沒有「{ $tool }」這個工具。這一輪有的工具：{ $available }。
+tool-other-computer = 這一輪的工具都在「{ $computer }」做，不能指定別台；要用別台，請交辦一個任務過去。
+tool-desc-edit-file = 建立、覆寫或修改檔案（path、old_text、new_text）。
+tool-desc-read-file = 讀取文字檔並附上行號（path、offset、limit）。
+tool-desc-shell = 在工作資料夾執行指令（command、timeout_ms）。
 
 gate-ask-computer-mismatch = 這張核准是在 { $asked_for } 上問的，不能在 { $answered_on } 上回答。
 
@@ -143,7 +148,7 @@ server-config-invalid = 伺服器啟動失敗，因為儲存的設定值 {$reaso
 turn-program-note = 程式整理的，不是使用者說的。
 turn-fixed-identity = 你是 { $name }，AnyBot 裡的一個 Bot。使用者的時區是 { $timezone }。
 turn-fixed-instructions = 使用者給這個 Bot 的指示：{ $instructions }
-turn-fixed-computer-bot-machine = 你在 Bot 的電腦上做事。自己資料夾裡的指令和改檔直接做；會離開這台電腦的（發佈、寄給別人、分享、付款）先問。檔案工具只碰得到你的工作資料夾。
+turn-fixed-computer-bot-machine = 你在 Bot 的電腦上做事。自己資料夾裡的指令和改檔不用問直接做；會離開這台電腦的（發佈、寄給別人、分享、付款）先問。檔案工具只碰得到你的工作資料夾。
 turn-fixed-computer-mac = 你在使用者的 Mac 上做事。唯讀的指令直接做；改檔、讀工作資料夾以外的檔先問；有些指令一律不允許。
 turn-fixed-computer-linux = 你在使用者的 Linux 電腦上做事。唯讀的指令直接做；改檔、讀工作資料夾以外的檔先問；有些指令一律不允許。
 turn-fixed-computer-windows = 你在使用者的 Windows 電腦上做事。這台沒有指令沙盒，每個指令都先問。這台不支援螢幕操作和瀏覽器；網頁的事可以交辦給 Bot 的電腦。

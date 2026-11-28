@@ -17,6 +17,7 @@ pub mod record;
 pub mod report_out;
 pub mod runner;
 pub mod step;
+mod tool_specs;
 pub mod view;
 
 pub use approvals::PendingCard;

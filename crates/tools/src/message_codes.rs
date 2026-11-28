@@ -12,9 +12,14 @@ pub const CODE_TOOL_SHELL_NO_OUTPUT: &str = "tool-shell-no-output";
 pub const CODE_TOOL_SHELL_FAILED: &str = "tool-shell-failed";
 pub const CODE_TOOL_SHELL_TRIMMED: &str = "tool-shell-trimmed";
 pub const CODE_TOOL_SHELL_TIMED_OUT: &str = "tool-shell-timed-out";
+pub const CODE_TOOL_NOT_IN_TURN: &str = "tool-not-in-turn";
+pub const CODE_TOOL_OTHER_COMPUTER: &str = "tool-other-computer";
+pub const CODE_TOOL_DESC_EDIT_FILE: &str = "tool-desc-edit-file";
+pub const CODE_TOOL_DESC_READ_FILE: &str = "tool-desc-read-file";
+pub const CODE_TOOL_DESC_SHELL: &str = "tool-desc-shell";
 
 #[must_use]
-pub fn all_tool_codes() -> [&'static str; 14] {
+pub fn all_tool_codes() -> [&'static str; 19] {
     [
         CODE_TOOL_EDIT_CREATED,
         CODE_TOOL_EDIT_OVERWRITTEN,
@@ -30,6 +35,11 @@ pub fn all_tool_codes() -> [&'static str; 14] {
         CODE_TOOL_SHELL_FAILED,
         CODE_TOOL_SHELL_TRIMMED,
         CODE_TOOL_SHELL_TIMED_OUT,
+        CODE_TOOL_NOT_IN_TURN,
+        CODE_TOOL_OTHER_COMPUTER,
+        CODE_TOOL_DESC_EDIT_FILE,
+        CODE_TOOL_DESC_READ_FILE,
+        CODE_TOOL_DESC_SHELL,
     ]
 }
 

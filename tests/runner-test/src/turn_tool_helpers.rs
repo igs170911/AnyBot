@@ -1,17 +1,8 @@
 use anybot_messages::Lang;
 use anybot_protocol::KnownTaskEventKind;
-use runner_test::turn::{TurnWorld, WorldSetup, tool_spec};
+use runner_test::turn::{TurnWorld, WorldSetup};
 
 use test_harness::{Step, ToolCallScript, model_replies_text, model_tool_calls};
-
-#[must_use]
-pub fn all_specs() -> Vec<anybot_models::ToolSpec> {
-    vec![
-        tool_spec("edit_file", "Edit a file"),
-        tool_spec("read_file", "Read a file"),
-        tool_spec("shell", "Run a shell command"),
-    ]
-}
 
 #[must_use]
 pub fn call(name: &str, args: &str, id: &str) -> ToolCallScript {
@@ -38,7 +29,6 @@ pub fn one_tool_step(calls: Vec<ToolCallScript>) -> Vec<Step> {
 
 pub async fn world_with(files: Vec<(String, String)>) -> Result<TurnWorld, String> {
     let setup = WorldSetup {
-        tools: all_specs(),
         files,
         ..WorldSetup::default()
     };

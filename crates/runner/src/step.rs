@@ -51,7 +51,7 @@ async fn run_sent(
     record_new_events(runner, ctx, manifest_id, manifest, events).await?;
     let turn_request = request
         .to_turn_request(
-            runner.tools.clone(),
+            ctx.tools.clone(),
             runner.model.thinking,
             Some(manifest.budget.reserved_output),
         )

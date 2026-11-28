@@ -181,6 +181,7 @@ impl TurnRunner {
             turn,
             turn_id: TurnId::generate(&*self.clock),
             evidence: tokio::sync::Mutex::new(1_000),
+            tools: Vec::new(),
         }
     }
 

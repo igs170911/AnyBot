@@ -35,6 +35,11 @@ pub enum ArgsRejection {
         tool: String,
         available: Vec<String>,
     },
+    NotInTurn {
+        tool: String,
+        available: Vec<String>,
+    },
+    OtherComputer,
     Malformed {
         reason: String,
     },
@@ -44,13 +49,37 @@ pub enum ArgsRejection {
     },
 }
 
+pub fn check_offered(tool: &str, json: &str, offered: &[&str]) -> Result<(), ArgsRejection> {
+    if !offered.contains(&tool) {
+        return Err(ArgsRejection::NotInTurn {
+            tool: tool.to_owned(),
+            available: offered.iter().map(|name| (*name).to_owned()).collect(),
+        });
+    }
+    if let Ok(Value::Object(object)) = serde_json::from_str::<Value>(json)
+        && object.contains_key(crate::offer::COMPUTER_PARAM)
+    {
+        return Err(ArgsRejection::OtherComputer);
+    }
+    Ok(())
+}
+
 #[must_use]
 pub fn args_rejection_word(tool: &str, json: &str) -> String {
     match parse_call(tool, json) {
         Ok(_) => "arguments-ok".to_owned(),
-        Err(ArgsRejection::UnknownTool { tool, .. }) => format!("unknown-tool-{tool}"),
-        Err(ArgsRejection::Malformed { reason }) => format!("malformed-{reason}"),
-        Err(ArgsRejection::MissingField { field, tool }) => format!("missing-field-{field}-{tool}"),
+        Err(ref rejection) => rejection_word(rejection),
+    }
+}
+
+#[must_use]
+pub fn rejection_word(rejection: &ArgsRejection) -> String {
+    match rejection {
+        ArgsRejection::UnknownTool { tool, .. } => format!("unknown-tool-{tool}"),
+        ArgsRejection::NotInTurn { tool, .. } => format!("not-in-turn-{tool}"),
+        ArgsRejection::OtherComputer => "other-computer".to_owned(),
+        ArgsRejection::Malformed { reason } => format!("malformed-{reason}"),
+        ArgsRejection::MissingField { field, tool } => format!("missing-field-{field}-{tool}"),
     }
 }
 
@@ -103,7 +132,7 @@ fn parse_read(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsR
 }
 
 fn parse_shell(object: &serde_json::Map<String, Value>) -> Result<ToolArgs, ArgsRejection> {
-    let line = text_field(object, "line", TOOL_SHELL)?;
+    let line = text_field(object, "command", TOOL_SHELL)?;
     let timeout_ms = number_field(object, "timeout_ms");
     Ok(ToolArgs::Shell(ShellArgs { line, timeout_ms }))
 }
@@ -188,5 +217,38 @@ mod tests {
         };
         assert_eq!(args.offset, 0);
         assert_eq!(args.limit, 2000);
+    }
+
+    #[test]
+    fn shell_rejects_old_line_parameter() {
+        let parsed = parse_call(TOOL_SHELL, r#"{"line":"ls"}"#);
+        let Err(ArgsRejection::MissingField { field, tool }) = parsed else {
+            panic!("old line param not rejected: {parsed:?}");
+        };
+        assert_eq!(field, "command");
+        assert_eq!(tool, "shell");
+    }
+
+    #[test]
+    fn check_offered_rejects_unoffered_and_computer_param() {
+        let offered = [TOOL_READ_FILE, TOOL_SHELL];
+        let missing = check_offered(TOOL_EDIT_FILE, "{}", &offered);
+        assert_eq!(
+            missing,
+            Err(ArgsRejection::NotInTurn {
+                tool: TOOL_EDIT_FILE.to_owned(),
+                available: vec![TOOL_READ_FILE.to_owned(), TOOL_SHELL.to_owned()],
+            })
+        );
+        let routed = check_offered(
+            TOOL_SHELL,
+            r#"{"command":"ls","computer":"Linux"}"#,
+            &offered,
+        );
+        assert_eq!(routed, Err(ArgsRejection::OtherComputer));
+        assert_eq!(
+            check_offered(TOOL_SHELL, r#"{"command":"ls"}"#, &offered),
+            Ok(())
+        );
     }
 }

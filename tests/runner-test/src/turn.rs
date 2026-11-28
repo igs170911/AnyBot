@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use anybot_foundation::{BotId, DeviceId, TaskId};
 use anybot_messages::Lang;
-use anybot_models::ToolSpec;
 use anybot_protocol::{
-    ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent, TaskEventKind, TaskStatus,
+    CapState, ComputerCaps, ComputerOwner, ComputerPlatform, KnownTaskEventKind, TaskDetail,
+    TaskEvent, TaskEventKind, TaskStatus,
 };
 use anybot_runner::{RunnerParts, TurnError, TurnOutcome, TurnRunner, UserMessage};
 use test_harness::{
@@ -22,7 +22,8 @@ pub struct WorldSetup {
     pub reserved_output: u64,
     pub instructions: String,
     pub platform: ComputerPlatform,
-    pub tools: Vec<ToolSpec>,
+    pub computer_name: String,
+    pub caps: Option<ComputerCaps>,
     pub probe_requests: bool,
     pub fail_on_kind: Option<&'static str>,
     pub sandbox: bool,
@@ -40,7 +41,8 @@ impl Default for WorldSetup {
             reserved_output: 1_024,
             instructions: "Be brief.".to_owned(),
             platform: ComputerPlatform::BotMachine,
-            tools: vec![read_file_spec()],
+            computer_name: "bot-computer".to_owned(),
+            caps: None,
             probe_requests: false,
             fail_on_kind: None,
             sandbox: true,
@@ -51,27 +53,23 @@ impl Default for WorldSetup {
     }
 }
 
-#[must_use]
-pub fn read_file_spec() -> ToolSpec {
-    ToolSpec {
-        name: "read_file".to_owned(),
-        description: "Read a file".to_owned(),
-        parameters: serde_json::json!({
-            "type": "object",
-            "properties": { "path": { "type": "string" } }
-        }),
+fn setup_caps(setup: &WorldSetup) -> ComputerCaps {
+    if let Some(caps) = &setup.caps {
+        return caps.clone();
     }
-}
-
-#[must_use]
-pub fn tool_spec(name: &str, description: &str) -> ToolSpec {
-    ToolSpec {
-        name: name.to_owned(),
-        description: description.to_owned(),
-        parameters: serde_json::json!({
-            "type": "object",
-            "properties": { "path": { "type": "string" } }
-        }),
+    let owner = if setup.platform == ComputerPlatform::BotMachine {
+        ComputerOwner::Bot
+    } else {
+        ComputerOwner::User
+    };
+    let sandbox = setup.sandbox && setup.platform != ComputerPlatform::Windows;
+    ComputerCaps {
+        run_commands: CapState::Supported,
+        read_files: CapState::Supported,
+        write_files: CapState::Supported,
+        check_path: CapState::Supported,
+        command_sandbox: CapState::of(sandbox),
+        ..ComputerCaps::declared(setup.platform, owner)
     }
 }
 
@@ -105,9 +103,8 @@ impl TurnWorld {
         let clock_dyn = share_clock(&clock);
         let bot = BotId::generate(clock_dyn.as_ref());
         let builder = crate::fake_builder::FakeComputerBuilder::default()
-            .named("bot-computer")
-            .bot_machine()
-            .sandbox(setup.sandbox)
+            .named(&setup.computer_name)
+            .caps(setup_caps(setup))
             .gate(setup.gate.clone())
             .clock(Arc::clone(&clock));
         let builder = apply_world_files(builder, setup);
@@ -122,7 +119,6 @@ impl TurnWorld {
             clock: share_clock(&clock),
             bot: bot_profile(setup, bot),
             model: turn_model(setup, port),
-            tools: setup.tools.clone(),
             lang: setup.lang,
             computer: computer_of(setup),
         }));

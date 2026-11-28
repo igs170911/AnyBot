@@ -33,7 +33,6 @@ pub struct RunnerParts {
     pub clock: Arc<dyn Clock>,
     pub bot: BotProfile,
     pub model: TurnModel,
-    pub tools: Vec<ToolSpec>,
     pub lang: Option<Lang>,
     pub computer: ComputerRef,
 }
@@ -43,6 +42,7 @@ pub struct TurnCtx {
     pub(crate) turn: u32,
     pub(crate) turn_id: TurnId,
     pub(crate) evidence: tokio::sync::Mutex<u32>,
+    pub(crate) tools: Vec<ToolSpec>,
 }
 
 pub struct UserMessage {
@@ -65,7 +65,6 @@ pub struct TurnRunner {
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) bot: BotProfile,
     pub(crate) model: TurnModel,
-    pub(crate) tools: Vec<ToolSpec>,
     pub(crate) lang: Lang,
     pub(crate) computer: ComputerRef,
     active: Arc<tokio::sync::Mutex<()>>,
@@ -85,7 +84,6 @@ impl TurnRunner {
             clock: parts.clock,
             bot: parts.bot,
             model: parts.model,
-            tools: parts.tools,
             lang,
             computer: parts.computer,
             active: Arc::new(tokio::sync::Mutex::new(())),
@@ -123,11 +121,14 @@ impl TurnRunner {
             .saturating_add(1);
         self.append_task_event(&task, self.turn_started_kind(turn, message.device))
             .await?;
+        let caps = self.gated.declared_caps();
+        let tools = crate::tool_specs::turn_tools(self.lang, &caps)?;
         let ctx = TurnCtx {
             task,
             turn,
             turn_id: TurnId::generate(&*self.clock),
             evidence: tokio::sync::Mutex::new(1),
+            tools,
         };
         let outcome = self.run_steps(&ctx, task).await?;
         if let Ok(mut guard) = self.last_ctx.lock() {

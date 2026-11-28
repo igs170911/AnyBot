@@ -42,8 +42,8 @@ pub fn bot_profile(setup: &WorldSetup, bot: BotId) -> BotProfile {
 #[must_use]
 pub fn computer_of(setup: &WorldSetup) -> ComputerRef {
     ComputerRef {
-        name: "bot-computer".to_owned(),
-        platform: setup.platform,
+        name: setup.computer_name.clone(),
+        platform: setup.caps.as_ref().map_or(setup.platform, |c| c.platform),
     }
 }
 

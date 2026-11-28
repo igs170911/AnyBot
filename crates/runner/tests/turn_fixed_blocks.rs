@@ -38,6 +38,11 @@ fn computer_text(lang: Lang) -> Result<String, String> {
     fmt(lang, "turn-fixed-computer-bot-machine", &Params::new())
 }
 
+fn read_desc_line(lang: Lang) -> Result<String, String> {
+    let desc = fmt(lang, "tool-desc-read-file", &Params::new())?;
+    Ok(format!("read_file: {desc}"))
+}
+
 #[tokio::test]
 async fn turn_fixed_blocks_follow_order_and_language() -> Result<(), String> {
     for lang in [Some(Lang::ZhTw), None] {
@@ -56,7 +61,7 @@ async fn turn_fixed_blocks_follow_order_and_language() -> Result<(), String> {
             identity_text(lang_of(lang))?,
             instructions_text(lang_of(lang), "Be brief.")?,
             computer_text(lang_of(lang))?,
-            "read_file: Read a file".to_owned(),
+            read_desc_line(lang_of(lang))?,
         ];
         check_increasing(&system, &parts)?;
         if lang == Some(Lang::ZhTw) {

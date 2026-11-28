@@ -111,6 +111,11 @@ export type MessageCode =
   "tool-shell-failed" |
   "tool-shell-trimmed" |
   "tool-shell-timed-out" |
+  "tool-not-in-turn" |
+  "tool-other-computer" |
+  "tool-desc-edit-file" |
+  "tool-desc-read-file" |
+  "tool-desc-shell" |
   "gate-ask-computer-mismatch" |
   "tool-unreadable-eval" |
   "tool-unreadable-quotes" |
@@ -318,6 +323,11 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "tool-shell-failed",
   "tool-shell-trimmed",
   "tool-shell-timed-out",
+  "tool-not-in-turn",
+  "tool-other-computer",
+  "tool-desc-edit-file",
+  "tool-desc-read-file",
+  "tool-desc-shell",
   "gate-ask-computer-mismatch",
   "tool-unreadable-eval",
   "tool-unreadable-quotes",

@@ -21,7 +21,7 @@ use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{
     answer_card, card_of, request_body, shown_card, state_of, task_kinds, task_of,
 };
-use runner_test::turn_tool_helpers::{all_specs, one_tool_step};
+use runner_test::turn_tool_helpers::one_tool_step;
 use test_harness::advance_clock;
 
 const NPM: &str = "npm install";
@@ -31,7 +31,6 @@ fn ask_setup() -> WorldSetup {
     let mut gate = GateConfig::plain();
     gate.user.ask_style.push(ActionKey::command("shell", NPM));
     WorldSetup {
-        tools: all_specs(),
         scripts: vec![("npm install".to_owned(), CommandScript::ok("installed"))],
         gate,
         ..WorldSetup::default()
@@ -41,7 +40,7 @@ fn ask_setup() -> WorldSetup {
 fn npm_call_step(id: &str) -> Vec<test_harness::Step> {
     one_tool_step(vec![runner_test::turn_tool_helpers::call(
         "shell",
-        &format!("{{\"line\":\"{NPM}\"}}"),
+        &format!("{{\"command\":\"{NPM}\"}}"),
         id,
     )])
 }

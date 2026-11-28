@@ -32,7 +32,7 @@ pub(crate) async fn build_input(
         steps: crate::context_denied::steps_of(&stored, &ctx.task, runner.lang)?,
         constraints: Vec::new(),
         open_questions: Vec::new(),
-        tool_specs: runner.tools.clone(),
+        tool_specs: ctx.tools.clone(),
         system_prompt,
         pinned: PinnedSnapshot {
             version: String::new(),

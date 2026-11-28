@@ -14,7 +14,7 @@ use anybot_protocol::{TaskDetail, TaskStatus};
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{delivery_of, task_of};
-use runner_test::turn_tool_helpers::{all_specs, call, edit_call};
+use runner_test::turn_tool_helpers::{call, edit_call};
 use test_harness::{Step, model_replies_text, model_tool_calls};
 
 #[tokio::test]
@@ -33,7 +33,6 @@ async fn t_task_done_gate_7() -> Result<(), String> {
 
 fn gate7_setup() -> WorldSetup {
     WorldSetup {
-        tools: all_specs(),
         scripts: vec![("test -f x".to_owned(), CommandScript::failing("", 1))],
         ..WorldSetup::default()
     }
@@ -42,7 +41,7 @@ fn gate7_setup() -> WorldSetup {
 fn gate7_script() -> Vec<Step> {
     vec![
         model_tool_calls(
-            vec![call("shell", "{\"line\":\"test -f x\"}", "c1")],
+            vec![call("shell", "{\"command\":\"test -f x\"}", "c1")],
             "tool_calls",
             false,
         ),
