@@ -1,3 +1,4 @@
+use anybot_protocol::{ComputerCaps, ComputerOwner, ComputerPlatform};
 use proptest::prelude::*;
 
 use crate::gate_engine::*;
@@ -13,6 +14,8 @@ fn any_floor_action() -> BoxedStrategy<FloorAction> {
         }),
         Just(FloorAction::FilePath {
             path: "~/.ssh/id_ed25519".to_owned(),
+            caps: ComputerCaps::declared(ComputerPlatform::Linux, ComputerOwner::Bot),
+            anybot_dir: String::new(),
         }),
         Just(FloorAction::ClickTarget {
             app: "AnyBot".to_owned(),

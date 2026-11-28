@@ -151,9 +151,15 @@ impl GatedComputer for FakeComputer {
     }
 
     fn resolve_target(&self, path: &str) -> Option<String> {
-        if self.unresolvable.iter().any(|p| p == path) {
+        let tree = Self::guard(&self.tree);
+        let joined = tree.join_and_normalize(path);
+        if self
+            .unresolvable
+            .iter()
+            .any(|p| p == path || tree.join_and_normalize(p) == joined)
+        {
             return None;
         }
-        Some(Self::guard(&self.tree).canonical(path))
+        Some(tree.canonical(path))
     }
 }

@@ -76,6 +76,7 @@ fn config_with(user: UserRules) -> GateConfig {
         },
         user,
         admin: AdminRules::default(),
+        anybot_dir: String::new(),
     }
 }
 

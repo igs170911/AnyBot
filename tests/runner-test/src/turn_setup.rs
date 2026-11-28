@@ -5,12 +5,56 @@ use anybot_models::{
     Calibration, Capability, DataPolicy, ModelRef, ProviderEndpoint, ProviderKind, Session,
     ThinkingMode, gateway, resolve, resolve_endpoint,
 };
-use anybot_protocol::ComputerRef;
+use anybot_protocol::{ComputerOwner, ComputerRef};
 use anybot_runner::{BotProfile, TurnModel};
 use test_harness::{FakeClock, FakeModel, ModelFormat};
 
+use crate::fake_builder::FakeComputerBuilder;
 use crate::mem_store::{MemoryRaw, MemoryRecord};
 use crate::turn::WorldSetup;
+
+pub(crate) fn build_world_computer(
+    setup: &WorldSetup,
+    clock: &Arc<FakeClock>,
+) -> FakeComputerBuilder {
+    let mut builder = FakeComputerBuilder::default()
+        .named(&setup.computer_name)
+        .platform(setup.platform);
+    builder = match setup.owner {
+        ComputerOwner::User => builder.user_machine().commands().files(),
+        ComputerOwner::Bot | ComputerOwner::Unknown => builder.bot_machine(),
+    };
+    builder = builder
+        .sandbox(setup.sandbox)
+        .workdir(&setup.workdir)
+        .case_insensitive(setup.case_insensitive)
+        .gate(setup.gate.clone())
+        .clock(Arc::clone(clock));
+    if !setup.home_dir.is_empty() {
+        builder = builder.home_dir(&setup.home_dir);
+    }
+    if !setup.anybot_dir.is_empty() {
+        builder = builder.anybot_dir(&setup.anybot_dir);
+    }
+    apply_world_files(builder, setup)
+}
+
+fn apply_world_files(computer: FakeComputerBuilder, setup: &WorldSetup) -> FakeComputerBuilder {
+    let mut built = computer;
+    for (path, target) in &setup.links {
+        built = built.link(path, target);
+    }
+    for path in &setup.unresolvable {
+        built = built.unresolvable(path);
+    }
+    for (path, content) in &setup.files {
+        built = built.file(path, content);
+    }
+    for (line, script) in &setup.scripts {
+        built = built.script(line, script.clone());
+    }
+    built
+}
 
 pub(crate) fn make_record(setup: &WorldSetup, model: &Arc<FakeModel>) -> Arc<MemoryRecord> {
     let base = match setup.fail_on_kind {
@@ -33,7 +77,7 @@ pub(crate) fn share_raw(raw: &Arc<MemoryRaw>) -> Arc<dyn anybot_runner::RawStore
 pub fn bot_profile(setup: &WorldSetup, bot: BotId) -> BotProfile {
     BotProfile {
         id: bot,
-        name: "Ada".to_owned(),
+        name: setup.bot_name.clone(),
         instructions: setup.instructions.clone(),
         timezone: "Asia/Taipei".to_owned(),
     }
@@ -42,7 +86,7 @@ pub fn bot_profile(setup: &WorldSetup, bot: BotId) -> BotProfile {
 #[must_use]
 pub fn computer_of(setup: &WorldSetup) -> ComputerRef {
     ComputerRef {
-        name: "bot-computer".to_owned(),
+        name: setup.computer_name.clone(),
         platform: setup.platform,
     }
 }

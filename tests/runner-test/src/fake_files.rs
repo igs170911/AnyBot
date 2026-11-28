@@ -6,11 +6,27 @@ pub const WORKDIR: &str = "/workspace";
 
 const MAX_LINK_HOPS: usize = 8;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct FileTree {
+    workdir: String,
+    home_dir: String,
+    case_insensitive: bool,
     files: BTreeMap<String, String>,
     links: BTreeMap<String, String>,
     dirs: BTreeSet<String>,
+}
+
+impl Default for FileTree {
+    fn default() -> Self {
+        FileTree {
+            workdir: WORKDIR.to_owned(),
+            home_dir: "/home/user".to_owned(),
+            case_insensitive: false,
+            files: BTreeMap::new(),
+            links: BTreeMap::new(),
+            dirs: BTreeSet::new(),
+        }
+    }
 }
 
 impl FileTree {
@@ -19,39 +35,114 @@ impl FileTree {
         Self::default()
     }
 
-    #[must_use]
-    pub fn canonical(&self, path: &str) -> String {
-        let joined = Self::join_workdir(path);
-        self.follow_links(&joined)
+    pub fn set_workdir(&mut self, workdir: &str) {
+        self.workdir = normalize_path(workdir);
     }
 
-    fn join_workdir(path: &str) -> String {
+    pub fn set_home_dir(&mut self, home_dir: &str) {
+        self.home_dir = normalize_path(home_dir);
+    }
+
+    pub fn set_case_insensitive(&mut self, on: bool) {
+        self.case_insensitive = on;
+    }
+
+    #[must_use]
+    pub fn join_and_normalize(&self, path: &str) -> String {
+        if path == "~" {
+            return self.home_dir.clone();
+        }
+        if let Some(rest) = path.strip_prefix("~/") {
+            let base = self.home_dir.trim_end_matches('/');
+            return normalize_path(&format!("{base}/{rest}"));
+        }
         if path.starts_with('/') {
+            return normalize_path(path);
+        }
+        let base = self.workdir.trim_end_matches('/');
+        normalize_path(&format!("{base}/{path}"))
+    }
+
+    #[must_use]
+    pub fn canonical(&self, path: &str) -> String {
+        let joined = self.join_and_normalize(path);
+        let followed = self.follow_links(&joined);
+        self.resolve_disk_case(&followed)
+    }
+
+    fn resolve_disk_case(&self, path: &str) -> String {
+        if !self.case_insensitive {
             return path.to_owned();
         }
-        format!("{WORKDIR}/{path}")
+        let lower = path.to_lowercase();
+        if let Some(key) = self.files.keys().find(|k| k.to_lowercase() == lower) {
+            return key.clone();
+        }
+        if let Some(key) = self.dirs.iter().find(|k| k.to_lowercase() == lower) {
+            return key.clone();
+        }
+        path.to_owned()
     }
 
     fn follow_links(&self, joined: &str) -> String {
         let mut current = joined.to_owned();
         for _ in 0..MAX_LINK_HOPS {
-            let Some(target) = self.links.get(&current) else {
-                return current;
-            };
-            current = Self::join_workdir(target);
+            if let Some(target) = self.lookup_link(&current) {
+                current = self.join_and_normalize(target);
+                continue;
+            }
+            if let Some(rewritten) = self.follow_prefix_link(&current) {
+                current = rewritten;
+                continue;
+            }
+            return current;
         }
         current
+    }
+
+    fn follow_prefix_link(&self, current: &str) -> Option<String> {
+        let mut pos = current.len();
+        while let Some(slash) = current.get(..pos).and_then(|s| s.rfind('/')) {
+            if slash == 0 {
+                break;
+            }
+            let prefix = current.get(..slash)?;
+            let suffix = current.get(slash.saturating_add(1)..)?;
+            if let Some(target) = self.lookup_link(prefix) {
+                let target_base = self.join_and_normalize(target);
+                let base = target_base.trim_end_matches('/');
+                return Some(normalize_path(&format!("{base}/{suffix}")));
+            }
+            pos = slash;
+        }
+        None
+    }
+
+    fn lookup_link(&self, path: &str) -> Option<&str> {
+        if !self.case_insensitive {
+            return self.links.get(path).map(String::as_str);
+        }
+        let lower = path.to_lowercase();
+        self.links
+            .iter()
+            .find(|(k, _)| k.to_lowercase() == lower)
+            .map(|(_, v)| v.as_str())
     }
 
     #[must_use]
     pub fn exists(&self, path: &str) -> bool {
         let canonical = self.canonical(path);
-        self.files.contains_key(&canonical) || self.dirs.contains(&canonical)
+        self.read(&canonical).is_some() || self.is_directory(&canonical)
     }
 
     #[must_use]
     pub fn is_directory(&self, path: &str) -> bool {
-        self.dirs.contains(&self.canonical(path))
+        let canonical = self.canonical(path);
+        if !self.case_insensitive {
+            return self.dirs.contains(&canonical);
+        }
+        let lower = canonical.to_lowercase();
+        self.dirs.iter().any(|d| d.to_lowercase() == lower)
     }
 
     pub fn write(&mut self, path: &str, content: &str) {
@@ -65,7 +156,15 @@ impl FileTree {
 
     #[must_use]
     pub fn read(&self, path: &str) -> Option<String> {
-        self.files.get(&self.canonical(path)).cloned()
+        let canonical = self.canonical(path);
+        if !self.case_insensitive {
+            return self.files.get(&canonical).cloned();
+        }
+        let lower = canonical.to_lowercase();
+        self.files
+            .iter()
+            .find(|(k, _)| k.to_lowercase() == lower)
+            .map(|(_, v)| v.clone())
     }
 
     #[must_use]
@@ -81,6 +180,33 @@ impl FileTree {
     pub fn add_dir(&mut self, path: &str) {
         let canonical = self.canonical(path);
         self.dirs.insert(canonical);
+    }
+}
+
+fn normalize_path(path: &str) -> String {
+    let absolute = path.starts_with('/');
+    let mut parts: Vec<&str> = Vec::new();
+    for segment in path.split('/') {
+        if segment.is_empty() || segment == "." {
+            continue;
+        }
+        if segment == ".." {
+            if parts.last().is_some_and(|p| *p != "..") {
+                parts.pop();
+            } else if !absolute {
+                parts.push("..");
+            }
+            continue;
+        }
+        parts.push(segment);
+    }
+    let joined = parts.join("/");
+    if absolute {
+        format!("/{joined}")
+    } else if joined.is_empty() {
+        ".".to_owned()
+    } else {
+        joined
     }
 }
 
@@ -103,6 +229,21 @@ mod tests {
         assert_eq!(tree.canonical("notes.md"), "/workspace/notes.md");
         assert!(tree.exists("link/data.txt"));
         assert_eq!(tree.read("link/data.txt").as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn test_file_tree_resolves_dir_links_dotdot_and_case_insensitive() {
+        let mut tree = FileTree::new();
+        tree.set_home_dir("/home/alice");
+        tree.set_workdir("/home/alice/work");
+        tree.set_case_insensitive(true);
+        tree.write("/home/alice/.ssh/config", "Host x");
+        tree.write("/home/alice/.aws/config", "[default]");
+        tree.write("/home/alice/work/.ENV", "SECRET=1");
+        tree.link("link", "~/.ssh");
+        assert_eq!(tree.canonical("link/config"), "/home/alice/.ssh/config");
+        assert_eq!(tree.canonical("../.aws/config"), "/home/alice/.aws/config");
+        assert_eq!(tree.canonical(".env"), "/home/alice/work/.ENV");
     }
 
     #[test]

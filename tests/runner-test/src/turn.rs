@@ -4,7 +4,8 @@ use anybot_foundation::{BotId, DeviceId, TaskId};
 use anybot_messages::Lang;
 use anybot_models::ToolSpec;
 use anybot_protocol::{
-    ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent, TaskEventKind, TaskStatus,
+    ComputerOwner, ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent, TaskEventKind,
+    TaskStatus,
 };
 use anybot_runner::{RunnerParts, TurnError, TurnOutcome, TurnRunner, UserMessage};
 use test_harness::{
@@ -27,8 +28,17 @@ pub struct WorldSetup {
     pub fail_on_kind: Option<&'static str>,
     pub sandbox: bool,
     pub files: Vec<(String, String)>,
+    pub links: Vec<(String, String)>,
+    pub unresolvable: Vec<String>,
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
     pub gate: anybot_trust::GateConfig,
+    pub owner: ComputerOwner,
+    pub computer_name: String,
+    pub workdir: String,
+    pub home_dir: String,
+    pub anybot_dir: String,
+    pub case_insensitive: bool,
+    pub bot_name: String,
 }
 
 impl Default for WorldSetup {
@@ -45,8 +55,17 @@ impl Default for WorldSetup {
             fail_on_kind: None,
             sandbox: true,
             files: Vec::new(),
+            links: Vec::new(),
+            unresolvable: Vec::new(),
             scripts: Vec::new(),
             gate: anybot_trust::GateConfig::plain(),
+            owner: ComputerOwner::Bot,
+            computer_name: "bot-computer".to_owned(),
+            workdir: "/workspace".to_owned(),
+            home_dir: String::new(),
+            anybot_dir: String::new(),
+            case_insensitive: false,
+            bot_name: "Ada".to_owned(),
         }
     }
 }
@@ -104,13 +123,7 @@ impl TurnWorld {
         let session = build_session(&clock)?;
         let clock_dyn = share_clock(&clock);
         let bot = BotId::generate(clock_dyn.as_ref());
-        let builder = crate::fake_builder::FakeComputerBuilder::default()
-            .named("bot-computer")
-            .bot_machine()
-            .sandbox(setup.sandbox)
-            .gate(setup.gate.clone())
-            .clock(Arc::clone(&clock));
-        let builder = apply_world_files(builder, setup);
+        let builder = crate::turn_setup::build_world_computer(setup, &clock);
         let built = Arc::new(builder.build());
         let gated = Arc::clone(&built);
         let gated_dyn: Arc<dyn anybot_trust::GatedComputer> = built;
@@ -140,20 +153,6 @@ impl TurnWorld {
             desktop: DeviceId::generate(clock_dyn.as_ref()),
         })
     }
-}
-
-fn apply_world_files(
-    computer: crate::fake_builder::FakeComputerBuilder,
-    setup: &WorldSetup,
-) -> crate::fake_builder::FakeComputerBuilder {
-    let mut built = computer;
-    for (path, content) in &setup.files {
-        built = built.file(path, content);
-    }
-    for (line, script) in &setup.scripts {
-        built = built.script(line, script.clone());
-    }
-    built
 }
 
 impl TurnWorld {
