@@ -5,13 +5,14 @@ pub enum ToolLevel {
     Irreversible,
 }
 
+pub const TOOL_ASK_PERSON: &str = "ask_person";
 pub const TOOL_EDIT_FILE: &str = "edit_file";
 pub const TOOL_READ_FILE: &str = "read_file";
 pub const TOOL_SHELL: &str = "shell";
 
 #[must_use]
-pub fn tool_list() -> [&'static str; 3] {
-    [TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL]
+pub fn tool_list() -> [&'static str; 4] {
+    [TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL, TOOL_ASK_PERSON]
 }
 
 #[must_use]
@@ -20,18 +21,19 @@ pub fn level_of(tool: &str) -> ToolLevel {
         return ToolLevel::Irreversible;
     }
     match tool {
-        TOOL_READ_FILE => ToolLevel::ReadOnly,
+        TOOL_READ_FILE | TOOL_ASK_PERSON => ToolLevel::ReadOnly,
         TOOL_EDIT_FILE => ToolLevel::Reversible,
         _ => ToolLevel::Irreversible,
     }
 }
 
 #[must_use]
-pub fn registry() -> [(&'static str, ToolLevel); 3] {
+pub fn registry() -> [(&'static str, ToolLevel); 4] {
     [
         (TOOL_EDIT_FILE, level_of(TOOL_EDIT_FILE)),
         (TOOL_READ_FILE, level_of(TOOL_READ_FILE)),
         (TOOL_SHELL, level_of(TOOL_SHELL)),
+        (TOOL_ASK_PERSON, level_of(TOOL_ASK_PERSON)),
     ]
 }
 
@@ -47,8 +49,9 @@ mod tests {
     #[test]
     fn test_registry_lists_each_tool_with_exactly_one_level() {
         let table = registry();
-        assert_eq!(table.len(), 3);
+        assert_eq!(table.len(), 4);
         assert_eq!(level_of(TOOL_READ_FILE), ToolLevel::ReadOnly);
+        assert_eq!(level_of(TOOL_ASK_PERSON), ToolLevel::ReadOnly);
         assert_eq!(level_of(TOOL_EDIT_FILE), ToolLevel::Reversible);
         assert_eq!(level_of(TOOL_SHELL), ToolLevel::Irreversible);
     }

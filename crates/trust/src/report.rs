@@ -124,12 +124,7 @@ fn note_step(kind: &KnownTaskEventKind, steps: &mut BTreeMap<String, PendingStep
             call_id,
             source,
             evidence_ids,
-        } => {
-            if let Some(step) = steps.get_mut(&call_id.as_str()) {
-                step.evidence_ids.clone_from(evidence_ids);
-                step.verify_source = Some(*source);
-            }
-        }
+        } => note_verified(steps, call_id, *source, evidence_ids),
         KnownTaskEventKind::TaskCreated { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
@@ -159,6 +154,8 @@ fn note_step(kind: &KnownTaskEventKind, steps: &mut BTreeMap<String, PendingStep
         | KnownTaskEventKind::BudgetLimit { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
@@ -173,5 +170,17 @@ fn note_outcome(
 ) {
     if let Some(step) = steps.get_mut(&call_id.as_str()) {
         step.outcome = outcome;
+    }
+}
+
+fn note_verified(
+    steps: &mut BTreeMap<String, PendingStep>,
+    call_id: &CallId,
+    source: CheckSource,
+    evidence_ids: &[anybot_foundation::EvidenceId],
+) {
+    if let Some(step) = steps.get_mut(&call_id.as_str()) {
+        step.evidence_ids = evidence_ids.to_vec();
+        step.verify_source = Some(source);
     }
 }

@@ -228,3 +228,6 @@ claim-chat-step-failed = Claimed completion, but that step failed or was rejecte
 claim-chat-no-file = No file was placed in chat during this turn
 claim-chat-count = Claimed { $said }, found { $found }
 claim-chat-dead-link = This link points to a location on the Bot computer that cannot be opened on mobile, and no matching file is in chat
+tool-ask-too-many = Ask at most { $questions } questions at a time with at most { $options } options each; please split into batches.
+question-skipped = The user skipped this question card.
+question-unanswered = The user did not answer this question card and sent a message instead.

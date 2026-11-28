@@ -231,3 +231,6 @@ claim-chat-step-failed = 說已經完成了，但那一步失敗或被拒絕了
 claim-chat-no-file = 這一輪沒有放任何檔案
 claim-chat-count = 說 { $said } 則，只有 { $found } 則
 claim-chat-dead-link = 這個連結指到 Bot 電腦上的位置，手機打不開；聊天裡也沒有這個檔案
+tool-ask-too-many = 一次最多只能問 { $questions } 題、每題最多 { $options } 個選項，請分批問。
+question-skipped = 使用者略過了這張問題卡。
+question-unanswered = 使用者沒有回答這張問題卡，改傳了訊息。

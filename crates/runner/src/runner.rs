@@ -68,8 +68,9 @@ pub struct TurnRunner {
     pub(crate) tools: Vec<ToolSpec>,
     pub(crate) lang: Lang,
     pub(crate) computer: ComputerRef,
-    active: Arc<tokio::sync::Mutex<()>>,
+    pub(crate) active: Arc<tokio::sync::Mutex<()>>,
     pub(crate) parked: std::sync::Mutex<Vec<crate::approvals::PendingCard>>,
+    pub(crate) pending_question: std::sync::Mutex<Option<crate::questions::PendingQuestion>>,
     pub(crate) last_ctx: std::sync::Mutex<Option<TurnCtx>>,
 }
 
@@ -90,6 +91,7 @@ impl TurnRunner {
             computer: parts.computer,
             active: Arc::new(tokio::sync::Mutex::new(())),
             parked: std::sync::Mutex::new(Vec::new()),
+            pending_question: std::sync::Mutex::new(None),
             last_ctx: std::sync::Mutex::new(None),
         }
     }
@@ -104,6 +106,9 @@ impl TurnRunner {
     }
 
     async fn run_turn(&self, message: UserMessage) -> Result<TurnOutcome, TurnError> {
+        if let Some(pending) = crate::questions::take_parked(self) {
+            return self.continue_with_unanswered(pending, message).await;
+        }
         let task = TaskId::generate(&*self.clock);
         self.append_user_said(&task, &message).await?;
         let goal = message.text.clone();
@@ -136,7 +141,11 @@ impl TurnRunner {
         Ok(outcome)
     }
 
-    async fn run_steps(&self, ctx: &TurnCtx, task: TaskId) -> Result<TurnOutcome, TurnError> {
+    pub(crate) async fn run_steps(
+        &self,
+        ctx: &TurnCtx,
+        task: TaskId,
+    ) -> Result<TurnOutcome, TurnError> {
         loop {
             match run_step(self, ctx).await? {
                 StepFlow::Continue => {}
@@ -172,7 +181,7 @@ impl TurnRunner {
             .map_err(TurnError::Record)
     }
 
-    async fn append_user_said(
+    pub(crate) async fn append_user_said(
         &self,
         task: &TaskId,
         message: &UserMessage,

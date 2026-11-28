@@ -34,6 +34,10 @@ async fn run_one(
         record_args_rejected(runner, ctx, request).await?;
         return Ok(false);
     };
+    if let anybot_tools::ToolArgs::AskPerson(ask_args) = args {
+        crate::questions::park_question(runner, ctx, request, ask_args).await?;
+        return Ok(true);
+    }
     let context = crate::action_record::action_context(runner, ctx, request)?;
     let view = view_of(runner.lang, &args).with_computer(&context.computer);
     let areq = anybot_tools::build_request(&request.tool, args, context);
@@ -85,7 +89,9 @@ fn view_of(lang: anybot_messages::Lang, args: &anybot_tools::ToolArgs) -> Action
             let to = from.saturating_add(read.limit.saturating_sub(1));
             ActionView::new(lang).with_read_range(u32_of(from), u32_of(to))
         }
-        anybot_tools::ToolArgs::Shell(_) => ActionView::new(lang),
+        anybot_tools::ToolArgs::Shell(_) | anybot_tools::ToolArgs::AskPerson(_) => {
+            ActionView::new(lang)
+        }
     }
 }
 

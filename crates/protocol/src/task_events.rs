@@ -191,6 +191,8 @@ impl KnownTaskEventKind {
             KnownTaskEventKind::BudgetLimit { .. } => "budget_limit",
             KnownTaskEventKind::CardShown { .. } => "card_shown",
             KnownTaskEventKind::CardAnswered { .. } => "card_answered",
+            KnownTaskEventKind::QuestionShown { .. } => "question_shown",
+            KnownTaskEventKind::QuestionAnswered { .. } => "question_answered",
             KnownTaskEventKind::DeviceReport { .. } => "device_report",
             KnownTaskEventKind::DeliveryReport { .. } => "delivery_report",
             KnownTaskEventKind::ModelUnreachable => "model_unreachable",

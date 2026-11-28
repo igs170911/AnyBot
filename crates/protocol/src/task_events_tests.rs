@@ -1,5 +1,5 @@
 use super::*;
-use crate::{CardButton, CardKind, ReasonPayload};
+use crate::{CardButton, CardKind, QuestionAnswer, QuestionItem, QuestionKind, ReasonPayload};
 use anybot_foundation::{CallId, EventId, SystemClock};
 
 fn event(seq: u64, kind: KnownTaskEventKind) -> TaskEvent {
@@ -125,4 +125,32 @@ fn test_task_events_claim_checked_round_trips() {
     let text = serde_json::to_string(&e).unwrap();
     let back: TaskEvent = serde_json::from_str(&text).unwrap();
     assert_eq!(back, e);
+}
+
+#[test]
+fn test_task_events_question_round_trips() {
+    let shown = event(
+        6,
+        KnownTaskEventKind::QuestionShown {
+            card: "q1".to_owned(),
+            questions: vec![QuestionItem {
+                title: "Pick one".to_owned(),
+                kind: QuestionKind::Single,
+                options: vec!["A".to_owned(), "B".to_owned()],
+                prefill: None,
+            }],
+        },
+    );
+    let answered = event(
+        7,
+        KnownTaskEventKind::QuestionAnswered {
+            card: "q1".to_owned(),
+            answer: QuestionAnswer::Skipped,
+        },
+    );
+    for item in [shown, answered] {
+        let text = serde_json::to_string(&item).unwrap();
+        let back: TaskEvent = serde_json::from_str(&text).unwrap();
+        assert_eq!(back, item);
+    }
 }

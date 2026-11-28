@@ -63,8 +63,10 @@ pub fn end_turn(view: &mut TaskView, reason: &TurnEndReason, reply_delivered: bo
         }
         TurnEndReason::PendingApproval => {
             view.status = TaskStatus::AwaitingUser;
-            let action = pending_action(view);
-            view.detail = Some(TaskDetail::ApprovalPending { action });
+            if !matches!(view.detail, Some(TaskDetail::QuestionPending { .. })) {
+                let action = pending_action(view);
+                view.detail = Some(TaskDetail::ApprovalPending { action });
+            }
         }
         TurnEndReason::ModelFailed { code } => {
             view.status = TaskStatus::Failed;

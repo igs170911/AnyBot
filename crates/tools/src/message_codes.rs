@@ -12,9 +12,12 @@ pub const CODE_TOOL_SHELL_NO_OUTPUT: &str = "tool-shell-no-output";
 pub const CODE_TOOL_SHELL_FAILED: &str = "tool-shell-failed";
 pub const CODE_TOOL_SHELL_TRIMMED: &str = "tool-shell-trimmed";
 pub const CODE_TOOL_SHELL_TIMED_OUT: &str = "tool-shell-timed-out";
+pub const CODE_TOOL_ASK_TOO_MANY: &str = "tool-ask-too-many";
+pub const CODE_QUESTION_SKIPPED: &str = "question-skipped";
+pub const CODE_QUESTION_UNANSWERED: &str = "question-unanswered";
 
 #[must_use]
-pub fn all_tool_codes() -> [&'static str; 14] {
+pub fn all_tool_codes() -> [&'static str; 17] {
     [
         CODE_TOOL_EDIT_CREATED,
         CODE_TOOL_EDIT_OVERWRITTEN,
@@ -30,6 +33,9 @@ pub fn all_tool_codes() -> [&'static str; 14] {
         CODE_TOOL_SHELL_FAILED,
         CODE_TOOL_SHELL_TRIMMED,
         CODE_TOOL_SHELL_TIMED_OUT,
+        CODE_TOOL_ASK_TOO_MANY,
+        CODE_QUESTION_SKIPPED,
+        CODE_QUESTION_UNANSWERED,
     ]
 }
 

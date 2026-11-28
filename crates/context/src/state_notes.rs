@@ -18,6 +18,12 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
         KnownTaskEventKind::CardAnswered { answer } => {
             b.answers.push((seq, format!("{answer:?}")));
         }
+        KnownTaskEventKind::QuestionShown { card, .. } => {
+            b.questions.push((seq, card.clone()));
+        }
+        KnownTaskEventKind::QuestionAnswered { answer, .. } => {
+            b.answers.push((seq, format!("{answer:?}")));
+        }
         KnownTaskEventKind::ModelSwapped { from, to, .. } => {
             b.swaps.push((seq, from.clone(), to.clone()));
         }

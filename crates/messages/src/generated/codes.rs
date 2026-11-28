@@ -233,6 +233,9 @@ pub enum MessageCode {
     ClaimChatNoFile,
     ClaimChatCount,
     ClaimChatDeadLink,
+    ToolAskTooMany,
+    QuestionSkipped,
+    QuestionUnanswered,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -683,6 +686,9 @@ const TABLE: &[(MessageCode, &str)] = &[
     (MessageCode::ClaimChatNoFile, "claim-chat-no-file"),
     (MessageCode::ClaimChatCount, "claim-chat-count"),
     (MessageCode::ClaimChatDeadLink, "claim-chat-dead-link"),
+    (MessageCode::ToolAskTooMany, "tool-ask-too-many"),
+    (MessageCode::QuestionSkipped, "question-skipped"),
+    (MessageCode::QuestionUnanswered, "question-unanswered"),
 ];
 
 impl MessageCode {

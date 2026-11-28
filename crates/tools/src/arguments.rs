@@ -1,6 +1,7 @@
 use serde_json::Value;
 
-use crate::registry::{TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL, is_known_tool};
+use crate::ask_person::{AskPersonArgs, parse_ask_person};
+use crate::registry::{TOOL_ASK_PERSON, TOOL_EDIT_FILE, TOOL_READ_FILE, TOOL_SHELL, is_known_tool};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EditArgs {
@@ -27,6 +28,7 @@ pub enum ToolArgs {
     Edit(EditArgs),
     Read(ReadArgs),
     Shell(ShellArgs),
+    AskPerson(AskPersonArgs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,6 +44,9 @@ pub enum ArgsRejection {
         field: String,
         tool: String,
     },
+    TooMany {
+        code: &'static str,
+    },
 }
 
 #[must_use]
@@ -51,6 +56,7 @@ pub fn args_rejection_word(tool: &str, json: &str) -> String {
         Err(ArgsRejection::UnknownTool { tool, .. }) => format!("unknown-tool-{tool}"),
         Err(ArgsRejection::Malformed { reason }) => format!("malformed-{reason}"),
         Err(ArgsRejection::MissingField { field, tool }) => format!("missing-field-{field}-{tool}"),
+        Err(ArgsRejection::TooMany { code }) => code.to_owned(),
     }
 }
 
@@ -74,6 +80,7 @@ pub fn parse_call(tool: &str, json: &str) -> Result<ToolArgs, ArgsRejection> {
         TOOL_EDIT_FILE => parse_edit(object),
         TOOL_READ_FILE => parse_read(object),
         TOOL_SHELL => parse_shell(object),
+        TOOL_ASK_PERSON => parse_ask_person(object).map(ToolArgs::AskPerson),
         _ => Err(ArgsRejection::Malformed {
             reason: "unknown tool".to_owned(),
         }),
@@ -159,7 +166,8 @@ mod tests {
             vec![
                 "edit_file".to_owned(),
                 "read_file".to_owned(),
-                "shell".to_owned()
+                "shell".to_owned(),
+                "ask_person".to_owned()
             ]
         );
     }
