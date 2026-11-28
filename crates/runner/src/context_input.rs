@@ -24,12 +24,14 @@ pub(crate) async fn build_input(
         .map_err(TurnError::Record)?;
     let system_prompt =
         crate::fixed_blocks::system_prompt(&runner.bot, &runner.computer, runner.lang)?;
+    let mut steps = crate::context_denied::steps_of(&stored, &ctx.task, runner.lang)?;
+    let view_limit = effective_view_limit(&mut steps);
     Ok(BuildInput {
-        view_limit: K114_2_DEFAULT_RESULT_CHARS,
+        view_limit,
         events,
         user_turns: user_turns_of(&stored, &ctx.task),
         bot_turns: bot_turns_of(&stored, &ctx.task),
-        steps: crate::context_denied::steps_of(&stored, &ctx.task, runner.lang)?,
+        steps,
         constraints: Vec::new(),
         open_questions: Vec::new(),
         tool_specs: ctx.tools.clone(),
@@ -43,6 +45,29 @@ pub(crate) async fn build_input(
         model: model_plan_of(&runner.model),
         compact_requested: false,
     })
+}
+
+const K114_2_SPECIAL_MAX_CHARS: usize = 21_000;
+
+fn effective_view_limit(steps: &mut [anybot_context::StepRecord]) -> usize {
+    let max_special = steps
+        .iter()
+        .filter(|s| s.tool == "shell" || s.tool == "read_result")
+        .map(|s| s.content.chars().count())
+        .max()
+        .unwrap_or(0);
+    if max_special <= K114_2_DEFAULT_RESULT_CHARS {
+        return K114_2_DEFAULT_RESULT_CHARS;
+    }
+    for step in steps.iter_mut() {
+        if step.tool != "shell"
+            && step.tool != "read_result"
+            && step.content.chars().count() > K114_2_DEFAULT_RESULT_CHARS
+        {
+            step.content = anybot_context::render_view(step, K114_2_DEFAULT_RESULT_CHARS);
+        }
+    }
+    max_special.min(K114_2_SPECIAL_MAX_CHARS)
 }
 
 pub(crate) fn model_plan_of(model: &crate::runner::TurnModel) -> ModelPlan {

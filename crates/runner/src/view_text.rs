@@ -1,19 +1,55 @@
+use anybot_foundation::ContentDigest;
 use anybot_messages::{Catalog, Lang, MessageCode, Params};
 use anybot_protocol::{BeforeDigest, ListOutcome, ReadOutcome, TargetKind, WriteOutcome};
 use anybot_tools::list::{list_empty_code, list_more_code, render_listing};
 use anybot_tools::read::{block_of, format_numbered, numbered_lines, read_code, read_more_code};
+use anybot_tools::result_id;
+use anybot_tools::shell::{trim_code, trim_output};
 use anybot_trust::OutcomeText;
 
 use crate::error::TurnError;
 
-pub(crate) fn command_text(exit_code: Option<i32>) -> OutcomeText {
+pub(crate) fn command_text(exit_code: Option<i32>, has_output: bool) -> OutcomeText {
     match exit_code {
-        Some(0) | None => OutcomeText::of("tool-shell-no-output", Vec::new()),
+        Some(0) | None if !has_output => OutcomeText::of("tool-shell-no-output", Vec::new()),
+        Some(0) | None => OutcomeText::of(anybot_trust::CODE_TOOL_EMPTY, Vec::new()),
         Some(code) => OutcomeText::of(
             "tool-shell-failed",
             vec![("code".to_owned(), code.to_string())],
         ),
     }
+}
+
+pub(crate) fn shell_body(
+    lang: Lang,
+    output: &str,
+    exit_code: Option<i32>,
+    digest: Option<&ContentDigest>,
+) -> Result<Option<String>, TurnError> {
+    if output.is_empty() {
+        return Ok(None);
+    }
+    let Some(trimmed) = trim_output(output, exit_code) else {
+        return Ok(Some(output.to_owned()));
+    };
+    let id = digest.map_or_else(String::new, result_id);
+    let note = render_text(
+        lang,
+        &OutcomeText::of(
+            trim_code(),
+            vec![
+                ("omitted".to_owned(), trimmed.omitted.to_string()),
+                ("id".to_owned(), id),
+            ],
+        ),
+    )?;
+    if let Some(mid) = trimmed.error_window {
+        return Ok(Some(format!(
+            "{}\n{note}\n{mid}\n...\n{}",
+            trimmed.head, trimmed.tail
+        )));
+    }
+    Ok(Some(format!("{}\n{note}\n{}", trimmed.head, trimmed.tail)))
 }
 
 pub(crate) fn write_text(outcome: &WriteOutcome, lines: u32, requested: &str) -> OutcomeText {

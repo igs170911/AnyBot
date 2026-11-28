@@ -110,7 +110,7 @@ tool-list-more = ……還有 { $count } 項
 tool-list-empty = （空資料夾）
 tool-shell-no-output = 完成，沒有輸出。
 tool-shell-failed = 結束代碼 { $code }。
-tool-shell-trimmed = 輸出很長：省略了 { $omitted } 個字，原文的編號是 { $digest }。
+tool-shell-trimmed = …（中間省略 { $omitted } 個字；完整內容用 read_result 讀：id={ $id }）…
 tool-shell-timed-out = 指令時間到了：操作本身失敗。
 tool-not-in-turn = 這一輪沒有「{ $tool }」這個工具。這一輪有的工具：{ $available }。
 tool-other-computer = 這一輪的工具都在「{ $computer }」做，不能指定別台；要用別台，請交辦一個任務過去。

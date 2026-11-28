@@ -6,6 +6,7 @@ pub mod message_codes;
 pub mod offer;
 pub mod read;
 pub mod registry;
+pub mod result_id;
 pub mod shell;
 
 pub use arguments::{
@@ -22,6 +23,7 @@ pub use registry::{
     TOOL_EDIT_FILE, TOOL_LIST_DIR, TOOL_READ_FILE, TOOL_SHELL, ToolLevel, is_known_tool, level_of,
     registry, tool_list,
 };
+pub use result_id::result_id;
 
 use anybot_domain::TaskStatus;
 

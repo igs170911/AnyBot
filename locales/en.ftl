@@ -109,7 +109,7 @@ tool-list-more = ...{ $count } more items
 tool-list-empty = (empty folder)
 tool-shell-no-output = Finished with no output.
 tool-shell-failed = Exit code { $code }.
-tool-shell-trimmed = Output was long: { $omitted } characters were omitted; the full text digest is { $digest }.
+tool-shell-trimmed = ... ({ $omitted } characters omitted; use read_result to read full content: id={ $id }) ...
 tool-shell-timed-out = The command timed out: the operation itself failed.
 tool-not-in-turn = This turn does not have the tool "{ $tool }". Available tools: { $available }.
 tool-other-computer = All tools in this turn run on "{ $computer }", so another computer cannot be named here. To use another computer, delegate a task to it.

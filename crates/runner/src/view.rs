@@ -7,6 +7,12 @@ use crate::error::TurnError;
 pub(crate) use crate::view_text::render_text;
 use crate::view_text::{command_text, list_text, read_text, write_text};
 
+#[derive(Debug, Clone)]
+pub(crate) struct CapturedShell {
+    pub(crate) output: String,
+    pub(crate) exit_code: Option<i32>,
+}
+
 #[derive(Debug)]
 pub(crate) struct ActionView {
     lang: Lang,
@@ -16,7 +22,7 @@ pub(crate) struct ActionView {
     read_path: String,
     computer: String,
     edit_path: String,
-    output: std::sync::Mutex<Option<String>>,
+    output: std::sync::Mutex<Option<CapturedShell>>,
     body: std::sync::Mutex<Option<String>>,
 }
 
@@ -80,8 +86,8 @@ impl ModelResultView for ActionView {
     fn result_text(&self, _tool: &str, result: &ActualResult) -> OutcomeText {
         match result {
             ActualResult::Command(outcome) => {
-                self.capture(&outcome.output);
-                command_text(outcome.exit_code)
+                self.capture(&outcome.output, outcome.exit_code);
+                command_text(outcome.exit_code, !outcome.output.is_empty())
             }
             ActualResult::Write(outcome) => write_text(outcome, self.edit_lines, &self.edit_path),
             ActualResult::Read(outcome) => {
@@ -176,9 +182,12 @@ fn floor_rule_code(rule: &str) -> Option<&'static str> {
 }
 
 impl ActionView {
-    fn capture(&self, output: &str) {
+    fn capture(&self, output: &str, exit_code: Option<i32>) {
         if let Ok(mut guard) = self.output.lock() {
-            *guard = Some(output.to_owned());
+            *guard = Some(CapturedShell {
+                output: output.to_owned(),
+                exit_code,
+            });
         }
     }
 
@@ -189,7 +198,7 @@ impl ActionView {
     }
 
     #[must_use]
-    pub(crate) fn take_output(&self) -> Option<String> {
+    pub(crate) fn take_output(&self) -> Option<CapturedShell> {
         let Ok(mut guard) = self.output.lock() else {
             return None;
         };
