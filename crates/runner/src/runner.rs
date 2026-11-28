@@ -75,6 +75,7 @@ pub struct TurnRunner {
     pub(crate) parked: std::sync::Mutex<Vec<crate::approvals::PendingCard>>,
     pub(crate) pending_question: std::sync::Mutex<Option<crate::questions::PendingQuestion>>,
     pub(crate) last_ctx: std::sync::Mutex<Option<TurnCtx>>,
+    pub(crate) rejects: crate::reject_memory::RejectMemory,
 }
 
 impl TurnRunner {
@@ -98,6 +99,7 @@ impl TurnRunner {
             parked: std::sync::Mutex::new(Vec::new()),
             pending_question: std::sync::Mutex::new(None),
             last_ctx: std::sync::Mutex::new(None),
+            rejects: crate::reject_memory::RejectMemory::default(),
         }
     }
 
@@ -117,6 +119,7 @@ impl TurnRunner {
         let Ok(guard) = Arc::clone(&self.active).try_lock_owned() else {
             return Err(TurnError::Busy);
         };
+        self.rejects.clear()?;
         let outcome = self.run_turn(message).await;
         drop(guard);
         outcome

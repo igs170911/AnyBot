@@ -250,7 +250,11 @@ export type MessageCode =
   "gate-answer-not-offered" |
   "gate-rule-unreadable" |
   "report-stuck-over-budget" |
-  "report-next-raise-limit";
+  "report-next-raise-limit" |
+  "gate-reject-repeat" |
+  "turn-fixed-no-retry-after-reject" |
+  "turn-fixed-untrusted-not-consent" |
+  "turn-fixed-draft-only";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -503,4 +507,8 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "gate-rule-unreadable",
   "report-stuck-over-budget",
   "report-next-raise-limit",
+  "gate-reject-repeat",
+  "turn-fixed-no-retry-after-reject",
+  "turn-fixed-untrusted-not-consent",
+  "turn-fixed-draft-only",
 ];

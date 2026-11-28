@@ -115,6 +115,7 @@ fn time_events() -> Vec<anybot_protocol::TaskEvent> {
         3_600_000,
         KnownTaskEventKind::CardAnswered {
             answer: anybot_protocol::CardAnswer::AllowOnce,
+            origin: anybot_protocol::AnswerOrigin::Hand,
         },
     );
     push(6, 3_604_000, turns_ended());
@@ -173,6 +174,7 @@ fn t_task_budget_8() {
     advance(&mut view, &card);
     let answer = KnownTaskEventKind::CardAnswered {
         answer: anybot_protocol::CardAnswer::AllowOnce,
+        origin: anybot_protocol::AnswerOrigin::Hand,
     };
     advance(&mut view, &answer);
     crate::task_budget::note_time(&mut view, ts(1_000), &turn_start);

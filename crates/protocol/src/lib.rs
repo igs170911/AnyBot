@@ -69,8 +69,9 @@ pub use streams_api::{
 };
 pub use task_detail::{TaskDetail, TaskStatus, detail_matches_status};
 pub use task_events::{
-    BudgetItem, CardAnswer, CheckSource, Criterion, DeviceReportKind, DoneWhenChange, Proposer,
-    RawTaskEventKind, ReconcileOutcome, TaskEvent, TaskEventKind, ToolEffect, effect_level,
+    AnswerOrigin, BudgetItem, CardAnswer, CheckSource, Criterion, DeviceReportKind, DoneWhenChange,
+    Proposer, RawTaskEventKind, ReconcileOutcome, TaskEvent, TaskEventKind, ToolEffect,
+    effect_level,
 };
 pub use turn_records::{
     AttentionKind, ComputerRef, DeliveryReportRecord, FinishReason, LevelCounts, ModelName,

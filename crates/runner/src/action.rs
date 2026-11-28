@@ -39,6 +39,10 @@ async fn run_one(
         return Ok(true);
     }
     let (areq, view) = build_areq(runner, ctx, request, args)?;
+    if let Some(denial) = crate::reject_memory::repeat_denial(runner, request)? {
+        let run = anybot_trust::step_denied_run(&areq, &denial, &*runner.clock);
+        return apply_step(runner, ctx, request, &areq, &view, GateStep::Denied(run)).await;
+    }
     let call_ctx =
         anybot_trust::CallContext::new(request.call_id, ctx.turn_id, &request.provider_call_id);
     let step = crate::gate_run::decide(runner, &areq, &call_ctx, &view, true)?;

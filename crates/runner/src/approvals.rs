@@ -1,4 +1,4 @@
-use anybot_protocol::{CardAnswer, KnownTaskEventKind, ToolRequest};
+use anybot_protocol::{AnswerOrigin, CardAnswer, KnownTaskEventKind, ToolRequest};
 use anybot_trust::{ActionRun, AskTicket, GateAnswer};
 
 use std::sync::Arc;
@@ -106,13 +106,27 @@ pub async fn resolve_approval(
     card: &PendingCard,
     answer: CardAnswer,
 ) -> Result<(), TurnError> {
+    resolve_approval_by(runner, ctx, card, answer, AnswerOrigin::Hand).await
+}
+
+pub async fn resolve_approval_by(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    card: &PendingCard,
+    answer: CardAnswer,
+    origin: AnswerOrigin,
+) -> Result<(), TurnError> {
     crate::answer_effects::ensure_offered(card, answer)?;
     let existing = runner.record.task_events(ctx.task).await?;
     let next = max_evidence_short(&existing).saturating_add(1);
     ctx.advance_evidence_to(next);
     runner
-        .append_task_event(&ctx.task, KnownTaskEventKind::CardAnswered { answer })
+        .append_task_event(
+            &ctx.task,
+            KnownTaskEventKind::CardAnswered { answer, origin },
+        )
         .await?;
+    crate::reject_memory::note_answer(runner, &card.request, answer, origin)?;
     crate::answer_effects::apply(runner, card, answer)?;
     let result = if card.ticket.switch_info().is_some() && answer != CardAnswer::Deny {
         crate::switch_answer::continue_after_switch(runner, ctx, card).await

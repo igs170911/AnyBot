@@ -15,7 +15,7 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
         KnownTaskEventKind::CardShown { action, .. } => {
             b.questions.push((seq, action.clone()));
         }
-        KnownTaskEventKind::CardAnswered { answer } => {
+        KnownTaskEventKind::CardAnswered { answer, .. } => {
             b.answers.push((seq, format!("{answer:?}")));
         }
         KnownTaskEventKind::QuestionShown { card, .. } => {

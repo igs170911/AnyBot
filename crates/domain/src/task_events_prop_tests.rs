@@ -89,8 +89,14 @@ fn card_goal_events() -> BoxedStrategy<KnownTaskEventKind> {
             notes: Vec::new(),
             classes: Vec::new(),
         }),
-        Just(CardAnswer::AllowOnce).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),
-        Just(CardAnswer::Deny).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),
+        Just(CardAnswer::AllowOnce).prop_map(|a| KnownTaskEventKind::CardAnswered {
+            answer: a,
+            origin: anybot_protocol::AnswerOrigin::Hand,
+        }),
+        Just(CardAnswer::Deny).prop_map(|a| KnownTaskEventKind::CardAnswered {
+            answer: a,
+            origin: anybot_protocol::AnswerOrigin::Hand,
+        }),
         (0usize..4usize, criterion_strategy()).prop_map(|(index, item)| {
             KnownTaskEventKind::DoneWhenChange {
                 by: Proposer::Bot,

@@ -5,7 +5,7 @@ use anybot_protocol::{
 
 use crate::computer_use::StepFour;
 use crate::evidence::rejected_evidence;
-use crate::message_codes_answers::CODE_GATE_RULE_UNREADABLE;
+use crate::message_codes_answers::{CODE_GATE_REJECT_REPEAT, CODE_GATE_RULE_UNREADABLE};
 use crate::message_codes_flow::CODE_GATE_LOCAL_LOCKED;
 use crate::pipeline::ActionRequest;
 use crate::pipeline_exec::finish;
@@ -59,6 +59,17 @@ pub fn unreadable_denial(rule: &str) -> StepDenial {
 }
 
 #[must_use]
+pub fn rejected_just_now_denial() -> StepDenial {
+    StepDenial {
+        step: GateStep::AskYou,
+        layer: RuleLayer::User,
+        rule: "rejected-just-now".to_owned(),
+        code: CODE_GATE_REJECT_REPEAT.to_owned(),
+        params: Vec::new(),
+    }
+}
+
+#[must_use]
 pub fn step_denied_run(
     request: &ActionRequest,
     denial: &StepDenial,
@@ -79,4 +90,19 @@ pub fn step_denied_run(
     let evidence = rejected_evidence(&request.context, &gate, reason, clock);
     let model = OutcomeText::of(&denial.code, denial.params.clone());
     finish(gate, vec![evidence], model, &request.context)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejected_just_now_denial_is_a_rule_refusal_at_the_ask_step() {
+        let denial = rejected_just_now_denial();
+        assert_eq!(denial.step, GateStep::AskYou);
+        assert_eq!(denial.layer, RuleLayer::User);
+        assert_eq!(denial.rule, "rejected-just-now");
+        assert_eq!(denial.code, CODE_GATE_REJECT_REPEAT);
+        assert!(denial.params.is_empty());
+    }
 }

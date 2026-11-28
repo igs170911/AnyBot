@@ -2,9 +2,9 @@ use anybot_foundation::{BotId, CallId, TaskId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BudgetItem, CardAnswer, CardButton, CardKind, CheckSource, ComputerRef, Criterion,
-    DeviceReportKind, DoneWhenChange, EvidenceRecord, FinishReason, GateRecord, ModelName,
-    NativeRef, NotRunReason, Proposer, QuestionAnswer, QuestionItem, ReasonPayload,
+    AnswerOrigin, BudgetItem, CardAnswer, CardButton, CardKind, CheckSource, ComputerRef,
+    Criterion, DeviceReportKind, DoneWhenChange, EvidenceRecord, FinishReason, GateRecord,
+    ModelName, NativeRef, NotRunReason, Proposer, QuestionAnswer, QuestionItem, ReasonPayload,
     ReconcileOutcome, TaskOpener, ThinkingChoice, TokenUsage, ToolEffect, ToolRequest,
     TurnEndReason, TurnInitiator,
 };
@@ -161,6 +161,8 @@ pub enum KnownTaskEventKind {
     },
     CardAnswered {
         answer: CardAnswer,
+        #[serde(default)]
+        origin: AnswerOrigin,
     },
     QuestionShown {
         card: String,

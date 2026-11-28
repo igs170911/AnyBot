@@ -70,6 +70,7 @@ fn t_task_state_9() {
         card_shown("a", "card-a"),
         KnownTaskEventKind::CardAnswered {
             answer: CardAnswer::Deny,
+            origin: anybot_protocol::AnswerOrigin::Hand,
         },
         KnownTaskEventKind::TurnEnded {
             reason: anybot_protocol::TurnEndReason::Answered,

@@ -100,6 +100,7 @@ fn card_wait_not_counted_mid_turn() {
             1_000 + 10_800_000,
             KnownTaskEventKind::CardAnswered {
                 answer: anybot_protocol::CardAnswer::AllowOnce,
+                origin: anybot_protocol::AnswerOrigin::Hand,
             },
         ),
         (1_000 + 14_401_000, ask()),

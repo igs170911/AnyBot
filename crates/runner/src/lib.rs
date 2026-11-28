@@ -17,6 +17,7 @@ pub mod fixed_blocks;
 mod gate_run;
 pub mod questions;
 pub mod record;
+mod reject_memory;
 pub mod report_out;
 pub mod runner;
 pub mod step;

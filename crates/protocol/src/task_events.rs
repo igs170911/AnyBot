@@ -31,6 +31,16 @@ pub enum BudgetItem {
     Retries,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum AnswerOrigin {
+    #[default]
+    Hand,
+    Stop,
+    Auto,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]

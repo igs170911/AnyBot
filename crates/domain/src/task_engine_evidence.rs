@@ -62,7 +62,7 @@ pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKi
             view.detail = Some(TaskDetail::ApprovalPending { action });
             true
         }
-        KnownTaskEventKind::CardAnswered { answer } => {
+        KnownTaskEventKind::CardAnswered { answer, .. } => {
             crate::task_engine_lifecycle::answer_card(view, *answer);
             true
         }

@@ -101,6 +101,7 @@ fn answered_card_is_not_an_open_question() {
             2,
             anybot_protocol::KnownTaskEventKind::CardAnswered {
                 answer: anybot_protocol::CardAnswer::AllowOnce,
+                origin: anybot_protocol::AnswerOrigin::Hand,
             },
         ),
         sup::known(

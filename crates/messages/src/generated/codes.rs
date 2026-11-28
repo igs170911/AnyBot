@@ -254,6 +254,10 @@ pub enum MessageCode {
     GateRuleUnreadable,
     ReportStuckOverBudget,
     ReportNextRaiseLimit,
+    GateRejectRepeat,
+    TurnFixedNoRetryAfterReject,
+    TurnFixedUntrustedNotConsent,
+    TurnFixedDraftOnly,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -740,6 +744,16 @@ const TABLE: &[(MessageCode, &str)] = &[
         "report-stuck-over-budget",
     ),
     (MessageCode::ReportNextRaiseLimit, "report-next-raise-limit"),
+    (MessageCode::GateRejectRepeat, "gate-reject-repeat"),
+    (
+        MessageCode::TurnFixedNoRetryAfterReject,
+        "turn-fixed-no-retry-after-reject",
+    ),
+    (
+        MessageCode::TurnFixedUntrustedNotConsent,
+        "turn-fixed-untrusted-not-consent",
+    ),
+    (MessageCode::TurnFixedDraftOnly, "turn-fixed-draft-only"),
 ];
 
 impl MessageCode {
