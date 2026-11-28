@@ -37,7 +37,8 @@
 | 大腦與上下文 | `ws/m7-brain` | B1、B2、B3、B13、B4、B10（只有 o200k）、B14、B15 | `18ea9248-c1fe-4845-b047-09db97863018` |
 | 手機畫面 | `ws/m7-phone` | U1、U3、U4 | `ae1b6e74-91b1-4499-a3d9-4a8053a50c43` |
 
-M7j 伺服器整合規劃：`ws/m7-j-plan`（`AnyBotNext-wt/m7-j-plan`），agent `fbd0ba74-791c-4b2b-8019-7d6ddcf01b78`，產出 `docs/tasks/M7-plan-server-integration.md`（寫好後要 commit、合進 `dev`，再把問題合併給使用者選）。
+M7j 伺服器整合規劃已完成並合進 `dev`：`docs/tasks/M7-plan-server-integration.md`（23 片 J1–J23，伺服器遷移 0400–0449；問題全部照建議，其中 Q1 `model-reach` 放 J18、Q2 兩列解讀、Q7 跨區分類、Q25 客戶端遷移用 0060–0069，要在最後回報給使用者）。
+第二波已派出（2026-11-28 13:10）：`ws/m7-jpush`（J3 Web Push→J2 伺服器半段，agent `6995339f-7196-4c81-a358-861ab6504932`）、`ws/m7-jguard`（J19→J20，agent `b65af779-b6e5-4b3a-96ff-8b3ccfdca9b5`）。J1（狀態入口＋👍）、J5（卡片鑰匙）等第一波整合進 `dev` 後再開。
 
 第一波整合：agent `d1fd70ab-59bd-4ff6-ab63-0e4eed9ee1ce` 正在 `integ/m7-w1` 合併四條分支、重產生成檔、跑快的檢查（2026-11-28 12:30 派出）。它回報後，監督者審最難的衝突（`action.rs`、`approvals.rs`、`runner.rs`、`step.rs`），跑完整驗證再推。
 
