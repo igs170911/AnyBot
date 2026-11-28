@@ -252,7 +252,9 @@ pub fn note_time(view: &mut TaskView, at: TimestampMs, kind: &KnownTaskEventKind
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
-        | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => {}
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => {}
     }
 }
 

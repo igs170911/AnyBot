@@ -31,13 +31,12 @@ pub(crate) fn answer_card(view: &mut TaskView, answer: CardAnswer) {
 
 pub(crate) fn report_device(view: &mut TaskView, kind: DeviceReportKind) {
     match kind {
-        DeviceReportKind::Shown => view.evidence.delivered_reported = true,
-        DeviceReportKind::ThumbsUp | DeviceReportKind::Opened => view.report.user_confirmed = true,
-        DeviceReportKind::ThumbsDown => {}
+        DeviceReportKind::Shown | DeviceReportKind::Opened => {
+            view.evidence.delivered_reported = true;
+        }
     }
     view.upgrade_completed_detail();
 }
-
 pub(crate) fn pause(view: &mut TaskView, reason: &str) {
     view.status = TaskStatus::AwaitingUser;
     let reason = reason.to_owned();

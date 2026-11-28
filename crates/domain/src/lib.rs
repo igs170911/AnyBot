@@ -42,6 +42,9 @@ mod task_lifecycle_ops;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;
+pub mod thumbs;
+#[cfg(test)]
+mod thumbs_tests;
 pub mod turn_summary;
 #[cfg(test)]
 mod turn_summary_tests;

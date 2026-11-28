@@ -51,7 +51,9 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
-        | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => false,
     }
 }
 
@@ -137,7 +139,9 @@ fn user_signal_skipped(event: &KnownTaskEventKind) -> bool {
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
-        | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => false,
     }
 }
 
@@ -205,7 +209,9 @@ pub(crate) fn advance_done_when(view: &mut TaskView, event: &KnownTaskEventKind)
         | KnownTaskEventKind::QuestionShown { .. }
         | KnownTaskEventKind::QuestionAnswered { .. }
         | KnownTaskEventKind::DeviceReport { .. }
-        | KnownTaskEventKind::DeliveryReport { .. } => {}
+        | KnownTaskEventKind::DeliveryReport { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => {}
     }
 }
 

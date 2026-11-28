@@ -42,31 +42,23 @@ pub(crate) fn note_write(view: &mut TaskView, call_id: &str, ok: bool) {
 }
 
 fn action_core(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
+    if !is_action_event(event) {
+        return false;
+    }
+    note_action(view, event);
+    true
+}
+
+fn is_action_event(event: &KnownTaskEventKind) -> bool {
     match event {
-        KnownTaskEventKind::ToolIntent { call_id, level, .. } => {
-            crate::task_budget::note_action_attempt(view);
-            view.action_levels.insert(call_id.as_str(), *level);
-            true
-        }
-        KnownTaskEventKind::ToolStarted { call_id } => {
-            started(view, call_id);
-            true
-        }
-        KnownTaskEventKind::OutcomeUnknown { call_id } => {
-            view.unresolved_unknowns.insert(call_id.as_str());
-            true
-        }
-        KnownTaskEventKind::Reconciled { call_id, outcome } => {
-            reconcile(view, call_id, *outcome);
-            true
-        }
-        KnownTaskEventKind::ActionVerified { call_id, .. } => {
-            view.verified_actions.insert(call_id.as_str());
-            true
-        }
-        KnownTaskEventKind::ToolCompleted { .. }
+        KnownTaskEventKind::ToolIntent { .. }
+        | KnownTaskEventKind::ToolStarted { .. }
+        | KnownTaskEventKind::ToolCompleted { .. }
         | KnownTaskEventKind::ToolFailed { .. }
         | KnownTaskEventKind::ToolNotRun { .. }
+        | KnownTaskEventKind::OutcomeUnknown { .. }
+        | KnownTaskEventKind::Reconciled { .. }
+        | KnownTaskEventKind::ActionVerified { .. }
         | KnownTaskEventKind::EvidenceAdded { .. }
         | KnownTaskEventKind::GateResult { .. } => true,
         KnownTaskEventKind::TaskCreated { .. }
@@ -98,7 +90,67 @@ fn action_core(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
-        | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => false,
+    }
+}
+
+fn note_action(view: &mut TaskView, event: &KnownTaskEventKind) {
+    match event {
+        KnownTaskEventKind::ToolIntent { call_id, level, .. } => {
+            crate::task_budget::note_action_attempt(view);
+            view.action_levels.insert(call_id.as_str(), *level);
+        }
+        KnownTaskEventKind::ToolStarted { call_id } => {
+            started(view, call_id);
+        }
+        KnownTaskEventKind::OutcomeUnknown { call_id } => {
+            view.unresolved_unknowns.insert(call_id.as_str());
+        }
+        KnownTaskEventKind::Reconciled { call_id, outcome } => {
+            reconcile(view, call_id, *outcome);
+        }
+        KnownTaskEventKind::ActionVerified { call_id, .. } => {
+            view.verified_actions.insert(call_id.as_str());
+        }
+        KnownTaskEventKind::ToolCompleted { .. }
+        | KnownTaskEventKind::ToolFailed { .. }
+        | KnownTaskEventKind::ToolNotRun { .. }
+        | KnownTaskEventKind::EvidenceAdded { .. }
+        | KnownTaskEventKind::GateResult { .. }
+        | KnownTaskEventKind::TaskCreated { .. }
+        | KnownTaskEventKind::TaskCancelled { .. }
+        | KnownTaskEventKind::TaskStopped
+        | KnownTaskEventKind::Wake { .. }
+        | KnownTaskEventKind::GoalPaused { .. }
+        | KnownTaskEventKind::ComputerOffline
+        | KnownTaskEventKind::ModelUnreachable
+        | KnownTaskEventKind::Stalled { .. }
+        | KnownTaskEventKind::TurnStarted { .. }
+        | KnownTaskEventKind::TurnEnded { .. }
+        | KnownTaskEventKind::ContextBuilt { .. }
+        | KnownTaskEventKind::ModelAsked { .. }
+        | KnownTaskEventKind::ModelAnswer { .. }
+        | KnownTaskEventKind::ModelUsage { .. }
+        | KnownTaskEventKind::ModelSwapped { .. }
+        | KnownTaskEventKind::CriterionPassed { .. }
+        | KnownTaskEventKind::CriterionFailed { .. }
+        | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
+        | KnownTaskEventKind::ClaimChecked { .. }
+        | KnownTaskEventKind::BudgetUsage { .. }
+        | KnownTaskEventKind::BudgetLimit { .. }
+        | KnownTaskEventKind::CardShown { .. }
+        | KnownTaskEventKind::CardAnswered { .. }
+        | KnownTaskEventKind::QuestionShown { .. }
+        | KnownTaskEventKind::QuestionAnswered { .. }
+        | KnownTaskEventKind::DeviceReport { .. }
+        | KnownTaskEventKind::DeliveryReport { .. }
+        | KnownTaskEventKind::DoneWhenChange { .. }
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => {}
     }
 }
 
@@ -180,7 +232,9 @@ fn criteria_skipped(event: &KnownTaskEventKind) -> bool {
         | KnownTaskEventKind::DeviceReport { .. }
         | KnownTaskEventKind::DeliveryReport { .. }
         | KnownTaskEventKind::DoneWhenChange { .. }
-        | KnownTaskEventKind::DoneWhenAppliedByUser { .. } => false,
+        | KnownTaskEventKind::DoneWhenAppliedByUser { .. }
+        | KnownTaskEventKind::ThumbsUp { .. }
+        | KnownTaskEventKind::ThumbsUpRemoved { .. } => false,
     }
 }
 

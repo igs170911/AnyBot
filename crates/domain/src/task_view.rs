@@ -137,6 +137,7 @@ pub struct EvidenceFlags {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReportFlags {
     pub user_confirmed: bool,
+    pub user_confirmed_at_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -188,6 +189,7 @@ pub fn initial_view() -> TaskView {
         },
         report: ReportFlags {
             user_confirmed: false,
+            user_confirmed_at_ms: None,
         },
         goal_task: false,
     }

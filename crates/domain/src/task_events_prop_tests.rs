@@ -152,10 +152,7 @@ fn budget_tool_events() -> BoxedStrategy<KnownTaskEventKind> {
             kind,
             file: "f".to_owned(),
         }),
-        Just(DeviceReportKind::ThumbsUp).prop_map(|kind| KnownTaskEventKind::DeviceReport {
-            kind,
-            file: "f".to_owned(),
-        }),
+        Just(KnownTaskEventKind::ThumbsUp { answer_seq: 7 }),
     ]
     .boxed()
 }

@@ -6,4 +6,3 @@
 # everyone who runs the test benefits from these saved cases.
 cc 034d171eccd082dd05aa22c86f05f5d4eaa8cc21663f6fa8c697881edd15afbc # shrinks to tail = [TurnEnded { reply_delivered: true }, ClaimChecked { covers_claim: false, verified: false }], n_criteria = 0
 cc ee0c295ea755279c8f1fc6d7fa6906c0017ff4e810006020de48f56ae00b256d # shrinks to results = [true], claims_ok = 0, unknowns = 0, over = 1000, thumbs = false
-cc a5af3c2bc6edb3859ee4aef8f3cf7352499a174d1a4c5e9c4cd6410e48f28259 # shrinks to tail = [TurnEnded { reply_delivered: true }, TurnStarted, DeviceReport { kind: ThumbsDown, file: "f" }, TurnEnded { reply_delivered: true }], n_criteria = 0

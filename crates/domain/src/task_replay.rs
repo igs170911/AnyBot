@@ -28,6 +28,7 @@ pub fn fold(view: &mut TaskView, events: &[TaskEvent], seen: &mut BTreeSet<Strin
         }
         if let TaskEventKind::Known(known) = &event.kind {
             crate::task_budget::note_time(view, event.at_ms, known);
+            crate::thumbs::note_thumbs(view, event.at_ms, known);
             advance(view, known);
         }
     }

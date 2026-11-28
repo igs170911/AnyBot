@@ -12,6 +12,13 @@ use anybot_protocol::{
 use crate::task_engine::advance;
 use crate::task_view::{TaskView, initial_view};
 
+fn fold_one(view: &mut TaskView, kind: &KnownTaskEventKind) {
+    let at = anybot_foundation::TimestampMs::from_millis(1_700_000_000_000);
+    crate::task_budget::note_time(view, at, kind);
+    crate::thumbs::note_thumbs(view, at, kind);
+    advance(view, kind);
+}
+
 fn turn_started_kind() -> KnownTaskEventKind {
     KnownTaskEventKind::TurnStarted {
         turn: 1,
@@ -92,18 +99,16 @@ fn budget_events() -> BoxedStrategy<KnownTaskEventKind> {
 
 fn report_events() -> BoxedStrategy<KnownTaskEventKind> {
     prop_oneof![
-        Just(DeviceReportKind::ThumbsUp).prop_map(|kind| KnownTaskEventKind::DeviceReport {
-            kind,
-            file: "f".to_owned(),
-        }),
         Just(DeviceReportKind::Shown).prop_map(|kind| KnownTaskEventKind::DeviceReport {
             kind,
             file: "f".to_owned(),
         }),
-        Just(DeviceReportKind::ThumbsDown).prop_map(|kind| KnownTaskEventKind::DeviceReport {
+        Just(DeviceReportKind::Opened).prop_map(|kind| KnownTaskEventKind::DeviceReport {
             kind,
             file: "f".to_owned(),
         }),
+        Just(KnownTaskEventKind::ThumbsUp { answer_seq: 7 }),
+        Just(KnownTaskEventKind::ThumbsUpRemoved { answer_seq: 7 }),
         Just(turn_started_kind()),
         Just(KnownTaskEventKind::TurnEnded {
             reason: anybot_protocol::TurnEndReason::Answered,
@@ -177,7 +182,7 @@ fn gate_events(claims_ok: usize, unknowns: usize, over: usize) -> Vec<KnownTaskE
 
 fn run_kinds(view: &mut TaskView, kinds: &[KnownTaskEventKind]) {
     for kind in kinds {
-        advance(view, kind);
+        fold_one(view, kind);
     }
 }
 
@@ -204,7 +209,7 @@ fn head_kinds(n_criteria: usize) -> Vec<KnownTaskEventKind> {
     ]
 }
 
-fn state_invariants(view: &TaskView, thumbs_seen: bool) -> bool {
+fn state_invariants(view: &TaskView, confirmed: bool) -> bool {
     let Some(detail) = &view.detail else {
         return false;
     };
@@ -220,7 +225,7 @@ fn state_invariants(view: &TaskView, thumbs_seen: bool) -> bool {
     if matches!(detail, TaskDetail::UserConfirmed) && !view.report.user_confirmed {
         return false;
     }
-    if view.report.user_confirmed != thumbs_seen {
+    if view.report.user_confirmed != confirmed {
         return false;
     }
     true
@@ -249,18 +254,17 @@ proptest! {
     ) {
         let mut view = initial_view();
         for kind in head_kinds(n_criteria) {
-            advance(&mut view, &kind);
+            fold_one(&mut view, &kind);
         }
-        let mut thumbs_seen = false;
+        let mut confirmed = false;
         let mut best_rank = 0u8;
         for kind in tail {
-            if matches!(kind, KnownTaskEventKind::DeviceReport {
-                kind: DeviceReportKind::ThumbsUp | DeviceReportKind::Opened, ..
-            }) {
-                thumbs_seen = true;
+            let thumbs = matches!(kind, KnownTaskEventKind::ThumbsUp { .. });
+            if thumbs && view.status == TaskStatus::Completed {
+                confirmed = true;
             }
-            advance(&mut view, &kind);
-            prop_assert!(state_invariants(&view, thumbs_seen));
+            fold_one(&mut view, &kind);
+            prop_assert!(state_invariants(&view, confirmed));
             if view.status == TaskStatus::Completed {
                 let rank = detail_rank(view.detail.as_ref().unwrap());
                 prop_assert!(rank >= best_rank);
@@ -282,12 +286,9 @@ proptest! {
         run_kinds(&mut view, &criterion_kinds(&results));
         run_kinds(&mut view, &gate_events(claims_ok, unknowns, over));
         if thumbs {
-            advance(
+            fold_one(
                 &mut view,
-                &KnownTaskEventKind::DeviceReport {
-                    kind: DeviceReportKind::ThumbsUp,
-                    file: "f".to_owned(),
-                },
+                &KnownTaskEventKind::ThumbsUp { answer_seq: 7 },
             );
         }
         let all_pass = results.iter().all(|p| *p);
