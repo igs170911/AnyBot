@@ -11,6 +11,7 @@ pub mod fake_trust;
 pub mod mem_store;
 pub(crate) mod ops_support;
 pub mod ops_support_exports;
+pub mod second_bot;
 pub mod trust_world;
 pub mod turn;
 pub mod turn_helpers;

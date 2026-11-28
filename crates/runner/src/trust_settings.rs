@@ -1,5 +1,5 @@
 use anybot_foundation::BotId;
-use anybot_trust::{ComputerUse, LocalPolicy, ModeFlags, UserRules};
+use anybot_trust::{ActionKey, AlwaysEntry, ComputerUse, LocalPolicy, ModeFlags, UserRules};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -11,6 +11,12 @@ pub enum TrustSettingsError {
     Unreadable { rule: String },
     #[error("trust settings are unavailable")]
     Unavailable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComputerUseChange {
+    AllowBot,
+    RunHereAlways,
 }
 
 pub trait TrustSettings: Send + Sync {
@@ -25,4 +31,24 @@ pub trait TrustSettings: Send + Sync {
         bot: &BotId,
         conversation: ConversationKey,
     ) -> Result<UserRules, TrustSettingsError>;
+
+    fn allow_in_conversation(
+        &self,
+        bot: &BotId,
+        conversation: ConversationKey,
+        key: &ActionKey,
+    ) -> Result<(), TrustSettingsError>;
+
+    fn add_always(&self, entry: AlwaysEntry) -> Result<(), TrustSettingsError>;
+
+    fn remove_ask_rule(&self, rule: &str) -> Result<(), TrustSettingsError>;
+
+    fn set_computer_use(
+        &self,
+        bot: &BotId,
+        computer: &str,
+        change: ComputerUseChange,
+    ) -> Result<(), TrustSettingsError>;
+
+    fn set_direct_mode(&self, on: bool) -> Result<(), TrustSettingsError>;
 }

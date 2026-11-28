@@ -2,8 +2,10 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use anybot_foundation::BotId;
-use anybot_runner::{ConversationKey, TrustSettings, TrustSettingsError};
-use anybot_trust::{ComputerUse, LocalPolicy, ModeFlags, RunHere, UserRules};
+use anybot_runner::{ComputerUseChange, ConversationKey, TrustSettings, TrustSettingsError};
+use anybot_trust::{
+    ActionKey, AlwaysEntry, ComputerUse, LocalPolicy, ModeFlags, RunHere, UserRules,
+};
 
 use crate::fake_computer::FakeComputer;
 
@@ -11,7 +13,8 @@ pub struct FakeTrust {
     pub(crate) computer: Arc<FakeComputer>,
     pub(crate) uses: Mutex<BTreeMap<String, ComputerUse>>,
     pub(crate) policies: Mutex<BTreeMap<String, LocalPolicy>>,
-    pub(crate) conversation_allowed: Mutex<BTreeMap<ConversationKey, Vec<anybot_trust::ActionKey>>>,
+    pub(crate) conversation_allowed: Mutex<BTreeMap<ConversationKey, Vec<ActionKey>>>,
+    pub(crate) unreadable: Mutex<Option<String>>,
 }
 
 impl FakeTrust {
@@ -22,6 +25,7 @@ impl FakeTrust {
             uses: Mutex::new(BTreeMap::new()),
             policies: Mutex::new(BTreeMap::new()),
             conversation_allowed: Mutex::new(BTreeMap::new()),
+            unreadable: Mutex::new(None),
         }
     }
 
@@ -48,6 +52,24 @@ impl FakeTrust {
             .get(computer)
             .copied()
             .unwrap_or_else(Self::default_use)
+    }
+
+    pub fn set_unreadable(&self, rule: Option<&str>) {
+        *FakeComputer::guard(&self.unreadable) = rule.map(ToOwned::to_owned);
+    }
+
+    #[must_use]
+    pub fn always_entries(&self) -> Vec<AlwaysEntry> {
+        self.computer.gate_config().user.always.entries.clone()
+    }
+
+    pub fn remove_always(&self, action: &str) {
+        self.computer.gate_config().user.always.remove(action);
+    }
+
+    #[must_use]
+    pub fn ask_rule_count(&self) -> usize {
+        self.computer.gate_config().user.ask_style.len()
     }
 
     pub(crate) fn gate_modes(&self) -> ModeFlags {
@@ -80,10 +102,62 @@ impl TrustSettings for FakeTrust {
         _bot: &BotId,
         conversation: ConversationKey,
     ) -> Result<UserRules, TrustSettingsError> {
+        if let Some(rule) = FakeComputer::guard(&self.unreadable).clone() {
+            return Err(TrustSettingsError::Unreadable { rule });
+        }
         let mut rules = self.computer.gate_config().user.clone();
         if let Some(keys) = FakeComputer::guard(&self.conversation_allowed).get(&conversation) {
             rules.session.extend(keys.iter().cloned());
         }
         Ok(rules)
+    }
+
+    fn allow_in_conversation(
+        &self,
+        _bot: &BotId,
+        conversation: ConversationKey,
+        key: &ActionKey,
+    ) -> Result<(), TrustSettingsError> {
+        FakeComputer::guard(&self.conversation_allowed)
+            .entry(conversation)
+            .or_default()
+            .push(key.clone());
+        Ok(())
+    }
+
+    fn add_always(&self, entry: AlwaysEntry) -> Result<(), TrustSettingsError> {
+        let mut gate = self.computer.gate_config();
+        if !gate.user.always.contains(&entry.action) {
+            gate.user.always.add(entry);
+        }
+        Ok(())
+    }
+
+    fn remove_ask_rule(&self, rule: &str) -> Result<(), TrustSettingsError> {
+        self.computer.gate_config().user.ask_style.retain(|key| {
+            let (tool, subject) = key.parts();
+            format!("{tool}({subject})") != rule
+        });
+        Ok(())
+    }
+
+    fn set_computer_use(
+        &self,
+        _bot: &BotId,
+        computer: &str,
+        change: ComputerUseChange,
+    ) -> Result<(), TrustSettingsError> {
+        let mut value = self.use_of(computer);
+        match change {
+            ComputerUseChange::AllowBot => value.usable_by_bot = true,
+            ComputerUseChange::RunHereAlways => value.run_here = RunHere::AlwaysAllow,
+        }
+        self.set_use(computer, value);
+        Ok(())
+    }
+
+    fn set_direct_mode(&self, on: bool) -> Result<(), TrustSettingsError> {
+        self.computer.gate_config().modes.direct_mode = on;
+        Ok(())
     }
 }

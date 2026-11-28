@@ -249,3 +249,5 @@ card-switch = Allow { $bot } to use "{ $computer }"?
 card-switch-action = It wants to do this on "{ $computer }": { $action }
 card-switch-always-bot = Will turn on: { $bot } can use "{ $computer }"
 card-switch-always-local = Will set run-on-this-computer for "{ $computer }" to always allow
+gate-answer-not-offered = This card does not offer that answer.
+gate-rule-unreadable = One approval rule could not be read ({ $rule }), so this step is not done. Tell the user.

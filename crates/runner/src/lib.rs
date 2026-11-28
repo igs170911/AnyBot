@@ -2,6 +2,7 @@ pub mod action;
 mod action_events;
 mod action_record;
 pub mod answer;
+mod answer_effects;
 pub mod approvals;
 pub mod checks;
 pub mod context;
@@ -33,7 +34,7 @@ pub use record::{
 pub use runner::{
     BotProfile, KindCount, RunnerParts, TurnModel, TurnOutcome, TurnRunner, UserMessage,
 };
-pub use trust_settings::{ConversationKey, TrustSettings, TrustSettingsError};
+pub use trust_settings::{ComputerUseChange, ConversationKey, TrustSettings, TrustSettingsError};
 
 #[cfg(test)]
 use proptest as _;

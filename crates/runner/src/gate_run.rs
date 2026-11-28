@@ -2,11 +2,12 @@ use anybot_protocol::ComputerOwner;
 use anybot_trust::{
     ActionRequest, CallContext, GateConfig, GateStep, LockState, StepFour, SwitchInfo,
     SwitchReason, computer_use_step, direct_button_offered, step_denied_run, step_four_denial,
-    switch_ticket,
+    switch_ticket, unreadable_denial,
 };
 
 use crate::error::TurnError;
 use crate::runner::TurnRunner;
+use crate::trust_settings::TrustSettingsError;
 use crate::view::ActionView;
 
 struct Loaded {
@@ -48,7 +49,18 @@ pub(crate) fn decide(
     view: &ActionView,
     use_step_four: bool,
 ) -> Result<GateStep, TurnError> {
-    let loaded = load(runner, use_step_four)?;
+    let loaded = match load(runner, use_step_four) {
+        Ok(loaded) => loaded,
+        Err(TurnError::TrustSettings(TrustSettingsError::Unreadable { rule })) => {
+            let denial = unreadable_denial(&rule);
+            return Ok(GateStep::Denied(step_denied_run(
+                request,
+                &denial,
+                &*runner.clock,
+            )));
+        }
+        Err(other) => return Err(other),
+    };
     let computer = &*runner.gated;
     if let Some(denial) = step_four_denial(&loaded.four, computer.name()) {
         return Ok(GateStep::Denied(step_denied_run(

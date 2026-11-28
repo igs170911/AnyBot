@@ -5,6 +5,7 @@ use anybot_protocol::{
 
 use crate::computer_use::StepFour;
 use crate::evidence::rejected_evidence;
+use crate::message_codes_answers::CODE_GATE_RULE_UNREADABLE;
 use crate::message_codes_flow::CODE_GATE_LOCAL_LOCKED;
 use crate::pipeline::ActionRequest;
 use crate::pipeline_exec::finish;
@@ -44,6 +45,17 @@ pub fn step_four_denial(step: &StepFour, computer: &str) -> Option<StepDenial> {
         code: (*code).to_owned(),
         params: vec![("computer".to_owned(), computer.to_owned())],
     })
+}
+
+#[must_use]
+pub fn unreadable_denial(rule: &str) -> StepDenial {
+    StepDenial {
+        step: GateStep::AllowLists,
+        layer: RuleLayer::User,
+        rule: "rule-unreadable".to_owned(),
+        code: CODE_GATE_RULE_UNREADABLE.to_owned(),
+        params: vec![("rule".to_owned(), rule.to_owned())],
+    }
 }
 
 #[must_use]

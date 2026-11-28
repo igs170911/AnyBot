@@ -252,3 +252,5 @@ card-switch = 允許 { $bot } 用「{ $computer }」嗎？
 card-switch-action = 它想在「{ $computer }」上做：{ $action }
 card-switch-always-bot = 會打開：{ $bot } 可以用「{ $computer }」
 card-switch-always-local = 會把「{ $computer }」的在這台電腦上執行設成一律允許
+gate-answer-not-offered = 這張卡沒有這個回答。
+gate-rule-unreadable = 核准規則有一條讀不懂（{ $rule }），這一步先不做。請告訴使用者。

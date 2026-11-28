@@ -45,6 +45,7 @@ pub mod machine_rules;
 #[cfg(test)]
 mod machine_rules_tests;
 pub mod message_codes;
+pub mod message_codes_answers;
 pub mod message_codes_flow;
 pub mod op_ticket;
 #[cfg(test)]
@@ -122,6 +123,7 @@ pub use message_codes::{
     CODE_TURN_TOOL_FAILED, all_codes,
 };
 pub use message_codes::{CODE_REPORT_SUMMARY_MISSING, CODE_TURN_ANSWER_EMPTY};
+pub use message_codes_answers::{CODE_GATE_ANSWER_NOT_OFFERED, CODE_GATE_RULE_UNREADABLE};
 pub use message_codes_flow::{
     CODE_CARD_SWITCH, CODE_CARD_SWITCH_ACTION, CODE_CARD_SWITCH_ALWAYS_BOT,
     CODE_CARD_SWITCH_ALWAYS_LOCAL, CODE_GATE_LOCAL_LOCKED, CODE_GATE_LOCAL_NEVER,
@@ -130,7 +132,7 @@ pub use message_codes_flow::{
 pub use op_ticket::{OpKind, OpTicket};
 pub use pipeline::{ActionRequest, GateAnswer, RequestedAction};
 pub use pipeline_ask::{AskTicket, CallContext, answer_ask};
-pub use pipeline_denied::{StepDenial, step_denied_run, step_four_denial};
+pub use pipeline_denied::{StepDenial, step_denied_run, step_four_denial, unreadable_denial};
 pub use pipeline_gate::{GateStep, ask_declined_run, exec_step, gate_step, run_action};
 pub use pipeline_run::{ActionRun, ModelResultView, OutcomeText, RunStep, Summary};
 pub use pipeline_switch::{SWITCH_RULE, SwitchInfo, switch_ticket};

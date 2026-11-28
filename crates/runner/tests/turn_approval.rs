@@ -156,31 +156,31 @@ async fn stop_answered_card_parks_again() -> Result<(), String> {
 
 #[tokio::test]
 async fn allow_conversation_executes_next_calls() -> Result<(), String> {
-    let setup = ask_setup();
+    let setup = runner_test::trust_world::mac_setup("Work Mac");
     let world = TurnWorld::start(&setup).await?;
-    world.script(npm_call_step("c1"));
+    let make_step = |id: &str| {
+        one_tool_step(vec![runner_test::turn_tool_helpers::call(
+            "shell",
+            "{\"line\":\"make test\"}",
+            id,
+        )])
+    };
+    world.script(make_step("c1"));
     let outcome = world.send(Device::Phone, "go").await;
     let outcome = outcome.map_err(|e| format!("{e:?}"))?;
     let task = task_of(&outcome);
     let kinds = task_kinds(&world, &task);
     let digest = shown_card(&outcome, &kinds).ok_or_else(|| "no shown card".to_owned())?;
     answer_card(&world, &outcome, &digest, CardAnswer::AllowConversation).await?;
-    allow_in_session(&world);
     let _advanced = advance_clock(&world.clock, std::time::Duration::from_millis(100));
-    world.script(npm_call_step("c2"));
+    world.script(make_step("c2"));
     let second = world.send(Device::Phone, "again").await;
     let second = second.map_err(|e| format!("{e:?}"))?;
     assert_eq!(second.reason, anybot_protocol::TurnEndReason::Answered);
-    let second_kinds = task_kinds(&world, &task);
+    let second_kinds = task_kinds(&world, &task_of(&second));
     let has_executed = second_kinds
         .iter()
         .any(|k| matches!(k, KnownTaskEventKind::EvidenceAdded { record } if record.kind == EvidenceKind::Executed));
     assert!(has_executed);
     Ok(())
-}
-
-fn allow_in_session(world: &TurnWorld) {
-    let mut gate = GateConfig::plain();
-    gate.user.session.push(ActionKey::command("shell", NPM));
-    world.set_gate(gate);
 }

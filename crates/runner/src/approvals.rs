@@ -15,6 +15,7 @@ pub struct PendingCard {
     pub tool: String,
     pub computer: String,
     pub actions: Vec<String>,
+    pub(crate) buttons: Vec<anybot_protocol::CardButton>,
     pub(crate) ticket: AskTicket,
     pub(crate) request: ToolRequest,
     pub(crate) view: ActionView,
@@ -40,7 +41,7 @@ pub(crate) async fn park_approval(
         action: card_view.action,
         card: digest.clone(),
         kind: card_view.kind,
-        buttons: card_view.buttons,
+        buttons: card_view.buttons.clone(),
         reason: card_view.reason,
         always_label: card_view.always_label,
         notes: card_view.notes,
@@ -52,6 +53,7 @@ pub(crate) async fn park_approval(
         tool: request.tool.clone(),
         computer: ticket.computer_name().to_owned(),
         actions: card_view.actions,
+        buttons: card_view.buttons,
         ticket,
         request: request.clone(),
         view,
@@ -104,12 +106,14 @@ pub async fn resolve_approval(
     card: &PendingCard,
     answer: CardAnswer,
 ) -> Result<(), TurnError> {
+    crate::answer_effects::ensure_offered(card, answer)?;
     let existing = runner.record.task_events(ctx.task).await?;
     let next = max_evidence_short(&existing).saturating_add(1);
     ctx.advance_evidence_to(next);
     runner
         .append_task_event(&ctx.task, KnownTaskEventKind::CardAnswered { answer })
         .await?;
+    crate::answer_effects::apply(runner, card, answer)?;
     let result = if card.ticket.switch_info().is_some() && answer != CardAnswer::Deny {
         crate::switch_answer::continue_after_switch(runner, ctx, card).await
     } else {

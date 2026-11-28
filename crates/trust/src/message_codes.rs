@@ -121,12 +121,14 @@ pub fn base_codes() -> [&'static str; 56] {
 pub fn all_codes() -> Vec<&'static str> {
     let mut all: Vec<&'static str> = base_codes().to_vec();
     all.extend(crate::message_codes_flow::flow_codes());
+    all.extend(crate::message_codes_answers::answer_codes());
     all
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::message_codes_answers::answer_codes;
     use crate::message_codes_flow::flow_codes;
 
     #[test]
@@ -137,6 +139,9 @@ mod tests {
             assert!(code.contains('-'), "code {code} has no dash");
             seen.push(code);
         }
-        assert_eq!(seen.len(), base_codes().len() + flow_codes().len());
+        assert_eq!(
+            seen.len(),
+            base_codes().len() + flow_codes().len() + answer_codes().len()
+        );
     }
 }

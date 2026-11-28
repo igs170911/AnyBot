@@ -246,7 +246,9 @@ export type MessageCode =
   "card-switch" |
   "card-switch-action" |
   "card-switch-always-bot" |
-  "card-switch-always-local";
+  "card-switch-always-local" |
+  "gate-answer-not-offered" |
+  "gate-rule-unreadable";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -495,4 +497,6 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "card-switch-action",
   "card-switch-always-bot",
   "card-switch-always-local",
+  "gate-answer-not-offered",
+  "gate-rule-unreadable",
 ];
