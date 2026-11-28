@@ -10,6 +10,7 @@ use anybot_runner::{
 };
 
 pub use crate::mem_raw::{MemoryRaw, share_raw};
+use crate::mem_watch::MemoryWatch;
 
 type Probe = Arc<dyn Fn() -> usize + Send + Sync>;
 pub type AfterAppend = Arc<dyn Fn(&Stored) + Send + Sync>;
@@ -20,6 +21,7 @@ pub struct MemoryRecord {
     task_seq: Mutex<std::collections::BTreeMap<TaskId, u64>>,
     probe: Option<Probe>,
     after_append: Mutex<Option<AfterAppend>>,
+    watch: Option<Arc<MemoryWatch>>,
     fail_on: Option<&'static str>,
 }
 
@@ -77,6 +79,12 @@ impl MemoryRecord {
     }
 
     #[must_use]
+    pub fn with_watch(mut self, watch: Arc<MemoryWatch>) -> Self {
+        self.watch = Some(watch);
+        self
+    }
+
+    #[must_use]
     pub fn fail_on_kind(kind_name: &'static str) -> Self {
         Self {
             fail_on: Some(kind_name),
@@ -113,6 +121,7 @@ impl MemoryRecord {
         entry: RecordEntry,
         turn_started: Option<u64>,
     ) -> Result<Appended, RecordError> {
+        let task = entry_task(&entry);
         let stored = {
             let Ok(mut rows) = self.rows.lock() else {
                 return Err(RecordError {
@@ -120,7 +129,7 @@ impl MemoryRecord {
                 });
             };
             if let Some(since) = turn_started
-                && let Some(halt) = halt_in_slice(&rows, entry_task(&entry), since)
+                && let Some(halt) = halt_in_slice(&rows, task, since)
             {
                 return Ok(Appended::Halted(halt));
             }
@@ -147,6 +156,9 @@ impl MemoryRecord {
             rows.push((stored.clone(), probe_value));
             stored
         };
+        if let Some(watch) = &self.watch {
+            watch.notify(task);
+        }
         let hook = self.after_append.lock().ok().and_then(|g| g.clone());
         if let Some(f) = hook {
             f(&stored);

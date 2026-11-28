@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use anybot_domain::task_view::BudgetOver;
-use anybot_protocol::{NotRunReason, ToolRequest};
-use anybot_trust::{GateStep, OutcomeText};
+use anybot_protocol::{CardAnswer, CardKind, KnownTaskEventKind, NotRunReason, ToolRequest};
+use anybot_trust::{AskTicket, GateStep, OutcomeText};
 
 use crate::action_record::{record_args_rejected, record_denied, record_executed, record_not_run};
+use crate::card_wait::CardWaitOutcome;
 use crate::error::TurnError;
-use crate::record::Halt;
+use crate::record::{Appended, Halt};
 use crate::runner::{TurnCtx, TurnRunner};
 use crate::view::ActionView;
 
@@ -14,18 +15,21 @@ pub(crate) enum ActionLoop {
     Done,
     Halted(Halt),
     OverBudget(BudgetOver),
+    TimedOut,
 }
 
-enum OneAction {
+pub(crate) enum OneAction {
     Done,
     Refused,
     Halted(Halt),
+    TimedOut,
 }
 
 struct LoopState {
     refused: bool,
     halted: Option<Halt>,
     over_budget: Option<BudgetOver>,
+    timed_out: bool,
 }
 
 pub(crate) async fn run_actions(
@@ -37,11 +41,12 @@ pub(crate) async fn run_actions(
         refused: false,
         halted: None,
         over_budget: None,
+        timed_out: false,
     };
     for request in requests {
         step_request(runner, ctx, request, &mut state).await?;
     }
-    if state.halted.is_none() && state.over_budget.is_none() {
+    if state.halted.is_none() && state.over_budget.is_none() && !state.timed_out {
         state.halted = crate::halt::check_halt(runner, ctx).await?;
     }
     if let Some(halt) = state.halted {
@@ -49,6 +54,9 @@ pub(crate) async fn run_actions(
     }
     if let Some(over) = state.over_budget {
         return Ok(ActionLoop::OverBudget(over));
+    }
+    if state.timed_out {
+        return Ok(ActionLoop::TimedOut);
     }
     Ok(ActionLoop::Done)
 }
@@ -59,6 +67,9 @@ async fn step_request(
     request: &ToolRequest,
     state: &mut LoopState,
 ) -> Result<(), TurnError> {
+    if state.timed_out {
+        return Ok(());
+    }
     if state.halted.is_some() {
         return record_not_run(runner, ctx, request, NotRunReason::Stopped).await;
     }
@@ -80,6 +91,7 @@ async fn step_request(
         OneAction::Done => {}
         OneAction::Refused => state.refused = true,
         OneAction::Halted(halt) => state.halted = Some(halt),
+        OneAction::TimedOut => state.timed_out = true,
     }
     Ok(())
 }
@@ -109,19 +121,59 @@ async fn run_one(
             crate::approvals::record_ask_summary(runner, ctx, request, &run, &view).await?;
             Ok(OneAction::Refused)
         }
-        GateStep::Ask(ticket) => {
-            let run = anybot_trust::ask_declined_run(&areq, &ticket, &view, &*runner.clock);
-            record_denied(runner, ctx, request, &run).await?;
-            crate::approvals::record_ask_summary(runner, ctx, request, &run, &view).await?;
-            let parked_view = ActionView::new(runner.lang).with_computer(ticket.computer_name());
-            crate::approvals::park_approval(runner, ctx, request, parked_view, *ticket).await?;
-            Ok(OneAction::Refused)
-        }
+        GateStep::Ask(ticket) => handle_ask(runner, ctx, request, view, *ticket).await,
         GateStep::Allow(ticket) => {
             match record_executed(runner, ctx, request, &areq, ticket, &view, &*computer).await? {
                 Some(halt) => Ok(OneAction::Halted(halt)),
                 None => Ok(OneAction::Done),
             }
+        }
+    }
+}
+
+async fn handle_ask(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    view: ActionView,
+    ticket: AskTicket,
+) -> Result<OneAction, TurnError> {
+    let shown = KnownTaskEventKind::CardShown {
+        action: crate::approvals::first_action(&ticket),
+        card: ticket.card_digest(),
+        kind: CardKind::Action,
+        resume: None,
+    };
+    let stored = match runner.append_turn_unless_halted(ctx, shown).await? {
+        Appended::Halted(halt) => {
+            record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
+            return Ok(OneAction::Halted(halt));
+        }
+        Appended::Stored(row) => row,
+    };
+    let shown_seq = crate::card_wait::task_seq_of(&stored);
+    match crate::card_wait::wait_for_card(runner, ctx, shown_seq).await? {
+        CardWaitOutcome::Answered(answer) => {
+            crate::approvals::finish_in_turn_approval(runner, ctx, request, &ticket, &view, answer)
+                .await
+        }
+        CardWaitOutcome::Halted(halt) => {
+            if halt == Halt::Stopped {
+                runner
+                    .append_turn_event(
+                        ctx,
+                        KnownTaskEventKind::CardAnswered {
+                            answer: CardAnswer::Deny,
+                        },
+                    )
+                    .await?;
+            }
+            record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
+            Ok(OneAction::Halted(halt))
+        }
+        CardWaitOutcome::TimedOut => {
+            crate::approvals::store_parked(runner, request, view, ticket)?;
+            Ok(OneAction::TimedOut)
         }
     }
 }

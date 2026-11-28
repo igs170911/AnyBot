@@ -11,6 +11,7 @@ use test_harness::{FakeClock, FakeModel, ModelFormat};
 
 use crate::fake_computer::FakeComputer;
 use crate::mem_store::{MemoryRaw, MemoryRecord};
+use crate::mem_watch::MemoryWatch;
 use crate::turn::{TurnWorld, WorldSetup};
 
 pub(crate) fn apply_world_files(
@@ -79,11 +80,16 @@ impl TurnWorld {
     }
 }
 
-pub(crate) fn make_record(setup: &WorldSetup, model: &Arc<FakeModel>) -> Arc<MemoryRecord> {
+pub(crate) fn make_record(
+    setup: &WorldSetup,
+    model: &Arc<FakeModel>,
+    watch: &Arc<MemoryWatch>,
+) -> Arc<MemoryRecord> {
     let base = match setup.fail_on_kind {
         Some(kind) => MemoryRecord::fail_on_kind(kind),
         None => MemoryRecord::new(),
     };
+    let base = base.with_watch(Arc::clone(watch));
     if !setup.probe_requests {
         return Arc::new(base);
     }

@@ -9,6 +9,7 @@ use anybot_protocol::{
     TurnInitiator,
 };
 
+use crate::card_wait::TaskWatch;
 use crate::error::TurnError;
 use crate::record::{Appended, NewTaskEvent, RawStore, Record, RecordEntry, Stored, UserLine};
 use crate::steer::{ActiveSteer, ClearOnDrop, Steer, SteerQueued};
@@ -36,6 +37,7 @@ pub struct RunnerParts {
     pub gated: Arc<dyn anybot_trust::GatedComputer>,
     pub record: Arc<dyn Record>,
     pub raw: Arc<dyn RawStore>,
+    pub watch: Arc<dyn TaskWatch>,
     pub session: Session,
     pub clock: Arc<dyn Clock>,
     pub bot: BotProfile,
@@ -50,6 +52,7 @@ pub struct TurnCtx {
     pub(crate) turn: u32,
     pub(crate) turn_id: TurnId,
     pub(crate) turn_started: u64,
+    pub(crate) initiator: TurnInitiator,
     pub(crate) evidence: tokio::sync::Mutex<u32>,
 }
 
@@ -70,6 +73,7 @@ pub struct TurnRunner {
     pub(crate) gated: Arc<dyn anybot_trust::GatedComputer>,
     pub(crate) record: Arc<dyn Record>,
     pub(crate) raw: Arc<dyn RawStore>,
+    pub(crate) watch: Arc<dyn TaskWatch>,
     pub(crate) session: Arc<tokio::sync::Mutex<Session>>,
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) bot: BotProfile,
@@ -91,6 +95,7 @@ impl TurnRunner {
             gated: parts.gated,
             record: parts.record,
             raw: parts.raw,
+            watch: parts.watch,
             session: Arc::new(tokio::sync::Mutex::new(parts.session)),
             clock: parts.clock,
             bot: parts.bot,
@@ -153,6 +158,7 @@ impl TurnRunner {
             turn,
             turn_id: TurnId::generate(&*self.clock),
             turn_started: started.stream_seq,
+            initiator,
             evidence: tokio::sync::Mutex::new(1),
         };
         crate::steer::begin_turn(self, task, turn, true);

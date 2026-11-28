@@ -219,13 +219,12 @@ async fn finish_answer(
         ActionLoop::OverBudget(over) => {
             return end_over_budget(runner, ctx, over.item, over.used, over.limit).await;
         }
+        ActionLoop::TimedOut => {
+            let reason = TurnEndReason::CardTimedOut;
+            runner.append_turn_end(ctx, reason.clone(), false).await?;
+            return Ok(StepFlow::Ended(reason));
+        }
         ActionLoop::Done => {}
-    }
-    if crate::approvals::has_parked(runner) {
-        runner
-            .append_turn_end(ctx, TurnEndReason::PendingApproval, false)
-            .await?;
-        return Ok(StepFlow::Ended(TurnEndReason::PendingApproval));
     }
     Ok(StepFlow::Continue)
 }

@@ -16,6 +16,7 @@ use test_harness::{
 
 use crate::fake_computer::FakeComputer;
 use crate::mem_store::{MemoryRaw, MemoryRecord};
+use crate::mem_watch::{MemoryWatch, share_watch};
 
 #[derive(Clone)]
 pub struct WorldSetup {
@@ -94,6 +95,7 @@ pub struct TurnWorld {
     pub clock: Arc<FakeClock>,
     pub record: Arc<MemoryRecord>,
     pub raw: Arc<MemoryRaw>,
+    pub watch: Arc<MemoryWatch>,
     pub bot: BotId,
     pub setup: WorldSetup,
     phone: DeviceId,
@@ -104,17 +106,26 @@ impl TurnWorld {
     pub async fn start(setup: &WorldSetup) -> Result<Self, String> {
         let (model, port) = model_start_with_format(setup.format).await?;
         let clock = Arc::new(FakeClock::new(1_700_000_000_000));
-        let record = make_record(setup, &model);
+        let watch = Arc::new(MemoryWatch::new());
+        let record = make_record(setup, &model, &watch);
         let raw = Arc::new(MemoryRaw::new());
         let session = build_session(&clock)?;
         let clock_dyn = share_clock(&clock);
         let bot = BotId::generate(clock_dyn.as_ref());
         let builder = crate::fake_builder::FakeComputerBuilder::default()
             .named("bot-computer")
-            .bot_machine()
             .sandbox(setup.sandbox)
             .gate(setup.gate.clone())
             .clock(Arc::clone(&clock));
+        let builder = if setup.platform == ComputerPlatform::BotMachine {
+            builder.bot_machine()
+        } else {
+            builder
+                .platform(setup.platform)
+                .user_machine()
+                .commands()
+                .files()
+        };
         let builder = apply_world_files(builder, setup);
         let built = Arc::new(builder.build());
         let gated = Arc::clone(&built);
@@ -123,6 +134,7 @@ impl TurnWorld {
             gated: gated_dyn,
             record: crate::mem_store::share_record(&record),
             raw: share_raw(&raw),
+            watch: share_watch(&watch),
             session,
             clock: share_clock(&clock),
             bot: bot_profile(setup, bot),
@@ -139,6 +151,7 @@ impl TurnWorld {
             clock: Arc::clone(&clock),
             record,
             raw,
+            watch,
             bot,
             setup: setup.clone(),
             phone: DeviceId::generate(clock_dyn.as_ref()),
@@ -244,6 +257,18 @@ impl TurnWorld {
     #[must_use]
     pub fn runner(&self) -> &Arc<TurnRunner> {
         &self.runner
+    }
+
+    pub async fn answer_shown_card(
+        &self,
+        task: TaskId,
+        answer: anybot_protocol::CardAnswer,
+    ) -> Result<(), String> {
+        self.runner
+            .append_task_event(&task, KnownTaskEventKind::CardAnswered { answer })
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
     }
 
     #[must_use]

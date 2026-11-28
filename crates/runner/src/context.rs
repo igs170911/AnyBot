@@ -27,6 +27,7 @@ impl Clone for TurnCtx {
             turn: self.turn,
             turn_id: self.turn_id,
             turn_started: self.turn_started,
+            initiator: self.initiator,
             evidence: tokio::sync::Mutex::new(start),
         }
     }

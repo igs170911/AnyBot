@@ -4,6 +4,7 @@ mod action_record;
 pub mod answer;
 pub mod approvals;
 pub mod budget_gate;
+pub mod card_wait;
 pub mod checks;
 pub mod context;
 pub mod context_denied;
@@ -25,6 +26,7 @@ pub mod view;
 
 pub use approvals::PendingCard;
 pub use budget_gate::TURN_STEP_CAP;
+pub use card_wait::{TaskWatch, WatchFuture};
 pub use continue_turn::ContinueTurn;
 pub use error::TurnError;
 pub use halt::CODE_TURN_REPLY_STOPPED;

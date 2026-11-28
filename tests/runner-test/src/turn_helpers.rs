@@ -218,3 +218,31 @@ pub async fn answer_card(
         .await
         .map_err(|e| format!("approval answer failed: {e}"))
 }
+
+pub async fn wait_for_shown_card(
+    world: &TurnWorld,
+    expected_count: usize,
+) -> Result<(TaskId, Vec<String>), String> {
+    for _step in 0..400 {
+        let mut found_task: Option<TaskId> = None;
+        let mut cards: Vec<String> = Vec::new();
+        for (row, _) in world.record.entries() {
+            let StoredBody::Task { task, event, .. } = &row.body else {
+                continue;
+            };
+            if let Some(KnownTaskEventKind::CardShown { card, .. }) = known_kind(event) {
+                found_task = Some(*task);
+                cards.push(card);
+            }
+        }
+        if cards.len() >= expected_count
+            && let Some(task) = found_task
+        {
+            return Ok((task, cards));
+        }
+        sleep_real(Duration::from_millis(5)).await;
+    }
+    Err(format!(
+        "timed out waiting for {expected_count} shown cards"
+    ))
+}
