@@ -4,17 +4,15 @@ use crate::build_tests::{
     collapse_recorded, model_swap_present, prefix_of, push_built, rebuilt_usable, step_at,
 };
 use crate::compile::compile;
+use crate::compile_tests_support as sup;
 use crate::fixtures::event_with_seq;
 use crate::input::{BuildInput, StepRecord};
 use crate::output::{Block, Compiled, NewEvent};
-
-use crate::compile_tests_support as sup;
 
 struct Runner {
     base: BuildInput,
     events: Vec<anybot_protocol::TaskEvent>,
     prev: Option<Vec<Block>>,
-    prev_collapsed: bool,
     version: u64,
 }
 
@@ -38,19 +36,19 @@ fn prefix_check(
     swap_here: bool,
     update_here: bool,
 ) -> Result<(), TestCaseError> {
-    if let Some(prev_prefix) = &run.prev {
-        let keep = prev_prefix.len().min(current.len());
-        let same = prev_prefix.iter().take(keep).eq(current.iter().take(keep));
-        let allowed = same || run.prev_collapsed || fresh_collapsed || swap_here || update_here;
-        prop_assert!(
-            allowed,
-            "prefix moved with no exception at step {index}: prev {} fresh {} swap {} update {}",
-            run.prev_collapsed,
-            fresh_collapsed,
-            swap_here,
-            update_here,
-        );
+    let Some(prev_prefix) = &run.prev else {
+        return Ok(());
+    };
+    if fresh_collapsed || swap_here || update_here {
+        return Ok(());
     }
+    let slice = current.get(..prev_prefix.len()).unwrap_or(&[]);
+    let prev_bytes = serde_json::to_vec(prev_prefix).unwrap_or_default();
+    let cur_bytes = serde_json::to_vec(slice).unwrap_or_default();
+    prop_assert!(
+        current.len() >= prev_prefix.len() && prev_bytes == cur_bytes,
+        "prefix bytes differed with no exception at step {index}",
+    );
     Ok(())
 }
 
@@ -61,24 +59,24 @@ fn step(
     n: usize,
     swap_at: usize,
     update_at: usize,
-    exceptions: bool,
+    mode: u8,
 ) -> Result<(), TestCaseError> {
+    let do_swap = mode == 2 || mode == 3;
+    let do_update = mode == 1 || mode == 3;
     let mut swap_here = false;
     let mut update_here = false;
-    if exceptions {
-        if Some(index) == swap_at.checked_rem(n) {
-            swap_event(&mut run.events);
-            swap_here = true;
-        }
-        if Some(index) == update_at.checked_rem(n) {
-            run.version = run.version.saturating_add(1);
-            update_here = true;
-        }
+    if do_swap && Some(index) == swap_at.checked_rem(n) {
+        swap_event(&mut run.events);
+        swap_here = true;
+    }
+    if do_update && Some(index) == update_at.checked_rem(n) {
+        run.version = run.version.saturating_add(1);
+        update_here = true;
     }
     let many: Vec<StepRecord> = (0..=index)
         .map(|i| step_at(i, *lens.get(i).unwrap_or(&1_500), &format!("r{i}")))
         .collect();
-    let usable = if exceptions { 4_000 } else { 60_000 };
+    let usable = if mode == 3 { 4_000 } else { 100_000 };
     let input = rebuilt_usable(
         &run.base,
         many,
@@ -105,11 +103,9 @@ fn step(
             update_here,
         )?;
         run.prev = Some(current);
-        run.prev_collapsed = fresh_collapsed;
     } else {
         push_built(&mut run.events);
         run.prev = None;
-        run.prev_collapsed = false;
     }
     Ok(())
 }
@@ -118,27 +114,30 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn prefix_bytes_hold_unless_collapse_model_or_snapshot(
+    fn t_context_build_2(
         lens in prop::collection::vec(1_500usize..3_000usize, 11..16),
         swap_at in 0usize..12,
         update_at in 0usize..12,
-        exceptions in prop::bool::ANY,
+        mode in 0u8..4u8,
     ) {
         let mut run = Runner {
             base: sup::base_input(),
             events: Vec::new(),
             prev: None,
-            prev_collapsed: false,
             version: 1,
         };
         let n = lens.len();
         for index in 0..n {
-            step(&mut run, index, &lens, n, swap_at, update_at, exceptions)?;
+            step(&mut run, index, &lens, n, swap_at, update_at, mode)?;
         }
-        if exceptions {
-            prop_assert!(model_swap_present(&run.events), "swap must be generated");
-            prop_assert!(collapse_recorded(&run.events), "collapse must be generated");
+        if mode == 1 || mode == 3 {
             prop_assert!(run.version > 1, "snapshot update must be generated");
+        }
+        if mode == 2 || mode == 3 {
+            prop_assert!(model_swap_present(&run.events), "swap must be generated");
+        }
+        if mode == 3 {
+            prop_assert!(collapse_recorded(&run.events), "collapse must be generated");
         }
     }
 }

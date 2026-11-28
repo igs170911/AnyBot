@@ -82,6 +82,19 @@ pub(crate) fn unique_step_refs(steps: Vec<StepRecord>) -> Vec<StepRecord> {
         .collect()
 }
 
+pub(crate) fn unique_memory_ids(
+    memories: Vec<crate::input::MemoryRecord>,
+) -> Vec<crate::input::MemoryRecord> {
+    memories
+        .into_iter()
+        .enumerate()
+        .map(|(index, mut m)| {
+            m.id = format!("m{index}");
+            m
+        })
+        .collect()
+}
+
 pub(crate) fn step_record(index: usize) -> BoxedStrategy<StepRecord> {
     (
         mixed_text(50),
@@ -212,7 +225,7 @@ pub(crate) fn build_input(
                     events,
                     user_turns: renumbered(users),
                     bot_turns: renumbered(bots),
-                    steps,
+                    steps: unique_step_refs(steps),
                     constraints,
                     open_questions: questions,
                     tool_specs: (0..spec_count).map(tool_spec_at).collect(),
@@ -221,7 +234,7 @@ pub(crate) fn build_input(
                         version: "v1".to_owned(),
                         items: vec!["pin".to_owned()],
                     },
-                    memories,
+                    memories: unique_memory_ids(memories),
                     prior_chat: renumbered(prior),
                     model,
                     compact_requested: compact,

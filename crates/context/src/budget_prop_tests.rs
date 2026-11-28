@@ -1,39 +1,55 @@
 use proptest::prelude::*;
 
 use crate::compile::compile;
-use crate::fixtures::build_input;
+use crate::fixtures::{build_input, unique_memory_ids, unique_step_refs};
 use crate::input::{BuildInput, ChatRecord, ModelPlan, StepRecord};
-use crate::numbers::{K114_4_WATERMARK_MILLI, milli_of};
-use crate::output::{BlockKind, Compiled, ExcludedReason, Manifest, NewEvent};
+use crate::mask::render_view;
+use crate::numbers::{K114_3_SHORT_RESULT_CHARS, K114_4_WATERMARK_MILLI, milli_of};
+use crate::output::{
+    Block, BlockKind, Compiled, CompiledRequest, ExcludedReason, Manifest, NewEvent,
+};
+use crate::state::build_state;
 
-fn cheap_input(low: u64, high: u64, max_steps: usize) -> BoxedStrategy<BuildInput> {
-    build_input(low, high, max_steps)
-        .prop_map(|mut b| {
-            let steps: Vec<StepRecord> = b
-                .steps
-                .iter()
-                .map(|s| StepRecord {
-                    content: s.content.chars().take(800).collect(),
-                    ..s.clone()
-                })
-                .collect();
-            let trim = |v: Vec<ChatRecord>| -> Vec<ChatRecord> {
-                v.iter()
-                    .map(|r| ChatRecord {
-                        text: r.text.chars().take(300).collect(),
-                        ..r.clone()
+fn budget_input(low: u64, high: u64, max_steps: usize) -> BoxedStrategy<BuildInput> {
+    (
+        build_input(low, high, max_steps),
+        prop::collection::vec(0u8..2u8, 4..10),
+        prop::collection::vec(0u8..2u8, 4..12),
+    )
+        .prop_map(|(mut b, mem_pad, prior_pad)| {
+            b.steps = unique_step_refs(
+                b.steps
+                    .into_iter()
+                    .map(|s| StepRecord {
+                        content: s.content.chars().take(1_200).collect(),
+                        ..s
                     })
-                    .collect()
-            };
-            b.steps = steps;
-            b.user_turns = trim(b.user_turns);
-            b.bot_turns = trim(b.bot_turns);
-            b.prior_chat = trim(b.prior_chat);
-            b.constraints = b
-                .constraints
-                .iter()
-                .map(|c| c.chars().take(300).collect())
-                .collect();
+                    .collect(),
+            );
+            if b.memories.len() < mem_pad.len() {
+                let extra = mem_pad.len().saturating_sub(b.memories.len());
+                for idx in 0..extra {
+                    b.memories.push(crate::input::MemoryRecord {
+                        id: format!("mx{idx}"),
+                        content: format!("memory body {idx} {}", "m".repeat(220)),
+                        relevance: u32::try_from(idx.saturating_mul(10)).unwrap_or(50),
+                        source: crate::input::MemorySource::UserSaid,
+                        candidate: false,
+                    });
+                }
+            }
+            b.memories = unique_memory_ids(b.memories);
+            if b.prior_chat.len() < prior_pad.len() {
+                let start = b.prior_chat.len();
+                for idx in start..prior_pad.len() {
+                    b.prior_chat.push(ChatRecord {
+                        record_id: format!("px-{idx}"),
+                        text: format!("prior chat {idx} {}", "p".repeat(360)),
+                        seq: u64::try_from(idx).unwrap_or(0).saturating_add(1),
+                    });
+                }
+            }
+            b.prior_chat = crate::fixtures::renumbered(b.prior_chat);
             b
         })
         .boxed()
@@ -64,38 +80,69 @@ fn shrink_build(base: &BuildInput, usable: u64) -> BuildInput {
     }
 }
 
-fn full_content(request: &crate::output::CompiledRequest, step: &StepRecord) -> bool {
-    request.blocks.iter().any(|b| {
-        b.kind == BlockKind::ToolResultFull
-            && b.text == step.content
-            && b.call_id.as_deref() == Some(step.call_id.as_str().as_str())
-    })
+fn has_block(request: &CompiledRequest, kind: BlockKind, pred: impl Fn(&Block) -> bool) -> bool {
+    request.blocks.iter().any(|b| b.kind == kind && pred(b))
 }
 
-fn must_survives(input: &BuildInput, request: &crate::output::CompiledRequest) -> bool {
-    let constraints_ok = input.constraints.iter().all(|c| {
-        request
-            .blocks
-            .iter()
-            .any(|b| b.kind == BlockKind::Constraint && b.text == *c)
-    });
+fn must_survives(input: &BuildInput, request: &CompiledRequest) -> bool {
+    let state = build_state(&input.events);
+    let constraints_ok = input
+        .constraints
+        .iter()
+        .all(|c| has_block(request, BlockKind::Constraint, |b| b.text == *c));
+    let criteria_ok = state
+        .criteria
+        .iter()
+        .all(|c| has_block(request, BlockKind::Criterion, |b| b.text == c.text));
     let users_ok = input.user_turns.iter().all(|u| {
-        request.blocks.iter().any(|b| {
-            (b.kind == BlockKind::UserText && b.text == u.text)
-                || (b.kind == BlockKind::UserRef && b.text.contains(&u.record_id))
+        has_block(request, BlockKind::UserText, |b| b.text == u.text)
+            || has_block(request, BlockKind::UserRef, |b| {
+                b.source_ids.contains(&u.record_id)
+            })
+    });
+    let questions_ok = input
+        .open_questions
+        .iter()
+        .all(|q| has_block(request, BlockKind::OpenQuestion, |b| b.text == *q))
+        && state.open_cards().iter().all(|(seq, _)| {
+            has_block(request, BlockKind::OpenQuestion, |b| {
+                b.source_ids.contains(&format!("question-{seq}"))
+            })
+        });
+    let current_ok = state
+        .steps
+        .iter()
+        .filter(|(_, s)| s.state == crate::state::StepStateKind::Open)
+        .max_by_key(|(_, s)| s.intent_seq)
+        .is_none_or(|(id, _)| {
+            has_block(request, BlockKind::CurrentStep, |b| {
+                b.source_ids.contains(id)
+            })
+        });
+    let pending_ok = state.pending.keys().chain(state.unknowns.keys()).all(|id| {
+        has_block(request, BlockKind::PendingAction, |b| {
+            b.source_ids.contains(id)
+        })
+    }) && input.steps.iter().filter(|s| s.keeps_full()).all(|s| {
+        has_block(request, BlockKind::PendingAction, |b| {
+            b.source_ids.contains(&s.call_id.as_str())
         })
     });
-    let system_ok = request
-        .blocks
-        .iter()
-        .any(|b| b.kind == BlockKind::System && b.text == input.system_prompt);
-    let docs_ok = input.tool_specs.iter().all(|s| {
-        request
-            .blocks
-            .iter()
-            .any(|b| b.kind == BlockKind::ToolDoc && b.text.contains(&s.name))
+    let system_ok = has_block(request, BlockKind::System, |b| {
+        b.text == input.system_prompt
     });
-    constraints_ok && users_ok && system_ok && docs_ok
+    let docs_ok = input
+        .tool_specs
+        .iter()
+        .all(|s| has_block(request, BlockKind::ToolDoc, |b| b.text.contains(&s.name)));
+    constraints_ok
+        && criteria_ok
+        && users_ok
+        && questions_ok
+        && current_ok
+        && pending_ok
+        && system_ok
+        && docs_ok
 }
 
 struct Dropped {
@@ -139,7 +186,7 @@ fn dropped(manifest: &Manifest, events: &[NewEvent]) -> Dropped {
     d
 }
 
-fn recent_two_missing(input: &BuildInput, request: &crate::output::CompiledRequest) -> bool {
+fn recent_two_missing(input: &BuildInput, request: &CompiledRequest) -> bool {
     let n = input.steps.len();
     for idx in [n.saturating_sub(2), n.saturating_sub(1)] {
         let Some(step) = input.steps.get(idx) else {
@@ -148,10 +195,13 @@ fn recent_two_missing(input: &BuildInput, request: &crate::output::CompiledReque
         if !step.has_output() {
             continue;
         }
-        if step.content.chars().count() > input.view_limit {
-            continue;
-        }
-        if !full_content(request, step) {
+        let view = render_view(step, input.view_limit);
+        let rid = format!("result-{}", step.source_ref);
+        let seen = request.blocks.iter().any(|b| {
+            (b.kind == BlockKind::ToolResultFull && b.text == view)
+                || (b.kind == BlockKind::ToolResultDuplicate && b.source_ids.contains(&rid))
+        });
+        if !seen {
             return true;
         }
     }
@@ -198,25 +248,27 @@ fn order_broken(input: &BuildInput, d: &Dropped) -> bool {
 
 fn droppable_results(input: &BuildInput) -> bool {
     let cutoff = input.steps.len().saturating_sub(2);
-    input
-        .steps
-        .iter()
-        .take(cutoff)
-        .any(|step| !step.keeps_full() && step.has_output() && step.content.chars().count() > 600)
+    input.steps.iter().take(cutoff).any(|step| {
+        !step.keeps_full()
+            && step.has_output()
+            && step.content.chars().count() > K114_3_SHORT_RESULT_CHARS
+    })
 }
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
     #[test]
-    fn shrinking_usable_drops_old_results_then_chat_then_memory(
-        base in cheap_input(58_000, 62_000, 8),
-        shrinks in prop::collection::vec(5_000usize..55_000usize, 3..6),
+    fn t_context_budget_2(
+        base in budget_input(58_000, 62_000, 10),
+        raw_shrinks in prop::collection::vec(10_000u64..58_500u64, 4..7),
     ) {
-        let mut base = base;
-        base.steps = crate::fixtures::unique_step_refs(base.steps);
-        for shrink in shrinks {
-            let usable = 60_000u64.saturating_sub(u64::try_from(shrink).unwrap_or(0));
+        let mut usables: Vec<u64> = raw_shrinks
+            .into_iter()
+            .map(|s| 60_000u64.saturating_sub(s))
+            .collect();
+        usables.sort_unstable_by(|a, b| b.cmp(a));
+        for usable in usables {
             let input = shrink_build(&base, usable);
             match compile(&input).unwrap() {
                 Compiled::Sent { request, manifest, events, .. } => {

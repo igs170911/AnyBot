@@ -52,9 +52,9 @@ pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
     prop_oneof![
         3 => crate::fixtures::criterion().prop_map(|c| ev(KnownTaskEventKind::DoneWhenChange {
             by: Proposer::User,
-            change: DoneWhenChange::SetItems { items: vec![c] },
+            change: DoneWhenChange::SetItems { items: vec![c.clone()] },
             before: Vec::new(),
-            after: Vec::new(),
+            after: vec![c],
             reason: "r".to_owned(),
         })),
         10 => Just(ev(ModelAnswer {
