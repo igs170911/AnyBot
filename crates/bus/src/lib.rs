@@ -96,3 +96,7 @@ pub type SharedBus = Arc<dyn Bus>;
 pub fn shared_memory_bus() -> SharedBus {
     Arc::new(MemoryBus::new())
 }
+
+pub mod typing;
+
+pub use typing::{SharedTyping, TypingBus, TypingNote, shared_typing_bus};

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub const SSE_EVENT_PROGRESS: &str = "progress";
 pub const SSE_EVENT_NEW_RECORDS: &str = "new_records";
+pub const SSE_EVENT_TYPING: &str = "typing";
 pub const HEARTBEAT_INTERVAL_SECS: u64 = 15;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
