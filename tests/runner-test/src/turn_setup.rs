@@ -103,6 +103,7 @@ pub fn bot_profile(setup: &WorldSetup, bot: BotId) -> BotProfile {
         name: "Ada".to_owned(),
         instructions: setup.instructions.clone(),
         timezone: "Asia/Taipei".to_owned(),
+        budget_overrides: setup.budget_overrides.clone(),
     }
 }
 

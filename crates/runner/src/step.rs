@@ -1,7 +1,7 @@
 use anybot_context::{Compiled, NewEvent};
 use anybot_domain::{ContextCollapseReason, ContextCollapsed, collapsed_kind, memory_dropped_kind};
 use anybot_models::{Audience, GatewayFail, ask_plan};
-use anybot_protocol::{KnownTaskEventKind, TurnEndReason};
+use anybot_protocol::{BudgetItem, KnownTaskEventKind, TurnEndReason};
 
 use crate::action::{ActionLoop, run_actions};
 use crate::answer;
@@ -24,6 +24,9 @@ pub(crate) async fn run_step(runner: &TurnRunner, ctx: &TurnCtx) -> Result<StepF
         Proceed::Halted(halt) => {
             let reason = finish_halt(runner, ctx, halt).await?;
             return Ok(StepFlow::Ended(reason));
+        }
+        Proceed::OverBudget { item, used, limit } => {
+            return end_over_budget(runner, ctx, item, used, limit).await;
         }
         Proceed::Go => {}
     }
@@ -194,19 +197,29 @@ async fn finish_answer(
     runner
         .append_turn_event(ctx, answer::usage_report_kind(&result.usage, manifest_id))
         .await?;
+    record_budget_usage(runner, ctx, &result.usage).await?;
     if requests.is_empty() {
         if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
             let reason = finish_halt(runner, ctx, halt).await?;
             return Ok(StepFlow::Ended(reason));
+        }
+        if let Some(over) = crate::budget_gate::current_over(runner, ctx).await? {
+            return end_over_budget(runner, ctx, over.item, over.used, over.limit).await;
         }
         runner
             .append_turn_end(ctx, TurnEndReason::Answered, true)
             .await?;
         return Ok(StepFlow::Ended(TurnEndReason::Answered));
     }
-    if let ActionLoop::Halted(halt) = run_actions(runner, ctx, &requests).await? {
-        let reason = finish_halt(runner, ctx, halt).await?;
-        return Ok(StepFlow::Ended(reason));
+    match run_actions(runner, ctx, &requests).await? {
+        ActionLoop::Halted(halt) => {
+            let reason = finish_halt(runner, ctx, halt).await?;
+            return Ok(StepFlow::Ended(reason));
+        }
+        ActionLoop::OverBudget(over) => {
+            return end_over_budget(runner, ctx, over.item, over.used, over.limit).await;
+        }
+        ActionLoop::Done => {}
     }
     if crate::approvals::has_parked(runner) {
         runner
@@ -215,6 +228,46 @@ async fn finish_answer(
         return Ok(StepFlow::Ended(TurnEndReason::PendingApproval));
     }
     Ok(StepFlow::Continue)
+}
+
+async fn record_budget_usage(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    usage: &anybot_models::UsageReport,
+) -> Result<(), TurnError> {
+    runner
+        .append_turn_event(
+            ctx,
+            KnownTaskEventKind::BudgetUsage {
+                item: BudgetItem::Steps,
+                delta: 1,
+            },
+        )
+        .await?;
+    if let Some(tokens) = crate::budget_gate::token_delta(usage) {
+        runner
+            .append_turn_event(
+                ctx,
+                KnownTaskEventKind::BudgetUsage {
+                    item: BudgetItem::Tokens,
+                    delta: tokens,
+                },
+            )
+            .await?;
+    }
+    Ok(())
+}
+
+async fn end_over_budget(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    item: BudgetItem,
+    used: u64,
+    limit: u64,
+) -> Result<StepFlow, TurnError> {
+    let reason = TurnEndReason::OverBudget { item, used, limit };
+    runner.append_turn_end(ctx, reason.clone(), false).await?;
+    Ok(StepFlow::Ended(reason))
 }
 
 async fn keep_attachment(

@@ -31,6 +31,7 @@ fn usage_of(step: &Step) -> serde_json::Value {
         Step::UsageReply {
             usage, omit_usage, ..
         } if !omit_usage => openai_usage(usage),
+        Step::ToolCallsWithUsage { usage, .. } => openai_usage(usage),
         Step::ReplyText { .. }
         | Step::ThinkThenReply { .. }
         | Step::CallTool { .. }
@@ -68,7 +69,9 @@ fn completion_message(step: &Step) -> (serde_json::Value, String) {
             tool_message(&ToolCallScript::named(name, &args.to_string())),
             "tool_calls".to_owned(),
         ),
-        Step::ThinkThenTool { calls, .. } => (tools_message(calls), "tool_calls".to_owned()),
+        Step::ThinkThenTool { calls, .. } | Step::ToolCallsWithUsage { calls, .. } => {
+            (tools_message(calls), "tool_calls".to_owned())
+        }
         Step::ToolCalls {
             calls,
             finish_reason,
@@ -108,7 +111,8 @@ fn stop_of(step: &Step) -> String {
         | Step::UsageReply { .. }
         | Step::ThinkingBlock { .. }
         | Step::ToolCalls { .. }
-        | Step::ThinkThenTool { .. } => "stop".to_owned(),
+        | Step::ThinkThenTool { .. }
+        | Step::ToolCallsWithUsage { .. } => "stop".to_owned(),
     }
 }
 

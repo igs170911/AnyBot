@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anybot_domain::task_view::BudgetOver;
 use anybot_protocol::{NotRunReason, ToolRequest};
 use anybot_trust::{GateStep, OutcomeText};
 
@@ -12,6 +13,7 @@ use crate::view::ActionView;
 pub(crate) enum ActionLoop {
     Done,
     Halted(Halt),
+    OverBudget(BudgetOver),
 }
 
 enum OneAction {
@@ -20,40 +22,66 @@ enum OneAction {
     Halted(Halt),
 }
 
+struct LoopState {
+    refused: bool,
+    halted: Option<Halt>,
+    over_budget: Option<BudgetOver>,
+}
+
 pub(crate) async fn run_actions(
     runner: &TurnRunner,
     ctx: &TurnCtx,
     requests: &[ToolRequest],
 ) -> Result<ActionLoop, TurnError> {
-    let mut refused = false;
-    let mut halted: Option<Halt> = None;
+    let mut state = LoopState {
+        refused: false,
+        halted: None,
+        over_budget: None,
+    };
     for request in requests {
-        if halted.is_some() {
-            record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
-            continue;
-        }
-        if refused {
-            record_not_run(runner, ctx, request, NotRunReason::PreviousRefused).await?;
-            continue;
-        }
-        if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
-            halted = Some(halt);
-            record_not_run(runner, ctx, request, NotRunReason::Stopped).await?;
-            continue;
-        }
-        match run_one(runner, ctx, request).await? {
-            OneAction::Done => {}
-            OneAction::Refused => refused = true,
-            OneAction::Halted(halt) => halted = Some(halt),
-        }
+        step_request(runner, ctx, request, &mut state).await?;
     }
-    if halted.is_none() {
-        halted = crate::halt::check_halt(runner, ctx).await?;
+    if state.halted.is_none() && state.over_budget.is_none() {
+        state.halted = crate::halt::check_halt(runner, ctx).await?;
     }
-    Ok(match halted {
-        Some(halt) => ActionLoop::Halted(halt),
-        None => ActionLoop::Done,
-    })
+    if let Some(halt) = state.halted {
+        return Ok(ActionLoop::Halted(halt));
+    }
+    if let Some(over) = state.over_budget {
+        return Ok(ActionLoop::OverBudget(over));
+    }
+    Ok(ActionLoop::Done)
+}
+
+async fn step_request(
+    runner: &TurnRunner,
+    ctx: &TurnCtx,
+    request: &ToolRequest,
+    state: &mut LoopState,
+) -> Result<(), TurnError> {
+    if state.halted.is_some() {
+        return record_not_run(runner, ctx, request, NotRunReason::Stopped).await;
+    }
+    if state.over_budget.is_some() {
+        return record_not_run(runner, ctx, request, NotRunReason::OverBudget).await;
+    }
+    if state.refused {
+        return record_not_run(runner, ctx, request, NotRunReason::PreviousRefused).await;
+    }
+    if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
+        state.halted = Some(halt);
+        return record_not_run(runner, ctx, request, NotRunReason::Stopped).await;
+    }
+    if let Some(over) = crate::budget_gate::check_action_budget(runner, ctx).await? {
+        state.over_budget = Some(over);
+        return record_not_run(runner, ctx, request, NotRunReason::OverBudget).await;
+    }
+    match run_one(runner, ctx, request).await? {
+        OneAction::Done => {}
+        OneAction::Refused => state.refused = true,
+        OneAction::Halted(halt) => state.halted = Some(halt),
+    }
+    Ok(())
 }
 
 async fn run_one(

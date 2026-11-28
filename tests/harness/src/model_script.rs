@@ -130,6 +130,11 @@ pub enum Step {
         calls: Vec<ToolCallScript>,
         stream: bool,
     },
+    ToolCallsWithUsage {
+        calls: Vec<ToolCallScript>,
+        usage: UsageScript,
+        stream: bool,
+    },
 }
 
 #[derive(Default)]
@@ -177,5 +182,6 @@ pub use model_steps::{
     model_omit_usage, model_redacted_thinking, model_redirect, model_replies_text,
     model_reply_status, model_reply_status_retry, model_stall, model_stop_reason,
     model_stream_error, model_think_then_reply, model_think_then_tool, model_thinking_block,
-    model_tool_calls, model_tool_calls_cut, model_tool_calls_length, model_usage, random_reply,
+    model_tool_calls, model_tool_calls_cut, model_tool_calls_length, model_tool_calls_with_usage,
+    model_usage, random_reply,
 };

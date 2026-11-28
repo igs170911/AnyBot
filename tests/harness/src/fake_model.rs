@@ -257,7 +257,8 @@ fn peel_delay(step: Step) -> (Step, Option<u64>) {
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }
         | Step::ToolCalls { .. }
-        | Step::ThinkThenTool { .. }) => (other, None),
+        | Step::ThinkThenTool { .. }
+        | Step::ToolCallsWithUsage { .. }) => (other, None),
     }
 }
 

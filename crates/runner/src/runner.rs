@@ -5,7 +5,8 @@ use anybot_foundation::{BotId, Clock, DeviceId, EventId, RecordId, TaskId};
 use anybot_messages::Lang;
 use anybot_models::{Calibration, Capability, ModelRef, Session, ThinkingMode, ToolSpec};
 use anybot_protocol::{
-    ComputerRef, KnownTaskEventKind, TaskEventKind, TaskOpener, TurnEndReason, TurnInitiator,
+    BudgetItem, ComputerRef, KnownTaskEventKind, TaskEventKind, TaskOpener, TurnEndReason,
+    TurnInitiator,
 };
 
 use crate::error::TurnError;
@@ -13,11 +14,14 @@ use crate::record::{Appended, NewTaskEvent, RawStore, Record, RecordEntry, Store
 use crate::steer::{ActiveSteer, ClearOnDrop, Steer, SteerQueued};
 use crate::step::{StepFlow, run_step};
 
+pub type BudgetLimitValue = u64;
+
 pub struct BotProfile {
     pub id: BotId,
     pub name: String,
     pub instructions: String,
     pub timezone: String,
+    pub budget_overrides: Vec<(BudgetItem, BudgetLimitValue)>,
 }
 
 pub struct TurnModel {
@@ -133,6 +137,7 @@ impl TurnRunner {
             },
         )
         .await?;
+        self.append_budget_limits(&task).await?;
         let turn = self
             .count_task_kind(&task, KindCount::TurnStarted)
             .await?
@@ -168,6 +173,14 @@ impl TurnRunner {
                 StepFlow::Ended(reason) => return Ok(reason),
             }
         }
+    }
+
+    pub(crate) async fn append_budget_limits(&self, task: &TaskId) -> Result<(), TurnError> {
+        for &(item, limit) in &self.bot.budget_overrides {
+            self.append_task_event(task, KnownTaskEventKind::BudgetLimit { item, limit })
+                .await?;
+        }
+        Ok(())
     }
 
     pub async fn append_task_event(

@@ -67,6 +67,7 @@ async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
+            "budget_usage",
             "gate_result",
             "tool_intent",
             "tool_started",
@@ -83,6 +84,7 @@ async fn turn_tool_requests_get_wired_results() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
+            "budget_usage",
             "turn_ended",
             "delivery_report"
         ]

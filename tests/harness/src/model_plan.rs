@@ -78,7 +78,8 @@ fn stream_special(plan: &Plan) -> Option<String> {
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }
         | Step::ToolCalls { .. }
-        | Step::ThinkThenTool { .. } => None,
+        | Step::ThinkThenTool { .. }
+        | Step::ToolCallsWithUsage { .. } => None,
     }
 }
 
@@ -120,7 +121,8 @@ pub fn json_response(step: Step, format: ModelFormat, model: &str) -> Response {
         | Step::ThinkingBlock { .. }
         | Step::StopReason { .. }
         | Step::ToolCalls { .. }
-        | Step::ThinkThenTool { .. }) => {
+        | Step::ThinkThenTool { .. }
+        | Step::ToolCallsWithUsage { .. }) => {
             let body = match format {
                 ModelFormat::OpenAi => model_openai::json_body(&other, model),
                 ModelFormat::Vllm => model_vllm::json_body(&other, model),

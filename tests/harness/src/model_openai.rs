@@ -69,6 +69,11 @@ async fn dispatch(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bool {
             stream::tool_parts(tx, model, &calls, "tool_calls", false, false).await;
             true
         }
+        Step::ToolCallsWithUsage { calls, usage, .. } => {
+            let ok = tool_calls(tx, model, &calls, "tool_calls", false, false).await;
+            stream::send(tx, stream::usage_chunk(model, &usage)).await;
+            ok
+        }
         Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody

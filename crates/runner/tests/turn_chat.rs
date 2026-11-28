@@ -38,12 +38,13 @@ async fn t_turn_loop_11() -> Result<(), String> {
             "model_asked",
             "model_answer",
             "model_usage",
+            "budget_usage",
             "turn_ended"
         ]
     );
     assert_eq!(chat_requests(&world.model).len(), 1);
     let seqs: Vec<u64> = world.task_events(task).iter().map(|e| e.seq).collect();
-    assert_eq!(seqs, (1u64..=7).collect::<Vec<u64>>());
+    assert_eq!(seqs, (1u64..=8).collect::<Vec<u64>>());
     check_answer_and_end(&world, &task)?;
     Ok(())
 }
@@ -73,7 +74,7 @@ fn check_answer_and_end(world: &TurnWorld, task: &anybot_foundation::TaskId) -> 
     let Some(anybot_protocol::KnownTaskEventKind::TurnEnded {
         reason,
         reply_delivered,
-    }) = kinds.get(6)
+    }) = kinds.get(7)
     else {
         return Err("no turn_ended".to_owned());
     };

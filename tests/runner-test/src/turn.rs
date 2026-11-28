@@ -4,8 +4,8 @@ use anybot_foundation::{BotId, DeviceId, TaskId};
 use anybot_messages::Lang;
 use anybot_models::ToolSpec;
 use anybot_protocol::{
-    ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent, TaskEventKind, TaskStatus,
-    TurnInitiator,
+    BudgetItem, ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent, TaskEventKind,
+    TaskStatus, TurnInitiator,
 };
 use anybot_runner::{
     ContinueTurn, RunnerParts, Steer, SteerQueued, TurnError, TurnOutcome, TurnRunner, UserMessage,
@@ -32,6 +32,7 @@ pub struct WorldSetup {
     pub files: Vec<(String, String)>,
     pub scripts: Vec<(String, crate::fake_scripts::CommandScript)>,
     pub gate: anybot_trust::GateConfig,
+    pub budget_overrides: Vec<(BudgetItem, u64)>,
 }
 
 impl Default for WorldSetup {
@@ -50,6 +51,7 @@ impl Default for WorldSetup {
             files: Vec::new(),
             scripts: Vec::new(),
             gate: anybot_trust::GateConfig::plain(),
+            budget_overrides: Vec::new(),
         }
     }
 }

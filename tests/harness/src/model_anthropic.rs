@@ -65,6 +65,7 @@ async fn dispatch(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bool {
         }
         other @ (Step::ToolCalls { .. }
         | Step::ThinkThenTool { .. }
+        | Step::ToolCallsWithUsage { .. }
         | Step::ReplyStatus { .. }
         | Step::StreamError { .. }
         | Step::EmptyBody
@@ -102,6 +103,11 @@ async fn dispatch_rest(tx: &mpsc::Sender<String>, step: Step, model: &str) -> bo
         } => {
             stream::think_then_tools(tx, model, &thinking, &signature, &calls).await;
             true
+        }
+        Step::ToolCallsWithUsage { calls, usage, .. } => {
+            let ok = anthropic_tools(tx, model, &calls, "tool_use", false, false).await;
+            send(tx, stream::message_delta_usage("tool_use", &usage)).await;
+            ok
         }
         Step::ReplyText { .. }
         | Step::ThinkThenReply { .. }
