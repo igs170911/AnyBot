@@ -204,3 +204,5 @@ mailbox-reassign-offline = "{ $computer }" is offline now: this runs on the Bot'
 mailbox-reassign-delegate-off = "{ $computer }" does not accept work from other devices in the account: this runs on the Bot's computer instead.
 card-not-waiting = That card is no longer waiting for an answer.
 account-action-unreachable = Cannot reach the server: this action needs a connection (messages can still be sent and go out once connected).
+
+login-submit = Log in

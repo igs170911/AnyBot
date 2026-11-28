@@ -209,6 +209,7 @@ pub enum MessageCode {
     MailboxReassignDelegateOff,
     CardNotWaiting,
     AccountActionUnreachable,
+    LoginSubmit,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -629,6 +630,7 @@ const TABLE: &[(MessageCode, &str)] = &[
         MessageCode::AccountActionUnreachable,
         "account-action-unreachable",
     ),
+    (MessageCode::LoginSubmit, "login-submit"),
 ];
 
 impl MessageCode {
