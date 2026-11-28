@@ -9,23 +9,26 @@ use anybot_trust as _;
 use proptest as _;
 use serde_json as _;
 use sha2 as _;
-use test_harness as _;
 use thiserror as _;
 use tokio as _;
 
 use anybot_messages::{Lang, Params};
+use std::sync::Arc;
+use std::time::Duration;
+
 use anybot_protocol::{
     CapState, CardAnswer, ComputerCaps, ComputerOwner, ComputerPlatform, EvidencePayload,
-    KnownTaskEventKind, TurnEndReason,
+    KnownTaskEventKind,
 };
 use runner_test::fake_scripts::CommandScript;
 use runner_test::turn::{Device, TurnWorld, WorldSetup};
 use runner_test::turn_helpers::{
-    answer_card, fmt_text, messages_of, request_body, shown_card, task_kinds, task_of,
+    fmt_text, messages_of, request_body, task_kinds, task_of, wait_for_shown_card,
 };
 use runner_test::turn_tool_helpers::{
     call, exit_evidence, intent_call_ids, one_tool_step, tool_message_content,
 };
+use test_harness::timeout_real;
 
 fn linux_caps() -> ComputerCaps {
     ComputerCaps {
@@ -61,23 +64,36 @@ fn last_tool_result(
     found.ok_or_else(|| "no tool result recorded".to_owned())
 }
 
+async fn send_allowing_card(world: &Arc<TurnWorld>) -> Result<anybot_runner::TurnOutcome, String> {
+    let shared = runner_test::turn::share(world);
+    let mut bg = tokio::spawn(async move { shared.send(Device::Phone, "run").await });
+    tokio::select! {
+        joined = &mut bg => {
+            return joined
+                .map_err(|e| format!("join failed: {e}"))?
+                .map_err(|e| format!("{e:?}"));
+        }
+        shown = wait_for_shown_card(world, 1) => {
+            let (task, _cards) = shown?;
+            world.answer_shown_card(task, CardAnswer::AllowOnce).await?;
+        }
+    }
+    timeout_real(bg, Duration::from_secs(5))
+        .await
+        .map_err(|e| format!("turn timed out: {e}"))?
+        .map_err(|e| format!("join failed: {e}"))?
+        .map_err(|e| format!("{e:?}"))
+}
+
 async fn run_command_and_allow(
     setup: &WorldSetup,
     cmd: &str,
-) -> Result<(TurnWorld, anybot_foundation::TaskId, String, String), String> {
-    let world = TurnWorld::start(setup).await?;
+) -> Result<(Arc<TurnWorld>, anybot_foundation::TaskId, String, String), String> {
+    let world = runner_test::turn::arc_world(TurnWorld::start(setup).await?);
     let args = serde_json::json!({ "command": cmd }).to_string();
     world.script(one_tool_step(vec![call("shell", &args, "c1")]));
-    let outcome = world
-        .send(Device::Phone, "run")
-        .await
-        .map_err(|e| format!("{e:?}"))?;
+    let outcome = send_allowing_card(&world).await?;
     let task = task_of(&outcome);
-    if outcome.reason == TurnEndReason::PendingApproval {
-        let kinds = task_kinds(&world, &task);
-        let digest = shown_card(&outcome, &kinds).ok_or("no shown card")?;
-        answer_card(&world, &outcome, &digest, CardAnswer::AllowOnce).await?;
-    }
     let ids = intent_call_ids(&world, &task);
     let call_id = ids.first().ok_or("no call id")?.clone();
     let result = last_tool_result(&world, &task, &call_id)?;
