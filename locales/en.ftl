@@ -206,3 +206,16 @@ card-not-waiting = That card is no longer waiting for an answer.
 account-action-unreachable = Cannot reach the server: this action needs a connection (messages can still be sent and go out once connected).
 
 login-submit = Log in
+
+login-url-label = Server address
+login-account-label = Account
+login-password-label = Password
+login-create-account = Create a new account
+login-invite-label = Invite code
+login-privacy-note = The server admin ({ $admin }) can see your conversations.
+login-privacy-ack = I understand
+login-ack-required = Tick "I understand" before creating an account
+login-not-anybot = This address is not an AnyBot server
+login-unreachable = Cannot reach { $url } (no response in 15 seconds)
+login-other-origin = Open this address in your browser to log in to that server
+login-two-step-later = Two-step verification is on for this account; entering the code is not available in this version yet

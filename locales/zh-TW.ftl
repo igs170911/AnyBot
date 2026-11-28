@@ -209,3 +209,16 @@ card-not-waiting = 那張卡已經不在等了。
 account-action-unreachable = 連不到伺服器：這個動作要連上才能做（訊息可以照樣傳，連上後送出）。
 
 login-submit = 登入
+
+login-url-label = 伺服器網址
+login-account-label = 帳號
+login-password-label = 密碼
+login-create-account = 建立新帳號
+login-invite-label = 邀請碼
+login-privacy-note = 這台伺服器的管理者（{ $admin }）看得到你的對話。
+login-privacy-ack = 我知道了
+login-ack-required = 要勾「我知道了」才能註冊
+login-not-anybot = 這個網址不是 AnyBot 伺服器
+login-unreachable = 連不到{ $url }（15 秒沒有回應）
+login-other-origin = 請在那台伺服器的網址打開
+login-two-step-later = 這個帳號開了兩步驟驗證；這個版本還不能輸入驗證碼

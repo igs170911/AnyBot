@@ -210,6 +210,18 @@ pub enum MessageCode {
     CardNotWaiting,
     AccountActionUnreachable,
     LoginSubmit,
+    LoginUrlLabel,
+    LoginAccountLabel,
+    LoginPasswordLabel,
+    LoginCreateAccount,
+    LoginInviteLabel,
+    LoginPrivacyNote,
+    LoginPrivacyAck,
+    LoginAckRequired,
+    LoginNotAnybot,
+    LoginUnreachable,
+    LoginOtherOrigin,
+    LoginTwoStepLater,
 }
 
 impl std::str::FromStr for MessageCode {
@@ -631,6 +643,18 @@ const TABLE: &[(MessageCode, &str)] = &[
         "account-action-unreachable",
     ),
     (MessageCode::LoginSubmit, "login-submit"),
+    (MessageCode::LoginUrlLabel, "login-url-label"),
+    (MessageCode::LoginAccountLabel, "login-account-label"),
+    (MessageCode::LoginPasswordLabel, "login-password-label"),
+    (MessageCode::LoginCreateAccount, "login-create-account"),
+    (MessageCode::LoginInviteLabel, "login-invite-label"),
+    (MessageCode::LoginPrivacyNote, "login-privacy-note"),
+    (MessageCode::LoginPrivacyAck, "login-privacy-ack"),
+    (MessageCode::LoginAckRequired, "login-ack-required"),
+    (MessageCode::LoginNotAnybot, "login-not-anybot"),
+    (MessageCode::LoginUnreachable, "login-unreachable"),
+    (MessageCode::LoginOtherOrigin, "login-other-origin"),
+    (MessageCode::LoginTwoStepLater, "login-two-step-later"),
 ];
 
 impl MessageCode {

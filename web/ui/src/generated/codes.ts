@@ -206,7 +206,19 @@ export type MessageCode =
   "mailbox-reassign-delegate-off" |
   "card-not-waiting" |
   "account-action-unreachable" |
-  "login-submit";
+  "login-submit" |
+  "login-url-label" |
+  "login-account-label" |
+  "login-password-label" |
+  "login-create-account" |
+  "login-invite-label" |
+  "login-privacy-note" |
+  "login-privacy-ack" |
+  "login-ack-required" |
+  "login-not-anybot" |
+  "login-unreachable" |
+  "login-other-origin" |
+  "login-two-step-later";
 
 export const ALL_MESSAGE_CODES: MessageCode[] = [
   "server-startup-listening",
@@ -415,4 +427,16 @@ export const ALL_MESSAGE_CODES: MessageCode[] = [
   "card-not-waiting",
   "account-action-unreachable",
   "login-submit",
+  "login-url-label",
+  "login-account-label",
+  "login-password-label",
+  "login-create-account",
+  "login-invite-label",
+  "login-privacy-note",
+  "login-privacy-ack",
+  "login-ack-required",
+  "login-not-anybot",
+  "login-unreachable",
+  "login-other-origin",
+  "login-two-step-later",
 ];

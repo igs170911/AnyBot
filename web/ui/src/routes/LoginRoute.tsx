@@ -1,9 +1,5 @@
-import { formatMessage } from "../i18n.ts";
+import { LoginPage } from "../login/LoginPage.tsx";
 
 export function LoginRoute() {
-  return (
-    <main className="anybot-login" data-route="login">
-      <button type="submit">{formatMessage("login-submit")}</button>
-    </main>
-  );
+  return <LoginPage />;
 }
