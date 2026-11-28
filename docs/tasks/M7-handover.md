@@ -37,6 +37,8 @@
 | 大腦與上下文 | `ws/m7-brain` | B1、B2、B3、B13、B4、B10（只有 o200k）、B14、B15 | `18ea9248-c1fe-4845-b047-09db97863018` |
 | 手機畫面 | `ws/m7-phone` | U1、U3、U4 | `ae1b6e74-91b1-4499-a3d9-4a8053a50c43` |
 
+M7j 伺服器整合規劃：`ws/m7-j-plan`（`AnyBotNext-wt/m7-j-plan`），agent `fbd0ba74-791c-4b2b-8019-7d6ddcf01b78`，產出 `docs/tasks/M7-plan-server-integration.md`（寫好後要 commit、合進 `dev`，再把問題合併給使用者選）。
+
 整合分支：`integ/m7-w1`（`AnyBotNext-wt/integ-m7`），目前只合了 `ws/m7-turn`（`fb4ecf0`）。
 
 ## 四、下一步（照這個順序）
