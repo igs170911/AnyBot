@@ -27,6 +27,7 @@ pub(crate) async fn run_step(runner: &TurnRunner, ctx: &TurnCtx) -> Result<StepF
         }
         Proceed::Go => {}
     }
+    crate::steer::consume_for_step(runner, ctx).await?;
     let input = build_input(runner, ctx).await?;
     let compiled = anybot_context::compile(&input).map_err(TurnError::Compile)?;
     match compiled {
@@ -194,6 +195,10 @@ async fn finish_answer(
         .append_turn_event(ctx, answer::usage_report_kind(&result.usage, manifest_id))
         .await?;
     if requests.is_empty() {
+        if let Some(halt) = crate::halt::check_halt(runner, ctx).await? {
+            let reason = finish_halt(runner, ctx, halt).await?;
+            return Ok(StepFlow::Ended(reason));
+        }
         runner
             .append_turn_end(ctx, TurnEndReason::Answered, true)
             .await?;

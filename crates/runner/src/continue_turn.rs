@@ -3,6 +3,7 @@ use anybot_protocol::{KnownTaskEventKind, TaskEvent, TaskEventKind, TaskStatus, 
 
 use crate::error::TurnError;
 use crate::runner::{TurnCtx, TurnOutcome, TurnRunner, UserMessage};
+use crate::steer::ClearOnDrop;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContinueTurn {
@@ -14,6 +15,7 @@ pub struct ContinueTurn {
 impl TurnRunner {
     pub async fn continue_task(&self, start: ContinueTurn) -> Result<TurnOutcome, TurnError> {
         let guard = self.lock_active()?;
+        let _clear = ClearOnDrop(self);
         let outcome = self.run_continued(start).await;
         drop(guard);
         outcome
@@ -36,26 +38,44 @@ impl TurnRunner {
             self.append_user_said(&start.task, &UserMessage { device, text })
                 .await?;
         }
-        let turn = next_turn_number(&existing);
-        let evidence_start = next_evidence_number(&existing);
-        let started = self
-            .append_task_event_in_turn(
-                &start.task,
-                Some(turn),
-                self.turn_started_kind(turn, start.initiator),
-            )
-            .await?;
-        let ctx = TurnCtx {
-            task: start.task,
-            turn,
-            turn_id: TurnId::generate(&*self.clock),
-            turn_started: started.stream_seq,
-            evidence: tokio::sync::Mutex::new(evidence_start),
-        };
-        let outcome = self.run_steps(&ctx, start.task).await?;
-        self.save_last_ctx(&ctx);
-        Ok(outcome)
+        let ctx = open_continued_ctx_from(self, start.task, start.initiator, &existing).await?;
+        let reason = self.run_turn_loop(&ctx).await?;
+        crate::steer::finish_or_continue(self, ctx, reason).await
     }
+}
+
+pub(crate) async fn open_continued_ctx(
+    runner: &TurnRunner,
+    task: TaskId,
+    initiator: TurnInitiator,
+) -> Result<TurnCtx, TurnError> {
+    let existing = runner
+        .record
+        .task_events(task)
+        .await
+        .map_err(TurnError::Record)?;
+    open_continued_ctx_from(runner, task, initiator, &existing).await
+}
+
+async fn open_continued_ctx_from(
+    runner: &TurnRunner,
+    task: TaskId,
+    initiator: TurnInitiator,
+    existing: &[TaskEvent],
+) -> Result<TurnCtx, TurnError> {
+    let turn = next_turn_number(existing);
+    let evidence_start = next_evidence_number(existing);
+    let started = runner
+        .append_task_event_in_turn(&task, Some(turn), runner.turn_started_kind(turn, initiator))
+        .await?;
+    crate::steer::begin_turn(runner, task, turn, !initiator.is_unattended());
+    Ok(TurnCtx {
+        task,
+        turn,
+        turn_id: TurnId::generate(&*runner.clock),
+        turn_started: started.stream_seq,
+        evidence: tokio::sync::Mutex::new(evidence_start),
+    })
 }
 
 fn has_task_created(rows: &[TaskEvent]) -> bool {

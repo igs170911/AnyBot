@@ -18,6 +18,7 @@ pub mod halt;
 pub mod record;
 pub mod report_out;
 pub mod runner;
+pub mod steer;
 pub mod step;
 pub mod view;
 
@@ -32,6 +33,7 @@ pub use record::{
 pub use runner::{
     BotProfile, KindCount, RunnerParts, TurnModel, TurnOutcome, TurnRunner, UserMessage,
 };
+pub use steer::{Steer, SteerQueued};
 
 #[cfg(test)]
 use proptest as _;

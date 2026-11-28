@@ -35,4 +35,6 @@ pub enum TurnError {
     ApprovalNotFound { digest: String },
     #[error("the runner is not serving the parked card of digest {digest}")]
     ApprovalForeign { digest: String },
+    #[error("no user-initiated turn is running")]
+    NoOwnTurn,
 }

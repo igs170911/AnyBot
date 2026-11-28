@@ -10,6 +10,7 @@ use anybot_protocol::{
 
 use crate::error::TurnError;
 use crate::record::{Appended, NewTaskEvent, RawStore, Record, RecordEntry, Stored, UserLine};
+use crate::steer::{ActiveSteer, ClearOnDrop, Steer, SteerQueued};
 use crate::step::{StepFlow, run_step};
 
 pub struct BotProfile {
@@ -58,6 +59,7 @@ pub struct TurnOutcome {
     pub turn: u32,
     pub reason: TurnEndReason,
     pub pending: Vec<crate::approvals::PendingCard>,
+    pub unread_steers: Vec<String>,
 }
 
 pub struct TurnRunner {
@@ -74,6 +76,7 @@ pub struct TurnRunner {
     active: Arc<tokio::sync::Mutex<()>>,
     pub(crate) parked: std::sync::Mutex<Vec<crate::approvals::PendingCard>>,
     pub(crate) last_ctx: std::sync::Mutex<Option<TurnCtx>>,
+    pub(crate) steer_slot: std::sync::Mutex<Option<ActiveSteer>>,
 }
 
 impl TurnRunner {
@@ -94,14 +97,20 @@ impl TurnRunner {
             active: Arc::new(tokio::sync::Mutex::new(())),
             parked: std::sync::Mutex::new(Vec::new()),
             last_ctx: std::sync::Mutex::new(None),
+            steer_slot: std::sync::Mutex::new(None),
         }
     }
 
     pub async fn on_user_message(&self, message: UserMessage) -> Result<TurnOutcome, TurnError> {
         let guard = self.lock_active()?;
+        let _clear = ClearOnDrop(self);
         let outcome = self.run_turn(message).await;
         drop(guard);
         outcome
+    }
+
+    pub fn steer(&self, steer: Steer) -> Result<SteerQueued, TurnError> {
+        crate::steer::enqueue(self, steer)
     }
 
     pub(crate) fn lock_active(&self) -> Result<tokio::sync::OwnedMutexGuard<()>, TurnError> {
@@ -141,9 +150,9 @@ impl TurnRunner {
             turn_started: started.stream_seq,
             evidence: tokio::sync::Mutex::new(1),
         };
-        let outcome = self.run_steps(&ctx, task).await?;
-        self.save_last_ctx(&ctx);
-        Ok(outcome)
+        crate::steer::begin_turn(self, task, turn, true);
+        let reason = self.run_turn_loop(&ctx).await?;
+        crate::steer::finish_or_continue(self, ctx, reason).await
     }
 
     pub(crate) fn save_last_ctx(&self, ctx: &TurnCtx) {
@@ -152,23 +161,11 @@ impl TurnRunner {
         }
     }
 
-    pub(crate) async fn run_steps(
-        &self,
-        ctx: &TurnCtx,
-        task: TaskId,
-    ) -> Result<TurnOutcome, TurnError> {
+    pub(crate) async fn run_turn_loop(&self, ctx: &TurnCtx) -> Result<TurnEndReason, TurnError> {
         loop {
             match run_step(self, ctx).await? {
                 StepFlow::Continue => {}
-                StepFlow::Ended(reason) => {
-                    crate::report_out::emit_report(self, ctx).await?;
-                    return Ok(TurnOutcome {
-                        task,
-                        turn: ctx.turn,
-                        reason,
-                        pending: crate::approvals::take_parked(self),
-                    });
-                }
+                StepFlow::Ended(reason) => return Ok(reason),
             }
         }
     }

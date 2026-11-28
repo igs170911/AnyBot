@@ -7,7 +7,9 @@ use anybot_protocol::{
     ComputerPlatform, KnownTaskEventKind, TaskDetail, TaskEvent, TaskEventKind, TaskStatus,
     TurnInitiator,
 };
-use anybot_runner::{ContinueTurn, RunnerParts, TurnError, TurnOutcome, TurnRunner, UserMessage};
+use anybot_runner::{
+    ContinueTurn, RunnerParts, Steer, SteerQueued, TurnError, TurnOutcome, TurnRunner, UserMessage,
+};
 use test_harness::{
     FakeClock, FakeModel, ModelFormat, RecordedRequest, Step, model_start_with_format,
 };
@@ -184,6 +186,13 @@ impl TurnWorld {
             opening,
         )
         .await
+    }
+
+    pub fn steer(&self, from: Device, text: &str) -> Result<SteerQueued, TurnError> {
+        self.runner.steer(Steer {
+            device: self.device(from),
+            text: text.to_owned(),
+        })
     }
 
     #[must_use]
