@@ -87,6 +87,7 @@ fn action_core(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
@@ -103,14 +104,17 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
     match event {
         KnownTaskEventKind::CriterionPassed { index, .. } => {
             apply_criterion_result(view, *index, Some(true));
+            finish_if_verifying_done(view);
             true
         }
         KnownTaskEventKind::CriterionFailed { index, .. } => {
             apply_criterion_result(view, *index, Some(false));
+            finish_if_verifying_done(view);
             true
         }
         KnownTaskEventKind::AcceptanceUnavailable => {
             view.gate.acceptance_unavailable = true;
+            finish_if_verifying_done(view);
             true
         }
         KnownTaskEventKind::ClaimChecked {
@@ -130,6 +134,7 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
         | KnownTaskEventKind::ComputerOffline
         | KnownTaskEventKind::ModelUnreachable
         | KnownTaskEventKind::Stalled { .. }
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::TurnStarted { .. }
         | KnownTaskEventKind::TurnEnded { .. }
         | KnownTaskEventKind::ContextBuilt { .. }
@@ -159,7 +164,7 @@ pub(crate) fn advance_criteria(view: &mut TaskView, event: &KnownTaskEventKind) 
 }
 
 pub(crate) fn started(view: &mut TaskView, call_id: &anybot_foundation::CallId) {
-    crate::task_engine_lifecycle::wake(view);
+    crate::task_lifecycle_ops::wake(view);
     crate::task_budget::note_action_attempt(view);
     if view.budget.over.is_none() {
         view.budget.add_usage(BudgetItem::ToolCalls, 1);
@@ -195,5 +200,16 @@ pub(crate) fn step_failed(view: &mut TaskView, name: &str, args_summary: &str) {
 pub(crate) fn apply_criterion_result(view: &mut TaskView, index: usize, passed: Option<bool>) {
     if let Some(item) = view.criteria.get_mut(index) {
         item.passed = passed;
+    }
+}
+
+fn finish_if_verifying_done(view: &mut TaskView) {
+    if !matches!(view.detail, Some(anybot_protocol::TaskDetail::Verifying)) {
+        return;
+    }
+    if view.gate.acceptance_unavailable
+        || (!view.criteria.is_empty() && view.criteria.iter().all(|item| item.passed.is_some()))
+    {
+        crate::task_gate::finish_turn(view);
     }
 }

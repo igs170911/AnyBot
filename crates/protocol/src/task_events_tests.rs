@@ -70,3 +70,106 @@ fn test_task_events_done_when_change_round_trips() {
     let back: TaskEvent = serde_json::from_str(&text).unwrap();
     assert_eq!(back, e);
 }
+
+fn round_trip<T>(value: &T) -> T
+where
+    T: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + PartialEq,
+{
+    let text = serde_json::to_string(value).unwrap();
+    let back: T = serde_json::from_str(&text).unwrap();
+    assert_eq!(&back, value);
+    back
+}
+
+fn check_resume_and_referee_round_trip() {
+    let resume_card = KnownTaskEventKind::CardShown {
+        action: "resume".to_owned(),
+        card: "c-resume".to_owned(),
+        kind: crate::CardKind::Resume,
+        resume: Some(crate::ResumeCard {
+            maybe_done: vec![crate::ResumeCardStep {
+                call_id: CallId::generate(&SystemClock),
+                tool: "shell".to_owned(),
+                args_summary: "make".to_owned(),
+            }],
+            queued_messages: vec!["later".to_owned()],
+        }),
+    };
+    round_trip(&event(12, resume_card));
+    let legacy_card = serde_json::json!({
+        "kind": "card_shown",
+        "data": { "action": "edit_file", "card": "c-old" }
+    });
+    let decoded: KnownTaskEventKind = serde_json::from_value(legacy_card).unwrap();
+    assert_eq!(
+        decoded,
+        KnownTaskEventKind::CardShown {
+            action: "edit_file".to_owned(),
+            card: "c-old".to_owned(),
+            kind: crate::CardKind::Action,
+            resume: None,
+        }
+    );
+    let req = crate::RefereeRequest {
+        stream: crate::StreamSelector::Bot {
+            id: anybot_foundation::BotId::generate(&SystemClock).as_str(),
+        },
+        task_id: "t1".to_owned(),
+        action: crate::RefereeAction::Wake,
+        card_id: None,
+        answer: None,
+        criteria: None,
+        reason: Some(crate::WakeReason::Resume),
+    };
+    round_trip(&req);
+    assert_eq!(crate::WakeReason::Resume.as_str(), "resume");
+    assert_eq!(crate::WakeReason::Verification.as_str(), "verification");
+}
+
+#[test]
+fn new_kinds_round_trip() {
+    let device = anybot_foundation::DeviceId::generate(&SystemClock);
+    assert!(!crate::TurnInitiator::You { device }.is_unattended());
+    assert!(crate::TurnInitiator::Verification.is_unattended());
+    round_trip(&crate::TurnInitiator::Verification);
+
+    for reason in [
+        crate::TurnEndReason::Stopped,
+        crate::TurnEndReason::Cancelled,
+        crate::TurnEndReason::OverBudget {
+            item: BudgetItem::ToolCalls,
+            used: 2,
+            limit: 2,
+        },
+        crate::TurnEndReason::OverBudget {
+            item: BudgetItem::Steps,
+            used: 50_000,
+            limit: 50_000,
+        },
+        crate::TurnEndReason::CardTimedOut,
+        crate::TurnEndReason::ModelUnreachable,
+        crate::TurnEndReason::Interrupted,
+    ] {
+        round_trip(&event(
+            10,
+            KnownTaskEventKind::TurnEnded {
+                reason,
+                reply_delivered: false,
+            },
+        ));
+    }
+
+    let ver = event(11, KnownTaskEventKind::VerificationStarted);
+    assert_eq!(ver.kind.kind_name(), "verification_started");
+    round_trip(&ver);
+    round_trip(&crate::ModelChoice {
+        model: crate::ModelName {
+            provider: "OpenAi".to_owned(),
+            base_url: "http://127.0.0.1:9/v1".to_owned(),
+            model: "m2".to_owned(),
+        },
+        reason: "model-server".to_owned(),
+        fail_code: "model-server".to_owned(),
+    });
+    check_resume_and_referee_round_trip();
+}

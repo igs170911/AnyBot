@@ -1,5 +1,5 @@
 use anybot_protocol::{
-    Criterion, DoneWhenChange, KnownTaskEventKind, Proposer, TaskDetail, TaskStatus,
+    CardKind, Criterion, DoneWhenChange, KnownTaskEventKind, Proposer, TaskDetail, TaskStatus,
 };
 
 use crate::task_view::{CriterionItem, PendingProposal, TaskView};
@@ -42,6 +42,7 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::CardShown { .. }
         | KnownTaskEventKind::CardAnswered { .. }
@@ -54,18 +55,24 @@ pub(crate) fn advance_budget(view: &mut TaskView, event: &KnownTaskEventKind) ->
 
 pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKind) -> bool {
     match event {
-        KnownTaskEventKind::CardShown { action, .. } => {
-            view.status = TaskStatus::AwaitingUser;
-            let action = action.clone();
-            view.detail = Some(TaskDetail::ApprovalPending { action });
+        KnownTaskEventKind::CardShown { action, kind, .. } => {
+            if !matches!(view.status, TaskStatus::Cancelled | TaskStatus::Stopped) {
+                view.status = TaskStatus::AwaitingUser;
+                view.detail = Some(match kind {
+                    CardKind::Action => TaskDetail::ApprovalPending {
+                        action: action.clone(),
+                    },
+                    CardKind::Resume => TaskDetail::ResumePending,
+                });
+            }
             true
         }
         KnownTaskEventKind::CardAnswered { answer } => {
-            crate::task_engine_lifecycle::answer_card(view, *answer);
+            crate::task_lifecycle_ops::answer_card(view, *answer);
             true
         }
         KnownTaskEventKind::DeviceReport { kind, .. } => {
-            crate::task_engine_lifecycle::report_device(view, *kind);
+            crate::task_lifecycle_ops::report_device(view, *kind);
             true
         }
         KnownTaskEventKind::TaskCreated { .. }
@@ -96,6 +103,7 @@ pub(crate) fn advance_user_signals(view: &mut TaskView, event: &KnownTaskEventKi
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }
@@ -147,6 +155,7 @@ pub(crate) fn advance_done_when(view: &mut TaskView, event: &KnownTaskEventKind)
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }

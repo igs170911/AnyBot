@@ -186,6 +186,7 @@ impl KnownTaskEventKind {
             KnownTaskEventKind::CriterionPassed { .. } => "criterion_passed",
             KnownTaskEventKind::CriterionFailed { .. } => "criterion_failed",
             KnownTaskEventKind::AcceptanceUnavailable => "acceptance_unavailable",
+            KnownTaskEventKind::VerificationStarted => "verification_started",
             KnownTaskEventKind::ClaimChecked { .. } => "claim_checked",
             KnownTaskEventKind::BudgetUsage { .. } => "budget_usage",
             KnownTaskEventKind::BudgetLimit { .. } => "budget_limit",

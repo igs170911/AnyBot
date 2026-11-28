@@ -154,6 +154,7 @@ fn note_step(kind: &KnownTaskEventKind, steps: &mut BTreeMap<String, PendingStep
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }

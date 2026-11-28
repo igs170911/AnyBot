@@ -52,6 +52,7 @@ fn result_call_id(kind: &KnownTaskEventKind) -> Option<String> {
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::BudgetUsage { .. }
         | KnownTaskEventKind::BudgetLimit { .. }

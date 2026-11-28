@@ -221,6 +221,8 @@ fn seed_plan_events(events: &mut Vec<anybot_protocol::TaskEvent>, open_ids: &mut
             anybot_protocol::KnownTaskEventKind::CardShown {
                 action: format!("question {q}"),
                 card: format!("card-{q}"),
+                kind: anybot_protocol::CardKind::Action,
+                resume: None,
             },
         ));
     }

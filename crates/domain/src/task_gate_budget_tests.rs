@@ -37,6 +37,15 @@ fn call() -> CallId {
     CallId::generate(&SystemClock)
 }
 
+fn shown_card(action: &str, card: &str) -> KnownTaskEventKind {
+    KnownTaskEventKind::CardShown {
+        action: action.to_owned(),
+        card: card.to_owned(),
+        kind: anybot_protocol::CardKind::Action,
+        resume: None,
+    }
+}
+
 #[test]
 fn t_task_state_9() {
     let c = call();
@@ -48,10 +57,7 @@ fn t_task_state_9() {
             parent: None,
         },
         turn_started_kind(),
-        KnownTaskEventKind::CardShown {
-            action: "a".to_owned(),
-            card: "card-a".to_owned(),
-        },
+        shown_card("a", "card-a"),
         KnownTaskEventKind::CardAnswered {
             answer: CardAnswer::Deny,
         },

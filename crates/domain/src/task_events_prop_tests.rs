@@ -76,6 +76,8 @@ fn card_goal_events() -> BoxedStrategy<KnownTaskEventKind> {
         "[a-z]{1,4}".prop_map(|a| KnownTaskEventKind::CardShown {
             action: a.clone(),
             card: a,
+            kind: anybot_protocol::CardKind::Action,
+            resume: None,
         }),
         Just(CardAnswer::AllowOnce).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),
         Just(CardAnswer::Deny).prop_map(|a| KnownTaskEventKind::CardAnswered { answer: a }),

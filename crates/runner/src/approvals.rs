@@ -37,6 +37,8 @@ pub(crate) async fn park_approval(
     let kind = KnownTaskEventKind::CardShown {
         action: first_action(&ticket),
         card: ticket.card_digest(),
+        kind: anybot_protocol::CardKind::Action,
+        resume: None,
     };
     runner.append_task_event(&ctx.task, kind).await?;
     let card = PendingCard {

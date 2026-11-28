@@ -27,6 +27,7 @@ pub(crate) fn apply_notes(b: &mut StateBuilder, seq: u64, known: &KnownTaskEvent
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped

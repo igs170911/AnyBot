@@ -32,6 +32,7 @@ pub mod task_engine_lifecycle;
 pub mod task_entry;
 pub mod task_gate;
 pub mod task_journal;
+mod task_lifecycle_ops;
 pub mod task_replay;
 pub mod task_stall;
 pub mod task_view;

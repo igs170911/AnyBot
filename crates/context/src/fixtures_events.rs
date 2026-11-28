@@ -73,6 +73,8 @@ pub(crate) fn known_event() -> BoxedStrategy<TaskEventKind> {
         2 => Just(ev(CardShown {
             action: "q?".to_owned(),
             card: "card-q".to_owned(),
+            kind: anybot_protocol::CardKind::Action,
+            resume: None,
         })),
         2 => Just(ev(OutcomeUnknown { call_id: CallId::generate(&SystemClock) })),
         1 => Just(ev(ActionVerified {

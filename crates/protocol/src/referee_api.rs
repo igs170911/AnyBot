@@ -14,6 +14,24 @@ pub enum RefereeAction {
     DoneCriteria,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum WakeReason {
+    Resume,
+    Verification,
+}
+
+impl WakeReason {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            WakeReason::Resume => "resume",
+            WakeReason::Verification => "verification",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema, utoipa::ToSchema))]
 pub struct RefereeRequest {
@@ -29,6 +47,8 @@ pub struct RefereeRequest {
     pub answer: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub criteria: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<WakeReason>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

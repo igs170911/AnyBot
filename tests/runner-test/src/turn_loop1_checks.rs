@@ -36,6 +36,7 @@ fn push_ids(kind: &KnownTaskEventKind, intents: &mut Vec<String>, results: &mut 
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
@@ -129,6 +130,7 @@ fn order_call_id(kind: &KnownTaskEventKind) -> Option<String> {
         | KnownTaskEventKind::CriterionPassed { .. }
         | KnownTaskEventKind::CriterionFailed { .. }
         | KnownTaskEventKind::AcceptanceUnavailable
+        | KnownTaskEventKind::VerificationStarted
         | KnownTaskEventKind::ClaimChecked { .. }
         | KnownTaskEventKind::TaskCancelled { .. }
         | KnownTaskEventKind::TaskStopped
