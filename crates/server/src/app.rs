@@ -119,6 +119,13 @@ impl AppState {
 }
 
 pub fn build_router(state: AppState) -> Router {
+    layered_routes(state.clone()).layer(axum::middleware::from_fn_with_state(
+        state,
+        crate::req_body_limit::body_limit_layer,
+    ))
+}
+
+fn layered_routes(state: AppState) -> Router {
     Router::new()
         .route("/v1/health", get(health))
         .route("/v1/server/status", get(status))

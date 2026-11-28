@@ -207,3 +207,4 @@ mailbox-reassign-offline = 「{ $computer }」現在不在線，改在「Bot 的
 mailbox-reassign-delegate-off = 「{ $computer }」沒有開放給帳號裡的其他裝置交辦工作，改在「Bot 的電腦」做。
 card-not-waiting = 那張卡已經不在等了。
 account-action-unreachable = 連不到伺服器：這個動作要連上才能做（訊息可以照樣傳，連上後送出）。
+server-request-too-large = 請求太大：最多 { $limit_kb } KB
